@@ -1,29 +1,37 @@
+using Services.UI;
+using UI.MainMenu;
 using UnityEngine;
 
 namespace Infrastructure.States
 {
     public class MainMenuState : IState
     {
-        private readonly IGameStateMachine _stateMachine;
+        private readonly UIService _uiService;
+        private readonly MainMenuCoordinator _coordinator;
 
-        public MainMenuState(IGameStateMachine stateMachine)
+        public MainMenuState(
+            UIService uiService, 
+            MainMenuCoordinator coordinator)
         {
-            _stateMachine = stateMachine;
+            _uiService = uiService;
+            _coordinator = coordinator;
         }
 
         public void Enter()
         {
             Debug.Log("[MainMenuState] Entered MainMenu");
+            var mainMenuPrefab = Resources.Load<GameObject>("MainMenu");
+            _uiService.RegisterWindowPrefab<MainMenuView>(mainMenuPrefab);
+            var view = _uiService.Open<MainMenuView, MainMenuViewModel>();
+            var viewModel = view.GetViewModel();
+            _coordinator.Initialize(viewModel);
         }
 
         public void Exit()
         {
             Debug.Log("[MainMenuState] Exiting MainMenu");
-        }
-
-        public void OnPlayButtonClicked()
-        {
-            _stateMachine.Enter<LoadGameplayState>();
+            _uiService.Close<MainMenuView>();
+            _coordinator?.Dispose();
         }
     }
 }
