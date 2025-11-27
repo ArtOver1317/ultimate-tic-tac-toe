@@ -6,25 +6,13 @@ namespace Infrastructure.States
     {
         private readonly IGameStateMachine _stateMachine;
 
-        public GameplayState(IGameStateMachine stateMachine)
-        {
-            _stateMachine = stateMachine;
-        }
+        public GameplayState(IGameStateMachine stateMachine) => _stateMachine = stateMachine;
 
-        public void Enter()
-        {
-            Debug.Log("[GameplayState] Game started");
-        }
+        public void Enter() => Debug.Log("[GameplayState] Game started");
 
-        public void Exit()
-        {
-            Debug.Log("[GameplayState] Game ended");
-        }
+        public void Exit() => Debug.Log("[GameplayState] Game ended");
 
-        public void ReturnToMainMenu()
-        {
-            _stateMachine.Enter<LoadMainMenuState>();
-        }
+        public void ReturnToMainMenu() => _stateMachine.Enter<LoadMainMenuState>();
     }
 }
 

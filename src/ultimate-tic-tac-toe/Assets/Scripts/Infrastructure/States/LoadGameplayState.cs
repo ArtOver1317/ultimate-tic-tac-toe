@@ -26,10 +26,7 @@ namespace Infrastructure.States
             _stateMachine.Enter<GameplayState>();
         }
 
-        public void Exit()
-        {
-            Debug.Log("[LoadGameplayState] Exiting...");
-        }
+        public void Exit() => Debug.Log("[LoadGameplayState] Exiting...");
     }
 }
 

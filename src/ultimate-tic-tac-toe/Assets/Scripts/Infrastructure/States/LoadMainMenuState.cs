@@ -26,10 +26,7 @@ namespace Infrastructure.States
             _stateMachine.Enter<MainMenuState>();
         }
 
-        public void Exit()
-        {
-            Debug.Log("[LoadMainMenuState] Exiting...");
-        }
+        public void Exit() => Debug.Log("[LoadMainMenuState] Exiting...");
     }
 }
 

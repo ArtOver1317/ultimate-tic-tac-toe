@@ -6,10 +6,7 @@ namespace Infrastructure.States
     {
         private readonly IGameStateMachine _stateMachine;
 
-        public BootstrapState(IGameStateMachine stateMachine)
-        {
-            _stateMachine = stateMachine;
-        }
+        public BootstrapState(IGameStateMachine stateMachine) => _stateMachine = stateMachine;
 
         public void Enter()
         {
@@ -17,10 +14,7 @@ namespace Infrastructure.States
             _stateMachine.Enter<LoadMainMenuState>();
         }
 
-        public void Exit()
-        {
-            Debug.Log("[BootstrapState] Exiting...");
-        }
+        public void Exit() => Debug.Log("[BootstrapState] Exiting...");
     }
 }
 

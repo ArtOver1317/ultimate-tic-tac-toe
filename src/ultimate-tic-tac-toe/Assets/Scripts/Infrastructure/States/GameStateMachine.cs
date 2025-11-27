@@ -9,10 +9,7 @@ namespace Infrastructure.States
         private readonly Dictionary<Type, IExitableState> _states = new();
         private IExitableState _currentState;
 
-        public GameStateMachine(IStateFactory stateFactory)
-        {
-            _stateFactory = stateFactory;
-        }
+        public GameStateMachine(IStateFactory stateFactory) => _stateFactory = stateFactory;
 
         public void Enter<TState>() where TState : class, IState
         {
@@ -38,11 +35,9 @@ namespace Infrastructure.States
         {
             var stateType = typeof(TState);
             
-            if (!_states.ContainsKey(stateType))
-            {
+            if (!_states.ContainsKey(stateType)) 
                 _states[stateType] = _stateFactory.CreateState<TState>();
-            }
-            
+
             return _states[stateType] as TState;
         }
     }

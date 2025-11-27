@@ -6,15 +6,9 @@ namespace Infrastructure.States
     {
         private readonly IObjectResolver _container;
 
-        public StateFactory(IObjectResolver container)
-        {
-            _container = container;
-        }
+        public StateFactory(IObjectResolver container) => _container = container;
 
-        public TState CreateState<TState>() where TState : IExitableState
-        {
-            return _container.Resolve<TState>();
-        }
+        public TState CreateState<TState>() where TState : IExitableState => _container.Resolve<TState>();
     }
 }
 

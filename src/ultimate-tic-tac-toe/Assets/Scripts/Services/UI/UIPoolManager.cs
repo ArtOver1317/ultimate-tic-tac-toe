@@ -9,13 +9,13 @@ namespace Services.UI
     public class UIPoolManager
     {
         private readonly IObjectResolver _container;
-        private readonly ObjectPool<IUIWindow> _windowPool = new();
+        private readonly ObjectPool<IUIView> _windowPool = new();
         private readonly ObjectPool<BaseViewModel> _viewModelPool = new();
 
         public UIPoolManager(IObjectResolver container) => _container = container;
 
         public TWindow GetOrInstantiateWindow<TWindow>(Type windowType, GameObject prefab) 
-            where TWindow : class, IUIWindow
+            where TWindow : class, IUIView
         {
             var pooledWindow = _windowPool.Get<TWindow>(windowType);
             
@@ -51,7 +51,7 @@ namespace Services.UI
             return viewModel;
         }
         
-        public bool ReturnWindowToPool(IUIWindow window)
+        public bool ReturnWindowToPool(IUIView window)
         {
             var windowType = window.GetType();
 

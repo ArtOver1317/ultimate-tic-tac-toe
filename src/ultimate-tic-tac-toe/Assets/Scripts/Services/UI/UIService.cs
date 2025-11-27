@@ -12,7 +12,7 @@ namespace Services.UI
     {
         private readonly ViewModelFactory _viewModelFactory;
         private readonly UIPoolManager _poolManager;
-        private readonly Dictionary<Type, IUIWindow> _activeWindows = new();
+        private readonly Dictionary<Type, IUIView> _activeWindows = new();
         private readonly Dictionary<Type, GameObject> _windowPrefabs = new();
         private readonly Dictionary<Type, IDisposable> _closeSubscriptions = new();
 
@@ -22,7 +22,7 @@ namespace Services.UI
             _poolManager = new UIPoolManager(container);
         }
 
-        public void RegisterWindowPrefab<TWindow>(GameObject prefab) where TWindow : class, IUIWindow
+        public void RegisterWindowPrefab<TWindow>(GameObject prefab) where TWindow : class, IUIView
         {
             var windowType = typeof(TWindow);
             _windowPrefabs[windowType] = prefab;
@@ -30,7 +30,7 @@ namespace Services.UI
         }
 
         public TWindow Open<TWindow, TViewModel>() 
-            where TWindow : class, IUIWindow<TViewModel> 
+            where TWindow : class, IUIView<TViewModel> 
             where TViewModel : BaseViewModel
         {
             var windowType = typeof(TWindow);
@@ -51,7 +51,7 @@ namespace Services.UI
         }
 
         public TWindow Open<TWindow, TViewModel>(Action<TViewModel> configureViewModel) 
-            where TWindow : class, IUIWindow<TViewModel> 
+            where TWindow : class, IUIView<TViewModel> 
             where TViewModel : BaseViewModel
         {
             var window = Open<TWindow, TViewModel>();
@@ -65,7 +65,7 @@ namespace Services.UI
             return window;
         }
 
-        public void Hide<TWindow>() where TWindow : IUIWindow
+        public void Hide<TWindow>() where TWindow : IUIView
         {
             var windowType = typeof(TWindow);
             
@@ -76,7 +76,7 @@ namespace Services.UI
             }
         }
 
-        public void Close<TWindow>() where TWindow : class, IUIWindow
+        public void Close<TWindow>() where TWindow : class, IUIView
         {
             var windowType = typeof(TWindow);
             
@@ -121,13 +121,13 @@ namespace Services.UI
             Debug.Log("[UIService] Closed all windows");
         }
 
-        public TWindow Get<TWindow>() where TWindow : IUIWindow
+        public TWindow Get<TWindow>() where TWindow : IUIView
         {
             var windowType = typeof(TWindow);
             return _activeWindows.TryGetValue(windowType, out var window) ? (TWindow)window : default;
         }
 
-        public bool IsOpen<TWindow>() where TWindow : IUIWindow
+        public bool IsOpen<TWindow>() where TWindow : IUIView
         {
             var windowType = typeof(TWindow);
             return _activeWindows.TryGetValue(windowType, out var window) && window.IsVisible;
@@ -142,7 +142,7 @@ namespace Services.UI
         }
 
         private TWindow CreateWindowFromPrefab<TWindow, TViewModel>(GameObject prefab)
-            where TWindow : class, IUIWindow<TViewModel>
+            where TWindow : class, IUIView<TViewModel>
             where TViewModel : BaseViewModel
         {
             var windowType = typeof(TWindow);
@@ -193,6 +193,6 @@ namespace Services.UI
             }
         }
 
-        private BaseViewModel GetViewModelFromWindow(IUIWindow window) => window.GetViewModel();
+        private BaseViewModel GetViewModelFromWindow(IUIView window) => window.GetViewModel();
     }
 }

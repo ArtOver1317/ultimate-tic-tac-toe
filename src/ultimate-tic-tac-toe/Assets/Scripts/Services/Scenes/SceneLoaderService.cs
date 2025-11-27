@@ -12,10 +12,7 @@ namespace Services.Scenes
             onLoaded?.Invoke();
         }
 
-        public void LoadSceneAsync(string sceneName, Action onLoaded = null)
-        {
-            LoadSceneAsyncInternal(sceneName, onLoaded).Forget();
-        }
+        public void LoadSceneAsync(string sceneName, Action onLoaded = null) => LoadSceneAsyncInternal(sceneName, onLoaded).Forget();
 
         private async UniTaskVoid LoadSceneAsyncInternal(string sceneName, Action onLoaded)
         {

@@ -8,10 +8,7 @@ namespace Infrastructure.EntryPoint
     {
         private readonly IGameStateMachine _stateMachine;
 
-        public GameEntryPoint(IGameStateMachine stateMachine)
-        {
-            _stateMachine = stateMachine;
-        }
+        public GameEntryPoint(IGameStateMachine stateMachine) => _stateMachine = stateMachine;
 
         public void Start()
         {
