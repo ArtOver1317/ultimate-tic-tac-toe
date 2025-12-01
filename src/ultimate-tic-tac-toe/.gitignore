@@ -12,6 +12,7 @@
 /[Uu]ser[Ss]ettings/
 /.idea/.idea.ultimate-tic-tac-toe/.idea/
 *.log
+/CodeCoverage/
 
 # By default unity supports Blender asset imports, *.blend1 blender files do not need to be commited to version control.
 *.blend1
