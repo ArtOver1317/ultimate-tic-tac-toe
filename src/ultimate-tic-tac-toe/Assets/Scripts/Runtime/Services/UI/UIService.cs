@@ -110,6 +110,8 @@ namespace Runtime.Services.UI
             return _activeWindows.TryGetValue(windowType, out var window) && window.IsVisible;
         }
 
+        public void ClearViewModelPools() => _poolManager.ClearViewModelPools();
+
         public void ClearPools() => _poolManager.ClearAllPools();
 
         public void Dispose()

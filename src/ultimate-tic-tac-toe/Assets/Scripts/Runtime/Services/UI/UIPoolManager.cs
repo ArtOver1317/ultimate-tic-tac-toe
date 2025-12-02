@@ -70,6 +70,12 @@ namespace Runtime.Services.UI
             return _viewModelPool.Return(viewModelType, viewModel, vm => vm.Reset());
         }
 
+        public void ClearViewModelPools()
+        {
+            _viewModelPool.ClearAll(vm => vm.Dispose());
+            Debug.Log("[UIPoolManager] ViewModel pools cleared");
+        }
+
         public void ClearAllPools()
         {
             _windowPool.ClearAll(w =>
