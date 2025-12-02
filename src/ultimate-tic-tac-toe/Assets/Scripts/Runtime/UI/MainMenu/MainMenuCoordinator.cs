@@ -8,14 +8,14 @@ namespace Runtime.UI.MainMenu
     {
         private MainMenuViewModel _viewModel;
         private readonly IGameStateMachine _stateMachine;
-        private readonly CompositeDisposable _disposables = new();
+        private CompositeDisposable _disposables = new();
 
         public MainMenuCoordinator(IGameStateMachine stateMachine) => 
             _stateMachine = stateMachine;
 
         public void Initialize(MainMenuViewModel viewModel)
         {
-            _disposables.Clear();
+            Cleanup();
             _viewModel = viewModel;
             
             _viewModel.OnStartGameClicked
@@ -25,6 +25,12 @@ namespace Runtime.UI.MainMenu
             _viewModel.OnExitClicked
                 .Subscribe(_ => OnExit())
                 .AddTo(_disposables);
+        }
+
+        private void Cleanup()
+        {
+            _disposables?.Dispose();
+            _disposables = new CompositeDisposable();
         }
 
         private void OnStartGame()
