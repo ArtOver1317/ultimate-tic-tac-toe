@@ -6,11 +6,6 @@ namespace Runtime.Services.Scenes
 {
     public class SceneLoaderService : ISceneLoaderService
     {
-        public void LoadScene(string sceneName, Action onLoaded = null)
-        {
-            SceneManager.LoadScene(sceneName);
-            onLoaded?.Invoke();
-        }
 
         public void LoadSceneAsync(string sceneName, Action onLoaded = null) => LoadSceneAsyncInternal(sceneName, onLoaded).Forget();
 

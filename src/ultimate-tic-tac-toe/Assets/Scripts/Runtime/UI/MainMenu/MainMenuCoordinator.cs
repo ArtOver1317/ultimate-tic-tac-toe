@@ -15,6 +15,7 @@ namespace Runtime.UI.MainMenu
 
         public void Initialize(MainMenuViewModel viewModel)
         {
+            _disposables.Clear();
             _viewModel = viewModel;
             
             _viewModel.OnStartGameClicked
@@ -47,4 +48,3 @@ namespace Runtime.UI.MainMenu
         public void Dispose() => _disposables.Dispose();
     }
 }
-

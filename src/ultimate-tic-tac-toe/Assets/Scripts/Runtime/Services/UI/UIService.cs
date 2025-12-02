@@ -80,43 +80,20 @@ namespace Runtime.Services.UI
         {
             var windowType = typeof(TWindow);
             
-            if (_activeWindows.Remove(windowType, out var window))
-            {
-                if (_closeSubscriptions.Remove(windowType, out var subscription)) 
-                    subscription?.Dispose();
-
-                var viewModel = GetViewModelFromWindow(window);
-                
-                if (viewModel != null)
-                    _poolManager.ReturnViewModelToPool(viewModel);
-
-                window.Close();
-                _poolManager.ReturnWindowToPool(window);
+            if (TryCloseWindow(windowType))
                 Debug.Log($"[UIService] Closed window: {windowType.Name}");
-            }
         }
 
         public void CloseAll()
         {
-            var windows = _activeWindows.Values.ToList();
+            var windowTypes = _activeWindows.Keys.ToList();
             
-            foreach (var window in windows)
-            {
-                var viewModel = GetViewModelFromWindow(window);
-                
-                if (viewModel != null)
-                    _poolManager.ReturnViewModelToPool(viewModel);
-
-                window.Close();
-                _poolManager.ReturnWindowToPool(window);
-            }
+            foreach (var windowType in windowTypes)
+                TryCloseWindow(windowType);
             
             foreach (var subscription in _closeSubscriptions.Values)
-            {
                 subscription?.Dispose();
-            }
             
-            _activeWindows.Clear();
             _closeSubscriptions.Clear();
             Debug.Log("[UIService] Closed all windows");
         }
@@ -177,20 +154,25 @@ namespace Runtime.Services.UI
 
         private void CloseWindowByType(Type windowType)
         {
-            if (_activeWindows.Remove(windowType, out var window))
-            {
-                if (_closeSubscriptions.Remove(windowType, out var subscription)) 
-                    subscription?.Dispose();
-                
-                var viewModel = GetViewModelFromWindow(window);
-                
-                if (viewModel != null)
-                    _poolManager.ReturnViewModelToPool(viewModel);
-
-                window.Close();
-                _poolManager.ReturnWindowToPool(window);
+            if (TryCloseWindow(windowType))
                 Debug.Log($"[UIService] Closed window: {windowType.Name}");
-            }
+        }
+
+        private bool TryCloseWindow(Type windowType)
+        {
+            if (!_activeWindows.Remove(windowType, out var window))
+                return false;
+            
+            if (_closeSubscriptions.Remove(windowType, out var subscription))
+                subscription?.Dispose();
+            
+            var viewModel = GetViewModelFromWindow(window);
+            
+            if (viewModel != null)
+                _poolManager.ReturnViewModelToPool(viewModel);
+            
+            _poolManager.ReturnWindowToPool(window);
+            return true;
         }
 
         private BaseViewModel GetViewModelFromWindow(IUIView window) => window.GetViewModel();

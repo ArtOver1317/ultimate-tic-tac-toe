@@ -17,7 +17,7 @@ namespace Runtime.Infrastructure.States
         public void Enter()
         {
             Debug.Log("[LoadGameplayState] Loading Gameplay scene...");
-            _sceneLoader.LoadScene(SceneNames.Gameplay, OnSceneLoaded);
+            _sceneLoader.LoadSceneAsync(SceneNames.Gameplay, OnSceneLoaded);
         }
 
         private void OnSceneLoaded()

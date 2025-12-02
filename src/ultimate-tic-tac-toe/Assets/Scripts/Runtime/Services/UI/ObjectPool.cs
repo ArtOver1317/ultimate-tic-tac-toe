@@ -8,27 +8,58 @@ namespace Runtime.Services.UI
     {
         private readonly Dictionary<Type, Stack<T>> _pools = new();
 
-        public TItem Get<TItem>(Type type) where TItem : class, T
+        private static Type GetItemType<TItem>() where TItem : class, T => typeof(TItem);
+
+        public TItem Get<TItem>() where TItem : class, T
         {
-            if (_pools.TryGetValue(type, out var pool) && pool.Count > 0)
+            var itemType = GetItemType<TItem>();
+            
+            if (_pools.TryGetValue(itemType, out var pool) && pool.Count > 0)
             {
                 var item = (TItem)pool.Pop();
-                Debug.Log($"[ObjectPool<{typeof(T).Name}>] Retrieved from pool: {type.Name} (remaining: {pool.Count})");
+                Debug.Log($"[ObjectPool<{typeof(T).Name}>] Retrieved from pool: {itemType.Name} (remaining: {pool.Count})");
                 return item;
             }
 
             return null;
         }
 
-        public bool Return(Type type, T item, Action<T> onReturn = null)
+        public TItem Get<TItem>(Type requestedType) where TItem : class, T
         {
-            if (!_pools.ContainsKey(type)) 
-                _pools[type] = new Stack<T>();
+            var itemType = GetItemType<TItem>();
+            
+            if (requestedType != null && requestedType != itemType)
+                Debug.LogWarning($"[ObjectPool<{typeof(T).Name}>] Requested {requestedType.Name}, but pool stores {itemType.Name}. Using {itemType.Name} stack.");
+            
+            return Get<TItem>();
+        }
 
-            var pool = _pools[type];
+        public bool Return<TItem>(TItem item, Action<T> onReturn = null) where TItem : class, T
+        {
+            var itemType = GetItemType<TItem>();
+            
+            if (!_pools.TryGetValue(itemType, out var pool))
+                pool = _pools[itemType] = new Stack<T>();
+            
             onReturn?.Invoke(item);
             pool.Push(item);
-            Debug.Log($"[ObjectPool<{typeof(T).Name}>] Returned to pool: {type.Name} (pool size: {pool.Count})");
+            Debug.Log($"[ObjectPool<{typeof(T).Name}>] Returned to pool: {itemType.Name} (pool size: {pool.Count})");
+            return true;
+        }
+
+        public bool Return(Type type, T item, Action<T> onReturn = null)
+        {
+            var resolvedType = type ?? item?.GetType();
+            
+            if (resolvedType == null)
+                throw new ArgumentNullException(nameof(type), "Cannot return object without a type.");
+            
+            if (!_pools.TryGetValue(resolvedType, out var pool))
+                pool = _pools[resolvedType] = new Stack<T>();
+            
+            onReturn?.Invoke(item);
+            pool.Push(item);
+            Debug.Log($"[ObjectPool<{typeof(T).Name}>] Returned to pool: {resolvedType.Name} (pool size: {pool.Count})");
             return true;
         }
 
@@ -62,7 +93,13 @@ namespace Runtime.Services.UI
             Debug.Log($"[ObjectPool<{typeof(T).Name}>] All pools cleared");
         }
 
-        public int GetSize(Type type) => _pools.TryGetValue(type, out var pool) ? pool.Count : 0;
+        public int GetSize(Type type)
+        {
+            if (type == null)
+                throw new ArgumentNullException(nameof(type));
+            
+            return _pools.TryGetValue(type, out var pool) ? pool.Count : 0;
+        }
 
         public Dictionary<Type, int> GetStats()
         {
@@ -77,4 +114,3 @@ namespace Runtime.Services.UI
         }
     }
 }
-

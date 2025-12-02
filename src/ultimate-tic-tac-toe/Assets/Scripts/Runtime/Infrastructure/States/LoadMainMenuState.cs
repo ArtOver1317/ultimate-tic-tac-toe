@@ -17,7 +17,7 @@ namespace Runtime.Infrastructure.States
         public void Enter()
         {
             Debug.Log("[LoadMainMenuState] Loading MainMenu scene...");
-            _sceneLoader.LoadScene(SceneNames.MainMenu, OnSceneLoaded);
+            _sceneLoader.LoadSceneAsync(SceneNames.MainMenu, OnSceneLoaded);
         }
 
         private void OnSceneLoaded()
