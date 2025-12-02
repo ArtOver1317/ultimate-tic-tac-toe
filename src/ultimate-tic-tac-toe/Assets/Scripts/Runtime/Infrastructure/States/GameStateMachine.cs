@@ -7,7 +7,8 @@ namespace Runtime.Infrastructure.States
     {
         private readonly IStateFactory _stateFactory;
         private readonly Dictionary<Type, IExitableState> _states = new();
-        private IExitableState _currentState;
+
+        public IExitableState CurrentState { get; private set; }
 
         public GameStateMachine(IStateFactory stateFactory) => _stateFactory = stateFactory;
 
@@ -25,9 +26,9 @@ namespace Runtime.Infrastructure.States
 
         private TState ChangeState<TState>() where TState : class, IExitableState
         {
-            _currentState?.Exit();
+            CurrentState?.Exit();
             var state = GetState<TState>();
-            _currentState = state;
+            CurrentState = state;
             return state;
         }
 
