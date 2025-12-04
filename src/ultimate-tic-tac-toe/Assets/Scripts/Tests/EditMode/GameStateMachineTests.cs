@@ -178,5 +178,32 @@ namespace Tests.EditMode
             payloadState.Received(1).Enter(testPayload);
             payloadState.Received(1).Enter(Arg.Is<string>(p => p == testPayload));
         }
+
+        [Test]
+        public void WhenEnterStateWithPayload_ThenCallsExitThenEnter()
+        {
+            // Arrange
+            var state1 = Substitute.For<IState>();
+            var payloadState = Substitute.For<IPayloadedState<int>>();
+            _stateFactory.CreateState<IState>().Returns(state1);
+            _stateFactory.CreateState<IPayloadedState<int>>().Returns(payloadState);
+            var stateMachine = new GameStateMachine(_stateFactory);
+            stateMachine.Enter<IState>();
+
+            state1.ClearReceivedCalls();
+            _stateFactory.ClearReceivedCalls();
+
+            // Act
+            stateMachine.Enter<IPayloadedState<int>, int>(42);
+
+            // Assert
+            Received.InOrder(() =>
+            {
+                state1.Exit();
+                payloadState.Enter(42);
+            });
+            
+            payloadState.Received(1).Enter(42);
+        }
     }
 }
