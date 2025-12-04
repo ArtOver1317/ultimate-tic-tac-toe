@@ -72,5 +72,31 @@ namespace Tests.EditMode
             // Assert
             state1.Received(1).Exit();
         }
+
+        [Test]
+        public void WhenEnterNewState_ThenCallsExitBeforeEnter()
+        {
+            // Arrange
+            var state1 = Substitute.For<IState>();
+            var state2 = Substitute.For<IState>();
+            _stateFactory.CreateState<IState>().Returns(state1, state2);
+            var stateMachine = new GameStateMachine(_stateFactory);
+            stateMachine.Enter<IState>();
+            
+            state1.ClearReceivedCalls();
+            state2.ClearReceivedCalls();
+            _stateFactory.ClearReceivedCalls();
+
+            // Act
+            stateMachine.Enter<IState>();
+
+            // Assert
+            Received.InOrder(() =>
+            {
+                state1.Exit();
+                _stateFactory.CreateState<IState>();
+                state2.Enter();
+            });
+        }
     }
 }
