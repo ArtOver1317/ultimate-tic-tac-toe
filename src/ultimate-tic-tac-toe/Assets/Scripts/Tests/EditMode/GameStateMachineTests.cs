@@ -161,5 +161,22 @@ namespace Tests.EditMode
             stateMachine.Enter<IState>();
             stateMachine.CurrentState.Should().Be(state3);
         }
+
+        [Test]
+        public void WhenEnterStateWithPayload_ThenPassesPayloadToEnter()
+        {
+            // Arrange
+            var payloadState = Substitute.For<IPayloadedState<string>>();
+            _stateFactory.CreateState<IPayloadedState<string>>().Returns(payloadState);
+            var stateMachine = new GameStateMachine(_stateFactory);
+            const string testPayload = "TestData";
+
+            // Act
+            stateMachine.Enter<IPayloadedState<string>, string>(testPayload);
+
+            // Assert
+            payloadState.Received(1).Enter(testPayload);
+            payloadState.Received(1).Enter(Arg.Is<string>(p => p == testPayload));
+        }
     }
 }
