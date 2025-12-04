@@ -118,5 +118,48 @@ namespace Tests.EditMode
             stateMachine.CurrentState.Should().NotBe(firstStateInstance);
             stateMachine.CurrentState.Should().Be(secondStateInstance);
         }
+
+        [Test]
+        public void WhenEnterMultipleStates_ThenEachTransitionWorksCorrectly()
+        {
+            // Arrange
+            var state1 = Substitute.For<IState>();
+            var state2 = Substitute.For<IState>();
+            var state3 = Substitute.For<IState>();
+            _stateFactory.CreateState<IState>().Returns(state1, state2, state3);
+            var stateMachine = new GameStateMachine(_stateFactory);
+
+            // Act
+            stateMachine.Enter<IState>();
+            stateMachine.Enter<IState>(); 
+            stateMachine.Enter<IState>();
+
+            // Assert
+            state1.Received(1).Exit();
+            state2.Received(1).Exit();
+            state3.DidNotReceive().Exit();
+            stateMachine.CurrentState.Should().Be(state3);
+        }
+
+        [Test]
+        public void WhenCurrentState_ThenReflectsLastEnteredState()
+        {
+            // Arrange
+            var state1 = Substitute.For<IState>();
+            var state2 = Substitute.For<IState>();
+            var state3 = Substitute.For<IState>();
+            _stateFactory.CreateState<IState>().Returns(state1, state2, state3);
+            var stateMachine = new GameStateMachine(_stateFactory);
+
+            // Act & Assert
+            stateMachine.Enter<IState>();
+            stateMachine.CurrentState.Should().Be(state1);
+
+            stateMachine.Enter<IState>();
+            stateMachine.CurrentState.Should().Be(state2);
+
+            stateMachine.Enter<IState>();
+            stateMachine.CurrentState.Should().Be(state3);
+        }
     }
 }
