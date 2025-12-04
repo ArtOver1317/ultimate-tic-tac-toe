@@ -255,5 +255,35 @@ namespace Tests.EditMode
             state3.DidNotReceive().Enter(payload1);
             state3.DidNotReceive().Enter(Arg.Is<string>(p => p != payload3));
         }
+
+        [Test]
+        public void WhenFactoryReturnsNull_ThenThrowsInvalidOperationException()
+        {
+            // Arrange
+            _stateFactory.CreateState<IState>().Returns((IState)null);
+            var stateMachine = new GameStateMachine(_stateFactory);
+
+            // Act
+            Action act = () => stateMachine.Enter<IState>();
+
+            // Assert
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*StateFactory returned null*");
+        }
+
+        [Test]
+        public void WhenFactoryReturnsNullForPayloadState_ThenThrowsInvalidOperationException()
+        {
+            // Arrange
+            _stateFactory.CreateState<IPayloadedState<int>>().Returns((IPayloadedState<int>)null);
+            var stateMachine = new GameStateMachine(_stateFactory);
+
+            // Act
+            Action act = () => stateMachine.Enter<IPayloadedState<int>, int>(42);
+
+            // Assert
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*StateFactory returned null*");
+        }
     }
 }

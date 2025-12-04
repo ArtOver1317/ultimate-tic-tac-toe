@@ -1,3 +1,5 @@
+using System;
+
 namespace Runtime.Infrastructure.States
 {
     public class GameStateMachine : IGameStateMachine
@@ -24,7 +26,9 @@ namespace Runtime.Infrastructure.States
         {
             CurrentState?.Exit();
             var state = _stateFactory.CreateState<TState>();
-            CurrentState = state;
+
+            CurrentState = state ?? throw StateExceptions.FactoryReturnedNull(typeof(TState));
+            
             return state;
         }
     }
