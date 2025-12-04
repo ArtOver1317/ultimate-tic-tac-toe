@@ -55,5 +55,22 @@ namespace Tests.EditMode
             stateMachine.CurrentState.Should().NotBeNull();
             stateMachine.CurrentState.Should().Be(mockState);
         }
+
+        [Test]
+        public void WhenEnterNewState_ThenExitsOldState()
+        {
+            // Arrange
+            var state1 = Substitute.For<IState>();
+            var state2 = Substitute.For<IState>();
+            _stateFactory.CreateState<IState>().Returns(state1, state2);
+            var stateMachine = new GameStateMachine(_stateFactory);
+            stateMachine.Enter<IState>();
+
+            // Act
+            stateMachine.Enter<IState>();
+
+            // Assert
+            state1.Received(1).Exit();
+        }
     }
 }
