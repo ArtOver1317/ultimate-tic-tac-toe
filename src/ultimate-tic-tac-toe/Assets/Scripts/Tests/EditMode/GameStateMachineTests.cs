@@ -11,10 +11,7 @@ namespace Tests.EditMode
         private IStateFactory _stateFactory;
 
         [SetUp]
-        public void SetUp()
-        {
-            _stateFactory = Substitute.For<IStateFactory>();
-        }
+        public void SetUp() => _stateFactory = Substitute.For<IStateFactory>();
 
         [Test]
         public void WhenConstructor_ThenSetsCurrentStateToNull()
@@ -25,6 +22,22 @@ namespace Tests.EditMode
             // Assert
             stateMachine.CurrentState.Should().BeNull();
         }
+
+        [Test]
+        public void WhenEnterFirstState_ThenCreatesStateAndCallsEnter()
+        {
+            // Arrange
+            var mockState = Substitute.For<IState>();
+            _stateFactory.CreateState<IState>().Returns(mockState);
+            var stateMachine = new GameStateMachine(_stateFactory);
+
+            // Act
+            stateMachine.Enter<IState>();
+
+            // Assert
+            _stateFactory.Received(1).CreateState<IState>();
+            mockState.Received(1).Enter();
+            stateMachine.CurrentState.Should().Be(mockState);
+        }
     }
 }
-
