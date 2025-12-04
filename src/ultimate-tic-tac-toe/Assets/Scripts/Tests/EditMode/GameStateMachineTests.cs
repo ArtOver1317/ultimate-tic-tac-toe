@@ -222,5 +222,38 @@ namespace Tests.EditMode
             act.Should().NotThrow();
             payloadState.Received(1).Enter(null);
         }
+
+        [Test]
+        public void WhenEnterMultipleStatesWithPayload_ThenIsolatesData()
+        {
+            // Arrange
+            const string payload1 = "payload1";
+            const int payload2 = 42;
+            const string payload3 = "payload3";
+            var state1 = Substitute.For<IPayloadedState<string>>();
+            var state2 = Substitute.For<IPayloadedState<int>>();
+            var state3 = Substitute.For<IPayloadedState<string>>();
+            _stateFactory.CreateState<IPayloadedState<string>>().Returns(state1, state3);
+            _stateFactory.CreateState<IPayloadedState<int>>().Returns(state2);
+            var stateMachine = new GameStateMachine(_stateFactory);
+
+            // Act
+
+            stateMachine.Enter<IPayloadedState<string>, string>(payload1);
+            stateMachine.Enter<IPayloadedState<int>, int>(payload2);
+            stateMachine.Enter<IPayloadedState<string>, string>(payload3);
+
+            // Assert
+            state1.Received(1).Enter(payload1);
+            state1.DidNotReceive().Enter(payload3);
+            state1.DidNotReceive().Enter(Arg.Is<string>(p => p != payload1));
+            
+            state2.Received(1).Enter(payload2);
+            state2.DidNotReceive().Enter(Arg.Is<int>(p => p != payload2));
+            
+            state3.Received(1).Enter(payload3);
+            state3.DidNotReceive().Enter(payload1);
+            state3.DidNotReceive().Enter(Arg.Is<string>(p => p != payload3));
+        }
     }
 }
