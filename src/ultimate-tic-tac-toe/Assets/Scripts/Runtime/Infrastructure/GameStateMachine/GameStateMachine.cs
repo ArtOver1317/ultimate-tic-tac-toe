@@ -1,6 +1,6 @@
-using System;
+using Runtime.Infrastructure.GameStateMachine.States;
 
-namespace Runtime.Infrastructure.States
+namespace Runtime.Infrastructure.GameStateMachine
 {
     public class GameStateMachine : IGameStateMachine
     {

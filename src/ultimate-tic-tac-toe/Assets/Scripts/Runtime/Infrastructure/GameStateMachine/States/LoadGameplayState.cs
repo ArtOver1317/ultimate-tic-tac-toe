@@ -2,7 +2,7 @@ using Runtime.Services.Scenes;
 using Runtime.Services.UI;
 using UnityEngine;
 
-namespace Runtime.Infrastructure.States
+namespace Runtime.Infrastructure.GameStateMachine.States
 {
     public class LoadGameplayState : IState
     {

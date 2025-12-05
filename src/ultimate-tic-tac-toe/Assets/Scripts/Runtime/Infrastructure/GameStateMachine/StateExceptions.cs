@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Runtime.Infrastructure.States
+namespace Runtime.Infrastructure.GameStateMachine
 {
     public static class StateExceptions
     {

@@ -1,6 +1,7 @@
+using Runtime.Infrastructure.GameStateMachine.States;
 using VContainer;
 
-namespace Runtime.Infrastructure.States
+namespace Runtime.Infrastructure.GameStateMachine
 {
     public class StateFactory : IStateFactory
     {

@@ -2,7 +2,8 @@
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
-using Runtime.Infrastructure.States;
+using Runtime.Infrastructure.GameStateMachine;
+using Runtime.Infrastructure.GameStateMachine.States;
 
 namespace Tests.EditMode
 {
@@ -14,6 +15,8 @@ namespace Tests.EditMode
         [SetUp]
         public void SetUp() => _stateFactory = Substitute.For<IStateFactory>();
 
+        #region Initialization Tests
+
         [Test]
         public void WhenConstructor_ThenSetsCurrentStateToNull()
         {
@@ -23,6 +26,10 @@ namespace Tests.EditMode
             // Assert
             stateMachine.CurrentState.Should().BeNull();
         }
+
+        #endregion
+
+        #region Basic State Transitions Tests
 
         [Test]
         public void WhenEnterFirstState_ThenCreatesStateAndCallsEnter()
@@ -73,6 +80,10 @@ namespace Tests.EditMode
             // Assert
             state1.Received(1).Exit();
         }
+
+        #endregion
+
+        #region State Lifecycle & Order Tests
 
         [Test]
         public void WhenEnterNewState_ThenCallsExitBeforeEnter()
@@ -142,6 +153,10 @@ namespace Tests.EditMode
             stateMachine.CurrentState.Should().Be(state3);
         }
 
+        #endregion
+
+        #region CurrentState Management Tests
+
         [Test]
         public void WhenCurrentState_ThenReflectsLastEnteredState()
         {
@@ -162,6 +177,10 @@ namespace Tests.EditMode
             stateMachine.Enter<IState>();
             stateMachine.CurrentState.Should().Be(state3);
         }
+
+        #endregion
+
+        #region Payload State Tests
 
         [Test]
         public void WhenEnterStateWithPayload_ThenPassesPayloadToEnter()
@@ -256,6 +275,10 @@ namespace Tests.EditMode
             state3.DidNotReceive().Enter(Arg.Is<string>(p => p != payload3));
         }
 
+        #endregion
+
+        #region Error Handling Tests
+
         [Test]
         public void WhenFactoryReturnsNull_ThenThrowsInvalidOperationException()
         {
@@ -340,5 +363,7 @@ namespace Tests.EditMode
             stateMachine.CurrentState.Should().BeSameAs(state2);
             state1.Received(1).Exit();
         }
+
+        #endregion
     }
 }

@@ -1,5 +1,6 @@
 using Runtime.Infrastructure.EntryPoint;
-using Runtime.Infrastructure.States;
+using Runtime.Infrastructure.GameStateMachine;
+using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Services.Scenes;
 using Runtime.Services.UI;
 using Runtime.UI.MainMenu;
@@ -20,7 +21,7 @@ namespace Runtime.Infrastructure.Scopes
         
             // State Machine
             builder.Register<IStateFactory, StateFactory>(Lifetime.Singleton);
-            builder.Register<IGameStateMachine, GameStateMachine>(Lifetime.Singleton);
+            builder.Register<IGameStateMachine, GameStateMachine.GameStateMachine>(Lifetime.Singleton);
         
             // States
             builder.Register<BootstrapState>(Lifetime.Transient);

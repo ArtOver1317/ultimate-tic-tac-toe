@@ -1,4 +1,5 @@
-using Runtime.Infrastructure.States;
+using Runtime.Infrastructure.GameStateMachine;
+using Runtime.Infrastructure.GameStateMachine.States;
 using UnityEngine;
 using VContainer.Unity;
 

@@ -2,7 +2,7 @@ using Runtime.Services.UI;
 using Runtime.UI.MainMenu;
 using UnityEngine;
 
-namespace Runtime.Infrastructure.States
+namespace Runtime.Infrastructure.GameStateMachine.States
 {
     public class MainMenuState : IState
     {

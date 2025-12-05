@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Runtime.Infrastructure.States
+namespace Runtime.Infrastructure.GameStateMachine.States
 {
     public class GameplayState : IState
     {

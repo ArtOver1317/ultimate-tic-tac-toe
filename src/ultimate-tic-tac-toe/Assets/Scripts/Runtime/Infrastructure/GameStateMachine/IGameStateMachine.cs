@@ -1,4 +1,6 @@
-namespace Runtime.Infrastructure.States
+using Runtime.Infrastructure.GameStateMachine.States;
+
+namespace Runtime.Infrastructure.GameStateMachine
 {
     public interface IGameStateMachine
     {

@@ -1,5 +1,6 @@
 using R3;
-using Runtime.Infrastructure.States;
+using Runtime.Infrastructure.GameStateMachine;
+using Runtime.Infrastructure.GameStateMachine.States;
 using UnityEngine;
 
 namespace Runtime.UI.MainMenu
