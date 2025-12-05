@@ -175,6 +175,30 @@ namespace Tests.EditMode
 
         #endregion
 
+        #region Clear Tests
+
+        [Test]
+        public void WhenClearType_ThenOnlyThatPoolIsCleared()
+        {
+            // Arrange
+            var classAItem1 = new ClassA();
+            var classAItem2 = new ClassA();
+            var classBItem1 = new ClassB();
+
+            _pool.Return(classAItem1);
+            _pool.Return(classAItem2);
+            _pool.Return(classBItem1);
+
+            // Act
+            _pool.Clear(typeof(ClassA));
+
+            // Assert
+            _pool.GetSize(typeof(ClassA)).Should().Be(0);
+            _pool.GetSize(typeof(ClassB)).Should().Be(1);
+        }
+
+        #endregion
+
         #region Test Classes
 
         private class TestClass { }
