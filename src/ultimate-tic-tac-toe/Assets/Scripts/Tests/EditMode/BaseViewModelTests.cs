@@ -140,6 +140,80 @@ namespace Tests.EditMode
 
         #endregion
 
+        #region AddDisposable Tests
+
+        [Test]
+        public void WhenAddDisposableCalled_ThenDisposableIsTracked()
+        {
+            // Arrange
+            var disposable = new MockDisposable();
+
+            // Act
+            _viewModel.AddDisposable(disposable);
+            _viewModel.Dispose();
+
+            // Assert
+            disposable.DisposeCallCount.Should().Be(1, "added disposable should be tracked and disposed");
+        }
+
+        #endregion
+
+        #region RequestClose Tests
+
+        [Test]
+        public void WhenRequestCloseCalled_ThenOnCloseRequestedEmitsEvent()
+        {
+            // Arrange
+            var eventCount = 0;
+            _viewModel.OnCloseRequested.Subscribe(_ => eventCount++);
+
+            // Act
+            _viewModel.RequestClose();
+
+            // Assert
+            eventCount.Should().Be(1, "OnCloseRequested should emit exactly one event");
+        }
+
+        [Test]
+        public void WhenRequestCloseCalledAfterDispose_ThenNoExceptionOrEventEmitted()
+        {
+            // Arrange
+            var eventCount = 0;
+            _viewModel.OnCloseRequested.Subscribe(_ => eventCount++);
+            _viewModel.Dispose();
+
+            // Act
+            Action requestCloseAfterDispose = () => _viewModel.RequestClose();
+
+            // Assert
+            requestCloseAfterDispose.Should().Throw<ObjectDisposedException>(
+                "RequestClose should throw when called on disposed Subject");
+
+            eventCount.Should().Be(0, "no events should be emitted after disposal");
+        }
+
+        #endregion
+
+        #region Integration Tests
+
+        [Test]
+        public void WhenResetThenDispose_ThenDisposablesAreCleanedOnlyOnce()
+        {
+            // Arrange
+            var disposable = new MockDisposable();
+            _viewModel.AddDisposable(disposable);
+
+            // Act
+            _viewModel.Reset();
+            _viewModel.Dispose();
+
+            // Assert
+            disposable.DisposeCallCount.Should().Be(1, 
+                "disposable should be disposed only once during Reset, not again during Dispose");
+        }
+
+        #endregion
+
         #region Test Helpers
 
         private class TestViewModel : BaseViewModel
@@ -170,4 +244,3 @@ namespace Tests.EditMode
         #endregion
     }
 }
-
