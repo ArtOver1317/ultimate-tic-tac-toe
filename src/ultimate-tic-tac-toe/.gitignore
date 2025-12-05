@@ -14,6 +14,13 @@
 *.log
 /CodeCoverage/
 
+# Local documentation (not tracked in git)
+/.docs/
+
+# Copilot instructions (personal, not for public repo)
+**/.copilot-instructions.md
+**/copilot-instructions.md
+
 # By default unity supports Blender asset imports, *.blend1 blender files do not need to be commited to version control.
 *.blend1
 *.blend1.meta
