@@ -285,5 +285,33 @@ namespace Tests.EditMode
             act.Should().Throw<InvalidOperationException>()
                 .WithMessage("*StateFactory returned null*");
         }
+
+        [Test]
+        public void WhenPreviousStateExitThrows_ThenPropagatesException()
+        {
+            // Arrange
+            const string expectedWildcardPattern = "Exit failed";
+            var state1 = Substitute.For<IState>();
+            var state2 = Substitute.For<IState>();
+            var expectedException = new InvalidOperationException(expectedWildcardPattern);
+            
+            state1.When(x => x.Exit()).Do(_ => throw expectedException);
+            
+            _stateFactory.CreateState<IState>().Returns(state1, state2);
+            var stateMachine = new GameStateMachine(_stateFactory);
+            
+            stateMachine.Enter<IState>();
+            var previousState = stateMachine.CurrentState;
+            
+            // Act
+            Action act = () => stateMachine.Enter<IState>();
+            
+            // Assert
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage(expectedWildcardPattern);
+
+            stateMachine.CurrentState.Should().BeSameAs(previousState);
+            state2.DidNotReceive().Enter();
+        }
     }
 }
