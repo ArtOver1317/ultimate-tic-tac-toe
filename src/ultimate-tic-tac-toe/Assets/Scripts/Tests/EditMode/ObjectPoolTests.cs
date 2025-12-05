@@ -140,6 +140,41 @@ namespace Tests.EditMode
 
         #endregion
 
+        #region Type Isolation Tests
+
+        [Test]
+        public void WhenDifferentTypes_ThenPoolsAreIsolated()
+        {
+            // Arrange
+            var classAItem1 = new ClassA();
+            var classAItem2 = new ClassA();
+            var classBItem1 = new ClassB();
+
+            // Act
+            _pool.Return(classAItem1);
+            _pool.Return(classAItem2);
+            _pool.Return(classBItem1);
+
+            // Assert - Pool sizes are correct
+            _pool.GetSize(typeof(ClassA)).Should().Be(2);
+            _pool.GetSize(typeof(ClassB)).Should().Be(1);
+
+            // Assert - Get returns correct type
+            var retrievedA = _pool.Get<ClassA>();
+            retrievedA.Should().BeOfType<ClassA>();
+            retrievedA.Should().BeSameAs(classAItem2); // LIFO
+
+            var retrievedB = _pool.Get<ClassB>();
+            retrievedB.Should().BeOfType<ClassB>();
+            retrievedB.Should().BeSameAs(classBItem1);
+
+            // Assert - Pools are independent
+            _pool.GetSize(typeof(ClassA)).Should().Be(1); // still has 1 item
+            _pool.GetSize(typeof(ClassB)).Should().Be(0); // empty now
+        }
+
+        #endregion
+
         #region Test Classes
 
         private class TestClass { }
@@ -147,6 +182,10 @@ namespace Tests.EditMode
         private class BaseClass { }
 
         private class DerivedClass : BaseClass { }
+
+        private class ClassA { }
+
+        private class ClassB { }
 
         #endregion
     }
