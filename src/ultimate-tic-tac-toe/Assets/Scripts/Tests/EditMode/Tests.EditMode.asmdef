@@ -17,7 +17,8 @@
         "Castle.Core.dll",
         "FluentAssertions.dll",
         "NSubstitute.dll",
-        "System.Diagnostics.EventLog.dll"
+        "System.Diagnostics.EventLog.dll",
+        "R3.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [

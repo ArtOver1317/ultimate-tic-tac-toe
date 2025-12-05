@@ -1,6 +1,7 @@
 ﻿using System;
 using FluentAssertions;
 using NUnit.Framework;
+using R3;
 using Runtime.UI.Core;
 
 namespace Tests.EditMode
@@ -61,6 +62,80 @@ namespace Tests.EditMode
 
             // Assert
             _viewModel.WasOnResetCalled.Should().BeTrue("OnReset hook should be invoked during Reset");
+        }
+
+        #endregion
+
+        #region Dispose Tests
+
+        [Test]
+        public void WhenDisposeCalled_ThenOnDisposeIsInvoked()
+        {
+            // Arrange
+            _viewModel.WasOnDisposeCalled.Should().BeFalse("initially OnDispose should not be called");
+
+            // Act
+            _viewModel.Dispose();
+
+            // Assert
+            _viewModel.WasOnDisposeCalled.Should().BeTrue("OnDispose hook should be invoked during Dispose");
+        }
+
+        [Test]
+        public void WhenDisposeCalled_ThenAllDisposablesAreDisposed()
+        {
+            // Arrange
+            var disposable1 = new MockDisposable();
+            var disposable2 = new MockDisposable();
+            var disposable3 = new MockDisposable();
+
+            _viewModel.AddDisposable(disposable1);
+            _viewModel.AddDisposable(disposable2);
+            _viewModel.AddDisposable(disposable3);
+
+            // Act
+            _viewModel.Dispose();
+
+            // Assert
+            disposable1.DisposeCallCount.Should().Be(1, "first disposable should be disposed once");
+            disposable2.DisposeCallCount.Should().Be(1, "second disposable should be disposed once");
+            disposable3.DisposeCallCount.Should().Be(1, "third disposable should be disposed once");
+        }
+
+        [Test]
+        public void WhenDisposeCalled_ThenOnCloseRequestedIsDisposed()
+        {
+            // Arrange
+            var eventReceived = false;
+            var subscription = _viewModel.OnCloseRequested.Subscribe(_ => eventReceived = true);
+
+            // Act
+            _viewModel.Dispose();
+
+            // Assert - attempting to subscribe after dispose should throw
+            Action subscribeAfterDispose = () => _viewModel.OnCloseRequested.Subscribe(_ => { });
+
+            subscribeAfterDispose.Should().Throw<ObjectDisposedException>(
+                "OnCloseRequested should be disposed and reject new subscriptions");
+
+            // Verify original subscription was also disposed
+            subscription.Dispose();
+            eventReceived.Should().BeFalse("no events should be received before disposal");
+        }
+
+        [Test]
+        public void WhenDisposeCalledMultipleTimes_ThenNoExceptionThrown()
+        {
+            // Arrange & Act
+            Action disposeMultipleTimes = () =>
+            {
+                _viewModel.Dispose();
+                _viewModel.Dispose();
+                _viewModel.Dispose();
+            };
+
+            // Assert
+            disposeMultipleTimes.Should().NotThrow("Dispose should be idempotent");
         }
 
         #endregion
