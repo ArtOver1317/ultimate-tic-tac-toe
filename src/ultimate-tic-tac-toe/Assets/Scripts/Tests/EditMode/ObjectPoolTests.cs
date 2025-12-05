@@ -110,6 +110,20 @@ namespace Tests.EditMode
                 .WithMessage("*type*");
         }
 
+        [Test]
+        public void WhenReturnWithNullTypeButValidItem_ThenUsesItemType()
+        {
+            // Arrange
+            var item = new TestClass();
+
+            // Act
+            _pool.Return(null, item);
+
+            // Assert
+            _pool.GetSize(item.GetType()).Should().Be(1);
+            _pool.Get<TestClass>().Should().BeSameAs(item);
+        }
+
         #endregion
 
         #region Test Classes
