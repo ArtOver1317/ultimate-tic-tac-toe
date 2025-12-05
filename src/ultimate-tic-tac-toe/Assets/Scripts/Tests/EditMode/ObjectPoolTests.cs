@@ -270,6 +270,38 @@ namespace Tests.EditMode
 
         #endregion
 
+        #region Get Overload Tests
+
+        [Test]
+        public void WhenGetWithMatchingType_ThenReturnsItem()
+        {
+            // Arrange
+            var item = new TestClass();
+            _pool.Return(item);
+
+            // Act
+            var result = _pool.Get<TestClass>(typeof(TestClass));
+
+            // Assert
+            result.Should().BeSameAs(item);
+        }
+
+        [Test]
+        public void WhenGetWithNullType_ThenStillWorks()
+        {
+            // Arrange
+            var item = new TestClass();
+            _pool.Return(item);
+
+            // Act
+            var result = _pool.Get<TestClass>(null);
+
+            // Assert
+            result.Should().BeSameAs(item);
+        }
+
+        #endregion
+
         #region Test Classes
 
         private class TestClass { }
