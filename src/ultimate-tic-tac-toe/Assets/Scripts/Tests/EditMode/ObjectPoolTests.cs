@@ -124,11 +124,29 @@ namespace Tests.EditMode
             _pool.Get<TestClass>().Should().BeSameAs(item);
         }
 
+        [Test]
+        public void WhenReturnWithExplicitType_ThenUsesProvidedType()
+        {
+            // Arrange
+            var derivedItem = new DerivedClass();
+
+            // Act
+            _pool.Return(typeof(BaseClass), derivedItem);
+
+            // Assert
+            _pool.GetSize(typeof(BaseClass)).Should().Be(1);
+            _pool.GetSize(typeof(DerivedClass)).Should().Be(0);
+        }
+
         #endregion
 
         #region Test Classes
 
         private class TestClass { }
+
+        private class BaseClass { }
+
+        private class DerivedClass : BaseClass { }
 
         #endregion
     }
