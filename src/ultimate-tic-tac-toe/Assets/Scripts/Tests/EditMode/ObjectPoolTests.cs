@@ -224,6 +224,23 @@ namespace Tests.EditMode
 
         #endregion
 
+        #region GetSize Tests
+
+        [Test]
+        public void WhenGetSizeWithNull_ThenThrowsException()
+        {
+            // Arrange
+            // Pool готов
+
+            // Act
+            Action act = () => _pool.GetSize(null);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>();
+        }
+
+        #endregion
+
         #region Test Classes
 
         private class TestClass { }
