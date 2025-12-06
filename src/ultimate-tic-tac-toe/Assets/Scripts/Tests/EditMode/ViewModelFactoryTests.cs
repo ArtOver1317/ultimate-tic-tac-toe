@@ -177,6 +177,79 @@ namespace Tests.EditMode
 
         #endregion
 
+        #region Caching Tests
+
+        [Test]
+        public void WhenSameTypeCreatedTwice_ThenFactoryCachedAndReused()
+        {
+            // Arrange
+            _mockContainer.Resolve(typeof(TestViewModelWithoutDeps))
+                .Returns(_ => throw new Exception("Type not registered"));
+
+            // Act
+            var result1 = _factory.CreateViewModel<TestViewModelWithoutDeps>();
+            var result2 = _factory.CreateViewModel<TestViewModelWithoutDeps>();
+
+            // Assert
+            result1.Should().NotBeNull("first instance should be created");
+            result2.Should().NotBeNull("second instance should be created");
+            
+            result1.Should().NotBeSameAs(result2, 
+                "each call should create a new instance, not return cached instance");
+            
+            result1.Should().BeOfType<TestViewModelWithoutDeps>(
+                "both instances should be of correct type");
+            
+            result2.Should().BeOfType<TestViewModelWithoutDeps>(
+                "both instances should be of correct type");
+        }
+
+        #endregion
+
+        #region Error Handling Tests
+
+        [Test]
+        public void WhenDependencyResolveFails_ThenReturnsNullForDependency()
+        {
+            // Arrange
+            _mockContainer.Resolve(typeof(TestViewModelWithDeps))
+                .Returns(_ => throw new Exception("Type not registered"));
+            
+            _mockContainer.Resolve(typeof(ITestService))
+                .Returns(_ => throw new Exception("Dependency resolution failed"));
+            
+            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"\[ViewModelFactory\] Failed to resolve ITestService for TestViewModelWithDeps.*"));
+
+            // Act
+            var result = _factory.CreateViewModel<TestViewModelWithDeps>();
+
+            // Assert
+            result.Should().NotBeNull("factory should still create ViewModel");
+            
+            result.Service.Should().BeNull(
+                "dependency should be null when resolution fails");
+        }
+
+        [Test]
+        public void WhenContainerThrowsOnTryResolve_ThenFallsBackToManualCreation()
+        {
+            // Arrange
+            _mockContainer.Resolve(typeof(TestViewModelWithoutDeps))
+                .Returns(_ => throw new Exception("Container threw exception"));
+
+            // Act
+            var result = _factory.CreateViewModel<TestViewModelWithoutDeps>();
+
+            // Assert
+            result.Should().NotBeNull(
+                "factory should fallback to manual creation when container throws");
+            
+            result.Should().BeOfType<TestViewModelWithoutDeps>(
+                "factory should create correct type through fallback");
+        }
+
+        #endregion
+
         #region Test Fixtures
 
         private class TestViewModelWithoutDeps : BaseViewModel { }
