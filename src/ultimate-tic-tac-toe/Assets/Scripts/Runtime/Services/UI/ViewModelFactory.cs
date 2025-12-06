@@ -26,18 +26,15 @@ namespace Runtime.Services.UI
         {
             try
             {
-                if (_container.TryResolve<TViewModel>(out var registered))
-                {
-                    Debug.Log($"[ViewModelFactory] ViewModel {viewModelType.Name} resolved from DI container");
-                    return registered;
-                }
+                var registered = (TViewModel)_container.Resolve(viewModelType);
+                Debug.Log($"[ViewModelFactory] ViewModel {viewModelType.Name} resolved from DI container");
+                return registered;
             }
             catch
             {
-                // ignored
+                // Container doesn't have this type registered, will create manually
+                return null;
             }
-
-            return null;
         }
 
         private TViewModel CreateViewModelWithDependencies<TViewModel>(Type viewModelType) 
