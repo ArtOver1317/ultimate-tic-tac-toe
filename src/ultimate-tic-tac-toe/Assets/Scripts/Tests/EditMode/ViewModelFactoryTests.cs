@@ -4,6 +4,8 @@ using NSubstitute;
 using NUnit.Framework;
 using Runtime.Services.UI;
 using Runtime.UI.Core;
+using UnityEngine;
+using UnityEngine.TestTools;
 using VContainer;
 
 namespace Tests.EditMode
@@ -119,6 +121,62 @@ namespace Tests.EditMode
 
         #endregion
 
+        #region Constructor Selection Tests
+
+        [Test]
+        public void WhenMultipleConstructors_ThenSelectsConstructorWithMostParameters()
+        {
+            // Arrange
+            var mockService1 = Substitute.For<ITestService>();
+            var mockService2 = Substitute.For<ITestService2>();
+            
+            _mockContainer.Resolve(typeof(TestViewModelMultipleCtors))
+                .Returns(_ => throw new Exception("Type not registered"));
+            
+            _mockContainer.Resolve(typeof(ITestService))
+                .Returns(mockService1);
+            
+            _mockContainer.Resolve(typeof(ITestService2))
+                .Returns(mockService2);
+
+            // Act
+            var result = _factory.CreateViewModel<TestViewModelMultipleCtors>();
+
+            // Assert
+            result.Should().NotBeNull("factory should create ViewModel");
+            
+            result.ConstructorUsed.Should().Be(2, 
+                "constructor with most parameters (2) should be selected");
+            
+            result.Service1.Should().BeSameAs(mockService1, 
+                "first dependency should be resolved");
+            
+            result.Service2.Should().BeSameAs(mockService2, 
+                "second dependency should be resolved");
+            
+            _mockContainer.Received(1).Resolve(typeof(ITestService));
+            _mockContainer.Received(1).Resolve(typeof(ITestService2));
+        }
+
+        [Test]
+        public void WhenNoPublicConstructor_ThenReturnsNull()
+        {
+            // Arrange
+            _mockContainer.Resolve(typeof(TestViewModelPrivateCtor))
+                .Returns(_ => throw new Exception("Type not registered"));
+            
+            LogAssert.Expect(LogType.Error, "[ViewModelFactory] No public constructor found for TestViewModelPrivateCtor");
+
+            // Act
+            var result = _factory.CreateViewModel<TestViewModelPrivateCtor>();
+
+            // Assert
+            result.Should().BeNull(
+                "factory should return null when no public constructor is available");
+        }
+
+        #endregion
+
         #region Test Fixtures
 
         private class TestViewModelWithoutDeps : BaseViewModel { }
@@ -144,6 +202,33 @@ namespace Tests.EditMode
                 Service1 = service1;
                 Service2 = service2;
             }
+        }
+
+        private class TestViewModelMultipleCtors : BaseViewModel
+        {
+            public ITestService Service1 { get; }
+            public ITestService2 Service2 { get; }
+            public int ConstructorUsed { get; }
+            
+            public TestViewModelMultipleCtors() => ConstructorUsed = 0;
+            
+            public TestViewModelMultipleCtors(ITestService service1)
+            {
+                Service1 = service1;
+                ConstructorUsed = 1;
+            }
+            
+            public TestViewModelMultipleCtors(ITestService service1, ITestService2 service2)
+            {
+                Service1 = service1;
+                Service2 = service2;
+                ConstructorUsed = 2;
+            }
+        }
+
+        private class TestViewModelPrivateCtor : BaseViewModel
+        {
+            private TestViewModelPrivateCtor() { }
         }
 
         #endregion
