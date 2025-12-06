@@ -9,10 +9,18 @@ namespace Runtime.Services.UI
     public class UIPoolManager
     {
         private readonly IObjectResolver _container;
-        private readonly ObjectPool<IUIView> _windowPool = new();
-        private readonly ObjectPool<BaseViewModel> _viewModelPool = new();
+        private readonly IObjectPool<IUIView> _windowPool;
+        private readonly IObjectPool<BaseViewModel> _viewModelPool;
 
-        public UIPoolManager(IObjectResolver container) => _container = container;
+        public UIPoolManager(
+            IObjectResolver container,
+            IObjectPool<IUIView> windowPool = null,
+            IObjectPool<BaseViewModel> viewModelPool = null)
+        {
+            _container = container;
+            _windowPool = windowPool ?? new ObjectPool<IUIView>();
+            _viewModelPool = viewModelPool ?? new ObjectPool<BaseViewModel>();
+        }
 
         public TWindow GetOrInstantiateWindow<TWindow>(Type windowType, GameObject prefab) 
             where TWindow : class, IUIView

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Runtime.Services.UI
 {
-    public class ObjectPool<T> where T : class
+    public class ObjectPool<T> : IObjectPool<T> where T : class
     {
         private readonly Dictionary<Type, Stack<T>> _pools = new();
 
