@@ -50,7 +50,7 @@ namespace Tests.EditMode
 
         private static IEnumerable<string> AllScenesPaths() =>
             AssetDatabase
-                .FindAssets("t:Scene", new[] { "Assets" })
+                .FindAssets("t:Scene", new[] { "Assets/Scenes" })
                 .Select(AssetDatabase.GUIDToAssetPath);
 
         private static IEnumerable<string> AllPrefabPaths() =>

@@ -128,6 +128,23 @@ namespace Tests.EditMode
             target._button.Should().BeSameAs(button, "field should reference the Button with name 'CustomName'");
         }
 
+        [Test]
+        public void WhenFieldWithoutUnderscore_ThenFirstCharCapitalized()
+        {
+            // Arrange
+            var root = new VisualElement();
+            var button = new Button { name = "MyButton" };
+            root.Add(button);
+            var target = new TestViewNoUnderscore();
+
+            // Act
+            UxmlBinder.BindElements(target, root);
+
+            // Assert
+            target.myButton.Should().NotBeNull("field name without underscore should be transformed: myButton → MyButton");
+            target.myButton.Should().BeSameAs(button, "field should reference the exact Button instance");
+        }
+
         #endregion
 
         #region Optional/Required Elements Tests
@@ -229,6 +246,12 @@ namespace Tests.EditMode
         {
             [Runtime.UI.Core.UxmlElement("CustomName")]
             public Button _button;
+        }
+
+        private class TestViewNoUnderscore
+        {
+            [Runtime.UI.Core.UxmlElement]
+            public Button myButton;
         }
 
         private class TestViewRequiredElement
