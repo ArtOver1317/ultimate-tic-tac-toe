@@ -22,6 +22,12 @@ namespace Runtime.Services.UI
             _poolManager = new UIPoolManager(container);
         }
 
+        internal UIService(IObjectResolver container, UIPoolManager poolManager, ViewModelFactory viewModelFactory)
+        {
+            _poolManager = poolManager;
+            _viewModelFactory = viewModelFactory;
+        }
+
         public void RegisterWindowPrefab<TWindow>(GameObject prefab) where TWindow : class, IUIView
         {
             var windowType = typeof(TWindow);
