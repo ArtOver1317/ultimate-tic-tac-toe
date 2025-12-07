@@ -18,9 +18,15 @@ namespace Runtime.UI.Core
             base.Awake();
             
             if (ShowOnAwake)
-                Show();
+            {
+                Root.style.display = UnityEngine.UIElements.DisplayStyle.Flex;
+                IsVisible = true;
+            }
             else
-                Hide();
+            {
+                Root.style.display = UnityEngine.UIElements.DisplayStyle.None;
+                IsVisible = false;
+            }
         }
 
         public virtual void Show()
