@@ -1,3 +1,4 @@
+using System;
 using R3;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
@@ -5,17 +6,20 @@ using UnityEngine;
 
 namespace Runtime.UI.MainMenu
 {
-    public class MainMenuCoordinator
+    public class MainMenuCoordinator : IDisposable
     {
         private MainMenuViewModel _viewModel;
         private readonly IGameStateMachine _stateMachine;
         private CompositeDisposable _disposables = new();
 
-        public MainMenuCoordinator(IGameStateMachine stateMachine) => 
-            _stateMachine = stateMachine;
+        public MainMenuCoordinator(IGameStateMachine stateMachine) =>
+            _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
 
         public void Initialize(MainMenuViewModel viewModel)
         {
+            if (viewModel == null)
+                throw new ArgumentNullException(nameof(viewModel));
+            
             Cleanup();
             _viewModel = viewModel;
             
@@ -36,14 +40,14 @@ namespace Runtime.UI.MainMenu
 
         private void OnStartGame()
         {
-            Debug.Log("[MainMenuPresenter] Starting game...");
+            Debug.Log("[MainMenuCoordinator] Starting game...");
             _viewModel.SetInteractable(false);
             _stateMachine.Enter<LoadGameplayState>();
         }
 
         private void OnExit()
         {
-            Debug.Log("[MainMenuPresenter] Exiting game...");
+            Debug.Log("[MainMenuCoordinator] Exiting game...");
             
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
