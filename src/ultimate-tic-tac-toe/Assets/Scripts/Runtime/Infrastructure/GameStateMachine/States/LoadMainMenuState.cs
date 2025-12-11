@@ -33,4 +33,3 @@ namespace Runtime.Infrastructure.GameStateMachine.States
         public void Exit() => Debug.Log("[LoadMainMenuState] Exiting...");
     }
 }
-
