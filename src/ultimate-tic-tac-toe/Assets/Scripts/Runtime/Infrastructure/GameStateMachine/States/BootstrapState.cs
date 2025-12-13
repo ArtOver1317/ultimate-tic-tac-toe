@@ -1,3 +1,5 @@
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace Runtime.Infrastructure.GameStateMachine.States
@@ -8,10 +10,11 @@ namespace Runtime.Infrastructure.GameStateMachine.States
 
         public BootstrapState(IGameStateMachine stateMachine) => _stateMachine = stateMachine;
 
-        public void Enter()
+        public async UniTask EnterAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             Debug.Log("[BootstrapState] Initializing...");
-            _stateMachine.Enter<LoadMainMenuState>();
+            await _stateMachine.EnterAsync<LoadMainMenuState>(cancellationToken);
         }
 
         public void Exit() => Debug.Log("[BootstrapState] Exiting...");

@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
@@ -11,12 +13,17 @@ namespace Runtime.UI.MainMenu
         private MainMenuViewModel _viewModel;
         private readonly IGameStateMachine _stateMachine;
         private CompositeDisposable _disposables = new();
+        private CancellationTokenSource _lifecycleCts = new();
+        private bool _isDisposed;
 
         public MainMenuCoordinator(IGameStateMachine stateMachine) =>
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
 
         public void Initialize(MainMenuViewModel viewModel)
         {
+            if (_isDisposed)
+                throw new ObjectDisposedException(nameof(MainMenuCoordinator));
+
             if (viewModel == null)
                 throw new ArgumentNullException(nameof(viewModel));
             
@@ -24,7 +31,7 @@ namespace Runtime.UI.MainMenu
             _viewModel = viewModel;
             
             _viewModel.OnStartGameClicked
-                .Subscribe(_ => OnStartGame())
+                .Subscribe(_ => OnStartGameAsync(_lifecycleCts.Token).Forget())
                 .AddTo(_disposables);
 
             _viewModel.OnExitClicked
@@ -34,15 +41,19 @@ namespace Runtime.UI.MainMenu
 
         private void Cleanup()
         {
+            _lifecycleCts.Cancel();
+            _lifecycleCts.Dispose();
+            _lifecycleCts = new CancellationTokenSource();
             _disposables?.Dispose();
             _disposables = new CompositeDisposable();
         }
 
-        private void OnStartGame()
+        private async UniTask OnStartGameAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             Debug.Log("[MainMenuCoordinator] Starting game...");
             _viewModel.SetInteractable(false);
-            _stateMachine.Enter<LoadGameplayState>();
+            await _stateMachine.EnterAsync<LoadGameplayState>(cancellationToken);
         }
 
         private void OnExit()
@@ -56,6 +67,15 @@ namespace Runtime.UI.MainMenu
 #endif
         }
 
-        public void Dispose() => _disposables.Dispose();
+        public void Dispose()
+        {
+            if (_isDisposed)
+                return;
+
+            _isDisposed = true;
+            _lifecycleCts.Cancel();
+            _lifecycleCts.Dispose();
+            _disposables.Dispose();
+        }
     }
 }

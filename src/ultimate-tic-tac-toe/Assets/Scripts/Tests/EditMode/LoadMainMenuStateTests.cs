@@ -1,4 +1,6 @@
-﻿using System;
+﻿using System.Threading;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using NSubstitute;
 using NUnit.Framework;
 using Runtime.Infrastructure.GameStateMachine;
@@ -12,58 +14,55 @@ namespace Tests.EditMode
     public class LoadMainMenuStateTests
     {
         [Test]
-        public void WhenEnter_ThenClearsUIPoolsAndLoadsMainMenuScene()
+        public async Task WhenEnter_ThenClearsUIPoolsAndLoadsMainMenuScene()
         {
             // Arrange
             var stateMachineMock = Substitute.For<IGameStateMachine>();
             var sceneLoaderMock = Substitute.For<ISceneLoaderService>();
             var uiService = Substitute.For<IUIService>();
-            Action capturedCallback = null;
+            var cancellationToken = CancellationToken.None;
 
-            sceneLoaderMock
-                .When(x => x.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<Action>()))
-                .Do(callInfo => capturedCallback = callInfo.Arg<Action>());
+            sceneLoaderMock.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+            stateMachineMock.EnterAsync<MainMenuState>(Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
 
             var sut = new LoadMainMenuState(stateMachineMock, sceneLoaderMock, uiService);
 
             // Act
-            sut.Enter();
+            await sut.EnterAsync(cancellationToken);
 
             // Assert
-            uiService.Received(1).ClearViewModelPools();
-            sceneLoaderMock.Received(1).LoadSceneAsync(SceneNames.MainMenu, Arg.Any<Action>());
-            Assert.That(capturedCallback, Is.Not.Null, "Callback должен быть передан в LoadSceneAsync");
-
             Received.InOrder(() =>
             {
                 uiService.ClearViewModelPools();
-                sceneLoaderMock.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<Action>());
+                sceneLoaderMock.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>());
+                stateMachineMock.EnterAsync<MainMenuState>(Arg.Any<CancellationToken>());
             });
         }
 
         [Test]
-        public void WhenSceneLoaded_ThenTransitionsToMainMenuState()
+        public async Task WhenSceneLoaded_ThenTransitionsToMainMenuState()
         {
             // Arrange
             var stateMachineMock = Substitute.For<IGameStateMachine>();
             var sceneLoaderMock = Substitute.For<ISceneLoaderService>();
             var uiService = Substitute.For<IUIService>();
-            Action capturedCallback = null;
+            var cancellationToken = CancellationToken.None;
 
-            sceneLoaderMock
-                .When(x => x.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<Action>()))
-                .Do(callInfo => capturedCallback = callInfo.Arg<Action>());
+            sceneLoaderMock.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+            stateMachineMock.EnterAsync<MainMenuState>(Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
 
             var sut = new LoadMainMenuState(stateMachineMock, sceneLoaderMock, uiService);
-            sut.Enter();
-
-            Assert.That(capturedCallback, Is.Not.Null, "Callback должен быть захвачен для проверки перехода состояния");
 
             // Act
-            capturedCallback();
+            await sut.EnterAsync(cancellationToken);
 
             // Assert
-            stateMachineMock.Received(1).Enter<MainMenuState>();
+            await sceneLoaderMock.Received(1).LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>());
+            await stateMachineMock.Received(1).EnterAsync<MainMenuState>(Arg.Any<CancellationToken>());
         }
     }
 }

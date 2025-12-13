@@ -1,3 +1,5 @@
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Runtime.Infrastructure.GameStateMachine.States;
 
 namespace Runtime.Infrastructure.GameStateMachine
@@ -6,8 +8,8 @@ namespace Runtime.Infrastructure.GameStateMachine
     {
         IExitableState CurrentState { get; }
         
-        void Enter<TState>() where TState : class, IState;
-        void Enter<TState, TPayload>(TPayload payload) where TState : class, IPayloadedState<TPayload>;
+        UniTask EnterAsync<TState>(CancellationToken cancellationToken = default) where TState : class, IState;
+        UniTask EnterAsync<TState, TPayload>(TPayload payload, CancellationToken cancellationToken = default) where TState : class, IPayloadedState<TPayload>;
     }
 }
 

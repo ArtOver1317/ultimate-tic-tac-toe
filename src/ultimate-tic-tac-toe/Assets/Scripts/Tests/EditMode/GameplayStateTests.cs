@@ -1,4 +1,7 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -12,35 +15,46 @@ namespace Tests.EditMode
     {
         private IGameStateMachine _stateMachineMock;
         private GameplayState _sut;
+        private CancellationToken _cancellationToken;
 
         [SetUp]
         public void SetUp()
         {
             _stateMachineMock = Substitute.For<IGameStateMachine>();
             _sut = new GameplayState(_stateMachineMock);
+            _cancellationToken = CancellationToken.None;
         }
 
         [Test]
-        public void WhenReturnToMainMenu_ThenTransitionsToLoadMainMenuState()
+        public async Task WhenReturnToMainMenu_ThenTransitionsToLoadMainMenuState()
         {
-            _sut.ReturnToMainMenu();
+            // Arrange
+            _stateMachineMock.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
 
-            _stateMachineMock.Received(1).Enter<LoadMainMenuState>();
+            // Act
+            await _sut.ReturnToMainMenuAsync(_cancellationToken);
+
+            // Assert
+            await _stateMachineMock.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
         }
 
         [Test]
-        public void WhenEnter_ThenCompletesWithoutError()
+        public async Task WhenEnter_ThenCompletesWithoutError()
         {
-            Action act = () => _sut.Enter();
+            // Arrange
+            Func<Task> act = () => _sut.EnterAsync(_cancellationToken).AsTask();
 
-            act.Should().NotThrow();
+            // Assert
+            await act.Should().NotThrowAsync();
         }
 
         [Test]
         public void WhenExit_ThenCompletesWithoutError()
         {
+            // Arrange
             Action act = () => _sut.Exit();
 
+            // Assert
             act.Should().NotThrow();
         }
     }

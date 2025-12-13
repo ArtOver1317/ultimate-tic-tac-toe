@@ -1,3 +1,5 @@
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Runtime.Services.UI;
 using Runtime.UI.MainMenu;
 using UnityEngine;
@@ -18,8 +20,9 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             _coordinator = coordinator;
         }
 
-        public void Enter()
+        public UniTask EnterAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _isExited = false;
             Debug.Log("[MainMenuState] Entered MainMenu");
             var mainMenuPrefab = Resources.Load<GameObject>("MainMenu");
@@ -29,11 +32,13 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             if (view == null)
             {
                 Debug.LogError("[MainMenuState] Failed to open MainMenuView!");
-                return;
+                return UniTask.CompletedTask;
             }
             
             var viewModel = view.GetViewModel();
             _coordinator.Initialize(viewModel);
+
+            return UniTask.CompletedTask;
         }
 
         public void Exit()

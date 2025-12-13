@@ -1,3 +1,6 @@
+using System.Threading;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using NSubstitute;
 using NUnit.Framework;
 using Runtime.Infrastructure.EntryPoint;
@@ -10,17 +13,18 @@ namespace Tests.EditMode.Infrastructure.EntryPoint
     public class GameEntryPointTests
     {
         [Test]
-        public void WhenStart_ThenEntersBootstrapState()
+        public async Task WhenStartAsync_ThenEntersBootstrapState()
         {
             // Arrange
             var stateMachine = Substitute.For<IGameStateMachine>();
+            stateMachine.EnterAsync<BootstrapState>(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             var sut = new GameEntryPoint(stateMachine);
 
             // Act
-            sut.Start();
+            await sut.StartAsync(CancellationToken.None);
 
             // Assert
-            stateMachine.Received(1).Enter<BootstrapState>();
+            await stateMachine.Received(1).EnterAsync<BootstrapState>(Arg.Any<CancellationToken>());
         }
     }
 }

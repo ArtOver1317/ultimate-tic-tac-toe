@@ -1,4 +1,5 @@
-﻿using NSubstitute;
+﻿using System.Threading.Tasks;
+using NSubstitute;
 using NUnit.Framework;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Services.UI;
@@ -45,34 +46,50 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public void WhenEnter_ThenRegistersWindowPrefab()
+        public async Task WhenEnter_ThenRegistersWindowPrefab()
         {
-            _state.Enter();
+            // Arrange
 
+            // Act
+            await _state.EnterAsync();
+
+            // Assert
             _uiService.Received(1).RegisterWindowPrefab<MainMenuView>(Arg.Any<GameObject>());
         }
 
         [Test]
-        public void WhenEnter_ThenOpensMainMenuWindow()
+        public async Task WhenEnter_ThenOpensMainMenuWindow()
         {
-            _state.Enter();
+            // Arrange
 
+            // Act
+            await _state.EnterAsync();
+
+            // Assert
             _uiService.Received(1).Open<MainMenuView, MainMenuViewModel>();
         }
 
         [Test]
-        public void WhenEnterAndViewIsValid_ThenInitializesCoordinatorWithCorrectViewModel()
+        public async Task WhenEnterAndViewIsValid_ThenInitializesCoordinatorWithCorrectViewModel()
         {
-            _state.Enter();
+            // Arrange
 
+            // Act
+            await _state.EnterAsync();
+
+            // Assert
             _coordinator.Received(1).Initialize(_viewModel);
         }
 
         [Test]
-        public void WhenEnter_ThenCallsOperationsInCorrectOrder()
+        public async Task WhenEnter_ThenCallsOperationsInCorrectOrder()
         {
-            _state.Enter();
+            // Arrange
 
+            // Act
+            await _state.EnterAsync();
+
+            // Assert
             Received.InOrder(() =>
             {
                 _uiService.RegisterWindowPrefab<MainMenuView>(Arg.Any<GameObject>());
@@ -82,40 +99,52 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public void WhenExit_ThenClosesMainMenuWindow()
+        public async Task WhenExit_ThenClosesMainMenuWindow()
         {
-            _state.Enter();
+            // Arrange
+            await _state.EnterAsync();
 
+            // Act
             _state.Exit();
 
+            // Assert
             _uiService.Received(1).Close<MainMenuView>();
         }
 
         [Test]
-        public void WhenExit_ThenDisposesCoordinator()
+        public async Task WhenExit_ThenDisposesCoordinator()
         {
-            _state.Enter();
+            // Arrange
+            await _state.EnterAsync();
 
+            // Act
             _state.Exit();
 
+            // Assert
             _coordinator.Received(1).Dispose();
         }
 
         [Test]
-        public void WhenEnterAndViewReturnsNull_ThenDoesNotInitializeCoordinator()
+        public async Task WhenEnterAndViewReturnsNull_ThenDoesNotInitializeCoordinator()
         {
+            // Arrange
             _uiService.Open<MainMenuView, MainMenuViewModel>().Returns((MainMenuView)null);
             LogAssert.Expect(LogType.Error, "[MainMenuState] Failed to open MainMenuView!");
-            _state.Enter();
+            
+            // Act
+            await _state.EnterAsync();
 
+            // Assert
             _coordinator.DidNotReceive().Initialize(Arg.Any<MainMenuViewModel>());
         }
 
         [Test]
-        public void WhenExitCalledMultipleTimes_ThenIsIdempotent()
+        public async Task WhenExitCalledMultipleTimes_ThenIsIdempotent()
         {
-            _state.Enter();
+            // Arrange
+            await _state.EnterAsync();
 
+            // Act
             _state.Exit();
             _state.Exit();
 

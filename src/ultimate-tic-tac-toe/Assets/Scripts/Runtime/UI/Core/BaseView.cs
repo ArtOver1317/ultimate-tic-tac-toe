@@ -25,7 +25,9 @@ namespace Runtime.UI.Core
 
         public void ClearViewModel()
         {
+            ViewModel?.Dispose();
             ViewModel = null;
+            _disposables.Clear();
             _isInitialized = false;
         }
 
@@ -59,7 +61,9 @@ namespace Runtime.UI.Core
                     .AddTo(_disposables);
             }
             else
+            {
                 Debug.LogError($"Element {element.name} is not a TextElement");
+            }
         }
 
         protected void BindVisibility(Observable<bool> source, VisualElement element) =>
@@ -73,6 +77,7 @@ namespace Runtime.UI.Core
 
         protected virtual void OnDestroy()
         {
+            ViewModel?.Dispose();
             _disposables.Dispose();
         }
     }

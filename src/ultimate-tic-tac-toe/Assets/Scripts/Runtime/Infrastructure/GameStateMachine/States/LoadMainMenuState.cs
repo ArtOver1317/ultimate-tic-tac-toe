@@ -1,3 +1,5 @@
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Runtime.Services.Scenes;
 using Runtime.Services.UI;
 using UnityEngine;
@@ -17,17 +19,14 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             _uiService = uiService;
         }
 
-        public void Enter()
+        public async UniTask EnterAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             Debug.Log("[LoadMainMenuState] Loading MainMenu scene...");
             _uiService.ClearViewModelPools();
-            _sceneLoader.LoadSceneAsync(SceneNames.MainMenu, OnSceneLoaded);
-        }
-
-        private void OnSceneLoaded()
-        {
+            await _sceneLoader.LoadSceneAsync(SceneNames.MainMenu, cancellationToken);
             Debug.Log("[LoadMainMenuState] MainMenu scene loaded");
-            _stateMachine.Enter<MainMenuState>();
+            await _stateMachine.EnterAsync<MainMenuState>(cancellationToken);
         }
 
         public void Exit() => Debug.Log("[LoadMainMenuState] Exiting...");

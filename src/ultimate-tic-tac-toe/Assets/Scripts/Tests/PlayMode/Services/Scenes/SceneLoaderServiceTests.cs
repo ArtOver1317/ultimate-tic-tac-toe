@@ -1,49 +1,45 @@
+using System;
 using System.Collections;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Services.Scenes;
-using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
 namespace Tests.PlayMode.Services.Scenes
 {
+    [TestFixture]
     public class SceneLoaderServiceTests
     {
-        private string _originalScene;
-
-        [SetUp]
-        public void SetUp()
-        {
-            _originalScene = SceneManager.GetActiveScene().name;
-        }
+        private const string TestSceneName = "TestEmptyScene";
 
         [UnityTest]
-        public IEnumerator WhenLoadSceneAsync_ThenLoadsSceneAndInvokesCallback()
+        public IEnumerator WhenLoadSceneAsyncAdditive_ThenLoadsScene() => UniTask.ToCoroutine(async () =>
         {
+            // Arrange
             var sut = new SceneLoaderService();
-            var loaded = false;
-            const string sceneToLoad = "TestEmptyScene";
-            const float timeout = 2f;
-            var timer = 0f;
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var initialSceneCount = SceneManager.sceneCount;
 
-            sut.LoadSceneAsync(sceneToLoad, () => loaded = true);
+            // Act - загружаем аддитивно (не разрушает текущую сцену)
+            await sut.LoadSceneAsync(TestSceneName, LoadSceneMode.Additive, cts.Token);
 
-            while (!loaded && timer < timeout)
-            {
-                timer += Time.unscaledDeltaTime;
-                yield return null;
-            }
-
-            loaded.Should().BeTrue("Callback should be invoked within timeout");
-            SceneManager.GetActiveScene().name.Should().Be(sceneToLoad);
-        }
+            // Assert
+            SceneManager.sceneCount.Should().Be(initialSceneCount + 1);
+            SceneManager.GetSceneByName(TestSceneName).isLoaded.Should().BeTrue();
+        });
 
         [UnityTearDown]
         public IEnumerator TearDown()
         {
-            if (!string.IsNullOrEmpty(_originalScene) && SceneManager.GetActiveScene().name != _originalScene)
-                yield return SceneManager.LoadSceneAsync(_originalScene);
+            // Выгружаем тестовую сцену если она загружена
+            var testScene = SceneManager.GetSceneByName(TestSceneName);
+            if (testScene.isLoaded)
+            {
+                yield return SceneManager.UnloadSceneAsync(testScene);
+            }
         }
     }
 }

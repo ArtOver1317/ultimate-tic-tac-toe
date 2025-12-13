@@ -1,3 +1,5 @@
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Runtime.Infrastructure.GameStateMachine.States;
 
 namespace Runtime.Infrastructure.GameStateMachine
@@ -10,26 +12,29 @@ namespace Runtime.Infrastructure.GameStateMachine
 
         public GameStateMachine(IStateFactory stateFactory) => _stateFactory = stateFactory;
 
-        public void Enter<TState>() where TState : class, IState
+        public async UniTask EnterAsync<TState>(CancellationToken cancellationToken = default) where TState : class, IState
         {
-            var newState = ChangeState<TState>();
-            newState.Enter();
+            cancellationToken.ThrowIfCancellationRequested();
+            var newState = await ChangeStateAsync<TState>(cancellationToken);
+            await newState.EnterAsync(cancellationToken);
         }
 
-        public void Enter<TState, TPayload>(TPayload payload) where TState : class, IPayloadedState<TPayload>
+        public async UniTask EnterAsync<TState, TPayload>(TPayload payload, CancellationToken cancellationToken = default) where TState : class, IPayloadedState<TPayload>
         {
-            var newState = ChangeState<TState>();
-            newState.Enter(payload);
+            cancellationToken.ThrowIfCancellationRequested();
+            var newState = await ChangeStateAsync<TState>(cancellationToken);
+            await newState.EnterAsync(payload, cancellationToken);
         }
 
-        private TState ChangeState<TState>() where TState : class, IExitableState
+        private UniTask<TState> ChangeStateAsync<TState>(CancellationToken cancellationToken) where TState : class, IExitableState
         {
+            cancellationToken.ThrowIfCancellationRequested();
             CurrentState?.Exit();
             var state = _stateFactory.CreateState<TState>();
 
             CurrentState = state ?? throw StateExceptions.FactoryReturnedNull(typeof(TState));
             
-            return state;
+            return UniTask.FromResult(state);
         }
     }
 }

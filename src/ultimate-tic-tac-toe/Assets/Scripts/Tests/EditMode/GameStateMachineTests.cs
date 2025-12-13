@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -11,19 +14,22 @@ namespace Tests.EditMode
     public class GameStateMachineTests
     {
         private IStateFactory _stateFactory;
+        private CancellationToken _cancellationToken;
 
         [SetUp]
-        public void SetUp() => _stateFactory = Substitute.For<IStateFactory>();
+        public void SetUp()
+        {
+            _stateFactory = Substitute.For<IStateFactory>();
+            _cancellationToken = CancellationToken.None;
+        }
 
         #region Initialization Tests
 
         [Test]
         public void WhenConstructor_ThenSetsCurrentStateToNull()
         {
-            // Arrange & Act
             var stateMachine = new GameStateMachine(_stateFactory);
 
-            // Assert
             stateMachine.CurrentState.Should().BeNull();
         }
 
@@ -32,52 +38,47 @@ namespace Tests.EditMode
         #region Basic State Transitions Tests
 
         [Test]
-        public void WhenEnterFirstState_ThenCreatesStateAndCallsEnter()
+        public async Task WhenEnterFirstState_ThenCreatesStateAndCallsEnter()
         {
-            // Arrange
             var mockState = Substitute.For<IState>();
+            mockState.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(mockState);
             var stateMachine = new GameStateMachine(_stateFactory);
 
-            // Act
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
 
-            // Assert
             _stateFactory.Received(1).CreateState<IState>();
-            mockState.Received(1).Enter();
+            await mockState.Received(1).EnterAsync(_cancellationToken);
             stateMachine.CurrentState.Should().Be(mockState);
         }
 
         [Test]
-        public void WhenEnterFirstState_ThenUpdatesCurrentState()
+        public async Task WhenEnterFirstState_ThenUpdatesCurrentState()
         {
-            // Arrange
             var mockState = Substitute.For<IState>();
+            mockState.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(mockState);
             var stateMachine = new GameStateMachine(_stateFactory);
 
-            // Act
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
 
-            // Assert
             stateMachine.CurrentState.Should().NotBeNull();
             stateMachine.CurrentState.Should().Be(mockState);
         }
 
         [Test]
-        public void WhenEnterNewState_ThenExitsOldState()
+        public async Task WhenEnterNewState_ThenExitsOldState()
         {
-            // Arrange
             var state1 = Substitute.For<IState>();
             var state2 = Substitute.For<IState>();
+            state1.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            state2.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(state1, state2);
             var stateMachine = new GameStateMachine(_stateFactory);
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
 
-            // Act
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
 
-            // Assert
             state1.Received(1).Exit();
         }
 
@@ -86,45 +87,43 @@ namespace Tests.EditMode
         #region State Lifecycle & Order Tests
 
         [Test]
-        public void WhenEnterNewState_ThenCallsExitBeforeEnter()
+        public async Task WhenEnterNewState_ThenCallsExitBeforeEnter()
         {
-            // Arrange
             var state1 = Substitute.For<IState>();
             var state2 = Substitute.For<IState>();
+            state1.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            state2.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(state1, state2);
             var stateMachine = new GameStateMachine(_stateFactory);
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
             
             state1.ClearReceivedCalls();
             state2.ClearReceivedCalls();
             _stateFactory.ClearReceivedCalls();
 
-            // Act
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
 
-            // Assert
             Received.InOrder(() =>
             {
                 state1.Exit();
                 _stateFactory.CreateState<IState>();
-                state2.Enter();
+                state2.EnterAsync(_cancellationToken);
             });
         }
 
         [Test]
-        public void WhenEnterSameStateType_ThenCreatesNewInstance()
+        public async Task WhenEnterSameStateType_ThenCreatesNewInstance()
         {
-            // Arrange
             var firstStateInstance = Substitute.For<IState>();
             var secondStateInstance = Substitute.For<IState>();
+            firstStateInstance.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            secondStateInstance.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(firstStateInstance, secondStateInstance);
             var stateMachine = new GameStateMachine(_stateFactory);
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
 
-            // Act
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
 
-            // Assert
             firstStateInstance.Received(1).Exit();
             _stateFactory.Received(2).CreateState<IState>();
             stateMachine.CurrentState.Should().NotBe(firstStateInstance);
@@ -132,21 +131,21 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public void WhenEnterMultipleStates_ThenEachTransitionWorksCorrectly()
+        public async Task WhenEnterMultipleStates_ThenEachTransitionWorksCorrectly()
         {
-            // Arrange
             var state1 = Substitute.For<IState>();
             var state2 = Substitute.For<IState>();
             var state3 = Substitute.For<IState>();
+            state1.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            state2.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            state3.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(state1, state2, state3);
             var stateMachine = new GameStateMachine(_stateFactory);
 
-            // Act
-            stateMachine.Enter<IState>();
-            stateMachine.Enter<IState>(); 
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
+            await stateMachine.EnterAsync<IState>(_cancellationToken); 
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
 
-            // Assert
             state1.Received(1).Exit();
             state2.Received(1).Exit();
             state3.DidNotReceive().Exit();
@@ -158,23 +157,24 @@ namespace Tests.EditMode
         #region CurrentState Management Tests
 
         [Test]
-        public void WhenCurrentState_ThenReflectsLastEnteredState()
+        public async Task WhenCurrentState_ThenReflectsLastEnteredState()
         {
-            // Arrange
             var state1 = Substitute.For<IState>();
             var state2 = Substitute.For<IState>();
             var state3 = Substitute.For<IState>();
+            state1.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            state2.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            state3.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(state1, state2, state3);
             var stateMachine = new GameStateMachine(_stateFactory);
 
-            // Act & Assert
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
             stateMachine.CurrentState.Should().Be(state1);
 
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
             stateMachine.CurrentState.Should().Be(state2);
 
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
             stateMachine.CurrentState.Should().Be(state3);
         }
 
@@ -183,96 +183,89 @@ namespace Tests.EditMode
         #region Payload State Tests
 
         [Test]
-        public void WhenEnterStateWithPayload_ThenPassesPayloadToEnter()
+        public async Task WhenEnterStateWithPayload_ThenPassesPayloadToEnter()
         {
-            // Arrange
+            const string testPayload = "TestData";
             var payloadState = Substitute.For<IPayloadedState<string>>();
+            payloadState.EnterAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IPayloadedState<string>>().Returns(payloadState);
             var stateMachine = new GameStateMachine(_stateFactory);
-            const string testPayload = "TestData";
 
-            // Act
-            stateMachine.Enter<IPayloadedState<string>, string>(testPayload);
+            await stateMachine.EnterAsync<IPayloadedState<string>, string>(testPayload, _cancellationToken);
 
-            // Assert
-            payloadState.Received(1).Enter(testPayload);
-            payloadState.Received(1).Enter(Arg.Is<string>(p => p == testPayload));
+            await payloadState.Received(1).EnterAsync(testPayload, _cancellationToken);
         }
 
         [Test]
-        public void WhenEnterStateWithPayload_ThenCallsExitThenEnter()
+        public async Task WhenEnterStateWithPayload_ThenCallsExitThenEnter()
         {
-            // Arrange
             var state1 = Substitute.For<IState>();
             var payloadState = Substitute.For<IPayloadedState<int>>();
+            state1.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            payloadState.EnterAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(state1);
             _stateFactory.CreateState<IPayloadedState<int>>().Returns(payloadState);
             var stateMachine = new GameStateMachine(_stateFactory);
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
 
             state1.ClearReceivedCalls();
             _stateFactory.ClearReceivedCalls();
 
-            // Act
-            stateMachine.Enter<IPayloadedState<int>, int>(42);
+            await stateMachine.EnterAsync<IPayloadedState<int>, int>(42, _cancellationToken);
 
-            // Assert
             Received.InOrder(() =>
             {
                 state1.Exit();
-                payloadState.Enter(42);
+                payloadState.EnterAsync(42, _cancellationToken);
             });
             
-            payloadState.Received(1).Enter(42);
+            await payloadState.Received(1).EnterAsync(42, _cancellationToken);
         }
 
         [Test]
-        public void WhenEnterStateWithPayloadWithNull_ThenHandlesCorrectly()
+        public async Task WhenEnterStateWithPayloadWithNull_ThenHandlesCorrectly()
         {
-            // Arrange
             var payloadState = Substitute.For<IPayloadedState<string>>();
+            payloadState.EnterAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IPayloadedState<string>>().Returns(payloadState);
             var stateMachine = new GameStateMachine(_stateFactory);
 
-            // Act
-            Action act = () => stateMachine.Enter<IPayloadedState<string>, string>(null);
+            Func<Task> act = () => stateMachine.EnterAsync<IPayloadedState<string>, string>(null, _cancellationToken).AsTask();
 
-            // Assert
-            act.Should().NotThrow();
-            payloadState.Received(1).Enter(null);
+            await act.Should().NotThrowAsync();
+            await payloadState.Received(1).EnterAsync(null, _cancellationToken);
         }
 
         [Test]
-        public void WhenEnterMultipleStatesWithPayload_ThenIsolatesData()
+        public async Task WhenEnterMultipleStatesWithPayload_ThenIsolatesData()
         {
-            // Arrange
             const string payload1 = "payload1";
             const int payload2 = 42;
             const string payload3 = "payload3";
             var state1 = Substitute.For<IPayloadedState<string>>();
             var state2 = Substitute.For<IPayloadedState<int>>();
             var state3 = Substitute.For<IPayloadedState<string>>();
+            state1.EnterAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            state2.EnterAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            state3.EnterAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IPayloadedState<string>>().Returns(state1, state3);
             _stateFactory.CreateState<IPayloadedState<int>>().Returns(state2);
             var stateMachine = new GameStateMachine(_stateFactory);
 
-            // Act
+            await stateMachine.EnterAsync<IPayloadedState<string>, string>(payload1, _cancellationToken);
+            await stateMachine.EnterAsync<IPayloadedState<int>, int>(payload2, _cancellationToken);
+            await stateMachine.EnterAsync<IPayloadedState<string>, string>(payload3, _cancellationToken);
 
-            stateMachine.Enter<IPayloadedState<string>, string>(payload1);
-            stateMachine.Enter<IPayloadedState<int>, int>(payload2);
-            stateMachine.Enter<IPayloadedState<string>, string>(payload3);
-
-            // Assert
-            state1.Received(1).Enter(payload1);
-            state1.DidNotReceive().Enter(payload3);
-            state1.DidNotReceive().Enter(Arg.Is<string>(p => p != payload1));
+            await state1.Received(1).EnterAsync(payload1, _cancellationToken);
+            await state1.DidNotReceive().EnterAsync(payload3, _cancellationToken);
+            await state1.DidNotReceive().EnterAsync(Arg.Is<string>(p => p != payload1), _cancellationToken);
             
-            state2.Received(1).Enter(payload2);
-            state2.DidNotReceive().Enter(Arg.Is<int>(p => p != payload2));
+            await state2.Received(1).EnterAsync(payload2, _cancellationToken);
+            await state2.DidNotReceive().EnterAsync(Arg.Is<int>(p => p != payload2), _cancellationToken);
             
-            state3.Received(1).Enter(payload3);
-            state3.DidNotReceive().Enter(payload1);
-            state3.DidNotReceive().Enter(Arg.Is<string>(p => p != payload3));
+            await state3.Received(1).EnterAsync(payload3, _cancellationToken);
+            await state3.DidNotReceive().EnterAsync(payload1, _cancellationToken);
+            await state3.DidNotReceive().EnterAsync(Arg.Is<string>(p => p != payload3), _cancellationToken);
         }
 
         #endregion
@@ -280,84 +273,75 @@ namespace Tests.EditMode
         #region Error Handling Tests
 
         [Test]
-        public void WhenFactoryReturnsNull_ThenThrowsInvalidOperationException()
+        public async Task WhenFactoryReturnsNull_ThenThrowsInvalidOperationException()
         {
-            // Arrange
             _stateFactory.CreateState<IState>().Returns((IState)null);
             var stateMachine = new GameStateMachine(_stateFactory);
 
-            // Act
-            Action act = () => stateMachine.Enter<IState>();
+            Func<Task> act = () => stateMachine.EnterAsync<IState>(_cancellationToken).AsTask();
 
-            // Assert
-            act.Should().Throw<InvalidOperationException>()
+            await act.Should().ThrowAsync<InvalidOperationException>()
                 .WithMessage("*StateFactory returned null*");
         }
 
         [Test]
-        public void WhenFactoryReturnsNullForPayloadState_ThenThrowsInvalidOperationException()
+        public async Task WhenFactoryReturnsNullForPayloadState_ThenThrowsInvalidOperationException()
         {
-            // Arrange
             _stateFactory.CreateState<IPayloadedState<int>>().Returns((IPayloadedState<int>)null);
             var stateMachine = new GameStateMachine(_stateFactory);
 
-            // Act
-            Action act = () => stateMachine.Enter<IPayloadedState<int>, int>(42);
+            Func<Task> act = () => stateMachine.EnterAsync<IPayloadedState<int>, int>(42, _cancellationToken).AsTask();
 
-            // Assert
-            act.Should().Throw<InvalidOperationException>()
+            await act.Should().ThrowAsync<InvalidOperationException>()
                 .WithMessage("*StateFactory returned null*");
         }
 
         [Test]
-        public void WhenPreviousStateExitThrows_ThenPropagatesException()
+        public async Task WhenPreviousStateExitThrows_ThenPropagatesException()
         {
-            // Arrange
             const string expectedWildcardPattern = "Exit failed";
             var state1 = Substitute.For<IState>();
             var state2 = Substitute.For<IState>();
             var expectedException = new InvalidOperationException(expectedWildcardPattern);
             
+            state1.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            state2.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             state1.When(x => x.Exit()).Do(_ => throw expectedException);
             
             _stateFactory.CreateState<IState>().Returns(state1, state2);
             var stateMachine = new GameStateMachine(_stateFactory);
             
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
             var previousState = stateMachine.CurrentState;
             
-            // Act
-            Action act = () => stateMachine.Enter<IState>();
+            Func<Task> act = () => stateMachine.EnterAsync<IState>(_cancellationToken).AsTask();
             
-            // Assert
-            act.Should().Throw<InvalidOperationException>()
+            await act.Should().ThrowAsync<InvalidOperationException>()
                 .WithMessage(expectedWildcardPattern);
 
             stateMachine.CurrentState.Should().BeSameAs(previousState);
-            state2.DidNotReceive().Enter();
+            await state2.DidNotReceive().EnterAsync(Arg.Any<CancellationToken>());
         }
 
         [Test]
-        public void WhenNewStateEnterThrows_ThenPropagatesException()
+        public async Task WhenNewStateEnterThrows_ThenPropagatesException()
         {
-            // Arrange
             const string expectedExceptionMessage = "Enter failed";
             var state1 = Substitute.For<IState>();
             var state2 = Substitute.For<IState>();
             var expectedException = new InvalidOperationException(expectedExceptionMessage);
             
-            state2.When(x => x.Enter()).Do(_ => throw expectedException);
+            state1.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            state2.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.FromException(expectedException));
             
             _stateFactory.CreateState<IState>().Returns(state1, state2);
             var stateMachine = new GameStateMachine(_stateFactory);
             
-            stateMachine.Enter<IState>();
+            await stateMachine.EnterAsync<IState>(_cancellationToken);
             
-            // Act
-            Action act = () => stateMachine.Enter<IState>();
+            Func<Task> act = () => stateMachine.EnterAsync<IState>(_cancellationToken).AsTask();
             
-            // Assert
-            act.Should().Throw<InvalidOperationException>()
+            await act.Should().ThrowAsync<InvalidOperationException>()
                 .WithMessage(expectedExceptionMessage);
 
             stateMachine.CurrentState.Should().BeSameAs(state2);

@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -15,6 +18,7 @@ namespace Tests.EditMode
         private MainMenuCoordinator _coordinator;
         private IGameStateMachine _stateMachineMock;
         private MainMenuViewModel _viewModel;
+        private CancellationToken _cancellationToken;
 
         [SetUp]
         public void SetUp()
@@ -22,6 +26,10 @@ namespace Tests.EditMode
             _stateMachineMock = Substitute.For<IGameStateMachine>();
             _coordinator = new MainMenuCoordinator(_stateMachineMock);
             _viewModel = new MainMenuViewModel();
+            _cancellationToken = CancellationToken.None;
+
+            _stateMachineMock.EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
         }
 
         [TearDown]
@@ -34,7 +42,7 @@ namespace Tests.EditMode
         #region Core Functionality
 
         [Test]
-        public void WhenInitialize_ThenSubscribesToViewModelEvents()
+        public async Task WhenInitialize_ThenSubscribesToViewModelEvents()
         {
             // Arrange
             _coordinator.Initialize(_viewModel);
@@ -43,7 +51,7 @@ namespace Tests.EditMode
             _viewModel.OnStartGameClicked.OnNext(Unit.Default);
 
             // Assert
-            _stateMachineMock.Received(1).Enter<LoadGameplayState>();
+            await _stateMachineMock.Received(1).EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>());
         }
 
         [Test]
@@ -60,7 +68,7 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public void WhenOnStartGameClicked_ThenEntersGameplayStateAndDisablesUI()
+        public async Task WhenOnStartGameClicked_ThenEntersGameplayStateAndDisablesUI()
         {
             // Arrange
             _coordinator.Initialize(_viewModel);
@@ -71,7 +79,7 @@ namespace Tests.EditMode
             _viewModel.OnStartGameClicked.OnNext(Unit.Default);
 
             // Assert
-            _stateMachineMock.Received(1).Enter<LoadGameplayState>();
+            await _stateMachineMock.Received(1).EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>());
             
             interactableValue.Should().BeFalse("UI должен быть заблокирован во время перехода в игру");
 
@@ -79,7 +87,7 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public void WhenInitializeCalledTwice_ThenOldSubscriptionsDisposed()
+        public async Task WhenInitializeCalledTwice_ThenOldSubscriptionsDisposed()
         {
             // Arrange
             var viewModel1 = new MainMenuViewModel();
@@ -92,7 +100,7 @@ namespace Tests.EditMode
             viewModel1.OnStartGameClicked.OnNext(Unit.Default);
 
             // Assert - старая подписка не должна работать
-            _stateMachineMock.DidNotReceive().Enter<LoadGameplayState>();
+            await _stateMachineMock.DidNotReceive().EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>());
 
             // Cleanup
             viewModel1.Dispose();
@@ -104,7 +112,7 @@ namespace Tests.EditMode
         #region Dispose Pattern
 
         [Test]
-        public void WhenDispose_ThenUnsubscribesFromEvents()
+        public async Task WhenDispose_ThenUnsubscribesFromEvents()
         {
             // Arrange
             _coordinator.Initialize(_viewModel);
@@ -114,7 +122,7 @@ namespace Tests.EditMode
             _viewModel.OnStartGameClicked.OnNext(Unit.Default);
 
             // Assert
-            _stateMachineMock.DidNotReceive().Enter<LoadGameplayState>();
+            await _stateMachineMock.DidNotReceive().EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>());
         }
 
         [Test]

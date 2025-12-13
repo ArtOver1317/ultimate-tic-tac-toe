@@ -1,3 +1,6 @@
+using System.Threading;
+using Cysharp.Threading.Tasks;
+
 namespace Runtime.Infrastructure.GameStateMachine.States
 {
     public interface IExitableState
@@ -7,12 +10,12 @@ namespace Runtime.Infrastructure.GameStateMachine.States
 
     public interface IState : IExitableState
     {
-        void Enter();
+        UniTask EnterAsync(CancellationToken cancellationToken = default);
     }
 
     public interface IPayloadedState<in TPayload> : IExitableState
     {
-        void Enter(TPayload payload);
+        UniTask EnterAsync(TPayload payload, CancellationToken cancellationToken = default);
     }
 }
 

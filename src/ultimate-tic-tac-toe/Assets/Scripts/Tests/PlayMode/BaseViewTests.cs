@@ -369,6 +369,7 @@ namespace Tests.PlayMode
 
             // Act
             Object.Destroy(_view.gameObject);
+            _testGameObject = null; // Предотвращаем повторное уничтожение в TearDown
             yield return null;
 
             // Assert
@@ -390,6 +391,7 @@ namespace Tests.PlayMode
 
             // Act
             Object.Destroy(_view.gameObject);
+            _testGameObject = null; // Предотвращаем повторное уничтожение в TearDown
             yield return null;
 
             // Assert

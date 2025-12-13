@@ -1,4 +1,4 @@
-using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine.SceneManagement;
 
@@ -6,12 +6,16 @@ namespace Runtime.Services.Scenes
 {
     public class SceneLoaderService : ISceneLoaderService
     {
-        public void LoadSceneAsync(string sceneName, Action onLoaded = null) => LoadSceneAsyncInternal(sceneName, onLoaded).Forget();
-
-        private async UniTaskVoid LoadSceneAsyncInternal(string sceneName, Action onLoaded)
+        public async UniTask LoadSceneAsync(string sceneName, CancellationToken cancellationToken = default)
         {
-            await SceneManager.LoadSceneAsync(sceneName).ToUniTask();
-            onLoaded?.Invoke();
+            await LoadSceneAsync(sceneName, LoadSceneMode.Single, cancellationToken);
+        }
+
+        public async UniTask LoadSceneAsync(string sceneName, LoadSceneMode mode, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var asyncOperation = SceneManager.LoadSceneAsync(sceneName, mode);
+            await asyncOperation.ToUniTask(cancellationToken: cancellationToken);
         }
     }
 }

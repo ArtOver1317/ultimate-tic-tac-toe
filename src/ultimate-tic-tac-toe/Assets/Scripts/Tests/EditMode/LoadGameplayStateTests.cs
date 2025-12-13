@@ -1,4 +1,6 @@
-using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -16,6 +18,7 @@ namespace Tests.EditMode
         private ISceneLoaderService _sceneLoader;
         private IUIService _uiService;
         private LoadGameplayState _sut;
+        private CancellationToken _cancellationToken;
 
         [SetUp]
         public void SetUp()
@@ -23,56 +26,58 @@ namespace Tests.EditMode
             _stateMachine = Substitute.For<IGameStateMachine>();
             _sceneLoader = Substitute.For<ISceneLoaderService>();
             _uiService = Substitute.For<IUIService>();
+            _cancellationToken = CancellationToken.None;
 
             _sut = new LoadGameplayState(_stateMachine, _sceneLoader, _uiService);
         }
 
         [Test]
-        public void WhenEnter_ThenClearsPoolsAndLoadsGameplayScene_InOrder()
+        public async Task WhenEnter_ThenClearsPoolsAndLoadsGameplayScene_InOrder()
         {
-            Action capturedCallback = null;
-
+            // Arrange
             _sceneLoader
-                .When(x => x.LoadSceneAsync(SceneNames.Gameplay, Arg.Any<Action>()))
-                .Do(callInfo => capturedCallback = callInfo.Arg<Action>());
+                .LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+            _stateMachine.EnterAsync<GameplayState>(Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
 
-            _sut.Enter();
+            // Act
+            await _sut.EnterAsync(_cancellationToken);
 
-            _uiService.Received(1).ClearViewModelPools();
-            _sceneLoader.Received(1).LoadSceneAsync(SceneNames.Gameplay, Arg.Any<Action>());
-            capturedCallback.Should().NotBeNull("Callback должен быть передан в LoadSceneAsync");
-
+            // Assert
             Received.InOrder(() =>
             {
                 _uiService.ClearViewModelPools();
-                _sceneLoader.LoadSceneAsync(SceneNames.Gameplay, Arg.Any<Action>());
+                _sceneLoader.LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>());
+                _stateMachine.EnterAsync<GameplayState>(Arg.Any<CancellationToken>());
             });
         }
 
         [Test]
-        public void WhenSceneLoaded_ThenTransitionsToGameplayState()
+        public async Task WhenSceneLoaded_ThenTransitionsToGameplayState()
         {
-            Action capturedCallback = null;
-
+            // Arrange
             _sceneLoader
-                .When(x => x.LoadSceneAsync(SceneNames.Gameplay, Arg.Any<Action>()))
-                .Do(callInfo => capturedCallback = callInfo.Arg<Action>());
+                .LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+            _stateMachine.EnterAsync<GameplayState>(Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
 
-            _sut.Enter();
+            // Act
+            await _sut.EnterAsync(_cancellationToken);
 
-            capturedCallback.Should().NotBeNull("Callback должен быть захвачен для проверки перехода состояния");
-            _stateMachine.DidNotReceive().Enter<GameplayState>();
-
-            capturedCallback.Invoke();
-
-            _stateMachine.Received(1).Enter<GameplayState>();
+            // Assert
+            await _sceneLoader.Received(1).LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>());
+            await _stateMachine.Received(1).EnterAsync<GameplayState>(Arg.Any<CancellationToken>());
         }
 
         [Test]
         public void WhenExit_ThenCompletesWithoutError()
         {
-            Action act = () => _sut.Exit();
+            // Arrange
+            System.Action act = () => _sut.Exit();
 
+            // Assert
             act.Should().NotThrow();
         }
     }
