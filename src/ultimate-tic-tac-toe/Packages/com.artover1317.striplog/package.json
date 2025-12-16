@@ -1,0 +1,49 @@
+{
+  "name": "com.artover1317.striplog",
+  "displayName": "StripLog",
+  "version": "0.2.0",
+  "unity": "6000.0",
+  "description": "Minimal Unity logger focused on compile-time stripping via [Conditional]. By default Debug/Info/Warning are stripped from Release builds (unless FORCE_LOGS is defined).",
+  "keywords": [
+    "unity",
+    "logging",
+    "conditional",
+    "strip",
+    "debug"
+  ],
+  "author": {
+    "name": "ArtOver1317",
+    "url": "https://github.com/ArtOver1317"
+  },
+  "license": "MIT",
+  "documentationUrl": "https://github.com/ArtOver1317/striplog#readme",
+  "changelogUrl": "https://github.com/ArtOver1317/striplog/blob/main/Packages/com.artover1317.striplog/CHANGELOG.md",
+  "licensesUrl": "https://github.com/ArtOver1317/striplog/blob/main/Packages/com.artover1317.striplog/LICENSE.md",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ArtOver1317/striplog.git"
+  },
+  "dependencies": {},
+  "samples": [
+    {
+      "displayName": "Basic Tags",
+      "description": "Example of organizing log tags as constants.",
+      "path": "Samples~/01-BasicTags"
+    },
+    {
+      "displayName": "Colored Output",
+      "description": "Custom ILogHandler with colored tags in Editor.",
+      "path": "Samples~/02-ColoredOutput"
+    },
+    {
+      "displayName": "ScriptableObject Settings",
+      "description": "Configure MinLevel and MutedTags via ScriptableObject.",
+      "path": "Samples~/03-ScriptableSettings"
+    },
+    {
+      "displayName": "R3 Integration",
+      "description": "Observable log stream using R3.",
+      "path": "Samples~/04-R3Integration"
+    }
+  ]
+}
