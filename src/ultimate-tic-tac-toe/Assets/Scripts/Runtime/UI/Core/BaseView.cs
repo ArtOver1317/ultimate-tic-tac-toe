@@ -1,5 +1,7 @@
 using System;
 using R3;
+using Runtime.Infrastructure.Logging;
+using StripLog;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -62,7 +64,7 @@ namespace Runtime.UI.Core
             }
             else
             {
-                Debug.LogError($"Element {element.name} is not a TextElement");
+                Log.Error(LogTags.UI, $"Element {element.name} is not a TextElement", this);
             }
         }
 

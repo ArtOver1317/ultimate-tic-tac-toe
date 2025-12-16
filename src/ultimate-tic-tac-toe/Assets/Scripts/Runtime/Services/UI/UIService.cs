@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using R3;
+using Runtime.Infrastructure.Logging;
 using Runtime.UI.Core;
+using StripLog;
 using UnityEngine;
 using VContainer;
 
@@ -32,7 +34,7 @@ namespace Runtime.Services.UI
         {
             var windowType = typeof(TWindow);
             _windowPrefabs[windowType] = prefab;
-            Debug.Log($"[UIService] Registered window prefab: {windowType.Name}");
+            Log.Debug(LogTags.Services, $"[UIService] Registered window prefab: {windowType.Name}");
         }
 
         public TWindow Open<TWindow, TViewModel>() 
@@ -45,14 +47,14 @@ namespace Runtime.Services.UI
             {
                 var typedWindow = (TWindow)existingWindow;
                 typedWindow.Show();
-                Debug.Log($"[UIService] Showing existing window: {windowType.Name}");
+                Log.Debug(LogTags.Services, $"[UIService] Showing existing window: {windowType.Name}");
                 return typedWindow;
             }
 
             if (_windowPrefabs.TryGetValue(windowType, out var prefab))
                 return CreateWindowFromPrefab<TWindow, TViewModel>(prefab);
 
-            Debug.LogError($"[UIService] Window {windowType.Name} prefab not registered!");
+            Log.Error(LogTags.Services, $"[UIService] Window {windowType.Name} prefab not registered!");
             return null;
         }
 
@@ -78,7 +80,7 @@ namespace Runtime.Services.UI
             if (_activeWindows.TryGetValue(windowType, out var window))
             {
                 window.Hide();
-                Debug.Log($"[UIService] Hidden window: {windowType.Name}");
+                Log.Debug(LogTags.Services, $"[UIService] Hidden window: {windowType.Name}");
             }
         }
 
@@ -87,7 +89,7 @@ namespace Runtime.Services.UI
             var windowType = typeof(TWindow);
             
             if (TryCloseWindow(windowType))
-                Debug.Log($"[UIService] Closed window: {windowType.Name}");
+                Log.Debug(LogTags.Services, $"[UIService] Closed window: {windowType.Name}");
         }
 
         public void CloseAll()
@@ -101,7 +103,7 @@ namespace Runtime.Services.UI
                 subscription?.Dispose();
             
             _closeSubscriptions.Clear();
-            Debug.Log("[UIService] Closed all windows");
+            Log.Debug(LogTags.Services, "[UIService] Closed all windows");
         }
 
         public TWindow Get<TWindow>() where TWindow : IUIView
@@ -135,7 +137,7 @@ namespace Runtime.Services.UI
             
             if (window == null)
             {
-                Debug.LogError($"[UIService] Failed to get or instantiate window: {windowType.Name}");
+                Log.Error(LogTags.Services, $"[UIService] Failed to get or instantiate window: {windowType.Name}");
                 return null;
             }
 
@@ -147,13 +149,13 @@ namespace Runtime.Services.UI
             var closeSubscription = viewModel.OnCloseRequested
                 .Subscribe(_ =>
                 {
-                    Debug.Log($"[UIService] Close requested for window: {windowType.Name}");
+                    Log.Debug(LogTags.Services, $"[UIService] Close requested for window: {windowType.Name}");
                     CloseWindowByType(windowType);
                 });
             
             _closeSubscriptions[windowType] = closeSubscription;
             window.Show();
-            Debug.Log($"[UIService] Created window from prefab: {windowType.Name}");
+            Log.Debug(LogTags.Services, $"[UIService] Created window from prefab: {windowType.Name}");
             return window;
         }
 
@@ -163,7 +165,7 @@ namespace Runtime.Services.UI
         private void CloseWindowByType(Type windowType)
         {
             if (TryCloseWindow(windowType))
-                Debug.Log($"[UIService] Closed window: {windowType.Name}");
+                Log.Debug(LogTags.Services, $"[UIService] Closed window: {windowType.Name}");
         }
 
         private bool TryCloseWindow(Type windowType)

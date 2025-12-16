@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Runtime.Infrastructure.Logging;
 using Runtime.UI.Core;
+using StripLog;
 using UnityEngine;
 using VContainer;
 
@@ -32,7 +34,7 @@ namespace Runtime.Services.UI
                 if (pooledWindow is MonoBehaviour mb) 
                     mb.gameObject.SetActive(true);
 
-                Debug.Log($"[UIPoolManager] Retrieved window from pool: {windowType.Name}");
+                Log.Debug(LogTags.Services, $"[UIPoolManager] Retrieved window from pool: {windowType.Name}");
                 return pooledWindow;
             }
 
@@ -43,12 +45,12 @@ namespace Runtime.Services.UI
             
             if (window == null)
             {
-                Debug.LogError($"[UIPoolManager] Prefab doesn't have {windowType.Name} component!");
+                Log.Error(LogTags.Services, $"[UIPoolManager] Prefab doesn't have {windowType.Name} component!");
                 UnityEngine.Object.Destroy(instance);
                 return null;
             }
 
-            Debug.Log($"[UIPoolManager] Created new window instance: {windowType.Name}");
+            Log.Debug(LogTags.Services, $"[UIPoolManager] Created new window instance: {windowType.Name}");
             return window;
         }
 
@@ -81,7 +83,7 @@ namespace Runtime.Services.UI
         public void ClearViewModelPools()
         {
             _viewModelPool.ClearAll(vm => vm.Dispose());
-            Debug.Log("[UIPoolManager] ViewModel pools cleared");
+            Log.Debug(LogTags.Services, "[UIPoolManager] ViewModel pools cleared");
         }
 
         public void ClearAllPools()
@@ -95,7 +97,7 @@ namespace Runtime.Services.UI
             });
             
             _viewModelPool.ClearAll(vm => vm.Dispose());
-            Debug.Log("[UIPoolManager] All pools cleared");
+            Log.Debug(LogTags.Services, "[UIPoolManager] All pools cleared");
         }
 
         public void ClearPool(Type windowType)
@@ -108,7 +110,7 @@ namespace Runtime.Services.UI
                     UnityEngine.Object.Destroy(mb.gameObject);
             });
             
-            Debug.Log($"[UIPoolManager] Cleared pool for {windowType.Name}");
+            Log.Debug(LogTags.Services, $"[UIPoolManager] Cleared pool for {windowType.Name}");
         }
 
         public int GetPoolSize(Type windowType) => _windowPool.GetSize(windowType);

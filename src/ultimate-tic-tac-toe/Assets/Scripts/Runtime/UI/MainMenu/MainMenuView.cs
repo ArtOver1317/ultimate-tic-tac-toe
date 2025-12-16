@@ -1,7 +1,8 @@
 using R3;
 using Runtime.Extensions;
+using Runtime.Infrastructure.Logging;
 using Runtime.UI.Core;
-using UnityEngine;
+using StripLog;
 using UnityEngine.UIElements;
 
 namespace Runtime.UI.MainMenu
@@ -30,13 +31,13 @@ namespace Runtime.UI.MainMenu
 
         internal void OnStartButtonClicked()
         {
-            Debug.Log("[MainMenuView] Start button clicked");
+            Log.Debug(LogTags.UI, "[MainMenuView] Start button clicked", this);
             ViewModel.RequestStartGame();
         }
 
         internal void OnExitButtonClicked()
         {
-            Debug.Log("[MainMenuView] Exit button clicked");
+            Log.Debug(LogTags.UI, "[MainMenuView] Exit button clicked", this);
             ViewModel.RequestExit();
         }
     }

@@ -1,7 +1,9 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.Infrastructure.Logging;
 using Runtime.Services.UI;
 using Runtime.UI.MainMenu;
+using StripLog;
 using UnityEngine;
 
 namespace Runtime.Infrastructure.GameStateMachine.States
@@ -24,14 +26,14 @@ namespace Runtime.Infrastructure.GameStateMachine.States
         {
             cancellationToken.ThrowIfCancellationRequested();
             _isExited = false;
-            Debug.Log("[MainMenuState] Entered MainMenu");
+            Log.Debug(LogTags.Scenes, "[MainMenuState] Entered MainMenu");
             var mainMenuPrefab = Resources.Load<GameObject>("MainMenu");
             _uiService.RegisterWindowPrefab<MainMenuView>(mainMenuPrefab);
             var view = _uiService.Open<MainMenuView, MainMenuViewModel>();
             
             if (view == null)
             {
-                Debug.LogError("[MainMenuState] Failed to open MainMenuView!");
+                Log.Error(LogTags.UI, "[MainMenuState] Failed to open MainMenuView!");
                 return UniTask.CompletedTask;
             }
             
@@ -47,7 +49,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
                 return;
             
             _isExited = true;
-            Debug.Log("[MainMenuState] Exiting MainMenu");
+            Log.Debug(LogTags.Scenes, "[MainMenuState] Exiting MainMenu");
             _uiService.Close<MainMenuView>();
             _coordinator.Dispose();
         }

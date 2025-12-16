@@ -1,6 +1,7 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using UnityEngine;
+using Runtime.Infrastructure.Logging;
+using StripLog;
 
 namespace Runtime.Infrastructure.GameStateMachine.States
 {
@@ -13,11 +14,11 @@ namespace Runtime.Infrastructure.GameStateMachine.States
         public async UniTask EnterAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Debug.Log("[BootstrapState] Initializing...");
+            Log.Debug(LogTags.Infrastructure, "[BootstrapState] Initializing...");
             await _stateMachine.EnterAsync<LoadMainMenuState>(cancellationToken);
         }
 
-        public void Exit() => Debug.Log("[BootstrapState] Exiting...");
+        public void Exit() => Log.Debug(LogTags.Infrastructure, "[BootstrapState] Exiting...");
     }
 }
 

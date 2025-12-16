@@ -1,8 +1,9 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.Infrastructure.Logging;
 using Runtime.Services.Scenes;
 using Runtime.Services.UI;
-using UnityEngine;
+using StripLog;
 
 namespace Runtime.Infrastructure.GameStateMachine.States
 {
@@ -22,13 +23,13 @@ namespace Runtime.Infrastructure.GameStateMachine.States
         public async UniTask EnterAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Debug.Log("[LoadMainMenuState] Loading MainMenu scene...");
+            Log.Debug(LogTags.Scenes, "[LoadMainMenuState] Loading MainMenu scene...");
             _uiService.ClearViewModelPools();
             await _sceneLoader.LoadSceneAsync(SceneNames.MainMenu, cancellationToken);
-            Debug.Log("[LoadMainMenuState] MainMenu scene loaded");
+            Log.Debug(LogTags.Scenes, "[LoadMainMenuState] MainMenu scene loaded");
             await _stateMachine.EnterAsync<MainMenuState>(cancellationToken);
         }
 
-        public void Exit() => Debug.Log("[LoadMainMenuState] Exiting...");
+        public void Exit() => Log.Debug(LogTags.Scenes, "[LoadMainMenuState] Exiting...");
     }
 }

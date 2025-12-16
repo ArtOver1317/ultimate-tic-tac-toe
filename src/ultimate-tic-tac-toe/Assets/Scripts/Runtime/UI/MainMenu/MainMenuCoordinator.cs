@@ -2,9 +2,10 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.Infrastructure.Logging;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
-using UnityEngine;
+using StripLog;
 
 namespace Runtime.UI.MainMenu
 {
@@ -51,14 +52,14 @@ namespace Runtime.UI.MainMenu
         private async UniTask OnStartGameAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Debug.Log("[MainMenuCoordinator] Starting game...");
+            Log.Debug(LogTags.UI, "[MainMenuCoordinator] Starting game...");
             _viewModel.SetInteractable(false);
             await _stateMachine.EnterAsync<LoadGameplayState>(cancellationToken);
         }
 
         private void OnExit()
         {
-            Debug.Log("[MainMenuCoordinator] Exiting game...");
+            Log.Debug(LogTags.UI, "[MainMenuCoordinator] Exiting game...");
             
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;

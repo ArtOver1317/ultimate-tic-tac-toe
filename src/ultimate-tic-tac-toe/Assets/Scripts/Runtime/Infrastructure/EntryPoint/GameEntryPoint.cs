@@ -1,8 +1,9 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.Infrastructure.Logging;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
-using UnityEngine;
+using StripLog;
 using VContainer.Unity;
 
 namespace Runtime.Infrastructure.EntryPoint
@@ -15,7 +16,7 @@ namespace Runtime.Infrastructure.EntryPoint
 
         public async UniTask StartAsync(CancellationToken cancellationToken)
         {
-            Debug.Log("[GameEntryPoint] Starting game...");
+            Log.Debug(LogTags.Infrastructure, "[GameEntryPoint] Starting game...");
             await _stateMachine.EnterAsync<BootstrapState>(cancellationToken);
         }
     }

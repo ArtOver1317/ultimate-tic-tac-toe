@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Runtime.Infrastructure.Logging;
 using Runtime.UI.Core;
-using UnityEngine;
+using StripLog;
 using VContainer;
 
 namespace Runtime.Services.UI
@@ -27,7 +28,7 @@ namespace Runtime.Services.UI
             try
             {
                 var registered = (TViewModel)_container.Resolve(viewModelType);
-                Debug.Log($"[ViewModelFactory] ViewModel {viewModelType.Name} resolved from DI container");
+                Log.Debug(LogTags.Services, $"[ViewModelFactory] ViewModel {viewModelType.Name} resolved from DI container");
                 return registered;
             }
             catch
@@ -46,7 +47,7 @@ namespace Runtime.Services.UI
             var factory = _cachedFactories[viewModelType];
             var viewModel = (TViewModel)factory(dependencies);
 
-            Debug.Log($"[ViewModelFactory] Created {viewModelType.Name} with {dependencies.Length} dependencies");
+            Log.Debug(LogTags.Services, $"[ViewModelFactory] Created {viewModelType.Name} with {dependencies.Length} dependencies");
             return viewModel;
         }
 
@@ -77,7 +78,7 @@ namespace Runtime.Services.UI
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[ViewModelFactory] Failed to resolve {dependencyType.Name} for {viewModelType.Name}: {ex.Message}");
+                Log.Error(LogTags.Services, $"[ViewModelFactory] Failed to resolve {dependencyType.Name} for {viewModelType.Name}: {ex.Message}");
                 return null;
             }
         }
@@ -110,12 +111,12 @@ namespace Runtime.Services.UI
         {
             _cachedDependencies[viewModelType] = parameterTypes;
             _cachedFactories[viewModelType] = args => Activator.CreateInstance(viewModelType, args);
-            Debug.Log($"[ViewModelFactory] Cached factory for {viewModelType.Name} with {parameterTypes.Length} dependencies");
+            Log.Debug(LogTags.Services, $"[ViewModelFactory] Cached factory for {viewModelType.Name} with {parameterTypes.Length} dependencies");
         }
 
         private void CacheEmptyFactory(Type viewModelType)
         {
-            Debug.LogError($"[ViewModelFactory] No public constructor found for {viewModelType.Name}");
+            Log.Error(LogTags.Services, $"[ViewModelFactory] No public constructor found for {viewModelType.Name}");
             _cachedFactories[viewModelType] = _ => null;
             _cachedDependencies[viewModelType] = Array.Empty<Type>();
         }

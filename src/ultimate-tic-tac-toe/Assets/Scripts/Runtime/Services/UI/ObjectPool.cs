@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
+using Runtime.Infrastructure.Logging;
+using StripLog;
 
 namespace Runtime.Services.UI
 {
@@ -17,7 +18,7 @@ namespace Runtime.Services.UI
             if (_pools.TryGetValue(itemType, out var pool) && pool.Count > 0)
             {
                 var item = (TItem)pool.Pop();
-                Debug.Log($"[ObjectPool<{typeof(T).Name}>] Retrieved from pool: {itemType.Name} (remaining: {pool.Count})");
+                Log.Debug(LogTags.Services, $"[ObjectPool<{typeof(T).Name}>] Retrieved from pool: {itemType.Name} (remaining: {pool.Count})");
                 return item;
             }
 
@@ -29,7 +30,7 @@ namespace Runtime.Services.UI
             var itemType = GetItemType<TItem>();
             
             if (requestedType != null && requestedType != itemType)
-                Debug.LogWarning($"[ObjectPool<{typeof(T).Name}>] Requested {requestedType.Name}, but pool stores {itemType.Name}. Using {itemType.Name} stack.");
+                Log.Warning(LogTags.Services, $"[ObjectPool<{typeof(T).Name}>] Requested {requestedType.Name}, but pool stores {itemType.Name}. Using {itemType.Name} stack.");
             
             return Get<TItem>();
         }
@@ -43,7 +44,7 @@ namespace Runtime.Services.UI
             
             onReturn?.Invoke(item);
             pool.Push(item);
-            Debug.Log($"[ObjectPool<{typeof(T).Name}>] Returned to pool: {itemType.Name} (pool size: {pool.Count})");
+            Log.Debug(LogTags.Services, $"[ObjectPool<{typeof(T).Name}>] Returned to pool: {itemType.Name} (pool size: {pool.Count})");
             return true;
         }
 
@@ -59,7 +60,7 @@ namespace Runtime.Services.UI
             
             onReturn?.Invoke(item);
             pool.Push(item);
-            Debug.Log($"[ObjectPool<{typeof(T).Name}>] Returned to pool: {resolvedType.Name} (pool size: {pool.Count})");
+            Log.Debug(LogTags.Services, $"[ObjectPool<{typeof(T).Name}>] Returned to pool: {resolvedType.Name} (pool size: {pool.Count})");
             return true;
         }
 
@@ -74,7 +75,7 @@ namespace Runtime.Services.UI
                 }
                 
                 _pools.Remove(type);
-                Debug.Log($"[ObjectPool<{typeof(T).Name}>] Cleared pool for {type.Name}");
+                Log.Debug(LogTags.Services, $"[ObjectPool<{typeof(T).Name}>] Cleared pool for {type.Name}");
             }
         }
 
@@ -90,7 +91,7 @@ namespace Runtime.Services.UI
             }
             
             _pools.Clear();
-            Debug.Log($"[ObjectPool<{typeof(T).Name}>] All pools cleared");
+            Log.Debug(LogTags.Services, $"[ObjectPool<{typeof(T).Name}>] All pools cleared");
         }
 
         public int GetSize(Type type)

@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using UnityEngine;
+using Runtime.Infrastructure.Logging;
+using StripLog;
 using UnityEngine.UIElements;
 
 namespace Runtime.UI.Core
@@ -27,7 +28,7 @@ namespace Runtime.UI.Core
         {
             if (target == null || root == null)
             {
-                Debug.LogError("[UxmlBinder] Target or root is null!");
+                Log.Error(LogTags.UI, "[UxmlBinder] Target or root is null!");
                 return;
             }
 
@@ -41,7 +42,7 @@ namespace Runtime.UI.Core
                 if (element == null)
                 {
                     if (!binding.IsOptional) 
-                        Debug.LogError($"[UxmlBinder] Required element '{binding.ElementName}' of type {binding.Field.FieldType.Name} not found in UXML for field {binding.Field.Name} in {type.Name}!");
+                        Log.Error(LogTags.UI, $"[UxmlBinder] Required element '{binding.ElementName}' of type {binding.Field.FieldType.Name} not found in UXML for field {binding.Field.Name} in {type.Name}!");
                 }
                 else
                     binding.Field.SetValue(target, element);
@@ -65,7 +66,7 @@ namespace Runtime.UI.Core
 
                 if (!typeof(VisualElement).IsAssignableFrom(field.FieldType))
                 {
-                    Debug.LogWarning($"[UxmlBinder] Field {field.Name} in {type.Name} has UxmlElement attribute but is not a VisualElement type!");
+                    Log.Warning(LogTags.UI, $"[UxmlBinder] Field {field.Name} in {type.Name} has UxmlElement attribute but is not a VisualElement type!");
                     continue;
                 }
 
@@ -119,7 +120,7 @@ namespace Runtime.UI.Core
             }
 
             if (missingElements.Count > 0) 
-                Debug.LogWarning($"[UxmlBinder] Missing elements in {type.Name}:\n{string.Join("\n", missingElements)}");
+                Log.Warning(LogTags.UI, $"[UxmlBinder] Missing elements in {type.Name}:\n{string.Join("\n", missingElements)}");
         }
 #endif
     }
