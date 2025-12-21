@@ -7,4 +7,3 @@ namespace Runtime.Services.Scenes
         public const string Gameplay = "Gameplay";
     }
 }
-
