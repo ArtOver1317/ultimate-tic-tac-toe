@@ -205,13 +205,12 @@ namespace Tests.EditMode
             // Arrange
             var root = new VisualElement();
             var target = new TestViewInvalidField();
-            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(@"\[UxmlBinder\] Field _notVisualElement.*not a VisualElement type"));
 
             // Act
             Action act = () => UxmlBinder.BindElements(target, root);
 
-            // Assert
-            act.Should().NotThrow("non-VisualElement field should be ignored with warning");
+            // Assert - verify behavior instead of log (cached bindings don't log on subsequent calls)
+            act.Should().NotThrow("non-VisualElement field should be ignored");
             target.NotVisualElement.Should().BeNull("non-VisualElement field should remain null");
         }
 

@@ -96,7 +96,7 @@ namespace Tests.EditMode.Localization
         }
 
         [Test]
-        public void WhenFormattingWithNumberArg_ThenFormatsWithCulture()
+        public void WhenFormattingWithNumberArg_ThenUsesCorrectDecimalSeparator()
         {
             // Arrange
             const string template = "Price: {amount}";
@@ -106,7 +106,7 @@ namespace Tests.EditMode.Localization
             var resultEn = _formatter.Format(template, _enUs, args);
             var resultRu = _formatter.Format(template, _ruRu, args);
 
-            // Assert
+            // Assert - check decimal separator (en-US uses '.', ru-RU uses ',')
             resultEn.Should().Be("Price: 1234.56");
             resultRu.Should().Be("Price: 1234,56");
         }

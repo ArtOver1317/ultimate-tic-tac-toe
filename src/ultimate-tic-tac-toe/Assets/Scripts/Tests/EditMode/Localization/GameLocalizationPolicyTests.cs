@@ -25,7 +25,7 @@ namespace Tests.EditMode.Localization
         }
 
         [Test]
-        public void WhenGettingFallbackChainForEn_ThenReturnsEn()
+        public void WhenGettingFallbackChainForEn_ThenReturnsEnAndDefault()
         {
             // Arrange
             var policy = new GameLocalizationPolicy();
@@ -34,10 +34,10 @@ namespace Tests.EditMode.Localization
             // Act
             var chain = policy.GetFallbackChain(en);
 
-            // Assert
+            // Assert - DefaultLocale always added via AppendUnique
             chain.Should().HaveCount(2);
             chain[0].Should().Be(en);
-            chain[1].Should().Be(LocaleId.EnglishUs);
+            chain[1].Should().Be(LocaleId.EnglishUs); // Default always added
         }
 
         [Test]
