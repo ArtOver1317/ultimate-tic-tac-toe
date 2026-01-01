@@ -14,6 +14,8 @@ namespace Runtime.UI.MainMenu
         private readonly Subject<Unit> _startGameRequested = new();
         private readonly Subject<Unit> _exitRequested = new();
 
+        private bool _isInitialized;
+
         public ReadOnlyReactiveProperty<string> Title => _title;
         public ReadOnlyReactiveProperty<string> StartButtonText => _startButtonText;
         public ReadOnlyReactiveProperty<string> ExitButtonText => _exitButtonText;
@@ -26,6 +28,9 @@ namespace Runtime.UI.MainMenu
 
         public override void Initialize()
         {
+            if (_isInitialized)
+                return;
+
             AddDisposable(_localization
                 .Observe(TextTableId.UI, new TextKey("MainMenu.Title"))
                 .Subscribe(text => _title.Value = text));
@@ -37,6 +42,8 @@ namespace Runtime.UI.MainMenu
             AddDisposable(_localization
                 .Observe(TextTableId.UI, new TextKey("MainMenu.ExitButton"))
                 .Subscribe(text => _exitButtonText.Value = text));
+
+            _isInitialized = true;
         }
 
         public void SetInteractable(bool isInteractable) => _isInteractable.Value = isInteractable;

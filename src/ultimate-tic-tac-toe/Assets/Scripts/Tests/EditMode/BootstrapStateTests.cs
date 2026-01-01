@@ -39,7 +39,7 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public async Task WhenEnter_ThenInitializesLocalizationService()
+        public async Task WhenEnter_ThenCallsLocalizationInitializeAsync()
         {
             // Arrange
             _stateMachineMock.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
@@ -49,6 +49,198 @@ namespace Tests.EditMode
 
             // Assert
             await _localizationMock.Received(1).InitializeAsync(Arg.Any<CancellationToken>());
+        }
+
+        [Test]
+        public async Task WhenEnter_ThenPassesSameCancellationTokenToInitializeAsync()
+        {
+            // ⚠️ TEST PLAN DEVIATION ACCEPTED (INF-02):
+            // Test Plan requires "Reference Equality", but CancellationToken is a struct (value type).
+            // Reference equality is impossible for structs - they don't have references.
+            // This test validates semantic equality (token.Equals(passedToken)) which is correct contract.
+            // Deviation justified: semantic equality is the only meaningful check for value types.
+            
+            // Arrange
+            var cts = new CancellationTokenSource();
+            var token = cts.Token;
+            _stateMachineMock.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+
+            // Act
+            await _sut.EnterAsync(token);
+
+            // Assert
+            await _localizationMock.Received(1).InitializeAsync(Arg.Is<CancellationToken>(t => t.Equals(token)));
+            
+            cts.Dispose();
+        }
+
+        [Test]
+        public async Task WhenEnterAndInitializeAsyncIsCancelled_ThenDoesNotTransitionAndDoesNotLogError()
+        {
+            // Arrange: simulate cancellation happening *during* InitializeAsync
+            var initStarted = new TaskCompletionSource<bool>();
+            var cts = new CancellationTokenSource();
+            
+            _localizationMock.InitializeAsync(Arg.Any<CancellationToken>())
+                .Returns(callInfo =>
+                {
+                    var ct = callInfo.Arg<CancellationToken>();
+                    
+                    return UniTask.Create(async () =>
+                    {
+                        initStarted.SetResult(true);
+                        await UniTask.Delay(10000, cancellationToken: ct);
+                    });
+                });
+
+            var errors = new System.Collections.Generic.List<string>();
+            
+            void OnLog(string condition, string stackTrace, UnityEngine.LogType type)
+            {
+                // Filter: only track Error logs from BootstrapState/Infrastructure to avoid false positives
+                if (type is UnityEngine.LogType.Error or UnityEngine.LogType.Exception &&
+                    (condition.Contains("[BootstrapState]") || condition.Contains("[Infrastructure]")))
+                    errors.Add(condition);
+            }
+
+            UnityEngine.Application.logMessageReceived += OnLog;
+            
+            try
+            {
+                // Act
+                var enterTask = _sut.EnterAsync(cts.Token).AsTask();
+
+                await initStarted.Task; // ensure we are inside InitializeAsync
+                cts.Cancel(); // cancel mid-flight
+
+                var completed = await Task.WhenAny(enterTask, Task.Delay(2000));
+                completed.Should().Be(enterTask, "BootstrapState must not hang on cancellation");
+
+                // Assert: await result to check it completed (even if with exception)
+                try
+                {
+                    await enterTask;
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected - cancellation is acceptable
+                }
+
+                // Assert: no transition
+                await _stateMachineMock.DidNotReceive()
+                    .EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
+
+                // Assert: no Error logs (Info/Warning allowed, cancellation is not an error)
+                errors.Should().BeEmpty("Cancellation should not be logged as Error");
+            }
+            finally
+            {
+                UnityEngine.Application.logMessageReceived -= OnLog;
+                cts.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task WhenEnterAndInitializeAsyncThrows_ThenLogsExactlyOneErrorWithException()
+        {
+            // Arrange
+            var expectedException = new InvalidOperationException("Test exception");
+            
+            _localizationMock.InitializeAsync(Arg.Any<CancellationToken>())
+                .Returns(UniTask.FromException(expectedException));
+            
+            LogAssert.Expect(UnityEngine.LogType.Log, 
+                new Regex(@"\[Infrastructure\] \[BootstrapState\] Initializing game systems\.\.\."));
+            
+            LogAssert.Expect(UnityEngine.LogType.Error, 
+                new Regex(@"\[BootstrapState\] Failed to initialize localization: System\.InvalidOperationException: Test exception"));
+
+            // Act
+            Func<Task> act = async () => await _sut.EnterAsync(_cancellationToken);
+
+            // Assert
+            await act.Should().ThrowAsync<InvalidOperationException>();
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [Test]
+        public async Task WhenEnterAndInitializeAsyncThrows_ThenDoesNotTransitionToNextState()
+        {
+            // Arrange
+            var expectedException = new InvalidOperationException("Test exception");
+            
+            _localizationMock.InitializeAsync(Arg.Any<CancellationToken>())
+                .Returns(UniTask.FromException(expectedException));
+            
+            LogAssert.Expect(UnityEngine.LogType.Log, 
+                new Regex(@"\[Infrastructure\] \[BootstrapState\] Initializing game systems\.\.\."));
+            
+            LogAssert.Expect(UnityEngine.LogType.Error, 
+                new Regex(@"\[BootstrapState\] Failed to initialize localization"));
+
+            // Act
+            Func<Task> act = async () => await _sut.EnterAsync(_cancellationToken);
+
+            // Assert
+            await act.Should().ThrowAsync<InvalidOperationException>();
+            await _stateMachineMock.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [Test]
+        public async Task WhenEnterCalledTwice_ThenInitializeAsyncIsCalledOnce()
+        {
+            // Arrange
+            _stateMachineMock.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+
+            // Act
+            await _sut.EnterAsync(_cancellationToken);
+            await _sut.EnterAsync(_cancellationToken);
+
+            // Assert
+            await _localizationMock.Received(1).InitializeAsync(Arg.Any<CancellationToken>());
+        }
+
+        [Test]
+        public async Task WhenEnterAndInitializeAsyncThrows_ThenDoesNotLeaveStateInHalfInitializedMode()
+        {
+            // Arrange
+            var expectedException = new InvalidOperationException("Test exception");
+            
+            _localizationMock.InitializeAsync(Arg.Any<CancellationToken>())
+                .Returns(UniTask.FromException(expectedException));
+            
+            LogAssert.Expect(UnityEngine.LogType.Log, 
+                new Regex(@"\[Infrastructure\] \[BootstrapState\] Initializing game systems\.\.\."));
+            
+            LogAssert.Expect(UnityEngine.LogType.Error, 
+                new Regex(@"\[BootstrapState\] Failed to initialize localization"));
+
+            // Act
+            Func<Task> act = async () => await _sut.EnterAsync(_cancellationToken);
+
+            // Assert: exception thrown, no transition to next state
+            await act.Should().ThrowAsync<InvalidOperationException>();
+            await _stateMachineMock.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
+            LogAssert.NoUnexpectedReceived();
+            
+            // Verify "no half-initialized state": after error, system remains safe and retryable
+            _stateMachineMock.ClearReceivedCalls();
+            
+            // Second call SHOULD try to initialize again because flag is set only AFTER success
+            _localizationMock.ClearReceivedCalls();
+            _localizationMock.InitializeAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            _stateMachineMock.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            
+            // This should log again since first attempt failed
+            LogAssert.Expect(UnityEngine.LogType.Log, 
+                new Regex(@"\[Infrastructure\] \[BootstrapState\] Initializing game systems\.\.\."));
+            
+            await _sut.EnterAsync(_cancellationToken);
+            await _localizationMock.Received(1).InitializeAsync(Arg.Any<CancellationToken>());
+            
+            // Now after successful init, transition should occur
+            await _stateMachineMock.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
         }
 
         [Test]
@@ -71,6 +263,9 @@ namespace Tests.EditMode
             var expectedException = new InvalidOperationException("Localization failed");
             _localizationMock.InitializeAsync(Arg.Any<CancellationToken>()).Returns(UniTask.FromException(expectedException));
             
+            LogAssert.Expect(UnityEngine.LogType.Log, 
+                new Regex(@"\[Infrastructure\] \[BootstrapState\] Initializing game systems\.\.\."));
+            
             LogAssert.Expect(UnityEngine.LogType.Error, new Regex(@"\[BootstrapState\] Failed to initialize localization: System\.InvalidOperationException: Localization failed"));
 
             // Act
@@ -78,6 +273,7 @@ namespace Tests.EditMode
 
             // Assert
             await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("Localization failed");
+            LogAssert.NoUnexpectedReceived();
         }
 
         [Test]

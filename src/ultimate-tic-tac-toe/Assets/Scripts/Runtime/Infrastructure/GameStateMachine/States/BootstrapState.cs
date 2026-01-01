@@ -10,6 +10,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
     {
         private readonly IGameStateMachine _stateMachine;
         private readonly ILocalizationService _localization;
+        private bool _isInitialized;
 
         public BootstrapState(IGameStateMachine stateMachine, ILocalizationService localization)
         {
@@ -20,9 +21,13 @@ namespace Runtime.Infrastructure.GameStateMachine.States
         public async UniTask EnterAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Log.Info(LogTags.Infrastructure, "[BootstrapState] Initializing game systems...");
-
-            await InitializeLocalizationAsync(cancellationToken);
+            
+            if (!_isInitialized)
+            {
+                Log.Info(LogTags.Infrastructure, "[BootstrapState] Initializing game systems...");
+                await InitializeLocalizationAsync(cancellationToken);
+                _isInitialized = true; // Set AFTER successful initialization
+            }
 
             await _stateMachine.EnterAsync<LoadMainMenuState>(cancellationToken);
         }

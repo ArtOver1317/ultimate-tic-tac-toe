@@ -47,9 +47,15 @@ namespace Runtime.UI.Components
                 return;
             }
 
-            if (string.IsNullOrEmpty(_key))
+            if (string.IsNullOrWhiteSpace(_table))
             {
-                Debug.LogWarning($"[LocalizedTextUI] Key is empty on {gameObject.name}");
+                Debug.LogError($"[LocalizedTextUI] Table is empty or whitespace on {gameObject.name}");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(_key))
+            {
+                Debug.LogError($"[LocalizedTextUI] Key is empty or whitespace on {gameObject.name}");
                 return;
             }
 
@@ -78,9 +84,9 @@ namespace Runtime.UI.Components
         /// </summary>
         public void SetKey(string table, string key)
         {
-            if (string.IsNullOrEmpty(table))
+            if (string.IsNullOrWhiteSpace(table))
                 throw new ArgumentNullException(nameof(table));
-            if (string.IsNullOrEmpty(key))
+            if (string.IsNullOrWhiteSpace(key))
                 throw new ArgumentNullException(nameof(key));
 
             _table = table;
@@ -98,9 +104,9 @@ namespace Runtime.UI.Components
         /// </summary>
         public void SetKey(string table, string key, IReadOnlyDictionary<string, object> args)
         {
-            if (string.IsNullOrEmpty(table))
+            if (string.IsNullOrWhiteSpace(table))
                 throw new ArgumentNullException(nameof(table));
-            if (string.IsNullOrEmpty(key))
+            if (string.IsNullOrWhiteSpace(key))
                 throw new ArgumentNullException(nameof(key));
 
             _table = table;
@@ -122,7 +128,13 @@ namespace Runtime.UI.Components
             {
                 _subscription = _localization
                     .Observe(tableId, textKey, args)
-                    .Subscribe(text => _targetLabel.text = text);
+                    .Subscribe(text =>
+                    {
+                        // Show placeholder if translation is missing
+                        _targetLabel.text = string.IsNullOrEmpty(text) 
+                            ? $"[{_table}.{_key}]" 
+                            : text;
+                    });
             }
             catch (Exception ex)
             {

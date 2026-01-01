@@ -35,7 +35,15 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<IUIService, UIService>(Lifetime.Singleton);
             
             // Localization Services
-            builder.Register<ILocalizationPolicy, GameLocalizationPolicy>(Lifetime.Singleton);
+            // Note: Factory registration required - VContainer cannot auto-resolve constructors with optional parameters.
+            // Even though values match constructor defaults, they must be specified explicitly for DI container.
+            builder.Register<ILocalizationPolicy>(_ => 
+                    new GameLocalizationPolicy(
+                        useMissingKeyPlaceholders: true, 
+                        maxCachedTables: 32, 
+                        defaultLocale: null), 
+                Lifetime.Singleton);
+            
             builder.Register<ILocaleStorage, PlayerPrefsLocaleStorage>(Lifetime.Singleton);
             builder.Register<ILocalizationCatalog, AddressablesLocalizationCatalog>(Lifetime.Singleton);
             builder.Register<ILocalizationLoader, AddressablesLocalizationLoader>(Lifetime.Singleton);
