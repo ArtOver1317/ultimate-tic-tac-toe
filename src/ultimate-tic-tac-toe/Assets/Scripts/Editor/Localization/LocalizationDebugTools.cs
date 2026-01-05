@@ -8,16 +8,16 @@ namespace Editor.Localization
 {
     public static class LocalizationDebugTools
     {
-        [MenuItem("Tools/Localization/Switch to English")]
+        [MenuItem("Tools/Localization/Debug/Switch to English")]
         private static void SwitchToEnglish() => SwitchLocale(LocaleId.EnglishUs, "English");
 
-        [MenuItem("Tools/Localization/Switch to Russian")]
+        [MenuItem("Tools/Localization/Debug/Switch to Russian")]
         private static void SwitchToRussian() => SwitchLocale(LocaleId.Russian, "Russian");
 
-        [MenuItem("Tools/Localization/Switch to Japanese")]
+        [MenuItem("Tools/Localization/Debug/Switch to Japanese")]
         private static void SwitchToJapanese() => SwitchLocale(LocaleId.Japanese, "Japanese");
 
-        [MenuItem("Tools/Localization/Show Current Locale")]
+        [MenuItem("Tools/Localization/Debug/Show Current Locale")]
         private static void ShowCurrentLocale()
         {
             if (!Application.isPlaying)

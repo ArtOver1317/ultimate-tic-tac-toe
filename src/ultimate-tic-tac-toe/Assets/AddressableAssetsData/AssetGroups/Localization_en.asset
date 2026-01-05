@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Localization_en
   m_EditorClassIdentifier: Unity.Addressables.Editor::UnityEditor.AddressableAssets.Settings.AddressableAssetGroup
   m_GroupName: Localization_en
-  m_GUID: c405c272409981a4696a1d6ecaa56315
+  m_GUID: a4d6641058956e64599349173a654152
   m_SerializeEntries:
   - m_GUID: 0f848611595c7ea4393588e581ed88ce
     m_Address: loc_en_errors
@@ -93,4 +93,6 @@ MonoBehaviour:
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: c0f3088e8bfb29e43acd1eafbe5e59a5, type: 2}
   m_SchemaSet:
-    m_Schemas: []
+    m_Schemas:
+    - {fileID: 11400000, guid: daba19e8261b5984a8a468e9729d87af, type: 2}
+    - {fileID: 11400000, guid: a74ac93b12597474f8c6abf80fb0150f, type: 2}

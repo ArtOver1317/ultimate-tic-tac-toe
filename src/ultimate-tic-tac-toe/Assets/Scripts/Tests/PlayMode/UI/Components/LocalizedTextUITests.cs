@@ -23,6 +23,8 @@ namespace Tests.PlayMode.UI.Components
         private Subject<string> _localeObservable;
         private VisualTreeAsset _testUxml;
 
+        private readonly List<(LogType Type, string Message)> _logs = new();
+
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -35,6 +37,8 @@ namespace Tests.PlayMode.UI.Components
         [UnitySetUp]
         public IEnumerator SetUp()
         {
+            Application.logMessageReceived += OnLogMessageReceived;
+
             _localizationMock = Substitute.For<ILocalizationService>();
             _localeObservable = new Subject<string>();
             
@@ -67,12 +71,35 @@ namespace Tests.PlayMode.UI.Components
         [UnityTearDown]
         public IEnumerator TearDown()
         {
+            Application.logMessageReceived -= OnLogMessageReceived;
+            _logs.Clear();
+
             _localeObservable?.Dispose();
             
             if (_testGameObject != null)
                 UnityEngine.Object.Destroy(_testGameObject);
 
             yield return null;
+        }
+
+        private void OnLogMessageReceived(string condition, string stackTrace, LogType type) =>
+            _logs.Add((type, condition));
+
+        private int MarkLogs() => _logs.Count;
+
+        private void AssertOnlyLocalizedTextUIErrorSince(int mark, System.Text.RegularExpressions.Regex expectedMessage)
+        {
+            var localizedErrors = new List<string>();
+
+            for (var i = mark; i < _logs.Count; i++)
+            {
+                var (type, message) = _logs[i];
+                if (type is LogType.Error or LogType.Exception && message != null && message.Contains("[LocalizedTextUI]"))
+                    localizedErrors.Add(message);
+            }
+
+            localizedErrors.Should().HaveCount(1, "expected exactly one LocalizedTextUI error log for this scenario");
+            expectedMessage.IsMatch(localizedErrors[0]).Should().BeTrue($"unexpected LocalizedTextUI error log: '{localizedErrors[0]}'");
         }
 
         [UnityTest]
@@ -180,6 +207,7 @@ namespace Tests.PlayMode.UI.Components
             SetPrivateField(_component, "_uiDocument", null);
             _testGameObject.SetActive(false);
 
+            var mark = MarkLogs();
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"UIDocument not assigned"));
 
             // Act
@@ -187,8 +215,8 @@ namespace Tests.PlayMode.UI.Components
 
             // Assert
             act.Should().NotThrow();
-            LogAssert.NoUnexpectedReceived();
             yield return null;
+            AssertOnlyLocalizedTextUIErrorSince(mark, new System.Text.RegularExpressions.Regex(@"UIDocument not assigned"));
         }
 
         [UnityTest]
@@ -198,6 +226,7 @@ namespace Tests.PlayMode.UI.Components
             SetPrivateField(_component, "_targetElementName", "non-existent-label");
             _testGameObject.SetActive(false);
 
+            var mark = MarkLogs();
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"Label with name 'non-existent-label' not found"));
 
             // Act
@@ -205,8 +234,8 @@ namespace Tests.PlayMode.UI.Components
 
             // Assert
             act.Should().NotThrow();
-            LogAssert.NoUnexpectedReceived();
             yield return null;
+            AssertOnlyLocalizedTextUIErrorSince(mark, new System.Text.RegularExpressions.Regex(@"Label with name 'non-existent-label' not found"));
         }
 
         [UnityTest]
@@ -289,6 +318,7 @@ namespace Tests.PlayMode.UI.Components
             SetPrivateField(newComponent, "_uiDocument", newDoc);
             SetPrivateField(newComponent, "_targetElementName", "test-label");
             
+            var mark = MarkLogs();
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"Localization service not injected"));
 
             // Act
@@ -296,7 +326,8 @@ namespace Tests.PlayMode.UI.Components
 
             // Assert
             act.Should().NotThrow();
-            LogAssert.NoUnexpectedReceived();
+            yield return null;
+            AssertOnlyLocalizedTextUIErrorSince(mark, new System.Text.RegularExpressions.Regex(@"Localization service not injected"));
             
             UnityEngine.Object.Destroy(newGameObject);
             yield return null;
@@ -314,6 +345,7 @@ namespace Tests.PlayMode.UI.Components
             SetPrivateField(_component, "_key", "   ");
             _testGameObject.SetActive(false);
 
+            var mark = MarkLogs();
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"Key is empty or whitespace"));
 
             // Act
@@ -321,8 +353,8 @@ namespace Tests.PlayMode.UI.Components
 
             // Assert
             act.Should().NotThrow();
-            LogAssert.NoUnexpectedReceived();
             yield return null;
+            AssertOnlyLocalizedTextUIErrorSince(mark, new System.Text.RegularExpressions.Regex(@"Key is empty or whitespace"));
         }
 
         [UnityTest]
@@ -332,6 +364,7 @@ namespace Tests.PlayMode.UI.Components
             SetPrivateField(_component, "_key", "");
             _testGameObject.SetActive(false);
 
+            var mark = MarkLogs();
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"Key is empty or whitespace"));
 
             // Act
@@ -339,8 +372,8 @@ namespace Tests.PlayMode.UI.Components
 
             // Assert
             act.Should().NotThrow();
-            LogAssert.NoUnexpectedReceived();
             yield return null;
+            AssertOnlyLocalizedTextUIErrorSince(mark, new System.Text.RegularExpressions.Regex(@"Key is empty or whitespace"));
         }
 
         [UnityTest]
@@ -350,6 +383,7 @@ namespace Tests.PlayMode.UI.Components
             SetPrivateField(_component, "_table", "");
             _testGameObject.SetActive(false);
 
+            var mark = MarkLogs();
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"Table is empty or whitespace"));
 
             // Act
@@ -357,8 +391,8 @@ namespace Tests.PlayMode.UI.Components
 
             // Assert
             act.Should().NotThrow();
-            LogAssert.NoUnexpectedReceived();
             yield return null;
+            AssertOnlyLocalizedTextUIErrorSince(mark, new System.Text.RegularExpressions.Regex(@"Table is empty or whitespace"));
         }
 
         [UnityTest]
@@ -375,6 +409,7 @@ namespace Tests.PlayMode.UI.Components
 
             // Note: Current implementation logs "Label with name not found" even for wrong type
             // This matches actual behavior - Q<Label> returns null for non-Label elements
+            var mark = MarkLogs();
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"Label with name 'test-button' not found"));
 
             // Act
@@ -382,8 +417,8 @@ namespace Tests.PlayMode.UI.Components
 
             // Assert
             act.Should().NotThrow();
-            LogAssert.NoUnexpectedReceived();
             yield return null;
+            AssertOnlyLocalizedTextUIErrorSince(mark, new System.Text.RegularExpressions.Regex(@"Label with name 'test-button' not found"));
         }
 
         [UnityTest]
@@ -404,6 +439,7 @@ namespace Tests.PlayMode.UI.Components
 
             _testGameObject.SetActive(false);
 
+            var mark = MarkLogs();
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(@"Failed to bind localization"));
 
             // Act
@@ -411,8 +447,8 @@ namespace Tests.PlayMode.UI.Components
 
             // Assert - LocalizedTextUI should catch exception and not crash
             act.Should().NotThrow();
-            LogAssert.NoUnexpectedReceived();
             yield return null;
+            AssertOnlyLocalizedTextUIErrorSince(mark, new System.Text.RegularExpressions.Regex(@"Failed to bind localization"));
         }
 
         [UnityTest]

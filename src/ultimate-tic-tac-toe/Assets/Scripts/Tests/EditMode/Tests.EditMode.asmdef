@@ -5,6 +5,7 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "Runtime",
+        "Editor",
         "VContainer",
         "UniTask",
         "Unity.Addressables"

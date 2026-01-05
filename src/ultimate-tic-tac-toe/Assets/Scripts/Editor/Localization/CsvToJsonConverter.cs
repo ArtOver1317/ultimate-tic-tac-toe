@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Editor.Localization.Parsing;
 using UnityEditor;
 using UnityEngine;
 
@@ -18,7 +19,12 @@ namespace Editor.Localization
         private Vector2 _scrollPosition;
         private string _logText = "";
 
-        [MenuItem("Tools/Localization/CSV → JSON Converter")]
+        // Extracted core logic classes
+        private readonly CsvLineParser _csvParser = new();
+        private readonly JsonStringEscaper _jsonEscaper = new();
+        private readonly TableNameExtractor _tableExtractor = new();
+
+        [MenuItem("Tools/Localization/Content Management/CSV → JSON Converter")]
         private static void ShowWindow()
         {
             var window = GetWindow<CsvToJsonConverter>("CSV → JSON Converter");
@@ -99,7 +105,7 @@ namespace Editor.Localization
                     return;
                 }
 
-                var header = ParseCsvLine(lines[0]);
+                var header = _csvParser.Parse(lines[0]);
                 
                 if (header.Length < 2)
                 {
@@ -130,7 +136,7 @@ namespace Editor.Localization
                     if (string.IsNullOrEmpty(line)) 
                         continue;
 
-                    var values = ParseCsvLine(line);
+                    var values = _csvParser.Parse(line);
                     
                     if (values.Length < 2)
                     {
@@ -143,7 +149,7 @@ namespace Editor.Localization
                     if (string.IsNullOrEmpty(key)) 
                         continue;
 
-                    var tableName = ExtractTableName(key);
+                    var tableName = _tableExtractor.Extract(key);
 
                     for (var localeIndex = 0; localeIndex < locales.Count && localeIndex + 1 < values.Length; localeIndex++)
                     {
@@ -211,14 +217,6 @@ namespace Editor.Localization
             }
         }
 
-        private string ExtractTableName(string key)
-        {
-            var parts = key.Split('.');
-            return parts.Length > 0 ? parts[0] : "UI";
-        }
-
-        private string ConvertLocaleFormat(string locale) => locale.Replace("_", "-");
-
         private string CreateJsonContent(string locale, string tableName, Dictionary<string, string> entries)
         {
             var sb = new StringBuilder();
@@ -231,12 +229,12 @@ namespace Editor.Localization
             // Sort keys for deterministic output
             var keys = new List<string>(entries.Keys);
             keys.Sort(StringComparer.Ordinal);
-            
+
             for (var i = 0; i < keys.Count; i++)
             {
                 var key = keys[i];
                 var value = entries[key];
-                var escapedValue = EscapeJsonString(value);
+                var escapedValue = _jsonEscaper.Escape(value);
                 var comma = i < keys.Count - 1 ? "," : "";
                 sb.AppendLine($"    \"{key}\": \"{escapedValue}\"{comma}");
             }
@@ -247,46 +245,7 @@ namespace Editor.Localization
             return sb.ToString();
         }
 
-        private string EscapeJsonString(string value) =>
-            value
-                .Replace("\\", "\\\\")
-                .Replace("\"", "\\\"")
-                .Replace("\n", "\\n")
-                .Replace("\r", "\\r")
-                .Replace("\t", "\\t");
-
-        private string[] ParseCsvLine(string line)
-        {
-            var result = new List<string>();
-            var currentField = new StringBuilder();
-            var inQuotes = false;
-
-            for (var i = 0; i < line.Length; i++)
-            {
-                var c = line[i];
-
-                if (c == '"')
-                {
-                    if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
-                    {
-                        currentField.Append('"');
-                        i++;
-                    }
-                    else
-                        inQuotes = !inQuotes;
-                }
-                else if (c == ',' && !inQuotes)
-                {
-                    result.Add(currentField.ToString());
-                    currentField.Clear();
-                }
-                else
-                    currentField.Append(c);
-            }
-
-            result.Add(currentField.ToString());
-            return result.ToArray();
-        }
+        private string ConvertLocaleFormat(string locale) => locale.Replace("_", "-");
 
         private string MakeRelativePath(string absolutePath)
         {

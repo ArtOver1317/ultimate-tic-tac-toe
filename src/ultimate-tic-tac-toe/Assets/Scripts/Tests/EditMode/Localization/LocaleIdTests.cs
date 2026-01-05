@@ -92,5 +92,20 @@ namespace Tests.EditMode.Localization
             (locale1 == locale2).Should().BeTrue();
             (locale1 == locale3).Should().BeTrue();
         }
+
+        [Test]
+        public void WhenTryGetLanguageOnlyCalledWithLanguageOnlyLocale_ThenReturnsFalseAsExpected()
+        {
+            // Arrange - language-only locale (no region)
+            var languageOnlyLocale = new LocaleId("en");
+
+            // Act
+            var result = languageOnlyLocale.TryGetLanguageOnly(out var extractedLanguage);
+
+            // Assert - текущий контракт: для locale "en" (уже language-only)
+            // TryGetLanguageOnly() возвращает false (не нужна экстракция)
+            result.Should().BeFalse("locale 'en' is already language-only, no extraction needed");
+            extractedLanguage.Should().Be(languageOnlyLocale, "out parameter returns the same locale when extraction is not needed");
+        }
     }
 }

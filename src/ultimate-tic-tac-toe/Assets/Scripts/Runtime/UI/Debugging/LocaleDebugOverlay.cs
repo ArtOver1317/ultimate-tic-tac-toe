@@ -157,7 +157,8 @@ namespace Runtime.UI.Debugging
             parent.Add(button);
         }
 
-        private void OnLocaleButtonClicked(LocaleId locale)
+        // Internal for testing without reflection
+        internal void OnLocaleButtonClicked(LocaleId locale)
         {
             if (_localization == null)
             {
@@ -172,13 +173,11 @@ namespace Runtime.UI.Debugging
         {
             try
             {
-                Debug.Log($"[LocaleDebugOverlay] Switching to {locale.Code}...");
                 await _localization.SetLocaleAsync(locale, _cts.Token);
-                Debug.Log($"[LocaleDebugOverlay] Successfully switched to {locale.Code}");
             }
             catch (OperationCanceledException)
             {
-                // Expected during scene unload
+                // Expected during scene unload or disable
             }
             catch (Exception ex)
             {

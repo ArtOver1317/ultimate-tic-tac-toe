@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Editor.Localization.Parsing;
 using SimpleJSON;
 using UnityEditor;
 using UnityEngine;
@@ -16,7 +17,11 @@ namespace Editor.Localization
         private Vector2 _scrollPosition;
         private ValidationReport _report;
 
-        [MenuItem("Tools/Localization/Validate Keys")]
+        // Extracted core logic classes
+        private readonly JsonLocalizationKeyParser _keyParser = new();
+        private readonly LocalizationConsistencyValidator _consistencyValidator = new();
+
+        [MenuItem("Tools/Localization/Content Management/Validate Keys")]
         private static void ShowWindow()
         {
             var window = GetWindow<LocalizationValidator>("Localization Validator");
@@ -87,7 +92,7 @@ namespace Editor.Localization
                     try
                     {
                         var json = File.ReadAllText(jsonFile, Encoding.UTF8);
-                        var keys = ParseKeysFromJson(json);
+                        var keys = _keyParser.ParseKeys(json);
 
                         if (keys == null)
                         {
@@ -115,53 +120,19 @@ namespace Editor.Localization
                 }
             }
 
-            ValidateConsistency(allTables);
-
-            _report.IsValid = _report.Errors.Count == 0;
-            Repaint();
-        }
-
-        private void ValidateConsistency(Dictionary<string, Dictionary<string, HashSet<string>>> allTables)
-        {
-            foreach (var (tableName, localeKeys) in allTables)
+            var validationResult = _consistencyValidator.Validate(allTables, _report.FoundLocales);
+            _report.TotalKeyCount = validationResult.TotalKeyCount;
+            _report.Warnings.AddRange(validationResult.Warnings);
+            _report.MissingKeys.AddRange(validationResult.MissingKeys.Select(mk => new MissingKeyInfo
             {
-                if (localeKeys.Count < _report.FoundLocales.Count)
-                {
-                    var missingLocales = _report.FoundLocales.Except(localeKeys.Keys).ToList();
-                    _report.Warnings.Add($"Table '{tableName}' is missing in locales: {string.Join(", ", missingLocales)}");
-                }
+                Locale = mk.Locale,
+                Table = mk.Table,
+                Keys = mk.Keys,
+            }));
 
-                // Use first locale (or en if available) as reference
-                var referenceLocale = localeKeys.ContainsKey("en") ? "en" : localeKeys.Keys.First();
-                var referenceKeys = localeKeys[referenceLocale];
-
-                _report.TotalKeyCount += referenceKeys.Count;
-
-                foreach (var (locale, keys) in localeKeys)
-                {
-                    // Missing keys: what's in reference but not in this locale
-                    var missingKeys = referenceKeys.Except(keys).ToList();
-                    
-                    if (missingKeys.Count > 0)
-                    {
-                        _report.MissingKeys.Add(new MissingKeyInfo
-                        {
-                            Locale = locale,
-                            Table = tableName,
-                            Keys = missingKeys,
-                        });
-                    }
-
-                    // Extra keys: what's in this locale but not in reference
-                    if (locale != referenceLocale)
-                    {
-                        var extraKeys = keys.Except(referenceKeys).ToList();
-                        
-                        if (extraKeys.Count > 0) 
-                            _report.Warnings.Add($"Extra keys in {locale}/{tableName}: {string.Join(", ", extraKeys)}");
-                    }
-                }
-            }
+            // Option A contract: missing keys = error (blocks release)
+            _report.IsValid = _report.Errors.Count == 0 && _report.MissingKeys.Count == 0;
+            Repaint();
         }
 
         private void DrawReport()
@@ -221,47 +192,6 @@ namespace Editor.Localization
             }
 
             EditorGUILayout.EndScrollView();
-        }
-
-        private HashSet<string> ParseKeysFromJson(string json)
-        {
-            if (string.IsNullOrWhiteSpace(json))
-                return null;
-
-            try
-            {
-                var root = JSON.Parse(json);
-
-                if (root == null || !root.IsObject)
-                    return null;
-
-                var obj = root.AsObject;
-
-                if (obj == null || !obj.HasKey("entries"))
-                    return null;
-
-                var entriesNode = obj["entries"];
-
-                if (entriesNode == null || !entriesNode.IsObject)
-                    return null;
-
-                var entriesObject = entriesNode.AsObject;
-                var keys = new HashSet<string>(StringComparer.Ordinal);
-
-                foreach (var (key, _) in entriesObject.Linq)
-                {
-                    if (string.IsNullOrWhiteSpace(key))
-                        continue;
-
-                    keys.Add(key.Trim());
-                }
-
-                return keys.Count > 0 ? keys : null;
-            }
-            catch
-            {
-                return null;
-            }
         }
 
         private class ValidationReport

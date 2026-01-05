@@ -1,5 +1,6 @@
 ﻿<Solution>
   <Project Path="Unity.Timeline.csproj" />
+  <Project Path="Tests.EditMode.csproj" />
   <Project Path="Unity.RenderPipelines.GPUDriven.Runtime.csproj" />
   <Project Path="Unity.PlasticSCM.Editor.csproj" />
   <Project Path="Scellecs.Morpeh.WorldBrowser.csproj" />
@@ -36,7 +37,6 @@
   <Project Path="Unity.InputSystem.csproj" />
   <Project Path="Unity.VisualStudio.Editor.csproj" />
   <Project Path="PPv2URPConverters.csproj" />
-  <Project Path="Tests.EditMode.csproj" />
   <Project Path="Unity.2D.Animation.Editor.csproj" />
   <Project Path="UniTask.csproj" />
   <Project Path="Unity.Searcher.Editor.csproj" />
@@ -97,6 +97,7 @@
   <Project Path="Unity.CollabProxy.Editor.csproj" />
   <Project Path="Unity.ShaderGraph.Utilities.csproj" />
   <Project Path="Tests.PlayMode.csproj" />
+  <Project Path="Editor.csproj" />
   <Project Path="Unity.VisualScripting.Shared.Editor.csproj" />
   <Project Path="R3.Unity.TextMeshPro.csproj" />
   <Project Path="Unity.Profiling.Core.csproj" />

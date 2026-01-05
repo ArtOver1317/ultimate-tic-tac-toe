@@ -11,7 +11,7 @@ namespace Editor.Localization
     {
         private const string _localizationRootPath = "Assets/Content/Localization";
 
-        [MenuItem("Tools/Localization/Setup Addressables")]
+        [MenuItem("Tools/Localization/Addressables/Setup Addressables")]
         private static void SetupAddressables()
         {
             if (!EditorUtility.DisplayDialog(
@@ -51,7 +51,7 @@ namespace Editor.Localization
 
             foreach (var localeDir in localeDirectories)
             {
-                var locale = Path.GetFileName(localeDir);
+                var locale = Path.GetFileName(localeDir).ToLowerInvariant();
                 var groupName = $"Localization_{locale}";
 
                 var group = settings.FindGroup(groupName);
@@ -123,7 +123,7 @@ namespace Editor.Localization
                 "OK");
         }
 
-        [MenuItem("Tools/Localization/Validate Addressables Setup")]
+        [MenuItem("Tools/Localization/Addressables/Validate Setup")]
         private static void ValidateAddressablesSetup()
         {
             var settings = AddressableAssetSettingsDefaultObject.Settings;
@@ -149,7 +149,7 @@ namespace Editor.Localization
 
             foreach (var localeDir in localeDirectories)
             {
-                var locale = Path.GetFileName(localeDir);
+                var locale = Path.GetFileName(localeDir).ToLowerInvariant();
                 var groupName = $"Localization_{locale}";
 
                 var group = settings.FindGroup(groupName);

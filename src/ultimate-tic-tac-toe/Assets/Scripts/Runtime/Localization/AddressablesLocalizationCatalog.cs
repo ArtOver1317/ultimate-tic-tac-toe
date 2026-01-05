@@ -27,8 +27,14 @@ namespace Runtime.Localization
             // Uses short locale code (language only, without region) for simplicity.
             // Example: "loc_en_ui" (not "loc_en_us_ui").
             
+            if (string.IsNullOrWhiteSpace(locale.Code))
+                throw new ArgumentException("Invalid locale: Code is null or empty.", nameof(locale));
+            
+            if (string.IsNullOrWhiteSpace(table.Name))
+                throw new ArgumentException("Invalid table: Name is null or empty.", nameof(table));
+            
             if (!locale.TryGetLanguageOnly(out var languageOnly))
-                throw new ArgumentException($"Invalid locale: '{locale.Code}'", nameof(locale));
+                languageOnly = locale;
             
             var localeToken = languageOnly.Code.ToLowerInvariant();
             var tableName = table.Name.Trim().ToLowerInvariant();
