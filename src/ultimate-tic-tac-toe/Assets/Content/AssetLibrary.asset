@@ -18,6 +18,18 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  SettingsPrefab:
+    m_AssetGUID: 6b7c529509c1a554b82932de3c4dfbc6
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
+  LanguageSelectionPrefab:
+    m_AssetGUID: d68692a363ff45645a21fb2028d48b2a
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
   GameBoardPrefab:
     m_AssetGUID: 
     m_SubObjectName: 

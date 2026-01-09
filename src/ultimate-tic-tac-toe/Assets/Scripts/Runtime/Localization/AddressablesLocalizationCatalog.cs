@@ -14,7 +14,9 @@ namespace Runtime.Localization
 
         private static readonly TextTableId[] _startupTables =
         {
-            TextTableId.UI,
+            new TextTableId("Common"),
+            new TextTableId("MainMenu"),
+            new TextTableId("Settings"),
             TextTableId.Errors,
         };
 

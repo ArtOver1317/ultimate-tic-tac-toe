@@ -3,6 +3,7 @@
     <ui:VisualElement name="MainMenuRoot">
         <ui:Label name="Title" text="Default Title" />
         <ui:Button name="StartButton" text="Default Start" />
+        <ui:Button name="SettingsButton" text="Default Settings" />
         <ui:Button name="ExitButton" text="Default Exit" />
     </ui:VisualElement>
 </ui:UXML>

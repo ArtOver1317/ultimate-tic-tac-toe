@@ -28,7 +28,7 @@ namespace Tests.EditMode
         #region GetViewModelFromPool Tests
 
         [Test]
-        public void WhenViewModelInPool_ThenReturnsAndInitializes()
+        public void WhenViewModelInPool_ThenReturnsWithoutInitializing()
         {
             // Arrange
             var viewModel = new TestViewModel();
@@ -39,7 +39,7 @@ namespace Tests.EditMode
 
             // Assert
             result.Should().BeSameAs(viewModel);
-            viewModel.WasInitialized.Should().BeTrue();
+            viewModel.WasInitialized.Should().BeFalse();
         }
 
         [Test]

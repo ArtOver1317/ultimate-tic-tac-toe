@@ -21,7 +21,7 @@ namespace Tests.EditMode.Localization
         {
             // Arrange
             var locale = LocaleId.EnglishUs;
-            var table = TextTableId.UI;
+            var table = new TextTableId("UI");
 
             // Act
             var result = _catalog.GetAssetKey(locale, table);
@@ -35,7 +35,7 @@ namespace Tests.EditMode.Localization
         {
             // Arrange - en-US
             var enUs = LocaleId.EnglishUs;
-            var table = TextTableId.UI;
+            var table = new TextTableId("UI"); 
 
             // Act
             var enResult = _catalog.GetAssetKey(enUs, table);
@@ -60,7 +60,7 @@ namespace Tests.EditMode.Localization
             var en = new LocaleId("en");
             var ru = new LocaleId("ru");
             var ja = new LocaleId("ja");
-            var table = TextTableId.UI;
+            var table = new TextTableId("UI");
 
             // Act
             var enResult = _catalog.GetAssetKey(en, table);
@@ -79,7 +79,7 @@ namespace Tests.EditMode.Localization
         {
             // Arrange
             var defaultLocale = default(LocaleId);
-            var table = TextTableId.UI;
+            var table = new TextTableId("UI");
 
             // Act
             Action act = () => _catalog.GetAssetKey(defaultLocale, table);
@@ -120,14 +120,16 @@ namespace Tests.EditMode.Localization
         }
 
         [Test]
-        public void WhenGetStartupTables_ThenReturnsUIAndErrors()
+        public void WhenGetStartupTables_ThenReturnsCommonMainMenuSettingsAndErrors()
         {
             // Act
             var tables = _catalog.GetStartupTables();
 
             // Assert
-            tables.Should().HaveCount(2, "catalog has exactly 2 startup tables");
-            tables.Should().Contain(TextTableId.UI);
+            tables.Should().HaveCount(4, "catalog has exactly 4 startup tables");
+            tables.Should().Contain(new TextTableId("Common"));
+            tables.Should().Contain(new TextTableId("MainMenu"));
+            tables.Should().Contain(new TextTableId("Settings"));
             tables.Should().Contain(TextTableId.Errors);
         }
     }

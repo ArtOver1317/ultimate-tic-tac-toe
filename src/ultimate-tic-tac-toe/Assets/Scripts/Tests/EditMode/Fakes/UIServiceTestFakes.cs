@@ -3,9 +3,15 @@ using Runtime.UI.Core;
 
 namespace Tests.EditMode.Fakes
 {
-    public class TestViewModel : BaseViewModel { }
+    public class TestViewModel : BaseViewModel 
+    { 
+        public new void RequestClose() => base.RequestClose();
+    }
 
-    public class AnotherTestViewModel : BaseViewModel { }
+    public class AnotherTestViewModel : BaseViewModel 
+    {
+        public new void RequestClose() => base.RequestClose();
+    }
 
     public class TestWindow : IUIView<TestViewModel>
     {

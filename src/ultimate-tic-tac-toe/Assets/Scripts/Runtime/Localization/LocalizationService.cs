@@ -65,6 +65,7 @@ namespace Runtime.Localization
         {
             await _initializeGate.WaitAsync(cancellationToken);
             var enteredBusy = false;
+            
             try
             {
                 if (_isInitialized)
@@ -111,6 +112,7 @@ namespace Runtime.Localization
             {
                 if (enteredBusy)
                     ExitBusy();
+                
                 _initializeGate.Release();
             }
         }
@@ -165,6 +167,7 @@ namespace Runtime.Localization
                 try
                 {
                     await _saveGate.WaitAsync(cancellationToken);
+                    
                     try
                     {
                         lock (_switchLock)
@@ -260,10 +263,7 @@ namespace Runtime.Localization
                     key: key));
             }
 
-            if (_policy.UseMissingKeyPlaceholders) 
-                return $"⟦Missing: {table.Name}.{key.Value}⟧";
-
-            return string.Empty;
+            return _policy.UseMissingKeyPlaceholders ? $"⟦Missing: {table.Name}.{key.Value}⟧" : string.Empty;
         }
 
         public Observable<string> Observe(TextTableId table, TextKey key, Observable<IReadOnlyDictionary<string, object>> args)
@@ -286,6 +286,7 @@ namespace Runtime.Localization
                         return;
 
                     var text = Resolve(table, key, latestArgs);
+                    
                     if (string.Equals(text, lastEmitted, StringComparison.Ordinal))
                         return;
 
@@ -324,6 +325,7 @@ namespace Runtime.Localization
                 observer.OnNext(Resolve(table, key, args));
 
                 var lastLocale = CurrentLocale.CurrentValue;
+                
                 var localeSub = CurrentLocale.Subscribe(newLocale =>
                 {
                     if (newLocale == lastLocale)
@@ -385,9 +387,9 @@ namespace Runtime.Localization
 
         private static bool IsSupported(IReadOnlyList<LocaleId> supported, LocaleId locale)
         {
-            for (var i = 0; i < supported.Count; i++)
+            foreach (var supportedLocale in supported)
             {
-                if (supported[i] == locale)
+                if (supportedLocale == locale)
                     return true;
             }
 

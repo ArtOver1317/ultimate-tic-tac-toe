@@ -84,3 +84,5 @@ Errors.System.FileNotFound,File not found: {fileName},Файл не найден
 Errors.System.PermissionDenied,Permission denied,Доступ запрещён,アクセス拒否,Permission denied
 Errors.Localization.KeyNotFound,Text not found: {key},Текст не найден: {key},テキストが見つかりません: {key},Localization key not found
 Errors.Localization.LoadFailed,Failed to load localization: {locale},Не удалось загрузить локализацию: {locale},ローカライゼーションの読み込みに失敗しました: {locale},Localization load failed
+Settings.SelectLanguage,Select Language,Выберите язык,言語を選択,Language selection header
+

@@ -54,4 +54,3 @@ namespace Runtime.Infrastructure.GameStateMachine.States
         }
     }
 }
-

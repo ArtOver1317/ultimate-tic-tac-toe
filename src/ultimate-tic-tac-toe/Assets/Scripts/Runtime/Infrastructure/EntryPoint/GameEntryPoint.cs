@@ -21,4 +21,3 @@ namespace Runtime.Infrastructure.EntryPoint
         }
     }
 }
-

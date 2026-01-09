@@ -45,8 +45,10 @@ namespace Runtime.Localization
 
             AppendUnique(result, DefaultLocale);
 
-            for (var i = 0; i < _defaultFallback.Length; i++)
-                AppendUnique(result, _defaultFallback[i]);
+            foreach (var fallbackLocale in _defaultFallback)
+            {
+                AppendUnique(result, fallbackLocale);
+            }
 
             var chain = result.ToArray();
             _fallbackChainCache[requested] = chain;
@@ -55,9 +57,9 @@ namespace Runtime.Localization
 
         private static void AppendUnique(List<LocaleId> list, LocaleId locale)
         {
-            for (var i = 0; i < list.Count; i++)
+            foreach (var localeId in list)
             {
-                if (list[i] == locale)
+                if (localeId == locale)
                     return;
             }
 

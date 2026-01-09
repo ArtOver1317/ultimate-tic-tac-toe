@@ -6,6 +6,7 @@
     "Settings.Audio": "Звук",
     "Settings.Back": "Назад",
     "Settings.Language": "Язык",
+    "Settings.SelectLanguage": "Выберите язык",
     "Settings.Title": "Настройки",
     "Settings.Volume": "Громкость: {volume}%"
   }

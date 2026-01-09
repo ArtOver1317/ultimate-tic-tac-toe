@@ -44,6 +44,8 @@ namespace Tests.PlayMode
                 .Returns(Observable.Return("Ultimate Tic-Tac-Toe"));
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.StartButton"), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Start Game"));
+            _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.Settings"), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(Observable.Return("Settings"));
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.ExitButton"), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Exit"));
             
@@ -59,6 +61,7 @@ namespace Tests.PlayMode
             var root = _uiDocument.rootVisualElement;
             Assert.IsNotNull(root.Q<Label>("Title"), "UXML должен содержать Label с name='Title'");
             Assert.IsNotNull(root.Q<Button>("StartButton"), "UXML должен содержать Button с name='StartButton'");
+            Assert.IsNotNull(root.Q<Button>("SettingsButton"), "UXML должен содержать Button с name='SettingsButton'");
             Assert.IsNotNull(root.Q<Button>("ExitButton"), "UXML должен содержать Button с name='ExitButton'");
 
             _view.SetViewModel(_viewModel);
@@ -82,6 +85,7 @@ namespace Tests.PlayMode
         {
             GetTitleLabel().text.Should().Be("Ultimate Tic-Tac-Toe");
             GetStartButton().text.Should().Be("Start Game");
+            GetSettingsButton().text.Should().Be("Settings");
             GetExitButton().text.Should().Be("Exit");
 
             yield return null;
@@ -91,15 +95,18 @@ namespace Tests.PlayMode
         public IEnumerator WhenViewModelIsInteractableChanges_ThenButtonsEnabledStateUpdates()
         {
             var startButton = GetStartButton();
+            var settingsButton = GetSettingsButton();
             var exitButton = GetExitButton();
 
             startButton.enabledSelf.Should().BeTrue();
+            settingsButton.enabledSelf.Should().BeTrue();
             exitButton.enabledSelf.Should().BeTrue();
 
             _viewModel.SetInteractable(false);
             yield return new WaitForEndOfFrame();
 
             startButton.enabledSelf.Should().BeFalse();
+            settingsButton.enabledSelf.Should().BeFalse();
             exitButton.enabledSelf.Should().BeFalse();
         }
 
@@ -135,6 +142,7 @@ namespace Tests.PlayMode
 
         private Label GetTitleLabel() => _uiDocument.rootVisualElement.Q<Label>("Title");
         private Button GetStartButton() => _uiDocument.rootVisualElement.Q<Button>("StartButton");
+        private Button GetSettingsButton() => _uiDocument.rootVisualElement.Q<Button>("SettingsButton");
         private Button GetExitButton() => _uiDocument.rootVisualElement.Q<Button>("ExitButton");
     }
 }

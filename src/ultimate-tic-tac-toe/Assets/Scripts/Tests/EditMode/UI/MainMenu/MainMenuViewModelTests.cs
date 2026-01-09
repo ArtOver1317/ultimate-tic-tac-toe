@@ -26,6 +26,9 @@ namespace Tests.EditMode.UI.MainMenu
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.StartButton"), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Start Game"));
             
+            _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.Settings"), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(Observable.Return("Settings"));
+
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.ExitButton"), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Exit"));
         }
@@ -37,13 +40,25 @@ namespace Tests.EditMode.UI.MainMenu
             var sut = new MainMenuViewModel(_localizationMock);
             sut.Initialize();
 
+            string title = null;
+            string startButton = null;
+            string settingsButton = null;
+            string exitButton = null;
+
+            using var d1 = sut.Title.Subscribe(text => title = text);
+            using var d2 = sut.StartButtonText.Subscribe(text => startButton = text);
+            using var d3 = sut.SettingsButtonText.Subscribe(text => settingsButton = text);
+            using var d4 = sut.ExitButtonText.Subscribe(text => exitButton = text);
+
             // Assert
-            sut.Title.CurrentValue.Should().Be("Ultimate Tic-Tac-Toe");
-            sut.StartButtonText.CurrentValue.Should().Be("Start Game");
-            sut.ExitButtonText.CurrentValue.Should().Be("Exit");
+            title.Should().Be("Ultimate Tic-Tac-Toe");
+            startButton.Should().Be("Start Game");
+            settingsButton.Should().Be("Settings");
+            exitButton.Should().Be("Exit");
             sut.IsInteractable.CurrentValue.Should().BeTrue();
             sut.StartGameRequested.Should().NotBeNull();
             sut.ExitRequested.Should().NotBeNull();
+            sut.SettingsRequested.Should().NotBeNull();
         }
 
         [Test]
@@ -85,8 +100,8 @@ namespace Tests.EditMode.UI.MainMenu
             Action actSubject = () => sut.RequestStartGame();
             actSubject.Should().Throw<ObjectDisposedException>();
 
-            Action actProperty = () => sut.Title.Subscribe(_ => { });
-            actProperty.Should().Throw<ObjectDisposedException>();
+            Action actProperty = () => sut.Title.Subscribe(_ => { }).Dispose();
+            actProperty.Should().NotThrow();
         }
 
         [Test]
@@ -113,8 +128,11 @@ namespace Tests.EditMode.UI.MainMenu
             // Act
             sut.Initialize();
 
+            string startButton = null;
+            using var d = sut.StartButtonText.Subscribe(text => startButton = text);
+
             // Assert
-            sut.StartButtonText.CurrentValue.Should().Be("Start Game");
+            startButton.Should().Be("Start Game");
         }
 
         [Test]
@@ -129,17 +147,20 @@ namespace Tests.EditMode.UI.MainMenu
             var sut = new MainMenuViewModel(_localizationMock);
             sut.Initialize();
 
+            string startButton = null;
+            using var d = sut.StartButtonText.Subscribe(text => startButton = text);
+
             // Act
             localeSubject.OnNext("Начать игру");
 
             // Assert
-            sut.StartButtonText.CurrentValue.Should().Be("Начать игру");
+            startButton.Should().Be("Начать игру");
             
             localeSubject.Dispose();
         }
 
         [Test]
-        public void WhenViewModelDisposedAndLocaleChanges_ThenNoUpdatesAndNoExceptions()
+        public void WhenStartButtonTextSubscriptionDisposed_ThenDoesNotReceiveFurtherUpdates()
         {
             // Arrange
             var localeSubject = new Subject<string>();
@@ -149,15 +170,20 @@ namespace Tests.EditMode.UI.MainMenu
 
             var sut = new MainMenuViewModel(_localizationMock);
             sut.Initialize();
-            var initialValue = sut.StartButtonText.CurrentValue;
+
+            string startButton = null;
+            var subscription = sut.StartButtonText.Subscribe(text => startButton = text);
 
             // Act
-            sut.Dispose();
-            Action act = () => localeSubject.OnNext("New Value");
+            localeSubject.OnNext("Value 1");
+            startButton.Should().Be("Value 1");
+
+            subscription.Dispose();
+            Action act = () => localeSubject.OnNext("Value 2");
 
             // Assert
             act.Should().NotThrow();
-            sut.StartButtonText.CurrentValue.Should().Be(initialValue);
+            startButton.Should().Be("Value 1");
             
             localeSubject.Dispose();
         }

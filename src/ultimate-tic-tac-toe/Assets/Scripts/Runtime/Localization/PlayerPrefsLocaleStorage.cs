@@ -14,10 +14,7 @@ namespace Runtime.Localization
 
             var code = PlayerPrefs.GetString(_localeKey, string.Empty);
             
-            if (string.IsNullOrWhiteSpace(code))
-                return UniTask.FromResult<LocaleId?>(null);
-
-            return UniTask.FromResult<LocaleId?>(new LocaleId(code));
+            return string.IsNullOrWhiteSpace(code) ? UniTask.FromResult<LocaleId?>(null) : UniTask.FromResult<LocaleId?>(new LocaleId(code));
         }
 
         public UniTask SaveAsync(LocaleId locale)

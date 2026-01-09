@@ -49,9 +49,8 @@ namespace Runtime.Localization
         {
             var chain = _policy.GetFallbackChain(_activeLocale);
             
-            for (var i = 0; i < chain.Count; i++)
+            foreach (var locale in chain)
             {
-                var locale = chain[i];
                 var cacheKey = new CacheKey(locale, table);
 
                 if (_tables.TryGetValue(cacheKey, out var localizationTable))

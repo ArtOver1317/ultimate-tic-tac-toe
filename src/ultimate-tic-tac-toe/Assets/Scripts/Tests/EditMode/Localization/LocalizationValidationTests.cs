@@ -7,7 +7,7 @@ namespace Tests.EditMode.Localization
 {
     /// <summary>
     /// Unit tests for localization validation logic.
-    /// Tests TextKey validation directly (VAL-02) and LocalizedTextUI.SetKey parameter validation.
+    /// Tests TextKey validation directly (VAL-02).
     /// </summary>
     [TestFixture]
     public class LocalizationValidationTests

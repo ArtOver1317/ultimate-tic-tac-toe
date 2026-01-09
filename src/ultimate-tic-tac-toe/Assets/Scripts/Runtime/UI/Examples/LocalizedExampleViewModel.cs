@@ -23,43 +23,32 @@ namespace Runtime.UI.Examples
     public sealed class LocalizedExampleViewModel : BaseViewModel
     {
         private readonly ILocalizationService _localization;
-        private readonly ReactiveProperty<string> _title = new();
-        private readonly ReactiveProperty<string> _playButton = new();
-        private readonly ReactiveProperty<string> _scoreText = new();
-        private readonly ReactiveProperty<string> _playerTurnText = new();
         private readonly ReactiveProperty<int> _currentScore = new(0);
         private readonly ReactiveProperty<string> _currentPlayerName = new("Player 1");
 
-        public ReadOnlyReactiveProperty<string> Title => _title;
-        public ReadOnlyReactiveProperty<string> PlayButton => _playButton;
-        public ReadOnlyReactiveProperty<string> ScoreText => _scoreText;
-        public ReadOnlyReactiveProperty<string> PlayerTurnText => _playerTurnText;
+        public Observable<string> Title { get; }
+        public Observable<string> PlayButton { get; }
+        public Observable<string> ScoreText { get; }
+        public Observable<string> PlayerTurnText { get; }
         public ReadOnlyReactiveProperty<int> CurrentScore => _currentScore;
         public ReadOnlyReactiveProperty<string> CurrentPlayerName => _currentPlayerName;
 
-        public LocalizedExampleViewModel(ILocalizationService localization) =>
+        public LocalizedExampleViewModel(ILocalizationService localization)
+        {
             _localization = localization ?? throw new System.ArgumentNullException(nameof(localization));
 
-        public override void Initialize()
-        {
             // ✅ Простая локализация без аргументов
-            AddDisposable(_localization
-                .Observe(TextTableId.UI, "MainMenu.Title")
-                .Subscribe(text => _title.Value = text));
+            Title = _localization.Observe(TextTableId.MainMenu, "MainMenu.Title");
 
             // ✅ Простая локализация без аргументов (альтернативный синтаксис)
-            AddDisposable(_localization
-                .Observe(new TextTableId("UI"), new TextKey("MainMenu.Play"))
-                .Subscribe(text => _playButton.Value = text));
+            PlayButton = _localization.Observe(TextTableId.MainMenu, new TextKey("MainMenu.Play"));
 
             // ✅ Локализация с реактивными аргументами
             // Текст обновляется при смене локали ИЛИ при изменении CurrentScore
             var scoreArgsObservable = _currentScore
                 .Select(score => new Dictionary<string, object> { { "score", score } } as IReadOnlyDictionary<string, object>);
 
-            AddDisposable(_localization
-                .Observe(new TextTableId("UI"), new TextKey("Game.Score"), scoreArgsObservable)
-                .Subscribe(text => _scoreText.Value = text));
+            ScoreText = _localization.Observe(TextTableId.Gameplay, new TextKey("Game.Score"), scoreArgsObservable);
 
             // ✅ Комбинирование нескольких реактивных параметров
             var playerTurnArgs = Observable.CombineLatest(
@@ -73,9 +62,7 @@ namespace Runtime.UI.Examples
             );
 
             // Use existing key from content: Game.OpponentTurn
-            AddDisposable(_localization
-                .Observe(new TextTableId("UI"), new TextKey("Game.OpponentTurn"), playerTurnArgs)
-                .Subscribe(text => _playerTurnText.Value = text));
+            PlayerTurnText = _localization.Observe(TextTableId.Gameplay, new TextKey("Game.OpponentTurn"), playerTurnArgs);
         }
 
         public void UpdateScore(int newScore) => _currentScore.Value = newScore;
@@ -95,12 +82,6 @@ namespace Runtime.UI.Examples
 
         protected override void OnDispose()
         {
-            // Не нужно явно dispose-ить подписки - они добавлены через AddDisposable(...)
-            // BaseViewModel автоматически вызовет Dispose() для всех зарегистрированных объектов
-            _title?.Dispose();
-            _playButton?.Dispose();
-            _scoreText?.Dispose();
-            _playerTurnText?.Dispose();
             _currentScore?.Dispose();
             _currentPlayerName?.Dispose();
         }

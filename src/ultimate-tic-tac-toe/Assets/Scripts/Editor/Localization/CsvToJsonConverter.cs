@@ -11,7 +11,7 @@ namespace Editor.Localization
 {
     public sealed class CsvToJsonConverter : EditorWindow
     {
-        private const string _defaultCsvPath = "Assets/Content/Localization/Import.csv";
+        private const string _defaultCsvPath = "Assets/Content/Localization/Template.csv";
         private const string _defaultOutputPath = "Assets/Content/Localization/";
 
         private string _csvPath = _defaultCsvPath;

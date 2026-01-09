@@ -18,4 +18,3 @@ namespace Runtime.Infrastructure.GameStateMachine.States
         UniTask EnterAsync(TPayload payload, CancellationToken cancellationToken = default);
     }
 }
-

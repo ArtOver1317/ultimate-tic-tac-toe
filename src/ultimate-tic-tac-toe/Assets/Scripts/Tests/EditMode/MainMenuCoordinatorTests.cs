@@ -10,6 +10,7 @@ using R3;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Localization;
+using Runtime.Services.UI;
 using Runtime.UI.MainMenu;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -21,6 +22,7 @@ namespace Tests.EditMode
     {
         private MainMenuCoordinator _coordinator;
         private IGameStateMachine _stateMachineMock;
+        private IUIService _uiServiceMock;
         private ILocalizationService _localizationMock;
         private MainMenuViewModel _viewModel;
         private CancellationToken _cancellationToken;
@@ -29,11 +31,12 @@ namespace Tests.EditMode
         public void SetUp()
         {
             _stateMachineMock = Substitute.For<IGameStateMachine>();
+            _uiServiceMock = Substitute.For<IUIService>();
             _localizationMock = Substitute.For<ILocalizationService>();
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Test"));
             
-            _coordinator = new MainMenuCoordinator(_stateMachineMock);
+            _coordinator = new MainMenuCoordinator(_stateMachineMock, _uiServiceMock);
             _viewModel = new MainMenuViewModel(_localizationMock);
             _viewModel.Initialize();
             _cancellationToken = CancellationToken.None;
@@ -216,13 +219,23 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public void WhenConstructorWithNull_ThenThrowsArgumentNullException()
+        public void WhenConstructorWithNullStateMachine_ThenThrowsArgumentNullException()
         {
             // Act & Assert
-            Action act = () => new MainMenuCoordinator(null);
+            Action act = () => new MainMenuCoordinator(null, _uiServiceMock);
             
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("stateMachine");
+        }
+
+        [Test]
+        public void WhenConstructorWithNullUIService_ThenThrowsArgumentNullException()
+        {
+            // Act & Assert
+            Action act = () => new MainMenuCoordinator(_stateMachineMock, null);
+            
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("uiService");
         }
 
         #endregion

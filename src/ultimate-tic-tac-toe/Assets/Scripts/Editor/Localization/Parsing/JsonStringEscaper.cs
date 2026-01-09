@@ -21,11 +21,11 @@ namespace Editor.Localization.Parsing
                 return value;
 
             return value
-                .Replace("\\", "\\\\")  // Backslash must be first
-                .Replace("\"", "\\\"")  // Double quotes
-                .Replace("\n", "\\n")   // Newline
-                .Replace("\r", "\\r")   // Carriage return
-                .Replace("\t", "\\t");  // Tab
+                .Replace("\\", "\\\\") // Backslash must be first
+                .Replace("\"", "\\\"") // Double quotes
+                .Replace("\n", "\\n") // Newline
+                .Replace("\r", "\\r") // Carriage return
+                .Replace("\t", "\\t"); // Tab
         }
     }
 }

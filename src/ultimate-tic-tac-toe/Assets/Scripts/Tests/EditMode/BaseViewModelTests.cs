@@ -52,6 +52,20 @@ namespace Tests.EditMode
         }
 
         [Test]
+        public void WhenResetCalled_ThenOnCloseRequestedEmitsEvent()
+        {
+            // Arrange
+            var eventCount = 0;
+            _viewModel.OnCloseRequested.Subscribe(_ => eventCount++);
+
+            // Act
+            _viewModel.Reset();
+
+            // Assert
+            eventCount.Should().Be(1, "Reset should signal OnCloseRequested to end the VM session");
+        }
+
+        [Test]
         public void WhenResetCalled_ThenOnResetIsInvoked()
         {
             // Arrange
@@ -120,7 +134,7 @@ namespace Tests.EditMode
 
             // Verify original subscription was also disposed
             subscription.Dispose();
-            eventReceived.Should().BeFalse("no events should be received before disposal");
+            eventReceived.Should().BeTrue("Dispose should signal OnCloseRequested");
         }
 
         [Test]
@@ -175,12 +189,12 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public void WhenRequestCloseCalledAfterDispose_ThenNoExceptionOrEventEmitted()
+        public void WhenRequestCloseCalledAfterDispose_ThenThrowsDisposedException()
         {
             // Arrange
             var eventCount = 0;
             _viewModel.OnCloseRequested.Subscribe(_ => eventCount++);
-            _viewModel.Dispose();
+            _viewModel.Dispose(); // Emits 1 event
 
             // Act
             Action requestCloseAfterDispose = () => _viewModel.RequestClose();
@@ -189,7 +203,7 @@ namespace Tests.EditMode
             requestCloseAfterDispose.Should().Throw<ObjectDisposedException>(
                 "RequestClose should throw when called on disposed Subject");
 
-            eventCount.Should().Be(0, "no events should be emitted after disposal");
+            eventCount.Should().Be(1, "exactly one event (from Dispose) should be emitted, subsequent calls fail");
         }
 
         #endregion
@@ -222,6 +236,8 @@ namespace Tests.EditMode
             public bool WasOnDisposeCalled { get; private set; }
 
             public new void AddDisposable(IDisposable disposable) => base.AddDisposable(disposable);
+            
+            public new void RequestClose() => base.RequestClose();
 
             protected override void OnReset() => WasOnResetCalled = true;
 

@@ -30,11 +30,6 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 4aaec9c16fb885d42b7ce9380a1cb1bd
-    m_Address: loc_ja_ui
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 60ff6146ce32dc84bad62456613437da
     m_Address: loc_ja_mode
     m_ReadOnly: 0

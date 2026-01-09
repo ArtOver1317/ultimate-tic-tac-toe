@@ -5,6 +5,8 @@ using R3;
 using Runtime.Infrastructure.Logging;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
+using Runtime.Services.UI;
+using Runtime.UI.Settings;
 using StripLog;
 using UnityEngine;
 
@@ -14,12 +16,16 @@ namespace Runtime.UI.MainMenu
     {
         private MainMenuViewModel _viewModel;
         private readonly IGameStateMachine _stateMachine;
+        private readonly IUIService _uiService;
         private CompositeDisposable _disposables = new();
         private CancellationTokenSource _lifecycleCts = new();
         private bool _isDisposed;
 
-        public MainMenuCoordinator(IGameStateMachine stateMachine) =>
+        public MainMenuCoordinator(IGameStateMachine stateMachine, IUIService uiService)
+        {
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
+            _uiService = uiService ?? throw new ArgumentNullException(nameof(uiService));
+        }
 
         public void Initialize(MainMenuViewModel viewModel)
         {
@@ -45,6 +51,10 @@ namespace Runtime.UI.MainMenu
             _viewModel.ExitRequested
                 .Subscribe(_ => OnExit())
                 .AddTo(_disposables);
+
+            _viewModel.SettingsRequested
+                .Subscribe(_ => OpenSettings())
+                .AddTo(_disposables);
         }
 
         private void Cleanup()
@@ -60,6 +70,11 @@ namespace Runtime.UI.MainMenu
         {
             cancellationToken.ThrowIfCancellationRequested();
             Log.Debug(LogTags.UI, "[MainMenuCoordinator] Starting game...");
+            
+            // Close overlays before starting game
+            _uiService.Close<LanguageSelectionView>();
+            _uiService.Close<SettingsView>();
+            
             _viewModel.SetInteractable(false);
             await _stateMachine.EnterAsync<LoadGameplayState>(cancellationToken);
         }
@@ -73,6 +88,40 @@ namespace Runtime.UI.MainMenu
 #else
             Application.Quit();
 #endif
+        }
+
+        private void OpenSettings()
+        {
+            // SettingsView and LanguageSelectionView are transient, opened on top of MainMenu
+            var settingsView = _uiService.Open<SettingsView, SettingsViewModel>();
+            
+            if (settingsView == null)
+            {
+                Log.Error(LogTags.UI, "Failed to open SettingsView");
+                return;
+            }
+
+            var vm = settingsView.GetViewModel();
+
+            // Note: Back navigation is handled by BaseViewModel.RequestClose triggering UIService.Close
+            // We only need to handle forward navigation.
+            // Using TakeUntil(vm.OnCloseRequested) ensures we unsubscribe when the window closes
+            // (even if View is pooled and ViewModel is reset/pooled, OnCloseRequested completes the session)
+
+            vm.LanguageRequest
+                .TakeUntil(vm.OnCloseRequested)
+                .Subscribe(_ => OpenLanguageSelection())
+                .AddTo(_disposables);
+        }
+
+        private void OpenLanguageSelection()
+        {
+            var langView = _uiService.Open<LanguageSelectionView, LanguageSelectionViewModel>();
+
+            if (langView == null) 
+                Log.Error(LogTags.UI, "Failed to open LanguageSelectionView");
+
+            // Back navigation handled by RequestClose -> UIService auto-close
         }
 
         public void Dispose()

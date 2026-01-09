@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Editor.Localization.Parsing;
-using SimpleJSON;
 using UnityEditor;
 using UnityEngine;
 
@@ -123,6 +122,7 @@ namespace Editor.Localization
             var validationResult = _consistencyValidator.Validate(allTables, _report.FoundLocales);
             _report.TotalKeyCount = validationResult.TotalKeyCount;
             _report.Warnings.AddRange(validationResult.Warnings);
+            
             _report.MissingKeys.AddRange(validationResult.MissingKeys.Select(mk => new MissingKeyInfo
             {
                 Locale = mk.Locale,

@@ -33,8 +33,31 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             cancellationToken.ThrowIfCancellationRequested();
             _isExited = false;
             Log.Debug(LogTags.Scenes, "[MainMenuState] Entered MainMenu");
+            
+            // Load and register UI prefabs
             var mainMenuPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.MainMenuPrefab, cancellationToken);
             _uiService.RegisterWindowPrefab<MainMenuView>(mainMenuPrefab);
+
+            if (_assetLibrary.SettingsPrefab != null && _assetLibrary.SettingsPrefab.RuntimeKeyIsValid())
+            {
+                var settingsPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.SettingsPrefab, cancellationToken);
+                _uiService.RegisterWindowPrefab<Runtime.UI.Settings.SettingsView>(settingsPrefab);
+            }
+            else
+            {
+                 Log.Error(LogTags.Scenes, "[MainMenuState] SettingsPrefab is missing or invalid in AssetLibrary. Settings feature will be disabled.");
+            }
+
+            if (_assetLibrary.LanguageSelectionPrefab != null && _assetLibrary.LanguageSelectionPrefab.RuntimeKeyIsValid())
+            {
+                var languagePrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.LanguageSelectionPrefab, cancellationToken);
+                _uiService.RegisterWindowPrefab<Runtime.UI.Settings.LanguageSelectionView>(languagePrefab);
+            }
+            else
+            {
+                 Log.Error(LogTags.Scenes, "[MainMenuState] LanguageSelectionPrefab is missing or invalid. Language selection will be disabled.");
+            }
+
             var view = _uiService.Open<MainMenuView, MainMenuViewModel>();
             
             if (view == null)
@@ -54,7 +77,12 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             
             _isExited = true;
             Log.Debug(LogTags.Scenes, "[MainMenuState] Exiting MainMenu");
+            
+            // Close all potential sub-windows to prevent UI leaks
+            _uiService.Close<Runtime.UI.Settings.LanguageSelectionView>();
+            _uiService.Close<Runtime.UI.Settings.SettingsView>();
             _uiService.Close<MainMenuView>();
+            
             _coordinator.Dispose();
         }
     }

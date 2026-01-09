@@ -24,4 +24,3 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             _stateMachine.EnterAsync<LoadMainMenuState>(cancellationToken);
     }
 }
-

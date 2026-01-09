@@ -18,7 +18,8 @@ namespace Runtime.Localization
             Name = name.Trim();
         }
 
-        public static TextTableId UI => new("UI");
+        public static TextTableId MainMenu => new("MainMenu");
+        public static TextTableId Settings => new("Settings");
         public static TextTableId Gameplay => new("Gameplay");
         public static TextTableId Errors => new("Errors");
 

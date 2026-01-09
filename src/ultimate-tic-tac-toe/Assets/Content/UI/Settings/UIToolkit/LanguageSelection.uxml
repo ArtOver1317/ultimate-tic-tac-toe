@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="SettingsStyles.uss" />
+    <ui:VisualElement name="Root" class="root">
+        <ui:VisualElement name="Panel" class="panel">
+            <ui:Label text="Select Language" name="Title" class="title" />
+            <ui:ScrollView name="Container" style="width: 100%; height: 300px; margin-bottom: 20px;" />
+            <ui:Button text="Back" name="BackButton" class="menu-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

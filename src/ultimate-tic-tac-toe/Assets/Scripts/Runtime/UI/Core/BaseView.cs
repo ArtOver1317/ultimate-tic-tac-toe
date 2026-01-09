@@ -42,6 +42,13 @@ namespace Runtime.UI.Core
 
         private void TryInitializeViewModel()
         {
+            if (_uiDocument != null && _uiDocument.rootVisualElement != null && Root != _uiDocument.rootVisualElement)
+            {
+                // This happens when checking out from pool - UIDocument might have regenerated the tree
+                Root = _uiDocument.rootVisualElement;
+                UxmlBinder.BindElements(this, Root);
+            }
+
             if (_isInitialized || ViewModel == null || Root == null)
                 return;
 
@@ -56,25 +63,45 @@ namespace Runtime.UI.Core
 
         protected void BindText<T>(Observable<T> source, VisualElement element)
         {
+            if (element == null)
+            {
+                Log.Error(LogTags.UI, "Cannot bind text: element is null", this);
+                return;
+            }
+
             if (element is TextElement textElement)
             {
                 source.Subscribe(value => textElement.text = value?.ToString() ?? string.Empty)
                     .AddTo(_disposables);
             }
             else
-            {
                 Log.Error(LogTags.UI, $"Element {element.name} is not a TextElement", this);
-            }
         }
 
-        protected void BindVisibility(Observable<bool> source, VisualElement element) =>
+        protected void BindVisibility(Observable<bool> source, VisualElement element)
+        {
+            if (element == null)
+            {
+                Log.Error(LogTags.UI, "Cannot bind visibility: element is null", this);
+                return;
+            }
+
             source.Subscribe(isVisible =>
                     element.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None)
                 .AddTo(_disposables);
+        }
 
-        protected void BindEnabled(Observable<bool> source, VisualElement element) =>
+        protected void BindEnabled(Observable<bool> source, VisualElement element)
+        {
+            if (element == null)
+            {
+                Log.Error(LogTags.UI, "Cannot bind enabled: element is null", this);
+                return;
+            }
+            
             source.Subscribe(element.SetEnabled)
                 .AddTo(_disposables);
+        }
 
         protected virtual void OnDestroy()
         {

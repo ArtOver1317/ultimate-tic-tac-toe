@@ -53,9 +53,7 @@ namespace Editor.Localization.Parsing
                     currentField.Clear();
                 }
                 else
-                {
                     currentField.Append(c);
-                }
             }
 
             // Add last field

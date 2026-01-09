@@ -6,6 +6,7 @@
     "Settings.Audio": "Audio",
     "Settings.Back": "Back",
     "Settings.Language": "Language",
+    "Settings.SelectLanguage": "Select Language",
     "Settings.Title": "Settings",
     "Settings.Volume": "Volume: {volume}%"
   }

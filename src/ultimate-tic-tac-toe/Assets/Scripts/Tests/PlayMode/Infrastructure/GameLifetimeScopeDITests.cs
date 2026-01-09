@@ -1,10 +1,11 @@
 using System.Collections;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Infrastructure.Scopes;
 using Runtime.Localization;
 using Runtime.Services.UI;
-using Runtime.UI.Components;
 using Runtime.UI.MainMenu;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -254,6 +255,11 @@ namespace Tests.PlayMode.Infrastructure
         {
             // Arrange
             var factory = _scope.Container.Resolve<ViewModelFactory>();
+            var localization = _scope.Container.Resolve<ILocalizationService>();
+
+            // Production flow: localization is initialized in BootstrapState before any UI creates VMs.
+            // This test must ensure the same precondition, otherwise Observe(...) throws.
+            yield return localization.InitializeAsync(CancellationToken.None).ToCoroutine();
 
             // Act - create VM through factory (production flow)
             var viewModel = factory.CreateViewModel<MainMenuViewModel>();
@@ -280,23 +286,23 @@ namespace Tests.PlayMode.Infrastructure
         /// 
         /// Trade-off accepted: Complex PlayMode setup (prefab + scene hierarchy) would be
         /// overengineering for validation that "dependency exists in container".
-        /// Full coverage exists in LocalizedTextUITests.cs (PlayMode unit tests).
+        /// We validate this using a simple debug overlay component that has [Inject] entrypoint.
         /// </summary>
         [UnityTest]
-        public IEnumerator WhenLocalizedTextUIIsInstantiated_ThenDependenciesAreInjected()
+        public IEnumerator WhenLocaleDebugOverlayIsInstantiated_ThenDependenciesAreInjected()
         {
             // Arrange
-            var gameObject = new GameObject("TestLocalizedTextUI");
+            var gameObject = new GameObject("TestLocaleDebugOverlay");
             gameObject.SetActive(false);
             
-            var component = gameObject.AddComponent<LocalizedTextUI>();
+            var component = gameObject.AddComponent<Runtime.UI.Debugging.LocaleDebugOverlay>();
             var localization = _scope.Container.Resolve<ILocalizationService>();
 
             // Act - manually inject (simulates VContainer AutoInject, but NOT production flow)
             component.Construct(localization);
 
             // Assert - dependency is resolvable and injectable
-            localization.Should().NotBeNull("ILocalizationService must be resolvable and injectable into LocalizedTextUI");
+            localization.Should().NotBeNull("ILocalizationService must be resolvable and injectable into LocaleDebugOverlay");
             
             Object.DestroyImmediate(gameObject);
             yield return null;

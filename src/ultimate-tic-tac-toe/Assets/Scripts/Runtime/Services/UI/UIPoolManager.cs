@@ -57,7 +57,6 @@ namespace Runtime.Services.UI
         public TViewModel GetViewModelFromPool<TViewModel>(Type viewModelType) where TViewModel : BaseViewModel
         {
             var viewModel = _viewModelPool.Get<TViewModel>(viewModelType);
-            viewModel?.Initialize();
             return viewModel;
         }
         

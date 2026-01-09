@@ -71,8 +71,6 @@ namespace Runtime.UI.Core
         protected virtual void OnResetForPool() { }
 
         protected virtual void OnInitializeFromPool() { }
-
-        public TViewModel GetViewModel() => ViewModel;
         
         BaseViewModel IUIView.GetViewModel() => ViewModel;
     }

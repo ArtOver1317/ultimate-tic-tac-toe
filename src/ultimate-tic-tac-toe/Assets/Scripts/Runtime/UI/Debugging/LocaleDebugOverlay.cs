@@ -16,7 +16,9 @@ namespace Runtime.UI.Debugging
     public class LocaleDebugOverlay : MonoBehaviour
     {
         [SerializeField] private UIDocument UIDocument;
-        [SerializeField] private bool _showInProduction = false;
+#pragma warning disable 0414
+        [SerializeField] private bool _showInProduction;
+#pragma warning restore 0414
 
         private ILocalizationService _localization;
         private CancellationTokenSource _cts;

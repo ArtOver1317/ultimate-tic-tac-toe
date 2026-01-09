@@ -46,12 +46,24 @@ namespace Tests.EditMode
 
             _assetLibrary = ScriptableObject.CreateInstance<AssetLibrary>();
             _assetLibrary.MainMenuPrefab = new AssetReferenceGameObject("00000000000000000000000000000000");
+            _assetLibrary.SettingsPrefab = new AssetReferenceGameObject("00000000000000000000000000000001");
+            _assetLibrary.LanguageSelectionPrefab = new AssetReferenceGameObject("00000000000000000000000000000002");
 
             _mainMenuPrefab = new GameObject("MainMenuPrefab");
+            var settingsPrefab = new GameObject("SettingsPrefab");
+            var languagePrefab = new GameObject("LanguagePrefab");
             
             _assets
                 .LoadAsync<GameObject>(_assetLibrary.MainMenuPrefab, Arg.Any<System.Threading.CancellationToken>())
                 .Returns(UniTask.FromResult(_mainMenuPrefab));
+
+            _assets
+                .LoadAsync<GameObject>(_assetLibrary.SettingsPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .Returns(UniTask.FromResult(settingsPrefab));
+
+            _assets
+                .LoadAsync<GameObject>(_assetLibrary.LanguageSelectionPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .Returns(UniTask.FromResult(languagePrefab));
 
             _viewGameObject = new GameObject("TestMainMenuView");
             _testView = _viewGameObject.AddComponent<TestMainMenuView>();
@@ -135,7 +147,7 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public async Task WhenExit_ThenClosesMainMenuWindow()
+        public async Task WhenExit_ThenClosesMainMenuWindowAndOverlays()
         {
             // Arrange
             await _state.EnterAsync();
@@ -144,9 +156,27 @@ namespace Tests.EditMode
             _state.Exit();
 
             // Assert
-            _uiService.Received(1).Close<MainMenuView>();
+            Received.InOrder(() =>
+            {
+                _uiService.Close<Runtime.UI.Settings.LanguageSelectionView>();
+                _uiService.Close<Runtime.UI.Settings.SettingsView>();
+                _uiService.Close<MainMenuView>();
+            });
         }
 
+            [Test]
+            public async Task WhenExit_ThenClosesSettingsAndLanguageSelectionWindows()
+            {
+                // Arrange
+                await _state.EnterAsync();
+
+                // Act
+                _state.Exit();
+
+                // Assert
+                _uiService.Received(1).Close<Runtime.UI.Settings.SettingsView>();
+                _uiService.Received(1).Close<Runtime.UI.Settings.LanguageSelectionView>();
+            }
         [Test]
         public async Task WhenExit_ThenDisposesCoordinator()
         {

@@ -20,6 +20,16 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6b7c529509c1a554b82932de3c4dfbc6
+    m_Address: Assets/Content/UI/Settings/Prefabs/SettingsUI.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d68692a363ff45645a21fb2028d48b2a
+    m_Address: Assets/Content/UI/Settings/Prefabs/LanguageSelectionUI.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: d98ce5515ba60154a858e9b89c5d1e5a
     m_Address: TestCube
     m_ReadOnly: 0
