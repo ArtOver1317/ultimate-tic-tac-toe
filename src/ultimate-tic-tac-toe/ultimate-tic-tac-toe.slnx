@@ -79,6 +79,7 @@
   <Project Path="Unity.2D.Sprite.Editor.csproj" />
   <Project Path="Unity.InternalAPIEditorBridge.013.csproj" />
   <Project Path="NuGetForUnity.csproj" />
+  <Project Path="Tests.PlayMode.csproj" />
   <Project Path="Unity.2D.PixelPerfect.Editor.csproj" />
   <Project Path="Runtime.csproj" />
   <Project Path="Unity.Multiplayer.Center.Common.csproj" />
@@ -96,7 +97,6 @@
   <Project Path="Unity.InputSystem.TestFramework.csproj" />
   <Project Path="Unity.CollabProxy.Editor.csproj" />
   <Project Path="Unity.ShaderGraph.Utilities.csproj" />
-  <Project Path="Tests.PlayMode.csproj" />
   <Project Path="Editor.csproj" />
   <Project Path="Unity.VisualScripting.Shared.Editor.csproj" />
   <Project Path="R3.Unity.TextMeshPro.csproj" />

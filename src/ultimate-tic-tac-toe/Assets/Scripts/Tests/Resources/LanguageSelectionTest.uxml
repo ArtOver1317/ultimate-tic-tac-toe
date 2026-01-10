@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="LanguageSelectionRoot">
+        <ui:Label name="Title" text="Default Title" />
+        <ui:Button name="BackButton" text="Default Back" />
+        <ui:ScrollView name="Container" />
+    </ui:VisualElement>
+</ui:UXML>

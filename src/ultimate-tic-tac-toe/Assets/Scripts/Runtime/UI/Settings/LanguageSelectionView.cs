@@ -24,10 +24,14 @@ namespace Runtime.UI.Settings
             BindText(ViewModel.TitleText, _titleLabel);
             BindText(ViewModel.BackButtonText, _backButton);
 
-            AddDisposable(_backButton.OnClickAsObservable().Subscribe(_ => ViewModel.Close()));
+            AddDisposable(_backButton.OnClickAsObservable().Subscribe(_ => OnBackButtonClicked()));
             
             RenderLanguageList();
         }
+
+        internal void OnBackButtonClicked() => ViewModel.Close();
+
+        internal void OnLocaleButtonClicked(LocaleId locale) => ViewModel.SelectLocale(locale);
 
         private void RenderLanguageList()
         {
@@ -41,7 +45,7 @@ namespace Runtime.UI.Settings
                 };
 
                 button.AddToClassList(_languageButtonClass);
-                button.clicked += () => ViewModel.SelectLocale(locale);
+                button.clicked += () => OnLocaleButtonClicked(locale);
                 _container.Add(button);
             }
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
@@ -12,8 +13,10 @@ using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Localization;
 using Runtime.Services.UI;
 using Runtime.UI.MainMenu;
+using Runtime.UI.Settings;
 using UnityEngine;
 using UnityEngine.TestTools;
+using Object = UnityEngine.Object;
 
 namespace Tests.EditMode
 {
@@ -26,6 +29,8 @@ namespace Tests.EditMode
         private ILocalizationService _localizationMock;
         private MainMenuViewModel _viewModel;
         private CancellationToken _cancellationToken;
+
+        private readonly List<GameObject> _createdGameObjects = new();
 
         [SetUp]
         public void SetUp()
@@ -50,6 +55,39 @@ namespace Tests.EditMode
         {
             _coordinator?.Dispose();
             _viewModel?.Dispose();
+
+            for (var i = 0; i < _createdGameObjects.Count; i++)
+            {
+                var go = _createdGameObjects[i];
+                if (go != null)
+                    Object.DestroyImmediate(go);
+            }
+
+            _createdGameObjects.Clear();
+        }
+
+        private SettingsView CreateInactiveSettingsView(SettingsViewModel viewModel)
+        {
+            var go = new GameObject("SettingsView_Test");
+            go.SetActive(false);
+
+            var view = go.AddComponent<SettingsView>();
+            view.SetViewModel(viewModel);
+
+            _createdGameObjects.Add(go);
+            return view;
+        }
+
+        private LanguageSelectionView CreateInactiveLanguageSelectionView(LanguageSelectionViewModel viewModel)
+        {
+            var go = new GameObject("LanguageSelectionView_Test");
+            go.SetActive(false);
+
+            var view = go.AddComponent<LanguageSelectionView>();
+            view.SetViewModel(viewModel);
+
+            _createdGameObjects.Add(go);
+            return view;
         }
 
         #region Core Functionality
@@ -65,19 +103,6 @@ namespace Tests.EditMode
 
             // Assert
             await _stateMachineMock.Received(1).EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>());
-        }
-
-        [Test]
-        public void WhenInitialize_ThenSubscribesToExitCommand()
-        {
-            // Arrange
-            _coordinator.Initialize(_viewModel);
-
-            // Act - вызываем запрос на выход (не проверяем Application.Quit, только подписку)
-            Action act = () => _viewModel.RequestExit();
-
-            // Assert - проверяем что не падает (подписка работает)
-            act.Should().NotThrow("подписка на ExitRequested должна работать корректно");
         }
 
         [Test]
@@ -236,6 +261,113 @@ namespace Tests.EditMode
             
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("uiService");
+        }
+
+        #endregion
+
+        #region Phase 5 UI Integration
+
+        [Test]
+        public void WhenSettingsRequestedFromMenu_ThenOpensSettingsWindow()
+        {
+            var settingsVm = new SettingsViewModel(_localizationMock);
+            var settingsView = CreateInactiveSettingsView(settingsVm);
+            _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns(settingsView);
+
+            _coordinator.Initialize(_viewModel);
+
+            _viewModel.RequestSettings();
+
+            _uiServiceMock.Received(1).Open<SettingsView, SettingsViewModel>();
+        }
+
+        [Test]
+        public async Task WhenStartGameRequested_ThenClosesOverlaysAndEntersGameplayState()
+        {
+            _coordinator.Initialize(_viewModel);
+
+            _viewModel.RequestStartGame();
+            await UniTask.Yield();
+
+            _uiServiceMock.Received(1).Close<LanguageSelectionView>();
+            _uiServiceMock.Received(1).Close<SettingsView>();
+            await _stateMachineMock.Received(1).EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>());
+        }
+
+        [Test]
+        public void WhenLanguageRequestedFromSettings_ThenOpensLanguageSelectionWindow()
+        {
+            var settingsVm = new SettingsViewModel(_localizationMock);
+            var settingsView = CreateInactiveSettingsView(settingsVm);
+            _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns(settingsView);
+
+            var languageVm = new LanguageSelectionViewModel(_localizationMock);
+            var languageView = CreateInactiveLanguageSelectionView(languageVm);
+            _uiServiceMock.Open<LanguageSelectionView, LanguageSelectionViewModel>().Returns(languageView);
+
+            _coordinator.Initialize(_viewModel);
+
+            _viewModel.RequestSettings();
+            settingsVm.OpenLanguageSelection();
+
+            _uiServiceMock.Received(1).Open<LanguageSelectionView, LanguageSelectionViewModel>();
+        }
+
+        [Test]
+        public void WhenSettingsClosed_ThenLanguageRequestDoesNotOpenLanguageSelectionWindow()
+        {
+            var settingsVm = new SettingsViewModel(_localizationMock);
+            var settingsView = CreateInactiveSettingsView(settingsVm);
+            _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns(settingsView);
+
+            _coordinator.Initialize(_viewModel);
+
+            _viewModel.RequestSettings();
+            settingsVm.Close();
+            settingsVm.OpenLanguageSelection();
+
+            _uiServiceMock.DidNotReceive().Open<LanguageSelectionView, LanguageSelectionViewModel>();
+        }
+
+        [Test]
+        public void WhenSettingsOpenFails_ThenLogsErrorAndDoesNotThrow()
+        {
+            try
+            {
+                LogAssert.Expect(LogType.Error, new Regex(@"Failed to open SettingsView"));
+                _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns((SettingsView)null);
+                _coordinator.Initialize(_viewModel);
+
+                _viewModel.Invoking(vm => vm.RequestSettings())
+                    .Should().NotThrow();
+            }
+            finally
+            {
+                // LogAssert.Expect validates the log; nothing else to cleanup.
+            }
+        }
+
+        [Test]
+        public void WhenLanguageSelectionOpenFails_ThenLogsErrorAndDoesNotThrow()
+        {
+            try
+            {
+                LogAssert.Expect(LogType.Error, new Regex(@"Failed to open LanguageSelectionView"));
+                var settingsVm = new SettingsViewModel(_localizationMock);
+                var settingsView = CreateInactiveSettingsView(settingsVm);
+                _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns(settingsView);
+
+                _uiServiceMock.Open<LanguageSelectionView, LanguageSelectionViewModel>().Returns((LanguageSelectionView)null);
+
+                _coordinator.Initialize(_viewModel);
+
+                _viewModel.RequestSettings();
+                _viewModel.Invoking(_ => settingsVm.OpenLanguageSelection()).Should().NotThrow();
+            }
+            finally
+            {
+                // LogAssert.Expect validates the log; nothing else to cleanup.
+            }
         }
 
         #endregion

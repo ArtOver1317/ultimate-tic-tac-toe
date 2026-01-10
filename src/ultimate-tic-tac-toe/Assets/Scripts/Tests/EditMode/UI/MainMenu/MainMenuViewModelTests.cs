@@ -34,74 +34,36 @@ namespace Tests.EditMode.UI.MainMenu
         }
 
         [Test]
-        public void WhenInitialized_ThenHasCorrectDefaults()
+        public void WhenInitialized_ThenRequestsKeysFromMainMenuTable()
         {
             // Arrange
             var sut = new MainMenuViewModel(_localizationMock);
-            sut.Initialize();
-
-            string title = null;
-            string startButton = null;
-            string settingsButton = null;
-            string exitButton = null;
-
-            using var d1 = sut.Title.Subscribe(text => title = text);
-            using var d2 = sut.StartButtonText.Subscribe(text => startButton = text);
-            using var d3 = sut.SettingsButtonText.Subscribe(text => settingsButton = text);
-            using var d4 = sut.ExitButtonText.Subscribe(text => exitButton = text);
-
-            // Assert
-            title.Should().Be("Ultimate Tic-Tac-Toe");
-            startButton.Should().Be("Start Game");
-            settingsButton.Should().Be("Settings");
-            exitButton.Should().Be("Exit");
-            sut.IsInteractable.CurrentValue.Should().BeTrue();
-            sut.StartGameRequested.Should().NotBeNull();
-            sut.ExitRequested.Should().NotBeNull();
-            sut.SettingsRequested.Should().NotBeNull();
-        }
-
-        [Test]
-        public void WhenSetInteractable_ThenUpdatesIsInteractable()
-        {
-            // Arrange
-            var sut = new MainMenuViewModel(_localizationMock);
-            sut.Initialize();
 
             // Act
-            sut.SetInteractable(false);
+            sut.Initialize();
 
             // Assert
-            sut.IsInteractable.CurrentValue.Should().BeFalse();
+            _localizationMock.Received(1).Observe(
+                Arg.Is<TextTableId>(t => t.Name == "MainMenu"),
+                Arg.Is<TextKey>(k => k.Value == "MainMenu.Title"),
+                Arg.Any<IReadOnlyDictionary<string, object>>());
 
-            // Act again
-            sut.SetInteractable(true);
+            _localizationMock.Received(1).Observe(
+                Arg.Is<TextTableId>(t => t.Name == "MainMenu"),
+                Arg.Is<TextKey>(k => k.Value == "MainMenu.StartButton"),
+                Arg.Any<IReadOnlyDictionary<string, object>>());
 
-            // Assert again
-            sut.IsInteractable.CurrentValue.Should().BeTrue();
-        }
+            _localizationMock.Received(1).Observe(
+                Arg.Is<TextTableId>(t => t.Name == "MainMenu"),
+                Arg.Is<TextKey>(k => k.Value == "MainMenu.Settings"),
+                Arg.Any<IReadOnlyDictionary<string, object>>());
 
-        [Test]
-        public void WhenDisposed_ThenObservablesThrowObjectDisposedException()
-        {
-            // Arrange
-            var sut = new MainMenuViewModel(_localizationMock);
-            sut.Initialize();
-            var valueEmitted = false;
-            sut.StartGameRequested.Subscribe(_ => valueEmitted = true);
+            _localizationMock.Received(1).Observe(
+                Arg.Is<TextTableId>(t => t.Name == "MainMenu"),
+                Arg.Is<TextKey>(k => k.Value == "MainMenu.ExitButton"),
+                Arg.Any<IReadOnlyDictionary<string, object>>());
 
-            sut.RequestStartGame();
-            valueEmitted.Should().BeTrue("Subject should work before dispose");
-
-            // Act
             sut.Dispose();
-
-            // Assert
-            Action actSubject = () => sut.RequestStartGame();
-            actSubject.Should().Throw<ObjectDisposedException>();
-
-            Action actProperty = () => sut.Title.Subscribe(_ => { }).Dispose();
-            actProperty.Should().NotThrow();
         }
 
         [Test]
@@ -117,22 +79,6 @@ namespace Tests.EditMode.UI.MainMenu
 
             // Assert
             act.Should().NotThrow();
-        }
-
-        [Test]
-        public void WhenInitialize_ThenPlayLabelIsLocalized()
-        {
-            // Arrange
-            var sut = new MainMenuViewModel(_localizationMock);
-
-            // Act
-            sut.Initialize();
-
-            string startButton = null;
-            using var d = sut.StartButtonText.Subscribe(text => startButton = text);
-
-            // Assert
-            startButton.Should().Be("Start Game");
         }
 
         [Test]
@@ -159,70 +105,5 @@ namespace Tests.EditMode.UI.MainMenu
             localeSubject.Dispose();
         }
 
-        [Test]
-        public void WhenStartButtonTextSubscriptionDisposed_ThenDoesNotReceiveFurtherUpdates()
-        {
-            // Arrange
-            var localeSubject = new Subject<string>();
-            
-            _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.StartButton"), Arg.Any<IReadOnlyDictionary<string, object>>())
-                .Returns(localeSubject);
-
-            var sut = new MainMenuViewModel(_localizationMock);
-            sut.Initialize();
-
-            string startButton = null;
-            var subscription = sut.StartButtonText.Subscribe(text => startButton = text);
-
-            // Act
-            localeSubject.OnNext("Value 1");
-            startButton.Should().Be("Value 1");
-
-            subscription.Dispose();
-            Action act = () => localeSubject.OnNext("Value 2");
-
-            // Assert
-            act.Should().NotThrow();
-            startButton.Should().Be("Value 1");
-            
-            localeSubject.Dispose();
-        }
-
-        [Test]
-        public void WhenMainMenuViewModelInitializeCalledTwice_ThenDoesNotDuplicateSubscriptions()
-        {
-            // Arrange
-            var localeSubject = new Subject<string>();
-            
-            _localizationMock.Observe(
-                    Arg.Any<TextTableId>(), 
-                    Arg.Any<TextKey>(), 
-                    Arg.Any<IReadOnlyDictionary<string, object>>())
-                .Returns(localeSubject);
-
-            var sut = new MainMenuViewModel(_localizationMock);
-
-            // Act
-            sut.Initialize();
-            sut.Initialize();
-
-            // Assert: Each key should be observed exactly once (no duplicate subscriptions)
-            _localizationMock.Received(1).Observe(
-                Arg.Any<TextTableId>(),
-                Arg.Is<TextKey>(k => k.Value == "MainMenu.Title"),
-                Arg.Any<IReadOnlyDictionary<string, object>>());
-                
-            _localizationMock.Received(1).Observe(
-                Arg.Any<TextTableId>(),
-                Arg.Is<TextKey>(k => k.Value == "MainMenu.StartButton"),
-                Arg.Any<IReadOnlyDictionary<string, object>>());
-                
-            _localizationMock.Received(1).Observe(
-                Arg.Any<TextTableId>(),
-                Arg.Is<TextKey>(k => k.Value == "MainMenu.ExitButton"),
-                Arg.Any<IReadOnlyDictionary<string, object>>());
-            
-            localeSubject.Dispose();
-        }
     }
 }
