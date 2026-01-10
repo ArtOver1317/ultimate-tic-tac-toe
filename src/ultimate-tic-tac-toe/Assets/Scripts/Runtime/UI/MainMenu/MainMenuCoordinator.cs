@@ -103,14 +103,11 @@ namespace Runtime.UI.MainMenu
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // No-flicker: preload required table BEFORE showing the window.
-            await _localization.PreloadAsync(
-                _localization.CurrentLocale.CurrentValue,
-                new[] { new TextTableId("Settings") },
-                cancellationToken);
-
             // SettingsView and LanguageSelectionView are transient, opened on top of MainMenu
-            var settingsView = _uiService.Open<SettingsView, SettingsViewModel>();
+            var settingsView = await _uiService.OpenWithLocalizationPreloadAsync<SettingsView, SettingsViewModel>(
+                _localization,
+                cancellationToken,
+                TextTableId.Settings);
             
             if (settingsView == null)
             {

@@ -62,13 +62,10 @@ namespace Runtime.Infrastructure.GameStateMachine.States
                  Log.Error(LogTags.Scenes, "[MainMenuState] LanguageSelectionPrefab is missing or invalid. Language selection will be disabled.");
             }
 
-            // No-flicker: preload required table BEFORE showing the window.
-            await _localization.PreloadAsync(
-                _localization.CurrentLocale.CurrentValue,
-                new[] { new TextTableId("MainMenu") },
-                cancellationToken);
-
-            var view = _uiService.Open<MainMenuView, MainMenuViewModel>();
+            var view = await _uiService.OpenWithLocalizationPreloadAsync<MainMenuView, MainMenuViewModel>(
+                _localization,
+                cancellationToken,
+                TextTableId.MainMenu);
             
             if (view == null)
             {
