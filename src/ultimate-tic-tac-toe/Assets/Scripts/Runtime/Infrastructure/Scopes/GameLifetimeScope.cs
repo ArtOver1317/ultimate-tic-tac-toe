@@ -1,6 +1,7 @@
 using Runtime.Infrastructure.EntryPoint;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
+using Runtime.GameModes.Wizard;
 using Runtime.Localization;
 using Runtime.Services.Assets;
 using Runtime.Services.Scenes;
@@ -33,6 +34,9 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<ObjectPool<IUIView>>(Lifetime.Singleton).As<IObjectPool<IUIView>>();
             builder.Register<ObjectPool<BaseViewModel>>(Lifetime.Singleton).As<IObjectPool<BaseViewModel>>();
             builder.Register<IUIService, UIService>(Lifetime.Singleton);
+
+            // Game Mode Wizard (Phase 1)
+            builder.Register<IGameModeSession, GameModeSession>(Lifetime.Transient);
             
             // Localization Services
             // Note: Factory registration required - VContainer cannot auto-resolve constructors with optional parameters.
