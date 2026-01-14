@@ -70,8 +70,19 @@ namespace Runtime.GameModes.Wizard
             matchmakingState: MatchmakingState.Idle,
             version: 0);
 
-        public GameModeSessionSnapshot WithSelectedModeId(string? selectedModeId) =>
-            new GameModeSessionSnapshot(selectedModeId, ModeConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, Version);
+        public GameModeSessionSnapshot WithSelectedModeId(string? selectedModeId)
+        {
+            var isSameMode = string.Equals(SelectedModeId, selectedModeId, System.StringComparison.Ordinal);
+            return new GameModeSessionSnapshot(
+                selectedModeId,
+                isSameMode ? ModeConfig : null,
+                OpponentType,
+                BotDifficultyId,
+                HumanOpponentKind,
+                TargetPlayerId,
+                MatchmakingState,
+                Version);
+        }
 
         public GameModeSessionSnapshot WithModeConfig(IGameModeConfig? modeConfig) =>
             new GameModeSessionSnapshot(SelectedModeId, modeConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, Version);
