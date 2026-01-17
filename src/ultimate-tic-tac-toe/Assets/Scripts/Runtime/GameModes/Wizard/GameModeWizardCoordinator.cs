@@ -40,6 +40,9 @@ namespace Runtime.GameModes.Wizard
         private int _isTransitioningFlag;
         private int _isSubmittingFlag;
 
+        // Anti-spam gate: only one pending/in-flight non-cancel intent is allowed at a time.
+        private int _hasPendingOrInFlightIntentFlag;
+
         // Intents are only accepted after the first wizard window is successfully opened.
         private int _isReadyForIntentsFlag;
 
@@ -87,18 +90,35 @@ namespace Runtime.GameModes.Wizard
                 if (_wizardCts != null)
                     return;
 
-                _wizardCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token);
-                wizardToken = _wizardCts.Token;
+                var wizardCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token);
 
-                _session = _sessionFactory();
-                if (_session == null)
+                IGameModeSession session;
+                try
+                {
+                    session = _sessionFactory();
+                }
+                catch
+                {
+                    wizardCts.Dispose();
+                    throw;
+                }
+
+                if (session == null)
+                {
+                    wizardCts.Dispose();
                     throw new InvalidOperationException("Session factory returned null.");
+                }
+
+                _wizardCts = wizardCts;
+                wizardToken = wizardCts.Token;
+                _session = session;
 
                 _currentError.Value = null;
                 _step = WizardStep.None;
 
                 SetIsTransitioning(false);
                 SetIsSubmitting(false);
+                Volatile.Write(ref _hasPendingOrInFlightIntentFlag, 0);
                 Volatile.Write(ref _isReadyForIntentsFlag, 0);
                 FlushPendingErrorOnMainThread();
 
@@ -164,12 +184,19 @@ namespace Runtime.GameModes.Wizard
             if (queue == null)
                 return false;
 
+            if (Interlocked.CompareExchange(ref _hasPendingOrInFlightIntentFlag, 1, 0) != 0)
+            {
+                GameLog.Debug($"[GameModeWizardCoordinator] Intent rejected due to pending/in-flight intent: {intent}");
+                return false;
+            }
+
             // Do not force callers to be on main thread.
             // UI navigation is marshaled to main thread in TransitionAsync / Abort.
 
             // Keep queue bounded to avoid memory leaks on intent spam.
             if (!queue.TryEnqueue(intent))
             {
+                Interlocked.Exchange(ref _hasPendingOrInFlightIntentFlag, 0);
                 // Anti-spam policy: reject if there's already a pending non-cancel intent.
                 GameLog.Debug($"[GameModeWizardCoordinator] Intent rejected due to pending intent: {intent}");
                 return false;
@@ -228,7 +255,24 @@ namespace Runtime.GameModes.Wizard
                 _step = WizardStep.None;
             }
 
+            if (wizardCts == null && processingTask == null && session == null)
+            {
+                try
+                {
+                    SetIsTransitioning(false);
+                    SetIsSubmitting(false);
+                    FlushPendingErrorOnMainThread();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _abortInProgress, 0);
+                }
+
+                return;
+            }
+
             Volatile.Write(ref _isReadyForIntentsFlag, 0);
+            Volatile.Write(ref _hasPendingOrInFlightIntentFlag, 0);
 
             try
             {
@@ -349,6 +393,10 @@ namespace Runtime.GameModes.Wizard
                         // Best-effort abort to avoid zombie wizard.
                         await AbortWizardCoreAsync(AbortReason.Error, awaitProcessingTask: false);
                         break;
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref _hasPendingOrInFlightIntentFlag, 0);
                     }
                 }
             }
