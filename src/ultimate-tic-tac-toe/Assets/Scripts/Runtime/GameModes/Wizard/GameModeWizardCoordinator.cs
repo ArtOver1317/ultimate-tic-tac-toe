@@ -1,6 +1,7 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
@@ -16,7 +17,6 @@ namespace Runtime.GameModes.Wizard
     public sealed class GameModeWizardCoordinator : IGameModeWizardCoordinator, IDisposable
     {
         private static readonly TimeSpan AbortSwitchToMainThreadTimeout = TimeSpan.FromSeconds(1);
-        private static readonly TimeSpan AbortCloseAllWindowsTimeout = TimeSpan.FromSeconds(1);
 
         // Invariant: processing loop is started via .AsTask() and does not use ConfigureAwait(false).
         // This marker is used to avoid self-await when abort is triggered from inside the processing loop.
@@ -36,10 +36,9 @@ namespace Runtime.GameModes.Wizard
         private readonly ReactiveProperty<bool> _isSubmitting = new(false);
         private readonly ReactiveProperty<WizardError?> _currentError = new(null);
 
-        // Thread-safe flags so TryPublishIntent can check state without touching R3 from non-main threads.
+        // Thread-safe flags so TryPublishIntent can check busy state without touching R3 from non-main threads.
         private int _isTransitioningFlag;
         private int _isSubmittingFlag;
-        private int _isHandlingIntentFlag;
 
         // Intents are only accepted after the first wizard window is successfully opened.
         private int _isReadyForIntentsFlag;
@@ -51,10 +50,11 @@ namespace Runtime.GameModes.Wizard
         private CancellationTokenSource _lifetimeCts = new();
         private CancellationTokenSource? _wizardCts;
 
-        private System.Threading.Channels.Channel<WizardIntent>? _intentChannel;
+        private WizardIntentQueue? _intentQueue;
         private Task? _processingTask;
 
         private IGameModeSession? _session;
+
         private WizardStep _step;
 
         private int _abortInProgress;
@@ -99,20 +99,10 @@ namespace Runtime.GameModes.Wizard
 
                 SetIsTransitioning(false);
                 SetIsSubmitting(false);
-                SetIsHandlingIntent(false);
                 Volatile.Write(ref _isReadyForIntentsFlag, 0);
                 FlushPendingErrorOnMainThread();
 
-                // Anti-spam: keep only 1 pending intent.
-                // IMPORTANT: FullMode=Wait prevents silent drops; TryWrite returns false when full.
-                _intentChannel = System.Threading.Channels.Channel.CreateBounded<WizardIntent>(
-                    new System.Threading.Channels.BoundedChannelOptions(1)
-                    {
-                        FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait,
-                        SingleReader = true,
-                        SingleWriter = false,
-                        AllowSynchronousContinuations = false,
-                    });
+                _intentQueue = new WizardIntentQueue();
 
                 _processingTask = ProcessIntentsAsync(wizardToken).AsTask();
             }
@@ -153,7 +143,7 @@ namespace Runtime.GameModes.Wizard
             {
                 // Cancel must always work and must interrupt in-flight navigation.
                 // We intentionally handle it out-of-band to cancel current CTS.
-                GameLog.Debug("[GameModeWizardCoordinator] Cancel requested.");
+                GameLog.Debug($"[GameModeWizardCoordinator] Cancel requested.");
                 AbortWizardAsync(AbortReason.UserCancel).Forget(ex => GameLog.Exception(ex));
                 return true;
             }
@@ -164,27 +154,21 @@ namespace Runtime.GameModes.Wizard
                 return false;
             }
 
-            if (Volatile.Read(ref _isHandlingIntentFlag) != 0)
-            {
-                GameLog.Debug($"[GameModeWizardCoordinator] Intent rejected because another intent is being handled: {intent}");
-                return false;
-            }
-
             if (Volatile.Read(ref _isReadyForIntentsFlag) == 0)
             {
                 GameLog.Debug($"[GameModeWizardCoordinator] Intent rejected because wizard is not ready yet: {intent}");
                 return false;
             }
 
-            var channel = _intentChannel;
-            if (channel == null)
+            var queue = _intentQueue;
+            if (queue == null)
                 return false;
 
             // Do not force callers to be on main thread.
             // UI navigation is marshaled to main thread in TransitionAsync / Abort.
 
             // Keep queue bounded to avoid memory leaks on intent spam.
-            if (!channel.Writer.TryWrite(intent))
+            if (!queue.TryEnqueue(intent))
             {
                 // Anti-spam policy: reject if there's already a pending non-cancel intent.
                 GameLog.Debug($"[GameModeWizardCoordinator] Intent rejected due to pending intent: {intent}");
@@ -230,18 +214,16 @@ namespace Runtime.GameModes.Wizard
             CancellationTokenSource? wizardCts;
             Task? processingTask;
             IGameModeSession? session;
-            System.Threading.Channels.Channel<WizardIntent>? channel;
 
             lock (_lifecycleLock)
             {
                 wizardCts = _wizardCts;
                 processingTask = _processingTask;
                 session = _session;
-                channel = _intentChannel;
 
                 _wizardCts = null;
                 _processingTask = null;
-                _intentChannel = null;
+                _intentQueue = null;
                 _session = null;
                 _step = WizardStep.None;
             }
@@ -253,7 +235,6 @@ namespace Runtime.GameModes.Wizard
                 GameLog.Debug($"[GameModeWizardCoordinator] Abort wizard. Reason={reason}");
 
                 wizardCts?.Cancel();
-                channel?.Writer.TryComplete();
 
                 // Best-effort close:
                 // - We must attempt to close even when abort is triggered off-main-thread.
@@ -266,17 +247,7 @@ namespace Runtime.GameModes.Wizard
                 }
 
                 if (PlayerLoopHelper.IsMainThread)
-                {
-                    using var closeTimeoutCts = new CancellationTokenSource(AbortCloseAllWindowsTimeout);
-                    try
-                    {
-                        await _navigator.CloseAllWizardWindowsAsync(closeTimeoutCts.Token);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        GameLog.Warning("[GameModeWizardCoordinator] CloseAllWizardWindowsAsync timed out during abort. Continuing cleanup.");
-                    }
-                }
+                    await _navigator.CloseAllWizardWindowsAsync(CancellationToken.None);
 
                 if (awaitProcessingTask && processingTask != null)
                 {
@@ -311,7 +282,6 @@ namespace Runtime.GameModes.Wizard
                 // Must never hang in finally.
                 SetIsTransitioning(false);
                 SetIsSubmitting(false);
-                SetIsHandlingIntent(false);
                 FlushPendingErrorOnMainThread();
                 Interlocked.Exchange(ref _abortInProgress, 0);
             }
@@ -319,14 +289,8 @@ namespace Runtime.GameModes.Wizard
 
         private async UniTask ProcessIntentsAsync(CancellationToken ct)
         {
-            System.Threading.Channels.Channel<WizardIntent>? channel;
-
-            lock (_lifecycleLock)
-            {
-                channel = _intentChannel;
-            }
-
-            if (channel == null)
+            var queue = _intentQueue;
+            if (queue == null)
                 return;
 
             _isInProcessingLoop.Value = true;
@@ -343,7 +307,7 @@ namespace Runtime.GameModes.Wizard
 
                     try
                     {
-                        intent = await channel.Reader.ReadAsync(ct);
+                        intent = await queue.DequeueAsync(ct);
                         await UniTask.SwitchToMainThread(ct);
                         FlushPendingErrorOnMainThread();
                     }
@@ -354,13 +318,8 @@ namespace Runtime.GameModes.Wizard
 
                     try
                     {
-                        SetIsHandlingIntent(true);
-
-                        if ((Volatile.Read(ref _isTransitioningFlag) != 0 || Volatile.Read(ref _isSubmittingFlag) != 0)
-                            && intent != WizardIntent.Cancel)
-                        {
+                        if ((Volatile.Read(ref _isTransitioningFlag) != 0 || Volatile.Read(ref _isSubmittingFlag) != 0) && intent != WizardIntent.Cancel)
                             continue;
-                        }
 
                         switch (intent)
                         {
@@ -390,10 +349,6 @@ namespace Runtime.GameModes.Wizard
                         // Best-effort abort to avoid zombie wizard.
                         await AbortWizardCoreAsync(AbortReason.Error, awaitProcessingTask: false);
                         break;
-                    }
-                    finally
-                    {
-                        SetIsHandlingIntent(false);
                     }
                 }
             }
@@ -452,7 +407,6 @@ namespace Runtime.GameModes.Wizard
                     {
                         SetIsSubmitting(false);
                     }
-
                     return;
 
                 default:
@@ -504,9 +458,6 @@ namespace Runtime.GameModes.Wizard
                 _isSubmitting.Value = value;
         }
 
-        private void SetIsHandlingIntent(bool value)
-            => Volatile.Write(ref _isHandlingIntentFlag, value ? 1 : 0);
-
         private void TrySetCurrentError(WizardError error)
         {
             if (error == null)
@@ -553,6 +504,59 @@ namespace Runtime.GameModes.Wizard
         {
             if (_isDisposed)
                 throw new ObjectDisposedException(nameof(GameModeWizardCoordinator));
+        }
+
+        private sealed class WizardIntentQueue
+        {
+            private readonly object _lock = new();
+            private WizardIntent? _pendingIntent;
+            private UniTaskCompletionSource<bool>? _signal;
+
+            public bool TryEnqueue(WizardIntent intent)
+            {
+                lock (_lock)
+                {
+                    // Anti-spam policy: we only allow a single pending non-cancel intent.
+                    // This keeps memory bounded while guaranteeing that accepted intents are not silently dropped.
+                    if (_pendingIntent.HasValue)
+                        return false;
+
+                    _pendingIntent = intent;
+                    // Signal waiter but do NOT clear _signal here - consumer owns clearing it.
+                    _signal?.TrySetResult(true);
+                    return true;
+                }
+            }
+
+            public async UniTask<WizardIntent> DequeueAsync(CancellationToken ct)
+            {
+                while (true)
+                {
+                    UniTask waitTask;
+
+                    lock (_lock)
+                    {
+                        if (_pendingIntent.HasValue)
+                        {
+                            var intent = _pendingIntent.Value;
+                            _pendingIntent = null;
+                            return intent;
+                        }
+
+                        _signal ??= new UniTaskCompletionSource<bool>();
+                        waitTask = _signal.Task;
+                    }
+
+                    await waitTask.AttachExternalCancellation(ct);
+
+                    // Consumer owns clearing the signal after awaiting it.
+                    // This prevents race where TryEnqueue clears signal before we consume the item.
+                    lock (_lock)
+                    {
+                        _signal = null;
+                    }
+                }
+            }
         }
     }
 }
