@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
@@ -45,6 +46,19 @@ namespace Runtime.GameModes.Wizard
         /// True while coordinator is performing a submit/start operation.
         /// </summary>
         ReadOnlyReactiveProperty<bool> IsSubmitting { get; }
+
+        /// <summary>
+        /// True while wizard is active (a session exists).
+        /// Intended for view-models to avoid using exceptions as control flow.
+        /// </summary>
+        bool IsActive { get; }
+
+        /// <summary>
+        /// Tries to get the current wizard session.
+        /// Returns true only when wizard is active.
+        /// During abort, returns false even if the session object has not been cleared yet.
+        /// </summary>
+        bool TryGetSession([NotNullWhen(true)] out IGameModeSession? session);
 
         /// <summary>
         /// Current wizard session.

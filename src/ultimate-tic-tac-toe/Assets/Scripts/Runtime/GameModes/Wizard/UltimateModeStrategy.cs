@@ -1,3 +1,5 @@
+﻿#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -66,3 +68,5 @@ namespace Runtime.GameModes.Wizard
         }
     }
 }
+
+#nullable restore

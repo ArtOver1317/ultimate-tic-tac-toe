@@ -66,6 +66,21 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenTryGetSessionCalledWhileWizardIsNotActive_ThenReturnsFalseAndNullSession()
+        {
+            // Arrange
+            // (no start)
+
+            // Act
+            var ok = _sut.TryGetSession(out var session);
+
+            // Assert
+            ok.Should().BeFalse();
+            session.Should().BeNull();
+            _sut.IsActive.Should().BeFalse();
+        }
+
+        [Test]
         public async Task WhenStartWizardCalledWithAlreadyCancelledToken_ThenThrowsOperationCanceledExceptionAndDoesNotCreateSession()
         {
             // Arrange
@@ -94,6 +109,10 @@ namespace Tests.EditMode.GameModes.Wizard
             _sessionFactory.CreatedSessions.Should().HaveCount(1);
             _navigator.OpenModeSelectionCalls.Should().Be(1);
             _sut.Session.Should().NotBeNull();
+
+            _sut.IsActive.Should().BeTrue();
+            _sut.TryGetSession(out var session).Should().BeTrue();
+            session.Should().NotBeNull();
         }
 
         [Test]

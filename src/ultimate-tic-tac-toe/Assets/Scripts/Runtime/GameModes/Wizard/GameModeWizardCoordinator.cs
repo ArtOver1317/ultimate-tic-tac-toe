@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
@@ -58,6 +59,8 @@ namespace Runtime.GameModes.Wizard
 
         private IGameModeSession? _session;
 
+        private int _isActiveFlag;
+
         private WizardStep _step;
 
         private int _abortInProgress;
@@ -67,6 +70,22 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<bool> IsSubmitting => _isSubmitting;
         public ReadOnlyReactiveProperty<WizardError?> CurrentError => _currentError;
         public IGameModeSession Session => _session ?? throw new InvalidOperationException("Wizard is not active.");
+        public bool IsActive => Volatile.Read(ref _isActiveFlag) != 0;
+
+        public bool TryGetSession([NotNullWhen(true)] out IGameModeSession? session)
+        {
+            if (Volatile.Read(ref _abortInProgress) != 0)
+            {
+                session = null;
+                return false;
+            }
+
+            lock (_lifecycleLock)
+            {
+                session = _session;
+                return session != null;
+            }
+        }
 
         public GameModeWizardCoordinator(IGameModeWizardNavigator navigator, Func<IGameModeSession> sessionFactory)
         {
@@ -112,6 +131,7 @@ namespace Runtime.GameModes.Wizard
                 _wizardCts = wizardCts;
                 wizardToken = wizardCts.Token;
                 _session = session;
+                Volatile.Write(ref _isActiveFlag, 1);
 
                 _currentError.Value = null;
                 _step = WizardStep.None;
@@ -253,6 +273,7 @@ namespace Runtime.GameModes.Wizard
                 _intentQueue = null;
                 _session = null;
                 _step = WizardStep.None;
+                Volatile.Write(ref _isActiveFlag, 0);
             }
 
             if (wizardCts == null && processingTask == null && session == null)

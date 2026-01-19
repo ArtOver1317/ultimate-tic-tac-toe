@@ -102,15 +102,7 @@ namespace Runtime.GameModes.Wizard
             if (System.Threading.Interlocked.Exchange(ref _isWired, 1) != 0)
                 return;
 
-            IGameModeSession? session = null;
-
-            try { session = _coordinator.Session; }
-            catch (InvalidOperationException)
-            {
-                // Wizard is not active. Treat as "not ready" without logging.
-            }
-
-            if (session != null)
+            if (_coordinator.TryGetSession(out var session))
             {
                 // Session -> VM
                 AddDisposable(session.Snapshot
