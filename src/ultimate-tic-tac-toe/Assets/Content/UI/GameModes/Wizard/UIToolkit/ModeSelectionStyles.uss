@@ -1,0 +1,102 @@
+.gmw-root {
+    flex-grow: 1;
+    background-color: rgb(50, 54, 132);
+}
+
+.gmw-header {
+    height: 90px;
+    justify-content: center;
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+.gmw-title {
+    font-size: 44px;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-left;
+}
+
+.gmw-mode-list {
+    flex-grow: 1;
+    margin-left: 24px;
+    margin-right: 24px;
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+.gmw-action-bar {
+    height: 110px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+
+.gmw-button {
+    width: 260px;
+    height: 80px;
+    font-size: 36px;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+}
+
+.gmw-button--primary {
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+.gmw-button--secondary {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.gmw-mode-card {
+    flex-direction: row;
+    align-items: center;
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.gmw-mode-card__icon {
+    width: 72px;
+    height: 72px;
+    margin-right: 16px;
+    background-color: rgba(255, 255, 255, 0.10);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+.gmw-mode-card__text {
+    flex-grow: 1;
+}
+
+.gmw-mode-card__title {
+    font-size: 28px;
+    color: rgb(255, 255, 255);
+}
+
+.gmw-mode-card__description {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+    overflow: hidden;
+    -unity-text-overflow: ellipsis;
+}
+
+.gmw-mode-card--selected {
+    background-color: rgba(255, 255, 255, 0.16);
+}
