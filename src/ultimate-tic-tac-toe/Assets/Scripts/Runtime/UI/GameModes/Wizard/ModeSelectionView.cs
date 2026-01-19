@@ -19,6 +19,9 @@ namespace Runtime.UI.GameModes.Wizard
         [Runtime.UI.Core.UxmlElementAttribute("ContinueButton")]
         private Button _continueButton;
 
+        private IReadOnlyList<GameModeMetadata> _modes = Array.Empty<GameModeMetadata>();
+        private bool _isSyncingSelection;
+
         protected override void BindViewModel()
         {
             if (_modeList == null)
@@ -32,47 +35,21 @@ namespace Runtime.UI.GameModes.Wizard
             _modeList.fixedItemHeight = 130;
             _modeList.makeItem = static () => new ModeCardElement();
 
-            _modeList.bindItem = (element, index) =>
-            {
-                var card = element as ModeCardElement;
-                if (card == null)
-                    return;
+            _modeList.bindItem = BindModeCard;
 
-                var modes = ViewModel.AvailableModes.CurrentValue;
-                if (modes == null || index < 0 || index >= modes.Count)
-                    return;
-
-                var meta = modes[index];
-                var selected = ViewModel.SelectedModeId.Value;
-                var isSelected = string.Equals(selected, meta.Id, StringComparison.Ordinal);
-
-                // Phase 5: show localization keys directly.
-                // Proper localization binding is added in a later phase.
-                card.Bind(
-                    title: meta.DisplayNameKey ?? string.Empty,
-                    description: meta.DescriptionKey ?? string.Empty,
-                    iconKey: meta.IconAssetKey,
-                    isSelected: isSelected);
-            };
-
-            BindModes(ViewModel.AvailableModes.CurrentValue);
-
-            // If modes ever change (unlikely for now), rebind.
-            AddDisposable(ViewModel.AvailableModes.Subscribe(BindModes));
-
-            // Keep selection highlight in sync.
-            AddDisposable(ViewModel.SelectedModeId.Subscribe(_ => _modeList.RefreshItems()));
+            SetModes(ViewModel.AvailableModes.CurrentValue);
+            AddDisposable(ViewModel.AvailableModes.Subscribe(SetModes));
+            AddDisposable(ViewModel.SelectedModeId.Subscribe(_ => SyncSelectionFromViewModel()));
 
             // List selection -> VM
             void OnSelectionChanged(IEnumerable<object> items)
             {
-                if (items == null)
+                if (_isSyncingSelection || items == null)
                     return;
 
                 foreach (var it in items)
                 {
-                    if (it is GameModeMetadata meta)
-                        ViewModel.SelectMode(meta.Id);
+                    ViewModel.SelectMode((it as GameModeMetadata)?.Id);
                     break;
                 }
             }
@@ -86,28 +63,70 @@ namespace Runtime.UI.GameModes.Wizard
             AddDisposable(_continueButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestContinue()));
         }
 
-        private void BindModes(IReadOnlyList<GameModeMetadata> modes)
+        private void BindModeCard(VisualElement element, int index)
         {
-            if (_modeList == null)
+            if (element is not ModeCardElement card)
                 return;
 
-            _modeList.itemsSource = modes == null
-                ? null
-                : (modes as System.Collections.IList) ?? new List<GameModeMetadata>(modes);
+            if (index < 0 || index >= _modes.Count)
+                return;
+
+            var meta = _modes[index];
+            var isSelected = string.Equals(ViewModel.SelectedModeId.Value, meta.Id, StringComparison.Ordinal);
+
+            // Phase 5: show localization keys directly.
+            // Proper localization binding is added in a later phase.
+            card.Bind(meta, isSelected);
+        }
+
+        private void SetModes(IReadOnlyList<GameModeMetadata> modes)
+        {
+            _modes = modes ?? Array.Empty<GameModeMetadata>();
+
+            _modeList.itemsSource = _modes as System.Collections.IList ?? new List<GameModeMetadata>(_modes);
             _modeList.Rebuild();
 
-            // Restore selection from VM/session.
-            var selectedId = ViewModel.SelectedModeId.Value;
-            if (string.IsNullOrWhiteSpace(selectedId) || modes == null)
-                return;
+            SyncSelectionFromViewModel();
+        }
 
-            for (var i = 0; i < modes.Count; i++)
+        private void SyncSelectionFromViewModel()
+        {
+            var selectedId = ViewModel.SelectedModeId.Value;
+
+            _isSyncingSelection = true;
+
+            try
             {
-                if (string.Equals(modes[i].Id, selectedId, StringComparison.Ordinal))
+                if (string.IsNullOrWhiteSpace(selectedId) || _modes.Count == 0)
                 {
-                    _modeList.SetSelection(i);
-                    break;
+                    _modeList.ClearSelection();
+                    _modeList.RefreshItems();
+                    return;
                 }
+
+                var selectedIndex = -1;
+                for (var i = 0; i < _modes.Count; i++)
+                {
+                    if (string.Equals(_modes[i].Id, selectedId, StringComparison.Ordinal))
+                    {
+                        selectedIndex = i;
+                        break;
+                    }
+                }
+
+                if (selectedIndex < 0)
+                {
+                    _modeList.ClearSelection();
+                    _modeList.RefreshItems();
+                    return;
+                }
+
+                _modeList.SetSelection(selectedIndex);
+                _modeList.RefreshItems();
+            }
+            finally
+            {
+                _isSyncingSelection = false;
             }
         }
     }

@@ -36,8 +36,7 @@ namespace Runtime.GameModes.Wizard
             _availableModes = new ReactiveProperty<IReadOnlyList<GameModeMetadata>>(
                 catalog.Metadata ?? throw new ArgumentException("Catalog returned null Metadata.", nameof(catalog)));
 
-            // Keep derived state consistent before Initialize() is called.
-            _canContinue.Value = !string.IsNullOrWhiteSpace(_selectedModeId.Value);
+            UpdateCanContinue(_selectedModeId.Value);
         }
 
         public override void Initialize()
@@ -48,18 +47,17 @@ namespace Runtime.GameModes.Wizard
 
         public void SelectMode(string? modeId)
         {
-            if (string.IsNullOrWhiteSpace(modeId))
-            {
-                _selectedModeId.Value = null;
-                return;
-            }
+            var normalized = string.IsNullOrWhiteSpace(modeId) ? null : modeId;
 
-            _selectedModeId.Value = modeId;
+            if (string.Equals(_selectedModeId.Value, normalized, StringComparison.Ordinal))
+                return;
+
+            _selectedModeId.Value = normalized;
         }
 
         public void RequestContinue()
         {
-            if (string.IsNullOrWhiteSpace(_selectedModeId.Value))
+            if (!_canContinue.Value)
                 return;
 
             if (!_coordinator.TryPublishIntent(WizardIntent.Continue))
@@ -107,51 +105,57 @@ namespace Runtime.GameModes.Wizard
                 // Session -> VM
                 AddDisposable(session.Snapshot
                     .SelectDistinct(s => s.SelectedModeId, StringComparer.Ordinal)
-                    .Subscribe(id =>
-                    {
-                        if (string.Equals(_selectedModeId.Value, id, StringComparison.Ordinal))
-                            return;
-
-                        System.Threading.Interlocked.Exchange(ref _isSyncingFromSession, 1);
-
-                        try
-                        {
-                            _selectedModeId.Value = id;
-                        }
-                        finally
-                        {
-                            System.Threading.Interlocked.Exchange(ref _isSyncingFromSession, 0);
-                        }
-                    }));
+                    .Subscribe(ApplySelectionFromSession));
 
                 // VM -> Session (write-through)
                 AddDisposable(_selectedModeId
-                    .Subscribe(id =>
-                    {
-                        _canContinue.Value = !string.IsNullOrWhiteSpace(id);
-
-                        if (System.Threading.Volatile.Read(ref _isSyncingFromSession) != 0)
-                            return;
-
-                        var currentId = session.Snapshot.CurrentValue?.SelectedModeId;
-                        if (string.Equals(currentId, id, StringComparison.Ordinal))
-                            return;
-
-                        session.Update(s =>
-                        {
-                            if (string.Equals(s.SelectedModeId, id, StringComparison.Ordinal))
-                                return s;
-
-                            return s.WithSelectedModeId(id);
-                        });
-                    }));
+                    .Subscribe(id => OnSelectedModeChanged(id, session)));
             }
             else
             {
                 // Coordinator not ready: keep UI disabled.
-                AddDisposable(_selectedModeId.Subscribe(id => _canContinue.Value = !string.IsNullOrWhiteSpace(id)));
+                AddDisposable(_selectedModeId.Subscribe(UpdateCanContinue));
             }
         }
+
+        private void ApplySelectionFromSession(string? selectedModeId)
+        {
+            var normalized = string.IsNullOrWhiteSpace(selectedModeId) ? null : selectedModeId;
+
+            if (string.Equals(_selectedModeId.Value, normalized, StringComparison.Ordinal))
+                return;
+
+            System.Threading.Interlocked.Exchange(ref _isSyncingFromSession, 1);
+
+            try
+            {
+                _selectedModeId.Value = normalized;
+            }
+            finally
+            {
+                System.Threading.Interlocked.Exchange(ref _isSyncingFromSession, 0);
+            }
+        }
+
+        private void OnSelectedModeChanged(string? selectedModeId, IGameModeSession session)
+        {
+            UpdateCanContinue(selectedModeId);
+
+            if (System.Threading.Volatile.Read(ref _isSyncingFromSession) != 0)
+                return;
+
+            var currentId = session.Snapshot.CurrentValue?.SelectedModeId;
+            if (string.Equals(currentId, selectedModeId, StringComparison.Ordinal))
+                return;
+
+            session.Update(s =>
+                string.Equals(s.SelectedModeId, selectedModeId, StringComparison.Ordinal)
+                    ? s
+                    : s.WithSelectedModeId(selectedModeId));
+        }
+
+        private void UpdateCanContinue(string? selectedModeId) =>
+            _canContinue.Value = !string.IsNullOrWhiteSpace(selectedModeId);
     }
 }
 

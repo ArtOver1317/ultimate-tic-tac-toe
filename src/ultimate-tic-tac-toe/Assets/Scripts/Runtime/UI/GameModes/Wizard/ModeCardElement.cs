@@ -1,6 +1,6 @@
 #nullable enable
 
-using System;
+using Runtime.GameModes.Wizard;
 using UnityEngine.UIElements;
 
 namespace Runtime.UI.GameModes.Wizard
@@ -39,6 +39,21 @@ namespace Runtime.UI.GameModes.Wizard
 
             Add(_icon);
             Add(textContainer);
+        }
+
+        public void Bind(GameModeMetadata? meta, bool isSelected)
+        {
+            if (meta == null)
+            {
+                Bind(title: string.Empty, description: string.Empty, iconKey: null, isSelected: false);
+                return;
+            }
+
+            Bind(
+                title: meta.DisplayNameKey,
+                description: meta.DescriptionKey,
+                iconKey: meta.IconAssetKey,
+                isSelected: isSelected);
         }
 
         public void Bind(string? title, string? description, string? iconKey, bool isSelected)
