@@ -17,6 +17,8 @@ namespace Runtime.UI.Core
         protected VisualElement Root { get; private set; }
         protected TViewModel ViewModel { get; private set; }
 
+        internal VisualElement RootForTests => Root;
+
         public TViewModel GetViewModel() => ViewModel;
 
         public void SetViewModel(TViewModel viewModel)
@@ -107,6 +109,41 @@ namespace Runtime.UI.Core
         {
             ViewModel?.Dispose();
             _disposables.Dispose();
+        }
+
+        internal void RebindUxmlForTests()
+        {
+            if (_uiDocument == null)
+                _uiDocument = GetComponent<UIDocument>();
+
+            if (_uiDocument == null)
+                return;
+
+            Root = _uiDocument.rootVisualElement;
+            if (Root == null)
+            {
+                Root = new VisualElement();
+
+                if (_uiDocument.visualTreeAsset != null)
+                    _uiDocument.visualTreeAsset.CloneTree(Root);
+            }
+            else if (_uiDocument.visualTreeAsset != null)
+            {
+                Root.Clear();
+                _uiDocument.visualTreeAsset.CloneTree(Root);
+            }
+
+            if (Root == null)
+                return;
+
+            UxmlBinder.BindElements(this, Root);
+
+            if (_isInitialized || ViewModel == null)
+                return;
+
+            _isInitialized = true;
+            ViewModel.Initialize();
+            BindViewModel();
         }
     }
 }

@@ -22,6 +22,8 @@ namespace Runtime.UI.GameModes.Wizard
         private IReadOnlyList<GameModeMetadata> _modes = Array.Empty<GameModeMetadata>();
         private bool _isSyncingSelection;
 
+        internal Action<string?> OnSelectModeInvokedForTests { get; set; }
+
         protected override void BindViewModel()
         {
             if (_modeList == null)
@@ -41,6 +43,7 @@ namespace Runtime.UI.GameModes.Wizard
             AddDisposable(ViewModel.AvailableModes.Subscribe(SetModes));
             AddDisposable(ViewModel.SelectedModeId.Subscribe(_ => SyncSelectionFromViewModel()));
 
+
             // List selection -> VM
             void OnSelectionChanged(IEnumerable<object> items)
             {
@@ -49,7 +52,9 @@ namespace Runtime.UI.GameModes.Wizard
 
                 foreach (var it in items)
                 {
-                    ViewModel.SelectMode((it as GameModeMetadata)?.Id);
+                    var modeId = (it as GameModeMetadata)?.Id;
+                    ViewModel.SelectMode(modeId);
+                    OnSelectModeInvokedForTests?.Invoke(modeId);
                     break;
                 }
             }
@@ -118,6 +123,7 @@ namespace Runtime.UI.GameModes.Wizard
                 {
                     _modeList.ClearSelection();
                     _modeList.RefreshItems();
+                    ViewModel.SelectMode(null);
                     return;
                 }
 

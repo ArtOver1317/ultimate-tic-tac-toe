@@ -1,0 +1,549 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using FluentAssertions;
+using NSubstitute;
+using NUnit.Framework;
+using R3;
+using Runtime.GameModes.Wizard;
+using Runtime.UI.GameModes.Wizard;
+using UnityEngine;
+using UnityEngine.TestTools;
+using UnityEngine.UIElements;
+using Object = UnityEngine.Object;
+
+namespace Tests.PlayMode.GameModes.Wizard
+{
+    [TestFixture]
+    [Category("Integration")]
+    public class ModeSelectionViewTests
+    {
+        private GameObject _gameObject;
+        private UIDocument _uiDocument;
+        private ModeSelectionView _view;
+        private VisualTreeAsset _uxml;
+
+        private ModeSelectionViewModel _viewModel;
+        private IGameModeWizardCoordinator _coordinator;
+        private List<GameModeMetadata> _modes;
+
+        [UnitySetUp]
+        public IEnumerator SetUp()
+        {
+            _uxml = Resources.Load<VisualTreeAsset>("ModeSelectionTest");
+            _uxml.Should().NotBeNull("ModeSelectionTest.uxml must exist in Resources for tests");
+
+            _gameObject = new GameObject("ModeSelectionViewTests");
+            _uiDocument = _gameObject.AddComponent<UIDocument>();
+            _uiDocument.visualTreeAsset = _uxml;
+            _view = _gameObject.AddComponent<ModeSelectionView>();
+
+            _modes = new List<GameModeMetadata>
+            {
+                CreateMode("classic", 0),
+                CreateMode("ultimate", 1),
+                CreateMode("blitz", 2)
+            };
+
+            var catalog = Substitute.For<IGameModeCatalog>();
+            catalog.Metadata.Returns(_modes);
+
+            _coordinator = Substitute.For<IGameModeWizardCoordinator>();
+            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+
+            _viewModel = new ModeSelectionViewModel(catalog, _coordinator);
+
+            yield return null;
+        }
+
+        [UnityTearDown]
+        public IEnumerator TearDown()
+        {
+            _viewModel?.Dispose();
+
+            if (_gameObject != null)
+                Object.Destroy(_gameObject);
+
+            yield return null;
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenBindViewModelCalledWithMissingUxmlElements_ThenThrowsInvalidOperationException()
+        {
+            // Arrange
+            var badUxml = Resources.Load<VisualTreeAsset>("ModeSelectionMissingModeListTest");
+            badUxml.Should().NotBeNull("ModeSelectionMissingModeListTest.uxml must exist in Resources for tests");
+
+            LogAssert.Expect(LogType.Error, new Regex(@"\[UxmlBinder\] Required element 'ModeList' of type ListView not found"));
+
+            var go = new GameObject("ModeSelectionBadUxml");
+            var uiDoc = go.AddComponent<UIDocument>();
+            uiDoc.visualTreeAsset = badUxml;
+            var view = go.AddComponent<ModeSelectionView>();
+
+            var catalog = Substitute.For<IGameModeCatalog>();
+            catalog.Metadata.Returns(_modes);
+
+            var coordinator = Substitute.For<IGameModeWizardCoordinator>();
+            coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+
+            var viewModel = new ModeSelectionViewModel(catalog, coordinator);
+
+            yield return null;
+
+            // Act
+            Action act = () => view.SetViewModel(viewModel);
+
+            // Assert
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*ModeList element is missing*");
+
+            Object.Destroy(go);
+            viewModel.Dispose();
+            yield return null;
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenListViewBindItemCalledWithValidIndex_ThenCardBindsCorrectMetadata()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            var modeList = GetModeList();
+            var element = new ModeCardElement();
+
+            // Act
+            modeList.bindItem(element, 0);
+
+            // Assert
+            element.Q<Label>("Title").text.Should().Be("mode.classic");
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenListViewBindItemCalledWithInvalidIndex_ThenDoesNotCrashAndHandlesGracefully()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            var modeList = GetModeList();
+            var element = new ModeCardElement();
+            element.Bind("Title", "Desc", "icon", isSelected: true);
+
+            // Act
+            Action actNegative = () => modeList.bindItem(element, -1);
+            Action actLarge = () => modeList.bindItem(element, 99);
+
+            // Assert
+            actNegative.Should().NotThrow();
+            actLarge.Should().NotThrow();
+            element.Q<Label>("Title").text.Should().Be("Title");
+            element.Q<Label>("Description").text.Should().Be("Desc");
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenListViewBindItemCalledWithNullElement_ThenHandlesGracefully()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            var modeList = GetModeList();
+
+            // Act
+            Action act = () => modeList.bindItem(null, 0);
+
+            // Assert
+            act.Should().NotThrow();
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenBindModeCardReceivesNonModeCardElement_ThenDoesNotThrow()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            var modeList = GetModeList();
+            var element = new VisualElement();
+
+            // Act
+            Action act = () => modeList.bindItem(element, 0);
+
+            // Assert
+            act.Should().NotThrow();
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenViewModelSelectedModeIdChanges_ThenListViewRefreshesItemsAndHighlightUpdates()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            var modeList = GetModeList();
+            modeList.selectedIndex.Should().Be(-1);
+
+            // Act
+            _viewModel.SelectedModeId.Value = "classic";
+            yield return null;
+
+            // Assert
+            modeList.selectedIndex.Should().Be(0);
+
+            // Highlight is determined by bindItem reading ViewModel.SelectedModeId.
+            var element = new ModeCardElement();
+            modeList.bindItem(element, 0);
+            element.ClassListContains(ModeCardElement.SelectedClass).Should().BeTrue();
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenUserSelectsItemInListView_ThenViewModelSelectModeIsCalled()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            var modeList = GetModeList();
+
+            // Act
+            modeList.SetSelection(1);
+
+            // Assert
+            _viewModel.SelectedModeId.Value.Should().Be("ultimate");
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenSyncSelectionFromViewModelDuringUserSelection_ThenDoesNotTriggerInfiniteLoop()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            var invokedCount = 0;
+            _view.OnSelectModeInvokedForTests = _ => invokedCount++;
+
+            // Act
+            _viewModel.SelectedModeId.Value = "classic";
+            yield return null;
+
+            // Assert
+            invokedCount.Should().Be(0);
+            GetModeList().selectedIndex.Should().Be(0);
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenModeListSelectionChangedWithEmptyOrNullItems_ThenDoesNotAccidentallyChangeSelection()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            _viewModel.SelectedModeId.Value = "classic";
+            yield return null;
+
+
+            // Act
+            GetModeList().SetSelection(new List<int>());
+            GetModeList().ClearSelection();
+
+            // Assert
+            _viewModel.SelectedModeId.Value.Should().Be("classic");
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        [Category("UIWiring")]
+        [Explicit]
+        public IEnumerator WhenContinueOrCancelButtonsClickedThroughUIToolkit_ThenViewModelMethodsCalled()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            _viewModel.SelectedModeId.Value = "classic";
+            yield return null;
+
+            var cancelButton = GetCancelButton();
+            var continueButton = GetContinueButton();
+
+            // Act
+            SimulateClick(cancelButton);
+            SimulateClick(continueButton);
+
+            // Assert
+            _coordinator.Received(1).TryPublishIntent(WizardIntent.Cancel);
+            _coordinator.Received(1).TryPublishIntent(WizardIntent.Continue);
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenViewModelCanContinueChangesFalse_ThenContinueButtonIsDisabled()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            var continueButton = GetContinueButton();
+
+            // Act
+            _viewModel.SelectedModeId.Value = null;
+            yield return null;
+
+            // Assert
+            continueButton.enabledSelf.Should().BeFalse();
+
+            // Act
+            _viewModel.SelectedModeId.Value = "classic";
+            yield return null;
+
+            // Assert
+            continueButton.enabledSelf.Should().BeTrue();
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenResetForPoolCalled_ThenClearsViewModelAndUnbindsCallbacks()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            // Act
+            GetModeList().SetSelection(1);
+            _viewModel.SelectedModeId.Value.Should().Be("ultimate");
+
+            _view.ResetForPool();
+            Action act = () => GetModeList().SetSelection(2);
+
+            // Assert
+            act.Should().NotThrow();
+            _view.GetViewModel().Should().BeNull();
+            _viewModel.SelectedModeId.Value.Should().Be("ultimate");
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenRebindViewModelAfterReset_ThenViewWorksCorrectlyWithoutDoubleSubscriptions()
+        {
+            // Arrange
+            var viewModelA = _viewModel;
+            _view.SetViewModel(viewModelA);
+            yield return null;
+
+            _view.ResetForPool();
+
+            var catalogB = Substitute.For<IGameModeCatalog>();
+            catalogB.Metadata.Returns(_modes);
+
+            var coordinatorB = Substitute.For<IGameModeWizardCoordinator>();
+            coordinatorB.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+
+            var viewModelB = new ModeSelectionViewModel(catalogB, coordinatorB);
+            _view.SetViewModel(viewModelB);
+            yield return null;
+
+            var invokedCount = 0;
+            _view.OnSelectModeInvokedForTests = _ => invokedCount++;
+            invokedCount = 0;
+
+            // Act
+            GetModeList().SetSelection(2);
+            yield return null;
+
+            // Assert
+            invokedCount.Should().Be(1);
+            viewModelB.SelectedModeId.Value.Should().Be("blitz");
+            viewModelA.SelectedModeId.Value.Should().BeNull();
+
+            viewModelB.Dispose();
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenBindViewModelCalledAndVMHasSelectedModeId_ThenListViewRestoresSelectionHighlight()
+        {
+            // Arrange
+            _viewModel.SelectedModeId.Value = "ultimate";
+
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            // Act
+            var modeList = GetModeList();
+
+            // Assert
+            modeList.selectedIndex.Should().Be(1);
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenAvailableModesIsNull_ThenViewTreatsAsEmptyAndDoesNotThrow()
+        {
+            // Arrange
+            _viewModel.SetAvailableModesForTests(null);
+
+            // Act
+            Action act = () => _view.SetViewModel(_viewModel);
+
+            // Assert
+            act.Should().NotThrow();
+            GetModeList().itemsSource.Should().NotBeNull();
+
+            yield return null;
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenBindViewModelCalledAndVMSelectedModeIdIsNull_ThenListViewHasNoSelection()
+        {
+            // Arrange
+            _viewModel.SelectedModeId.Value = null;
+
+            // Act
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            // Assert
+            GetModeList().selectedIndex.Should().Be(-1);
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        [Category("Optional")]
+        public IEnumerator WhenAvailableModesChangeDuringRuntime_ThenListViewRebindsAndRestoresSelection()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            _viewModel.SelectedModeId.Value = "classic";
+            _viewModel.SetAvailableModesForTests(new List<GameModeMetadata>
+            {
+                CreateMode("classic", 0),
+                CreateMode("ultimate", 1),
+                CreateMode("blitz", 2)
+            });
+
+            // Act
+            yield return null;
+
+            // Assert
+            GetModeList().itemsSource.Should().NotBeNull();
+            GetModeList().selectedIndex.Should().Be(0);
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        [Category("Optional")]
+        public IEnumerator WhenAvailableModesUpdatedAndPreviouslySelectedModeIdIsNoLongerPresent_ThenViewClearsSelectionAndContinueStateIsConsistent()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            _viewModel.SelectedModeId.Value = "classic";
+            _viewModel.SetAvailableModesForTests(new List<GameModeMetadata>
+            {
+                CreateMode("ultimate", 0),
+                CreateMode("blitz", 1)
+            });
+
+            // Act
+            yield return null;
+
+            // Assert
+            GetModeList().selectedIndex.Should().Be(-1);
+            GetContinueButton().enabledSelf.Should().BeFalse();
+            _viewModel.SelectedModeId.Value.Should().BeNull();
+        }
+
+        private ListView GetModeList() => _uiDocument.rootVisualElement.Q<ListView>("ModeList");
+
+        private Button GetCancelButton() => _uiDocument.rootVisualElement.Q<Button>("CancelButton");
+
+        private Button GetContinueButton() => _uiDocument.rootVisualElement.Q<Button>("ContinueButton");
+
+        private static GameModeMetadata CreateMode(string id, int sortOrder) => new(
+            id,
+            $"mode.{id}",
+            $"desc.{id}",
+            $"icon.{id}",
+            sortOrder,
+            supportsBot: true,
+            supportsOnline: true,
+            supportsLocal: true);
+
+        private static void SimulateClick(Button button)
+        {
+            if (button == null)
+                return;
+
+            var clickable = button.clickable;
+            if (clickable != null)
+            {
+                var method = clickable.GetType().GetMethod(
+                    "SimulateSingleClick",
+                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
+                if (TryInvokeClickable(method, clickable))
+                    return;
+
+                method = clickable.GetType().GetMethod(
+                    "Invoke",
+                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
+                if (TryInvokeClickable(method, clickable))
+                    return;
+            }
+
+            var down = PointerDownEvent.GetPooled();
+            button.SendEvent(down);
+            down.Dispose();
+
+            var up = PointerUpEvent.GetPooled();
+            button.SendEvent(up);
+            up.Dispose();
+
+            var click = ClickEvent.GetPooled();
+            button.SendEvent(click);
+            click.Dispose();
+        }
+
+        private static bool TryInvokeClickable(MethodInfo method, Clickable clickable)
+        {
+            if (method == null)
+                return false;
+
+            var parameters = method.GetParameters();
+            if (parameters.Length == 0)
+            {
+                method.Invoke(clickable, null);
+                return true;
+            }
+
+            if (parameters.Length == 1)
+            {
+                var evt = ClickEvent.GetPooled();
+                method.Invoke(clickable, new object[] { evt });
+                evt.Dispose();
+                return true;
+            }
+
+            return false;
+        }
+
+    }
+}

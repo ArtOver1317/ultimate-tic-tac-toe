@@ -27,6 +27,9 @@ namespace Runtime.GameModes.Wizard
         public ReactiveProperty<string?> SelectedModeId => _selectedModeId;
         public ReadOnlyReactiveProperty<bool> CanContinue => _canContinue;
 
+        internal void SetAvailableModesForTests(IReadOnlyList<GameModeMetadata> modes) =>
+            _availableModes.Value = modes;
+
         public ModeSelectionViewModel(IGameModeCatalog catalog, IGameModeWizardCoordinator coordinator)
         {
             if (catalog == null)
@@ -104,8 +107,7 @@ namespace Runtime.GameModes.Wizard
             {
                 // Session -> VM
                 AddDisposable(session.Snapshot
-                    .SelectDistinct(s => s.SelectedModeId, StringComparer.Ordinal)
-                    .Subscribe(ApplySelectionFromSession));
+                    .Subscribe(new SessionSelectionObserver(ApplySelectionFromSession)));
 
                 // VM -> Session (write-through)
                 AddDisposable(_selectedModeId
@@ -144,7 +146,15 @@ namespace Runtime.GameModes.Wizard
             if (System.Threading.Volatile.Read(ref _isSyncingFromSession) != 0)
                 return;
 
-            var currentId = session.Snapshot.CurrentValue?.SelectedModeId;
+            string? currentId;
+            try
+            {
+                currentId = session.Snapshot.CurrentValue?.SelectedModeId;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
             if (string.Equals(currentId, selectedModeId, StringComparison.Ordinal))
                 return;
 
@@ -156,6 +166,51 @@ namespace Runtime.GameModes.Wizard
 
         private void UpdateCanContinue(string? selectedModeId) =>
             _canContinue.Value = !string.IsNullOrWhiteSpace(selectedModeId);
+
+        private sealed class SessionSelectionObserver : Observer<GameModeSessionSnapshot>
+        {
+            private readonly Action<string?> _onNext;
+            private bool _hasLast;
+            private string? _last;
+
+            public SessionSelectionObserver(Action<string?> onNext) =>
+                _onNext = onNext ?? throw new ArgumentNullException(nameof(onNext));
+
+            protected override void OnNextCore(GameModeSessionSnapshot value)
+            {
+                if (value == null)
+                    return;
+
+                string? selected;
+                try
+                {
+                    selected = value.SelectedModeId;
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
+
+                if (_hasLast && string.Equals(_last, selected, StringComparison.Ordinal))
+                    return;
+
+                _hasLast = true;
+                _last = selected;
+                _onNext(selected);
+            }
+
+            protected override void OnErrorResumeCore(Exception error)
+            {
+                if (error is ObjectDisposedException)
+                    return;
+
+                GameLog.Error($"[ModeSelectionViewModel] Session snapshot error: {error}");
+            }
+
+            protected override void OnCompletedCore(Result result)
+            {
+            }
+        }
     }
 }
 
