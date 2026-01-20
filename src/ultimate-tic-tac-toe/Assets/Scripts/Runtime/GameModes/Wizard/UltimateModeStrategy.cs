@@ -14,10 +14,10 @@ namespace Runtime.GameModes.Wizard
 
         private static readonly IReadOnlyList<ValidationError> _noErrors = Array.Empty<ValidationError>();
         private static readonly ReadOnlyCollection<ValidationError> _modeConfigRequiredError =
-            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "error.mode_config_required") });
+            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired") });
 
         private static readonly ReadOnlyCollection<ValidationError> _ultimateConfigInvalidError =
-            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "error.ultimate_config_invalid") });
+            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "Errors.GameModeWizard.UltimateConfigInvalid") });
 
         private readonly Func<UltimateSettingsViewModel> _createSettingsViewModel;
 
@@ -39,8 +39,8 @@ namespace Runtime.GameModes.Wizard
 
             Metadata = new GameModeMetadata(
                 id: modeId,
-                displayNameKey: "game_mode.ultimate.name",
-                descriptionKey: "game_mode.ultimate.description",
+                displayNameKey: "Mode.Ultimate",
+                descriptionKey: "Mode.Description.Ultimate",
                 iconAssetKey: "icons/game_mode_ultimate",
                 sortOrder: 20,
                 supportsBot: true,

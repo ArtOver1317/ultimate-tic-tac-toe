@@ -18,19 +18,19 @@ namespace Runtime.GameModes.Wizard
     public sealed class WizardError
     {
         public string Code { get; }
-        public string Message { get; }
+        public string MessageKey { get; }
         public bool IsBlocking { get; }
         public ErrorDisplayType DisplayType { get; }
 
-        public WizardError(string code, string message, bool isBlocking, ErrorDisplayType displayType)
+        public WizardError(string code, string messageKey, bool isBlocking, ErrorDisplayType displayType)
         {
             if (string.IsNullOrWhiteSpace(code))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(code));
-            if (string.IsNullOrWhiteSpace(message))
-                throw new ArgumentException("Value cannot be null or whitespace.", nameof(message));
+            if (string.IsNullOrWhiteSpace(messageKey))
+                throw new ArgumentException("Value cannot be null or whitespace.", nameof(messageKey));
 
             Code = code;
-            Message = message;
+            MessageKey = messageKey;
             IsBlocking = isBlocking;
             DisplayType = displayType;
         }
@@ -40,13 +40,9 @@ namespace Runtime.GameModes.Wizard
             if (ex == null)
                 throw new ArgumentNullException(nameof(ex));
 
-            // Phase 3: keep user-facing message generic and log full exception elsewhere.
-            // Later phases can map exception types to localized messages.
-            const string fallbackMessage = "Произошла ошибка. Попробуйте ещё раз.";
-
             return new WizardError(
                 code: "wizard.unhandled_exception",
-                message: fallbackMessage,
+                messageKey: "Errors.GameModeWizard.UnhandledException",
                 isBlocking: true,
                 displayType: ErrorDisplayType.Modal);
         }

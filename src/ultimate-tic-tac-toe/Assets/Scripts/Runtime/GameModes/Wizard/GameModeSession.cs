@@ -11,8 +11,10 @@ namespace Runtime.GameModes.Wizard
     public sealed class GameModeSession : IGameModeSession
     {
         private static readonly IReadOnlyList<ValidationError> _noErrors = Array.Empty<ValidationError>();
+        private const string DefaultBotDifficultyId = "Normal";
 
         private readonly object _lock = new();
+        private readonly IGameModeCatalog _catalog;
         private readonly ReactiveProperty<GameModeSessionSnapshot> _snapshot;
         private readonly ReactiveProperty<bool> _canStart;
         private readonly ReactiveProperty<IReadOnlyList<ValidationError>> _validationErrors;
@@ -23,14 +25,31 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<bool> CanStart => _canStart;
         public ReadOnlyReactiveProperty<IReadOnlyList<ValidationError>> ValidationErrors => _validationErrors;
 
-        public GameModeSession() : this(GameModeSessionSnapshot.Default)
+        public GameModeSession() : this(catalog: null, initialSnapshot: GameModeSessionSnapshot.Default, isInternalCall: true)
         {
         }
 
         public GameModeSession(GameModeSessionSnapshot initialSnapshot)
+            : this(catalog: null, initialSnapshot: initialSnapshot, isInternalCall: true)
+        {
+        }
+
+        public GameModeSession(IGameModeCatalog catalog)
+            : this(catalog ?? throw new ArgumentNullException(nameof(catalog)), GameModeSessionSnapshot.Default, isInternalCall: true)
+        {
+        }
+
+        public GameModeSession(IGameModeCatalog catalog, GameModeSessionSnapshot initialSnapshot)
+            : this(catalog ?? throw new ArgumentNullException(nameof(catalog)), initialSnapshot, isInternalCall: true)
+        {
+        }
+
+        private GameModeSession(IGameModeCatalog catalog, GameModeSessionSnapshot initialSnapshot, bool isInternalCall)
         {
             if (initialSnapshot == null)
                 throw new ArgumentNullException(nameof(initialSnapshot));
+
+            _catalog = catalog;
 
             var normalized = Normalize(initialSnapshot);
 
@@ -68,6 +87,14 @@ namespace Runtime.GameModes.Wizard
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
 
+            lock (_lock)
+            {
+                EnsureNotDisposed();
+
+                if (ReferenceEquals(_snapshot.Value.ModeConfig, config))
+                    return;
+            }
+
             Update(s => s.WithModeConfig(config));
         }
 
@@ -88,21 +115,16 @@ namespace Runtime.GameModes.Wizard
             if (errors.Count > 0)
                 return Result<GameLaunchConfig>.Failure(errors);
 
-            if (string.IsNullOrWhiteSpace(snapshot.SelectedModeId))
-                return Result<GameLaunchConfig>.Failure(new ValidationError("SelectedModeId", "error.mode_required"));
-
-            if (snapshot.ModeConfig == null)
-                return Result<GameLaunchConfig>.Failure(new ValidationError("ModeConfig", "error.mode_config_required"));
-
             IOpponentConfig opponentConfig;
 
             switch (snapshot.OpponentType)
             {
                 case OpponentType.Bot:
-                    if (string.IsNullOrWhiteSpace(snapshot.BotDifficultyId))
-                        return Result<GameLaunchConfig>.Failure(new ValidationError("BotDifficultyId", "error.difficulty_required"));
+                    var difficultyId = string.IsNullOrWhiteSpace(snapshot.BotDifficultyId)
+                        ? DefaultBotDifficultyId
+                        : snapshot.BotDifficultyId;
 
-                    opponentConfig = new BotOpponentConfig(snapshot.BotDifficultyId);
+                    opponentConfig = new BotOpponentConfig(difficultyId);
                     break;
 
                 case OpponentType.Human:
@@ -114,14 +136,13 @@ namespace Runtime.GameModes.Wizard
 
                         case HumanOpponentKind.DirectInvite:
                             if (string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
-                                return Result<GameLaunchConfig>.Failure(new ValidationError("TargetPlayerId", "error.player_id_required"));
+                                throw new InvalidOperationException("DirectInvite requires TargetPlayerId after validation.");
 
                             opponentConfig = new DirectInviteConfig(snapshot.TargetPlayerId);
                             break;
 
                         case HumanOpponentKind.Matchmaking:
-                            return Result<GameLaunchConfig>.Failure(
-                                new ValidationError("Matchmaking", "error.matchmaking_config_missing"));
+                            throw new InvalidOperationException("Matchmaking is not supported in the current phase.");
 
                         default:
                             throw new ArgumentOutOfRangeException(nameof(snapshot.HumanOpponentKind), snapshot.HumanOpponentKind, null);
@@ -134,8 +155,8 @@ namespace Runtime.GameModes.Wizard
             }
 
             return Result<GameLaunchConfig>.Success(new GameLaunchConfig(
-                gameModeId: snapshot.SelectedModeId,
-                modeConfig: snapshot.ModeConfig,
+                gameModeId: snapshot.SelectedModeId ?? throw new InvalidOperationException("Selected mode is missing after validation."),
+                modeConfig: snapshot.ModeConfig ?? throw new InvalidOperationException("Mode config is missing after validation."),
                 opponentConfig: opponentConfig));
         }
 
@@ -222,7 +243,7 @@ namespace Runtime.GameModes.Wizard
             return s;
         }
 
-        private static IReadOnlyList<ValidationError> ValidateForStart(GameModeSessionSnapshot snapshot)
+        private IReadOnlyList<ValidationError> ValidateForStart(GameModeSessionSnapshot snapshot)
         {
             if (snapshot == null)
                 throw new ArgumentNullException(nameof(snapshot));
@@ -230,25 +251,52 @@ namespace Runtime.GameModes.Wizard
             List<ValidationError> errors = null;
 
             if (string.IsNullOrWhiteSpace(snapshot.SelectedModeId))
-                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("SelectedModeId", "error.mode_required"));
+                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("SelectedModeId", "Errors.GameModeWizard.ModeRequired"));
 
             if (snapshot.ModeConfig == null)
-                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("ModeConfig", "error.mode_config_required"));
+                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired"));
+
+            if (!string.IsNullOrWhiteSpace(snapshot.SelectedModeId))
+            {
+                if (_catalog == null)
+                {
+                    (errors ??= new List<ValidationError>(capacity: 4))
+                        .Add(new ValidationError("ModeCatalog", "Errors.GameModeWizard.ModeCatalogMissing"));
+                }
+                else
+                {
+                    if (_catalog.TryGetStrategy(snapshot.SelectedModeId, out var strategy) && strategy != null)
+                    {
+                        if (snapshot.ModeConfig != null)
+                        {
+                            var modeErrors = strategy.ValidateConfig(snapshot.ModeConfig);
+                            if (modeErrors != null && modeErrors.Count > 0)
+                            {
+                                errors ??= new List<ValidationError>(capacity: 4);
+                                errors.AddRange(modeErrors);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("SelectedModeId", "Errors.GameModeWizard.ModeUnknown"));
+                    }
+                }
+            }
 
             if (snapshot.OpponentType == OpponentType.Bot)
             {
-                if (string.IsNullOrWhiteSpace(snapshot.BotDifficultyId))
-                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("BotDifficultyId", "error.difficulty_required"));
+                // Phase 6: bot difficulty selection is part of Phase 7, so it is optional here.
             }
             else
             {
                 if (snapshot.HumanOpponentKind == HumanOpponentKind.DirectInvite && string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
-                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("TargetPlayerId", "error.player_id_required"));
+                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("TargetPlayerId", "Errors.GameModeWizard.PlayerIdRequired"));
 
                 // Phase 1: matchmaking resolution (MatchId/OpponentId) is not implemented.
                 // Keep CanStart consistent with BuildLaunchConfig() by treating matchmaking as invalid for now.
                 if (snapshot.HumanOpponentKind == HumanOpponentKind.Matchmaking)
-                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("Matchmaking", "error.matchmaking_config_missing"));
+                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("Matchmaking", "Errors.GameModeWizard.MatchmakingConfigMissing"));
             }
 
             return errors ?? _noErrors;

@@ -1,0 +1,16 @@
+﻿{
+  "version": "1.0",
+  "locale": "ru-RU",
+  "table": "GameModeWizard",
+  "entries": {
+    "GameModeWizard.MatchSetup.Back": "Назад",
+    "GameModeWizard.MatchSetup.Cancel": "Отмена",
+    "GameModeWizard.MatchSetup.Classic.BoardSize": "Размер поля",
+    "GameModeWizard.MatchSetup.ModeOptions.Title": "Правила",
+    "GameModeWizard.MatchSetup.Opponent.Bot": "Бот",
+    "GameModeWizard.MatchSetup.Opponent.Human": "Человек",
+    "GameModeWizard.MatchSetup.Opponent.Title": "Соперник",
+    "GameModeWizard.MatchSetup.Start": "Начать",
+    "GameModeWizard.MatchSetup.Ultimate.NoSettings": "Нет дополнительных настроек"
+  }
+}

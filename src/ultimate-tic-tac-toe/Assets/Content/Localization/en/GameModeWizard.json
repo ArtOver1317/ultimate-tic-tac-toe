@@ -1,0 +1,16 @@
+﻿{
+  "version": "1.0",
+  "locale": "en-US",
+  "table": "GameModeWizard",
+  "entries": {
+    "GameModeWizard.MatchSetup.Back": "Back",
+    "GameModeWizard.MatchSetup.Cancel": "Cancel",
+    "GameModeWizard.MatchSetup.Classic.BoardSize": "Board Size",
+    "GameModeWizard.MatchSetup.ModeOptions.Title": "Rules",
+    "GameModeWizard.MatchSetup.Opponent.Bot": "Bot",
+    "GameModeWizard.MatchSetup.Opponent.Human": "Human",
+    "GameModeWizard.MatchSetup.Opponent.Title": "Opponent",
+    "GameModeWizard.MatchSetup.Start": "Start",
+    "GameModeWizard.MatchSetup.Ultimate.NoSettings": "No additional settings"
+  }
+}

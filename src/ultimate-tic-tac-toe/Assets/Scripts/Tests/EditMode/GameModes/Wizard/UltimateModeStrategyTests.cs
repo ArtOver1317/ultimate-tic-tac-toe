@@ -93,7 +93,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             error.Field.Should().Be("ModeConfig");
-            error.MessageKey.Should().Be("error.mode_config_required");
+            error.MessageKey.Should().Be("Errors.GameModeWizard.ModeConfigRequired");
         }
 
         [Test]
@@ -107,7 +107,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             error.Field.Should().Be("ModeConfig");
-            error.MessageKey.Should().Be("error.ultimate_config_invalid");
+            error.MessageKey.Should().Be("Errors.GameModeWizard.UltimateConfigInvalid");
         }
 
         [Test]

@@ -1,0 +1,26 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:app="Runtime.UI.Components" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="MatchSetupStyles.uss" />
+    <ui:VisualElement name="Root" class="gmw-root">
+        <ui:VisualElement name="Header" class="gmw-header">
+            <ui:Button text="" name="BackButton" class="gmw-button gmw-button--back" />
+            <ui:Label text="" name="TitleLabel" class="gmw-title" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="ModeOptionsSection" class="gmw-section">
+            <ui:Label text="" name="ModeOptionsTitle" class="gmw-section__title" />
+            <app:ModeOptionsHost name="ModeOptionsHost" class="gmw-mode-options-host" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="OpponentSection" class="gmw-section">
+            <ui:Label text="" name="OpponentTitle" class="gmw-section__title" />
+            <app:SegmentedToggle name="OpponentToggle" class="gmw-segmented-toggle" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="ActionBar" class="gmw-action-bar">
+            <ui:Button text="" name="CancelButton" class="gmw-button gmw-button--secondary" />
+            <ui:Button text="" name="StartButton" class="gmw-button gmw-button--primary" />
+        </ui:VisualElement>
+
+        <ui:Label text="" name="ErrorLabel" class="gmw-error-label" />
+    </ui:VisualElement>
+</ui:UXML>

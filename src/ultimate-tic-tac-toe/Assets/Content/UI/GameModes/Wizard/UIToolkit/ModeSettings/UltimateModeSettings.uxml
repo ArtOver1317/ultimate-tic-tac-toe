@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="ModeSettingsStyles.uss" />
+    <ui:VisualElement name="UltimateSettingsRoot" class="gmw-mode-settings">
+        <ui:Label text="" name="InfoLabel" class="gmw-mode-settings__label" />
+    </ui:VisualElement>
+</ui:UXML>

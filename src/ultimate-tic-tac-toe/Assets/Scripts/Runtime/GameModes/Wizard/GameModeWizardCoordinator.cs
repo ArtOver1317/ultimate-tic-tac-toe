@@ -239,18 +239,31 @@ namespace Runtime.GameModes.Wizard
             if (_isDisposed)
                 return;
 
-            // Best-effort cleanup (must not throw due to disposal ordering)
-            AbortWizardCoreAsync(AbortReason.SceneChange, awaitProcessingTask: false)
-                .Forget(ex => GameLog.Exception(ex));
+            _isDisposed = true;
 
             _lifetimeCts.Cancel();
             _lifetimeCts.Dispose();
 
-            _isDisposed = true;
+            DisposeAfterAbortAsync().Forget(ex => GameLog.Exception(ex));
+        }
 
-            _isTransitioning.Dispose();
-            _isSubmitting.Dispose();
-            _currentError.Dispose();
+        private async UniTask DisposeAfterAbortAsync()
+        {
+            try
+            {
+                // Best-effort cleanup (must not throw due to disposal ordering)
+                await AbortWizardCoreAsync(AbortReason.SceneChange, awaitProcessingTask: true);
+            }
+            catch (Exception ex)
+            {
+                GameLog.Exception(ex);
+            }
+            finally
+            {
+                _isTransitioning.Dispose();
+                _isSubmitting.Dispose();
+                _currentError.Dispose();
+            }
         }
 
         private async UniTask AbortWizardCoreAsync(AbortReason reason, bool awaitProcessingTask)
@@ -515,7 +528,7 @@ namespace Runtime.GameModes.Wizard
         {
             Volatile.Write(ref _isTransitioningFlag, value ? 1 : 0);
 
-            if (PlayerLoopHelper.IsMainThread)
+            if (PlayerLoopHelper.IsMainThread && !_isDisposed)
                 _isTransitioning.Value = value;
         }
 
@@ -523,7 +536,7 @@ namespace Runtime.GameModes.Wizard
         {
             Volatile.Write(ref _isSubmittingFlag, value ? 1 : 0);
 
-            if (PlayerLoopHelper.IsMainThread)
+            if (PlayerLoopHelper.IsMainThread && !_isDisposed)
                 _isSubmitting.Value = value;
         }
 
@@ -531,6 +544,9 @@ namespace Runtime.GameModes.Wizard
         {
             if (error == null)
                 throw new ArgumentNullException(nameof(error));
+
+            if (_isDisposed)
+                return;
 
             if (PlayerLoopHelper.IsMainThread)
             {
@@ -543,7 +559,7 @@ namespace Runtime.GameModes.Wizard
 
         private void FlushPendingErrorOnMainThread()
         {
-            if (!PlayerLoopHelper.IsMainThread)
+            if (!PlayerLoopHelper.IsMainThread || _isDisposed)
                 return;
 
             var pending = Interlocked.Exchange(ref _pendingError, null);

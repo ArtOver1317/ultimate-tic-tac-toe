@@ -3,13 +3,16 @@ using System.Collections.Generic;
 using R3;
 using Runtime.Extensions;
 using Runtime.GameModes.Wizard;
+using Runtime.Localization;
 using Runtime.UI.Core;
 using UnityEngine.UIElements;
+using VContainer;
 
 namespace Runtime.UI.GameModes.Wizard
 {
     public sealed class ModeSelectionView : UIView<ModeSelectionViewModel>
     {
+        private ILocalizationService _localization;
         [Runtime.UI.Core.UxmlElementAttribute("ModeList")]
         private ListView _modeList;
 
@@ -23,6 +26,10 @@ namespace Runtime.UI.GameModes.Wizard
         private bool _isSyncingSelection;
 
         internal Action<string?> OnSelectModeInvokedForTests { get; set; }
+
+        [Inject]
+        public void Construct(ILocalizationService localization) =>
+            _localization = localization ?? throw new ArgumentNullException(nameof(localization));
 
         protected override void BindViewModel()
         {
@@ -79,9 +86,17 @@ namespace Runtime.UI.GameModes.Wizard
             var meta = _modes[index];
             var isSelected = string.Equals(ViewModel.SelectedModeId.Value, meta.Id, StringComparison.Ordinal);
 
-            // Phase 5: show localization keys directly.
-            // Proper localization binding is added in a later phase.
-            card.Bind(meta, isSelected);
+            var title = ResolveModeText(meta.DisplayNameKey);
+            var description = ResolveModeText(meta.DescriptionKey);
+            card.Bind(title, description, meta.IconAssetKey, isSelected);
+        }
+
+        private string ResolveModeText(string key)
+        {
+            if (_localization == null || string.IsNullOrWhiteSpace(key))
+                return key ?? string.Empty;
+
+            return _localization.Resolve(new TextTableId("Mode"), new TextKey(key));
         }
 
         private void SetModes(IReadOnlyList<GameModeMetadata> modes)
@@ -123,7 +138,6 @@ namespace Runtime.UI.GameModes.Wizard
                 {
                     _modeList.ClearSelection();
                     _modeList.RefreshItems();
-                    ViewModel.SelectMode(null);
                     return;
                 }
 

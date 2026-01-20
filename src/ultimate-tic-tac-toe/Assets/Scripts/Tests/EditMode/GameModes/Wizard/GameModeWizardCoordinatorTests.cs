@@ -47,7 +47,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             error.Code.Should().Be("wizard.unhandled_exception");
-            error.Message.Should().NotBeNullOrWhiteSpace();
+            error.MessageKey.Should().Be("Errors.GameModeWizard.UnhandledException");
             error.IsBlocking.Should().BeTrue();
             error.DisplayType.Should().Be(ErrorDisplayType.Modal);
         }

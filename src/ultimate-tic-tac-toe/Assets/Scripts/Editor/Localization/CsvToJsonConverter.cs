@@ -11,7 +11,7 @@ namespace Editor.Localization
 {
     public sealed class CsvToJsonConverter : EditorWindow
     {
-        private const string _defaultCsvPath = "Assets/Content/Localization/Template.csv";
+        private const string _defaultCsvPath = "Assets/Content/Localization/Localization_SourceOfTruth.csv";
         private const string _defaultOutputPath = "Assets/Content/Localization/";
 
         private string _csvPath = _defaultCsvPath;
@@ -69,7 +69,7 @@ namespace Editor.Localization
 
             EditorGUILayout.Space();
 
-            GUI.enabled = !string.IsNullOrEmpty(_csvPath) && File.Exists(_csvPath);
+            GUI.enabled = !string.IsNullOrEmpty(_csvPath) && File.Exists(GetAbsolutePath(_csvPath));
             
             if (GUILayout.Button("Convert", GUILayout.Height(30))) 
                 Convert();
@@ -91,13 +91,16 @@ namespace Editor.Localization
 
             try
             {
-                if (!File.Exists(_csvPath))
+                var csvPath = GetAbsolutePath(_csvPath);
+                var outputPath = GetAbsolutePath(_outputPath);
+
+                if (!File.Exists(csvPath))
                 {
-                    LogError($"CSV file not found: {_csvPath}");
+                    LogError($"CSV file not found: {csvPath}");
                     return;
                 }
 
-                var lines = File.ReadAllLines(_csvPath, Encoding.UTF8);
+                var lines = File.ReadAllLines(csvPath, Encoding.UTF8);
                 
                 if (lines.Length < 2)
                 {
@@ -182,7 +185,7 @@ namespace Editor.Localization
                     var localeTables = tables[locale];
 
                     var localeCode = ConvertLocaleFormat(locale);
-                    var localeFolder = Path.Combine(_outputPath, localeCode.Split('-')[0]);
+                    var localeFolder = Path.Combine(outputPath, localeCode.Split('-')[0]);
 
                     if (!Directory.Exists(localeFolder))
                     {
@@ -251,6 +254,19 @@ namespace Editor.Localization
         {
             var projectPath = Application.dataPath.Replace("/Assets", "").Replace("\\Assets", "");
             return absolutePath.StartsWith(projectPath) ? absolutePath[(projectPath.Length + 1)..].Replace("\\", "/") : absolutePath;
+        }
+
+        private string GetAbsolutePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return path;
+
+            var normalized = path.Replace("\\", "/");
+            if (Path.IsPathRooted(normalized))
+                return normalized;
+
+            var projectRoot = Application.dataPath.Replace("/Assets", "");
+            return Path.Combine(projectRoot, normalized);
         }
 
         private void Log(string message)

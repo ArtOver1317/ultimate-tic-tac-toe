@@ -6,8 +6,10 @@ using Runtime.Localization;
 using Runtime.Services.Assets;
 using Runtime.Services.Scenes;
 using Runtime.Services.UI;
+using Runtime.Services.UI.Assets;
 using Runtime.UI.MainMenu;
 using Runtime.UI.Core;
+using Runtime.UI.GameModes.Wizard;
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
@@ -33,10 +35,24 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<UIPoolManager>(Lifetime.Singleton);
             builder.Register<ObjectPool<IUIView>>(Lifetime.Singleton).As<IObjectPool<IUIView>>();
             builder.Register<ObjectPool<BaseViewModel>>(Lifetime.Singleton).As<IObjectPool<BaseViewModel>>();
+            builder.Register<IViewAssetProvider, AddressablesViewAssetProvider>(Lifetime.Singleton);
             builder.Register<IUIService, UIService>(Lifetime.Singleton);
 
-            // Game Mode Wizard (Phase 1)
+            // Game Mode Wizard (Phase 1-6)
             builder.Register<IGameModeSession, GameModeSession>(Lifetime.Transient);
+            builder.Register<IGameModeWizardCoordinator, GameModeWizardCoordinator>(Lifetime.Singleton);
+            builder.Register<IGameModeWizardNavigator, GameModeWizardNavigator>(Lifetime.Singleton);
+            builder.Register<IGameModeCatalog, GameModeCatalog>(Lifetime.Singleton);
+            builder.Register<ClassicModeStrategy>(Lifetime.Singleton).As<IGameModeStrategy>();
+            builder.Register<UltimateModeStrategy>(Lifetime.Singleton).As<IGameModeStrategy>();
+
+            builder.Register<ModeSelectionViewModel>(Lifetime.Transient);
+            builder.Register<MatchSetupViewModel>(Lifetime.Transient);
+            builder.Register<ClassicSettingsViewModel>(Lifetime.Transient);
+            builder.Register<UltimateSettingsViewModel>(Lifetime.Transient);
+
+            builder.Register<IModeSettingsBinder, ClassicModeSettingsBinder>(Lifetime.Singleton);
+            builder.Register<IModeSettingsBinder, UltimateModeSettingsBinder>(Lifetime.Singleton);
             
             // Localization Services
             // Note: Factory registration required - VContainer cannot auto-resolve constructors with optional parameters.

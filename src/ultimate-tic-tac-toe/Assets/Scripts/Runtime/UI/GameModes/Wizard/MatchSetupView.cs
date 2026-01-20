@@ -1,0 +1,263 @@
+#nullable enable
+
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using R3;
+using Runtime.Extensions;
+using Runtime.GameModes.Wizard;
+using Runtime.Infrastructure.Logging;
+using Runtime.Services.UI.Assets;
+using Runtime.UI.Components;
+using Runtime.UI.Core;
+using UnityEngine.UIElements;
+using VContainer;
+
+namespace Runtime.UI.GameModes.Wizard
+{
+    public sealed class MatchSetupView : UIView<MatchSetupViewModel>
+    {
+        [Runtime.UI.Core.UxmlElementAttribute("BackButton")]
+        private Button? _backButton;
+
+        [Runtime.UI.Core.UxmlElementAttribute("TitleLabel")]
+        private Label? _titleLabel;
+
+        [Runtime.UI.Core.UxmlElementAttribute("ModeOptionsTitle")]
+        private Label? _modeOptionsTitle;
+
+        [Runtime.UI.Core.UxmlElementAttribute("ModeOptionsHost")]
+        private ModeOptionsHost? _modeOptionsHost;
+
+        [Runtime.UI.Core.UxmlElementAttribute("OpponentTitle")]
+        private Label? _opponentTitle;
+
+        [Runtime.UI.Core.UxmlElementAttribute("OpponentToggle")]
+        private SegmentedToggle? _opponentToggle;
+
+        [Runtime.UI.Core.UxmlElementAttribute("CancelButton")]
+        private Button? _cancelButton;
+
+        [Runtime.UI.Core.UxmlElementAttribute("StartButton")]
+        private Button? _startButton;
+
+        [Runtime.UI.Core.UxmlElementAttribute("ErrorLabel", isOptional: true)]
+        private Label? _errorLabel;
+
+        private IViewAssetProvider _assetProvider = null!;
+        private IModeSettingsBinder[] _binders = System.Array.Empty<IModeSettingsBinder>();
+
+        private CancellationTokenSource? _loadCts;
+        private IAssetLease<VisualTreeAsset>? _currentLease;
+        private IDisposable? _subBinding;
+        private int _loadVersion;
+
+        private string _botLabel = string.Empty;
+        private string _humanLabel = string.Empty;
+
+        [Inject]
+        public void Construct(IViewAssetProvider assetProvider, IEnumerable<IModeSettingsBinder> binders)
+        {
+            _assetProvider = assetProvider ?? throw new ArgumentNullException(nameof(assetProvider));
+            _binders = binders != null ? new List<IModeSettingsBinder>(binders).ToArray() : System.Array.Empty<IModeSettingsBinder>();
+        }
+
+        protected override void BindViewModel()
+        {
+            var backButton = _backButton ?? throw new InvalidOperationException("BackButton element is missing in UXML.");
+            var titleLabel = _titleLabel ?? throw new InvalidOperationException("TitleLabel element is missing in UXML.");
+            var modeOptionsTitle = _modeOptionsTitle ?? throw new InvalidOperationException("ModeOptionsTitle element is missing in UXML.");
+            if (_modeOptionsHost == null)
+                throw new InvalidOperationException("ModeOptionsHost element is missing in UXML.");
+            var opponentTitle = _opponentTitle ?? throw new InvalidOperationException("OpponentTitle element is missing in UXML.");
+            var opponentToggle = _opponentToggle ?? throw new InvalidOperationException("OpponentToggle element is missing in UXML.");
+            var cancelButton = _cancelButton ?? throw new InvalidOperationException("CancelButton element is missing in UXML.");
+            var startButton = _startButton ?? throw new InvalidOperationException("StartButton element is missing in UXML.");
+
+            AddDisposable(ViewModel.ModeOptionsTitle.Subscribe(text => modeOptionsTitle.text = text));
+            AddDisposable(ViewModel.OpponentSectionTitle.Subscribe(text => opponentTitle.text = text));
+
+            AddDisposable(ViewModel.BackButtonText.Subscribe(text => backButton.text = text));
+            AddDisposable(ViewModel.CancelButtonText.Subscribe(text => cancelButton.text = text));
+            AddDisposable(ViewModel.StartButtonText.Subscribe(text => startButton.text = text));
+
+            AddDisposable(ViewModel.OpponentBotText.Subscribe(text =>
+            {
+                _botLabel = text ?? string.Empty;
+                opponentToggle.SetLabels(_botLabel, _humanLabel);
+            }));
+
+            AddDisposable(ViewModel.OpponentHumanText.Subscribe(text =>
+            {
+                _humanLabel = text ?? string.Empty;
+                opponentToggle.SetLabels(_botLabel, _humanLabel);
+            }));
+
+            SyncOpponentToggle(ViewModel.OpponentType.Value);
+
+            AddDisposable(ViewModel.OpponentType.Subscribe(SyncOpponentToggle));
+
+            void OnOpponentToggleChanged(int index)
+            {
+                var type = index == 0 ? OpponentType.Bot : OpponentType.Human;
+                ViewModel.SetOpponentType(type);
+            }
+
+            opponentToggle.SelectedIndexChanged += OnOpponentToggleChanged;
+            AddDisposable(Disposable.Create(() => opponentToggle.SelectedIndexChanged -= OnOpponentToggleChanged));
+
+            BindText(ViewModel.ModeTitleText, titleLabel);
+
+            var canStart = Observable.CombineLatest(
+                ViewModel.CanStart,
+                ViewModel.IsBusy,
+                static (isAllowed, isBusy) => isAllowed && !isBusy);
+
+            BindEnabled(canStart, startButton);
+            BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), backButton);
+            BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), opponentToggle);
+
+            AddDisposable(backButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestBack()));
+            AddDisposable(startButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestStart()));
+            AddDisposable(cancelButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestCancel()));
+
+            if (_errorLabel != null)
+            {
+                AddDisposable(ViewModel.InlineErrorText.Subscribe(text =>
+                {
+                    _errorLabel.text = text ?? string.Empty;
+                    _errorLabel.style.display = string.IsNullOrWhiteSpace(text) ? DisplayStyle.None : DisplayStyle.Flex;
+                }));
+            }
+
+            AddDisposable(ViewModel.ActiveSettings
+                .Subscribe(presentation => LoadSettingsSafeAsync(presentation).Forget(ex => GameLog.Exception(ex))));
+        }
+
+        protected override void OnResetForPool()
+        {
+            CleanupLoadedSettings();
+            base.OnResetForPool();
+        }
+
+        protected override void OnDestroy()
+        {
+            CleanupLoadedSettings();
+            base.OnDestroy();
+        }
+
+        private void SyncOpponentToggle(OpponentType opponentType)
+        {
+            var toggle = _opponentToggle;
+            if (toggle == null)
+                return;
+
+            var index = opponentType == OpponentType.Bot ? 0 : 1;
+            toggle.SetSelectedIndexWithoutNotify(index);
+        }
+
+        private async UniTask LoadSettingsSafeAsync(ModeSettingsPresentation? presentation)
+        {
+            CancelPendingLoad();
+            CleanupCurrentSettings();
+
+            var version = Interlocked.Increment(ref _loadVersion);
+
+            if (presentation == null)
+                return;
+
+            if (_assetProvider == null)
+            {
+                GameLog.Error("[MatchSetupView] IViewAssetProvider is not available.");
+                return;
+            }
+
+            var cts = new CancellationTokenSource();
+            var previousCts = Interlocked.Exchange(ref _loadCts, cts);
+            previousCts?.Cancel();
+
+            try
+            {
+                var lease = await _assetProvider.LoadVisualTreeAsync(presentation.UxmlAssetKey, cts.Token);
+
+                if (version != Volatile.Read(ref _loadVersion))
+                {
+                    lease.Dispose();
+                    return;
+                }
+
+                _currentLease = lease;
+
+                var instance = _currentLease.Asset.CloneTree();
+                _modeOptionsHost?.Add(instance);
+
+                _subBinding = BindSubViewModel(instance, presentation.ViewModel);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                GameLog.Exception(ex);
+            }
+            finally
+            {
+                cts.Dispose();
+                Interlocked.CompareExchange(ref _loadCts, null, cts);
+            }
+        }
+
+        private IDisposable BindSubViewModel(VisualElement root, ISpecificModeSettingsViewModel viewModel)
+        {
+            var disposables = new CompositeDisposable();
+
+            var bound = false;
+            for (var i = 0; i < _binders.Length; i++)
+            {
+                var binder = _binders[i];
+                if (binder == null || !binder.CanBind(viewModel))
+                    continue;
+
+                binder.Bind(root, viewModel, disposables);
+                bound = true;
+                break;
+            }
+
+            if (!bound)
+                GameLog.Warning($"[MatchSetupView] No binder registered for settings VM type {viewModel.GetType().Name}.");
+
+            return disposables;
+        }
+
+        private void CancelPendingLoad()
+        {
+            if (_loadCts == null)
+                return;
+
+            _loadCts.Cancel();
+        }
+
+        private void CleanupCurrentSettings()
+        {
+            _subBinding?.Dispose();
+            _subBinding = null;
+
+            if (_currentLease != null)
+            {
+                _currentLease.Dispose();
+                _currentLease = null;
+            }
+
+            _modeOptionsHost?.Clear();
+        }
+
+        private void CleanupLoadedSettings()
+        {
+            CancelPendingLoad();
+            CleanupCurrentSettings();
+        }
+    }
+}
+
+#nullable restore

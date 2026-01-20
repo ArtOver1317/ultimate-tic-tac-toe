@@ -18,13 +18,13 @@ namespace Runtime.GameModes.Wizard
 
         private static readonly IReadOnlyList<ValidationError> _noErrors = Array.Empty<ValidationError>();
         private static readonly ReadOnlyCollection<ValidationError> _modeConfigRequiredError =
-            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "error.mode_config_required") });
+            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired") });
 
         private static readonly ReadOnlyCollection<ValidationError> _classicConfigInvalidError =
-            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "error.classic_config_invalid") });
+            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "Errors.GameModeWizard.ClassicConfigInvalid") });
 
         private static readonly ReadOnlyCollection<ValidationError> _classicBoardSizeInvalidError =
-            Array.AsReadOnly(new[] { new ValidationError("BoardSize", "error.classic_board_size_invalid") });
+            Array.AsReadOnly(new[] { new ValidationError("BoardSize", "Errors.GameModeWizard.ClassicBoardSizeInvalid") });
 
         private readonly Func<ClassicSettingsViewModel> _createSettingsViewModel;
         private readonly int _minBoardSize;
@@ -68,8 +68,8 @@ namespace Runtime.GameModes.Wizard
 
             Metadata = new GameModeMetadata(
                 id: modeId,
-                displayNameKey: "game_mode.classic.name",
-                descriptionKey: "game_mode.classic.description",
+                displayNameKey: "Mode.Classic",
+                descriptionKey: "Mode.Description.Classic",
                 iconAssetKey: "icons/game_mode_classic",
                 sortOrder: 10,
                 supportsBot: true,

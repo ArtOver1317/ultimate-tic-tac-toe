@@ -1,0 +1,16 @@
+﻿{
+  "version": "1.0",
+  "locale": "ja-JP",
+  "table": "GameModeWizard",
+  "entries": {
+    "GameModeWizard.MatchSetup.Back": "戻る",
+    "GameModeWizard.MatchSetup.Cancel": "キャンセル",
+    "GameModeWizard.MatchSetup.Classic.BoardSize": "盤面サイズ",
+    "GameModeWizard.MatchSetup.ModeOptions.Title": "ルール",
+    "GameModeWizard.MatchSetup.Opponent.Bot": "ボット",
+    "GameModeWizard.MatchSetup.Opponent.Human": "人間",
+    "GameModeWizard.MatchSetup.Opponent.Title": "対戦相手",
+    "GameModeWizard.MatchSetup.Start": "開始",
+    "GameModeWizard.MatchSetup.Ultimate.NoSettings": "追加設定なし"
+  }
+}

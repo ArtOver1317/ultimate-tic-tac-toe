@@ -10,9 +10,14 @@ namespace Tests.EditMode.GameModes.Wizard
     public class GameModeSessionTests
     {
         private GameModeSession _sut;
+        private IGameModeCatalog _catalog;
 
         [SetUp]
-        public void SetUp() => _sut = new GameModeSession();
+        public void SetUp()
+        {
+            _catalog = CreateCatalog();
+            _sut = new GameModeSession(_catalog);
+        }
 
         [TearDown]
         public void TearDown()
@@ -21,11 +26,20 @@ namespace Tests.EditMode.GameModes.Wizard
             _sut = null;
         }
 
+        private static IGameModeCatalog CreateCatalog()
+        {
+            return new GameModeCatalog(new IGameModeStrategy[]
+            {
+                new ClassicModeStrategy(() => new ClassicSettingsViewModel()),
+                new UltimateModeStrategy(() => new UltimateSettingsViewModel())
+            });
+        }
+
         [Test]
         public void WhenCreated_ThenSnapshotIsDefault()
         {
             // Arrange
-            using var sut = new GameModeSession();
+            using var sut = new GameModeSession(_catalog);
 
             // Act
             var snapshot = sut.Snapshot.CurrentValue;
@@ -44,7 +58,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSessionCreatedWithNullInitialSnapshot_ThenThrowsArgumentNullException()
         {
             // Arrange
-            Action act = () => _ = new GameModeSession(initialSnapshot: null);
+            Action act = () => _ = new GameModeSession(_catalog, initialSnapshot: null);
 
             // Act / Assert
             act.Should().Throw<ArgumentNullException>();
@@ -62,7 +76,7 @@ namespace Tests.EditMode.GameModes.Wizard
                 .WithBotDifficultyId("Hard");
 
             // Act
-            using var sut = new GameModeSession(invalid);
+            using var sut = new GameModeSession(_catalog, invalid);
             var snapshot = sut.Snapshot.CurrentValue;
 
             // Assert
@@ -123,7 +137,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenResetCalled_ThenVersionIncrements()
         {
             // Arrange
-            _sut.Update(s => s.WithSelectedModeId("Classic"));
+            _sut.Update(s => s.WithSelectedModeId(ClassicModeStrategy.DefaultModeId));
             var before = _sut.Snapshot.CurrentValue.Version;
 
             // Act
@@ -137,7 +151,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentChangedToBot_ThenTargetPlayerIdIsCleared()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithTargetPlayerId("user-1"));
@@ -153,7 +167,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentChangedToBot_ThenMatchmakingStateResetToIdle()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Matchmaking)
                 .WithMatchmakingState(MatchmakingState.Searching));
@@ -169,7 +183,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentChangedToBot_ThenHumanKindIsPreserved()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Matchmaking));
 
@@ -184,7 +198,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentChangedToHuman_ThenBotDifficultyIsCleared()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Bot)
                 .WithBotDifficultyId("Hard"));
 
@@ -199,7 +213,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenHumanKindChangedFromDirectInvite_ThenTargetPlayerIdIsCleared()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithTargetPlayerId("123"));
@@ -215,7 +229,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenHumanKindChangedFromMatchmaking_ThenMatchmakingStateResetsToIdle()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Matchmaking)
                 .WithMatchmakingState(MatchmakingState.Searching));
@@ -231,7 +245,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenHumanKindIsMatchmaking_ThenTargetPlayerIdIsCleared()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithTargetPlayerId("123")
@@ -248,7 +262,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentIsBot_ThenMatchmakingStateAlwaysIdleEvenIfReducerSetsSearching()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Bot)
                 .WithMatchmakingState(MatchmakingState.Idle));
 
@@ -263,7 +277,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentIsHumanAndReducerSetsBotDifficulty_ThenBotDifficultyIsRemovedByNormalize()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Local));
 
@@ -279,12 +293,12 @@ namespace Tests.EditMode.GameModes.Wizard
         {
             // Arrange
             var classicConfig = new ClassicModeConfig(boardSize: 3);
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("Classic")
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
                 .WithModeConfig(classicConfig));
 
             // Act
-            sut.Update(s => s.WithSelectedModeId("Ultimate"));
+            sut.Update(s => s.WithSelectedModeId(UltimateModeStrategy.DefaultModeId));
 
             // Assert
             sut.Snapshot.CurrentValue.ModeConfig.Should().BeNull();
@@ -296,7 +310,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenModeNotSelected_ThenCanStartIsFalse(string modeId)
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithSelectedModeId(modeId)
                 .WithModeConfig(new ClassicModeConfig(boardSize: 3))
                 .WithBotDifficultyId("Easy"));
@@ -307,15 +321,15 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             canStart.Should().BeFalse();
-            errors.Should().ContainSingle(e => e.Field == "SelectedModeId" && e.MessageKey == "error.mode_required");
+            errors.Should().ContainSingle(e => e.Field == "SelectedModeId" && e.MessageKey == "Errors.GameModeWizard.ModeRequired");
         }
 
         [Test]
         public void WhenModeSelectedButConfigMissing_ThenCanStartIsFalse()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("Classic")
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
                 .WithModeConfig(null)
                 .WithBotDifficultyId("Easy"));
 
@@ -325,15 +339,65 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             canStart.Should().BeFalse();
-            errors.Should().ContainSingle(e => e.Field == "ModeConfig" && e.MessageKey == "error.mode_config_required");
+            errors.Should().ContainSingle(e => e.Field == "ModeConfig" && e.MessageKey == "Errors.GameModeWizard.ModeConfigRequired");
+        }
+
+        [Test]
+        public void WhenCatalogIsMissingAndModeSelected_ThenCanStartIsFalse()
+        {
+            // Arrange
+            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
+                .WithModeConfig(new ClassicModeConfig(boardSize: 3))
+                .WithBotDifficultyId("Easy"));
+
+            // Act
+            var canStart = sut.CanStart.CurrentValue;
+            var errors = sut.ValidationErrors.CurrentValue;
+
+            // Assert
+            canStart.Should().BeFalse();
+            errors.Should().ContainSingle(e => e.Field == "ModeCatalog" && e.MessageKey == "Errors.GameModeWizard.ModeCatalogMissing");
+        }
+
+        [Test]
+        public void WhenModeIsUnknown_ThenValidationContainsUnknownModeError()
+        {
+            // Arrange
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId("unknown")
+                .WithModeConfig(new ClassicModeConfig(boardSize: 3))
+                .WithBotDifficultyId("Easy"));
+
+            // Act
+            var errors = sut.ValidationErrors.CurrentValue;
+
+            // Assert
+            errors.Should().ContainSingle(e => e.Field == "SelectedModeId" && e.MessageKey == "Errors.GameModeWizard.ModeUnknown");
+        }
+
+        [Test]
+        public void WhenModeConfigDoesNotMatchSelectedMode_ThenValidationContainsModeConfigError()
+        {
+            // Arrange
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
+                .WithModeConfig(new UltimateModeConfig())
+                .WithBotDifficultyId("Easy"));
+
+            // Act
+            var errors = sut.ValidationErrors.CurrentValue;
+
+            // Assert
+            errors.Should().ContainSingle(e => e.Field == "ModeConfig" && e.MessageKey == "Errors.GameModeWizard.ClassicConfigInvalid");
         }
 
         [Test]
         public void WhenOpponentIsBotAndDifficultySet_ThenCanStartIsTrue()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("Classic")
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
                 .WithModeConfig(new ClassicModeConfig(boardSize: 3))
                 .WithBotDifficultyId("Easy"));
 
@@ -348,11 +412,11 @@ namespace Tests.EditMode.GameModes.Wizard
         [TestCase(null)]
         [TestCase("")]
         [TestCase("   ")]
-        public void WhenOpponentIsBotAndDifficultyMissing_ThenCanStartIsFalse(string difficulty)
+        public void WhenOpponentIsBotAndDifficultyMissing_ThenCanStartIsTrue(string difficulty)
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("Classic")
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
                 .WithModeConfig(new ClassicModeConfig(boardSize: 3))
                 .WithBotDifficultyId(difficulty));
 
@@ -361,16 +425,16 @@ namespace Tests.EditMode.GameModes.Wizard
             var errors = sut.ValidationErrors.CurrentValue;
 
             // Assert
-            canStart.Should().BeFalse();
-            errors.Should().ContainSingle(e => e.Field == "BotDifficultyId" && e.MessageKey == "error.difficulty_required");
+            canStart.Should().BeTrue();
+            errors.Should().BeEmpty();
         }
 
         [Test]
         public void WhenOpponentIsHumanLocalAndModeSelectedAndConfigSet_ThenCanStartIsTrue()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("Classic")
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
                 .WithModeConfig(new ClassicModeConfig(boardSize: 3))
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Local));
@@ -387,8 +451,8 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentIsDirectInviteAndPlayerIdSet_ThenCanStartIsTrue()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("Classic")
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
                 .WithModeConfig(new ClassicModeConfig(boardSize: 3))
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
@@ -408,8 +472,8 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentIsDirectInviteAndNoPlayerId_ThenCanStartIsFalse(string playerId)
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("Classic")
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
                 .WithModeConfig(new ClassicModeConfig(boardSize: 3))
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
@@ -421,15 +485,15 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             canStart.Should().BeFalse();
-            errors.Should().ContainSingle(e => e.Field == "TargetPlayerId" && e.MessageKey == "error.player_id_required");
+            errors.Should().ContainSingle(e => e.Field == "TargetPlayerId" && e.MessageKey == "Errors.GameModeWizard.PlayerIdRequired");
         }
 
         [Test]
         public void WhenOpponentIsHumanMatchmaking_ThenCanStartIsFalse()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("Classic")
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
                 .WithModeConfig(new ClassicModeConfig(boardSize: 3))
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Matchmaking));
@@ -440,23 +504,25 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             canStart.Should().BeFalse();
-            errors.Should().ContainSingle(e => e.Field == "Matchmaking" && e.MessageKey == "error.matchmaking_config_missing");
+            errors.Should().ContainSingle(e => e.Field == "Matchmaking" && e.MessageKey == "Errors.GameModeWizard.MatchmakingConfigMissing");
         }
 
         [Test]
         public void WhenStateTransitionsFromInvalidToValid_ThenValidationErrorsClearedAndCanStartBecomesTrue()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("Classic")
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
                 .WithModeConfig(new ClassicModeConfig(boardSize: 3))
-                .WithBotDifficultyId(null));
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithTargetPlayerId(null));
 
             sut.CanStart.CurrentValue.Should().BeFalse();
             sut.ValidationErrors.CurrentValue.Should().NotBeEmpty();
 
             // Act
-            sut.Update(s => s.WithBotDifficultyId("Easy"));
+            sut.Update(s => s.WithTargetPlayerId("user1"));
 
             // Assert
             sut.CanStart.CurrentValue.Should().BeTrue();
@@ -467,11 +533,11 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenValidBotState_ThenBuildReturnsBotConfigWithCorrectData()
         {
             // Arrange
-            var modeId = "Classic";
+            var modeId = ClassicModeStrategy.DefaultModeId;
             var modeConfig = new ClassicModeConfig(boardSize: 3);
             var difficulty = "Easy";
 
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithSelectedModeId(modeId)
                 .WithModeConfig(modeConfig)
                 .WithOpponentType(OpponentType.Bot)
@@ -493,10 +559,10 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenValidLocalHumanState_ThenBuildReturnsLocalHumanConfigWithCorrectData()
         {
             // Arrange
-            var modeId = "Classic";
+            var modeId = ClassicModeStrategy.DefaultModeId;
             var modeConfig = new ClassicModeConfig(boardSize: 3);
 
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithSelectedModeId(modeId)
                 .WithModeConfig(modeConfig)
                 .WithOpponentType(OpponentType.Human)
@@ -516,11 +582,11 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenValidDirectInviteState_ThenBuildReturnsDirectInviteConfigWithCorrectData()
         {
             // Arrange
-            var modeId = "Classic";
+            var modeId = ClassicModeStrategy.DefaultModeId;
             var modeConfig = new ClassicModeConfig(boardSize: 3);
             var playerId = "user1";
 
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithSelectedModeId(modeId)
                 .WithModeConfig(modeConfig)
                 .WithOpponentType(OpponentType.Human)
@@ -543,7 +609,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenCanStartIsFalse_ThenBuildReturnsFailure()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default);
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default);
             sut.CanStart.CurrentValue.Should().BeFalse();
 
             // Act
@@ -552,16 +618,15 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             result.IsFailure.Should().BeTrue();
             result.Errors.Should().NotBeEmpty();
-            result.Errors.Should().ContainSingle(e => e.Field == "SelectedModeId" && e.MessageKey == "error.mode_required");
-            result.Errors.Should().ContainSingle(e => e.Field == "ModeConfig" && e.MessageKey == "error.mode_config_required");
-            result.Errors.Should().ContainSingle(e => e.Field == "BotDifficultyId" && e.MessageKey == "error.difficulty_required");
+            result.Errors.Should().ContainSingle(e => e.Field == "SelectedModeId" && e.MessageKey == "Errors.GameModeWizard.ModeRequired");
+            result.Errors.Should().ContainSingle(e => e.Field == "ModeConfig" && e.MessageKey == "Errors.GameModeWizard.ModeConfigRequired");
         }
 
         [Test]
         public void WhenBuildLaunchConfigCalled_ThenFailureErrorsMatchValidationErrors()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default);
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default);
             var expected = sut.ValidationErrors.CurrentValue;
 
             expected.Should().NotBeEmpty("default snapshot is invalid in Phase 1 and must produce validation errors");
@@ -578,8 +643,8 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenResetCalled_ThenSnapshotRestoredToDefault()
         {
             // Arrange
-            using var sut = new GameModeSession(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("Classic")
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
                 .WithModeConfig(new ClassicModeConfig(boardSize: 3))
                 .WithBotDifficultyId("Easy"));
 

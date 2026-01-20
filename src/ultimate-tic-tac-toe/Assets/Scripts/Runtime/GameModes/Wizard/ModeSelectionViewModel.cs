@@ -112,11 +112,16 @@ namespace Runtime.GameModes.Wizard
                 // VM -> Session (write-through)
                 AddDisposable(_selectedModeId
                     .Subscribe(id => OnSelectedModeChanged(id, session)));
+
+                AddDisposable(_availableModes
+                    .Subscribe(modes => NormalizeSelectionAgainstAvailableModes(modes)));
             }
             else
             {
                 // Coordinator not ready: keep UI disabled.
                 AddDisposable(_selectedModeId.Subscribe(UpdateCanContinue));
+                AddDisposable(_availableModes
+                    .Subscribe(modes => NormalizeSelectionAgainstAvailableModes(modes)));
             }
         }
 
@@ -166,6 +171,28 @@ namespace Runtime.GameModes.Wizard
 
         private void UpdateCanContinue(string? selectedModeId) =>
             _canContinue.Value = !string.IsNullOrWhiteSpace(selectedModeId);
+
+        private void NormalizeSelectionAgainstAvailableModes(IReadOnlyList<GameModeMetadata> modes)
+        {
+            if (_selectedModeId.Value == null)
+                return;
+
+            var hasMatch = false;
+            if (modes != null)
+            {
+                for (var i = 0; i < modes.Count; i++)
+                {
+                    if (string.Equals(modes[i].Id, _selectedModeId.Value, StringComparison.Ordinal))
+                    {
+                        hasMatch = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!hasMatch)
+                _selectedModeId.Value = null;
+        }
 
         private sealed class SessionSelectionObserver : Observer<GameModeSessionSnapshot>
         {

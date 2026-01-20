@@ -184,7 +184,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             error.Field.Should().Be("ModeConfig");
-            error.MessageKey.Should().Be("error.mode_config_required");
+            error.MessageKey.Should().Be("Errors.GameModeWizard.ModeConfigRequired");
         }
 
         [Test]
@@ -198,7 +198,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             error.Field.Should().Be("ModeConfig");
-            error.MessageKey.Should().Be("error.classic_config_invalid");
+            error.MessageKey.Should().Be("Errors.GameModeWizard.ClassicConfigInvalid");
         }
 
         [Test]
@@ -218,10 +218,10 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             tooSmallError.Field.Should().Be("BoardSize");
-            tooSmallError.MessageKey.Should().Be("error.classic_board_size_invalid");
+            tooSmallError.MessageKey.Should().Be("Errors.GameModeWizard.ClassicBoardSizeInvalid");
 
             tooLargeError.Field.Should().Be("BoardSize");
-            tooLargeError.MessageKey.Should().Be("error.classic_board_size_invalid");
+            tooLargeError.MessageKey.Should().Be("Errors.GameModeWizard.ClassicBoardSizeInvalid");
         }
 
         [Test]

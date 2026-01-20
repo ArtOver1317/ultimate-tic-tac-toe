@@ -85,4 +85,24 @@ Errors.System.PermissionDenied,Permission denied,Доступ запрещён,�
 Errors.Localization.KeyNotFound,Text not found: {key},Текст не найден: {key},テキストが見つかりません: {key},Localization key not found
 Errors.Localization.LoadFailed,Failed to load localization: {locale},Не удалось загрузить локализацию: {locale},ローカライゼーションの読み込みに失敗しました: {locale},Localization load failed
 Settings.SelectLanguage,Select Language,Выберите язык,言語を選択,Language selection header
+GameModeWizard.MatchSetup.Back,Back,Назад,戻る,Match setup back button
+GameModeWizard.MatchSetup.Cancel,Cancel,Отмена,キャンセル,Match setup cancel button
+GameModeWizard.MatchSetup.Start,Start,Начать,開始,Match setup start button
+GameModeWizard.MatchSetup.Opponent.Bot,Bot,Бот,ボット,Match setup opponent bot toggle
+GameModeWizard.MatchSetup.Opponent.Human,Human,Человек,人間,Match setup opponent human toggle
+GameModeWizard.MatchSetup.Opponent.Title,Opponent,Соперник,対戦相手,Match setup opponent section title
+GameModeWizard.MatchSetup.ModeOptions.Title,Rules,Правила,ルール,Match setup mode options title
+GameModeWizard.MatchSetup.Classic.BoardSize,Board Size,Размер поля,盤面サイズ,Classic mode board size label
+GameModeWizard.MatchSetup.Ultimate.NoSettings,No additional settings,Нет дополнительных настроек,追加設定なし,Ultimate mode no settings label
+Errors.GameModeWizard.ModeRequired,Select a game mode,Выберите режим игры,ゲームモードを選択してください,Wizard validation: mode is required
+Errors.GameModeWizard.ModeConfigRequired,Mode settings are required,Нужны настройки режима,モード設定が必要です,Wizard validation: mode config is required
+Errors.GameModeWizard.ModeCatalogMissing,Mode catalog is not available,Каталог режимов недоступен,モードカタログが利用できません,Wizard validation: mode catalog missing
+Errors.GameModeWizard.ModeUnknown,Unknown game mode,Неизвестный режим игры,不明なゲームモードです,Wizard validation: unknown mode
+Errors.GameModeWizard.DifficultyRequired,Select bot difficulty,Выберите сложность бота,ボットの難易度を選択してください,Wizard validation: bot difficulty required
+Errors.GameModeWizard.PlayerIdRequired,Select a player,Выберите игрока,プレイヤーを選択してください,Wizard validation: target player required
+Errors.GameModeWizard.MatchmakingConfigMissing,Matchmaking is not available yet,Матчмейкинг пока недоступен,マッチメイキングはまだ利用できません,Wizard validation: matchmaking not implemented
+Errors.GameModeWizard.ClassicConfigInvalid,Invalid Classic mode settings,Некорректные настройки классического режима,Classicモードの設定が無効です,Wizard validation: classic config invalid
+Errors.GameModeWizard.ClassicBoardSizeInvalid,Board size is out of range,Размер поля вне допустимого диапазона,ボードサイズが範囲外です,Wizard validation: classic board size out of range
+Errors.GameModeWizard.UltimateConfigInvalid,Invalid Ultimate mode settings,Некорректные настройки режима Ultimate,Ultimateモードの設定が無効です,Wizard validation: ultimate config invalid
+Errors.GameModeWizard.UnhandledException,An error occurred. Please try again.,Произошла ошибка. Попробуйте ещё раз.,エラーが発生しました。もう一度お試しください。,Wizard: unhandled exception
 
