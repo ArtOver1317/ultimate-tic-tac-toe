@@ -2,14 +2,14 @@
     <Style src="ModeSelectionStyles.uss" />
     <ui:VisualElement name="Root" class="gmw-root">
         <ui:VisualElement name="Header" class="gmw-header">
-            <ui:Label text="Select Game Mode" name="Title" class="gmw-title" />
+            <ui:Label text="..." name="Title" class="gmw-title" />
         </ui:VisualElement>
 
         <ui:ListView name="ModeList" class="gmw-mode-list" />
 
         <ui:VisualElement name="ActionBar" class="gmw-action-bar">
-            <ui:Button text="Cancel" name="CancelButton" class="gmw-button gmw-button--secondary" />
-            <ui:Button text="Continue" name="ContinueButton" class="gmw-button gmw-button--primary" />
+            <ui:Button text="..." name="CancelButton" class="gmw-button gmw-button--secondary" />
+            <ui:Button text="..." name="ContinueButton" class="gmw-button gmw-button--primary" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

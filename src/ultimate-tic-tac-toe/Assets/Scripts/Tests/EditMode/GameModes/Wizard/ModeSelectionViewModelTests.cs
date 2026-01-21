@@ -10,6 +10,7 @@ using NSubstitute;
 using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.Localization;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -22,6 +23,7 @@ namespace Tests.EditMode.GameModes.Wizard
         private IGameModeCatalog _catalog;
         private IGameModeWizardCoordinator _coordinator;
         private FakeGameModeSession _session;
+        private ILocalizationService _localization;
 
         [SetUp]
         public void SetUp()
@@ -29,6 +31,11 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog = Substitute.For<IGameModeCatalog>();
             _coordinator = Substitute.For<IGameModeWizardCoordinator>();
             _session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            _localization = Substitute.For<ILocalizationService>();
+
+            _localization
+                .Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo => Observable.Return(callInfo.Arg<TextKey>().Value));
         }
 
         [TearDown]
@@ -42,7 +49,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenConstructorCalledWithNullCatalog_ThenThrowsArgumentNullException()
         {
             // Arrange
-            Action act = () => _ = new ModeSelectionViewModel(null, _coordinator);
+            Action act = () => _ = new ModeSelectionViewModel(null, _coordinator, _localization);
 
             // Act / Assert
             act.Should().Throw<ArgumentNullException>();
@@ -52,7 +59,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenConstructorCalledWithNullCoordinator_ThenThrowsArgumentNullException()
         {
             // Arrange
-            Action act = () => _ = new ModeSelectionViewModel(_catalog, null);
+            Action act = () => _ = new ModeSelectionViewModel(_catalog, null, _localization);
 
             // Act / Assert
             act.Should().Throw<ArgumentNullException>();
@@ -65,7 +72,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns((IReadOnlyList<GameModeMetadata>)null);
 
             // Act
-            Action act = () => _ = new ModeSelectionViewModel(_catalog, _coordinator);
+            Action act = () => _ = new ModeSelectionViewModel(_catalog, _coordinator, _localization);
 
             // Assert
             act.Should().Throw<ArgumentException>()
@@ -80,7 +87,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns(modes);
 
             // Act
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
 
             // Assert
             sut.AvailableModes.CurrentValue.Should().HaveCount(3);
@@ -96,7 +103,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns(modes);
             SetupCoordinatorWithSession(_session);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
 
             // Act
             sut.Initialize();
@@ -115,7 +122,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns(modes);
             SetupCoordinatorWithSession(_session);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
             sut.SelectMode("classic");
             _session.UpdateCallCount.Should().Be(1);
@@ -138,7 +145,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var modes = CreateModes("classic");
             _catalog.Metadata.Returns(modes);
 
-            var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -164,7 +171,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var modes = CreateModes("classic");
             _catalog.Metadata.Returns(modes);
 
-            var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            var sut = CreateSut();
 
             // Act
             Action act = () =>
@@ -186,7 +193,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var modes = CreateModes("classic");
             _catalog.Metadata.Returns(modes);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -204,7 +211,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var modes = CreateModes("classic");
             _catalog.Metadata.Returns(modes);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -222,7 +229,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var modes = CreateModes("classic", "ultimate");
             _catalog.Metadata.Returns(modes);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -246,7 +253,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var modes = CreateModes("classic");
             _catalog.Metadata.Returns(modes);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             var emitCount = 0;
@@ -268,7 +275,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var modes = CreateModes("classic");
             _catalog.Metadata.Returns(modes);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -286,7 +293,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns(modes);
             _coordinator.TryPublishIntent(WizardIntent.Continue).Returns(true);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
             sut.SelectMode("classic");
 
@@ -305,7 +312,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns(modes);
             _coordinator.TryPublishIntent(WizardIntent.Continue).Returns(false);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
             sut.SelectMode("classic");
 
@@ -325,7 +332,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns(modes);
             _coordinator.TryPublishIntent(WizardIntent.Cancel).Returns(true);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -343,7 +350,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns(modes);
             _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
 
             // Act
             sut.Initialize();
@@ -364,7 +371,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
             _coordinator.TryPublishIntent(WizardIntent.Continue).Returns(true);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
             sut.SelectMode("classic");
 
@@ -385,7 +392,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithSelectedModeId("classic"));
             SetupCoordinatorWithSession(_session);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
 
             // Act
             sut.Initialize();
@@ -403,7 +410,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns(modes);
             SetupCoordinatorWithSession(_session);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -422,7 +429,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns(modes);
             SetupCoordinatorWithSession(_session);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -443,7 +450,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithSelectedModeId("classic"));
             SetupCoordinatorWithSession(_session);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             var emitCount = 0;
@@ -467,7 +474,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithSelectedModeId("classic"));
             SetupCoordinatorWithSession(_session);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -485,7 +492,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns(modes);
             SetupCoordinatorWithSession(_session);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             using var startGate = new ManualResetEventSlim(false);
@@ -519,7 +526,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _catalog.Metadata.Returns(modes);
             SetupCoordinatorWithSession(_session);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -542,7 +549,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _session = new FakeGameModeSession(null);
             SetupCoordinatorWithSession(_session);
 
-            using var sut = new ModeSelectionViewModel(_catalog, _coordinator);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -562,6 +569,9 @@ namespace Tests.EditMode.GameModes.Wizard
                     callInfo[0] = session;
                     return true;
                 });
+
+        private ModeSelectionViewModel CreateSut() =>
+            new ModeSelectionViewModel(_catalog, _coordinator, _localization);
 
         private static List<GameModeMetadata> CreateModes(params string[] ids) =>
             ids.Select((id, index) => new GameModeMetadata(

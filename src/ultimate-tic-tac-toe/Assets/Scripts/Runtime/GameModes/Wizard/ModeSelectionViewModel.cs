@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using R3;
 using Runtime.Infrastructure.Logging;
+using Runtime.Localization;
 using Runtime.UI.Core;
 
 namespace Runtime.GameModes.Wizard
@@ -15,6 +16,7 @@ namespace Runtime.GameModes.Wizard
     public sealed class ModeSelectionViewModel : BaseViewModel
     {
         private readonly IGameModeWizardCoordinator _coordinator;
+        private readonly ILocalizationService _localization;
 
         private readonly ReactiveProperty<IReadOnlyList<GameModeMetadata>> _availableModes;
         private readonly ReactiveProperty<string?> _selectedModeId = new(null);
@@ -27,17 +29,30 @@ namespace Runtime.GameModes.Wizard
         public ReactiveProperty<string?> SelectedModeId => _selectedModeId;
         public ReadOnlyReactiveProperty<bool> CanContinue => _canContinue;
 
+        public Observable<string> TitleText { get; }
+        public Observable<string> CancelButtonText { get; }
+        public Observable<string> ContinueButtonText { get; }
+
         internal void SetAvailableModesForTests(IReadOnlyList<GameModeMetadata> modes) =>
             _availableModes.Value = modes;
 
-        public ModeSelectionViewModel(IGameModeCatalog catalog, IGameModeWizardCoordinator coordinator)
+        public ModeSelectionViewModel(
+            IGameModeCatalog catalog,
+            IGameModeWizardCoordinator coordinator,
+            ILocalizationService localization)
         {
             if (catalog == null)
                 throw new ArgumentNullException(nameof(catalog));
             _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+            _localization = localization ?? throw new ArgumentNullException(nameof(localization));
 
             _availableModes = new ReactiveProperty<IReadOnlyList<GameModeMetadata>>(
                 catalog.Metadata ?? throw new ArgumentException("Catalog returned null Metadata.", nameof(catalog)));
+
+            var table = new TextTableId("GameModeWizard");
+            TitleText = _localization.Observe(table, new TextKey("GameModeWizard.ModeSelection.Title"));
+            CancelButtonText = _localization.Observe(table, new TextKey("GameModeWizard.ModeSelection.Cancel"));
+            ContinueButtonText = _localization.Observe(table, new TextKey("GameModeWizard.ModeSelection.Continue"));
 
             UpdateCanContinue(_selectedModeId.Value);
         }

@@ -8,6 +8,7 @@ using NSubstitute;
 using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.Localization;
 using Runtime.UI.GameModes.Wizard;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -28,6 +29,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         private ModeSelectionViewModel _viewModel;
         private IGameModeWizardCoordinator _coordinator;
         private List<GameModeMetadata> _modes;
+        private ILocalizationService _localization;
 
         [UnitySetUp]
         public IEnumerator SetUp()
@@ -53,7 +55,12 @@ namespace Tests.PlayMode.GameModes.Wizard
             _coordinator = Substitute.For<IGameModeWizardCoordinator>();
             _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
 
-            _viewModel = new ModeSelectionViewModel(catalog, _coordinator);
+            _localization = Substitute.For<ILocalizationService>();
+            _localization
+                .Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo => Observable.Return(callInfo.Arg<TextKey>().Value));
+
+            _viewModel = new ModeSelectionViewModel(catalog, _coordinator, _localization);
 
             yield return null;
         }
@@ -90,7 +97,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             var coordinator = Substitute.For<IGameModeWizardCoordinator>();
             coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
 
-            var viewModel = new ModeSelectionViewModel(catalog, coordinator);
+            var viewModel = new ModeSelectionViewModel(catalog, coordinator, _localization);
 
             yield return null;
 
@@ -351,7 +358,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             var coordinatorB = Substitute.For<IGameModeWizardCoordinator>();
             coordinatorB.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
 
-            var viewModelB = new ModeSelectionViewModel(catalogB, coordinatorB);
+            var viewModelB = new ModeSelectionViewModel(catalogB, coordinatorB, _localization);
             _view.SetViewModel(viewModelB);
             yield return null;
 

@@ -2,9 +2,9 @@
     <Style src="SettingsStyles.uss" />
     <ui:VisualElement name="Root" class="root">
         <ui:VisualElement name="Panel" class="panel">
-            <ui:Label text="Settings" name="Title" class="title" />
-            <ui:Button text="Language" name="LanguageButton" class="menu-button" />
-            <ui:Button text="Back" name="BackButton" class="menu-button" />
+            <ui:Label text="..." name="Title" class="title" />
+            <ui:Button text="..." name="LanguageButton" class="menu-button" />
+            <ui:Button text="..." name="BackButton" class="menu-button" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

@@ -96,6 +96,9 @@ GameModeWizard.MatchSetup.BotDifficulty.Title,Bot Difficulty,Сложность 
 GameModeWizard.MatchSetup.BotDifficulty.Easy,Easy,Лёгкая,簡単,Bot difficulty: easy
 GameModeWizard.MatchSetup.BotDifficulty.Normal,Normal,Нормальная,普通,Bot difficulty: normal
 GameModeWizard.MatchSetup.BotDifficulty.Hard,Hard,Сложная,難しい,Bot difficulty: hard
+GameModeWizard.ModeSelection.Title,Select Game Mode,Выберите режим игры,ゲームモードを選択,Mode selection title
+GameModeWizard.ModeSelection.Cancel,Cancel,Отмена,キャンセル,Mode selection cancel button
+GameModeWizard.ModeSelection.Continue,Continue,Продолжить,続行,Mode selection continue button
 GameModeWizard.MatchSetup.Classic.BoardSize,Board Size,Размер поля,盤面サイズ,Classic mode board size label
 GameModeWizard.MatchSetup.Ultimate.NoSettings,No additional settings,Нет дополнительных настроек,追加設定なし,Ultimate mode no settings label
 Errors.GameModeWizard.ModeRequired,Select a game mode,Выберите режим игры,ゲームモードを選択してください,Wizard validation: mode is required

@@ -15,6 +15,9 @@
     "GameModeWizard.MatchSetup.Opponent.Human": "人間",
     "GameModeWizard.MatchSetup.Opponent.Title": "対戦相手",
     "GameModeWizard.MatchSetup.Start": "開始",
-    "GameModeWizard.MatchSetup.Ultimate.NoSettings": "追加設定なし"
+    "GameModeWizard.MatchSetup.Ultimate.NoSettings": "追加設定なし",
+    "GameModeWizard.ModeSelection.Cancel": "キャンセル",
+    "GameModeWizard.ModeSelection.Continue": "続行",
+    "GameModeWizard.ModeSelection.Title": "ゲームモードを選択"
   }
 }

@@ -15,6 +15,9 @@
     "GameModeWizard.MatchSetup.Opponent.Human": "Human",
     "GameModeWizard.MatchSetup.Opponent.Title": "Opponent",
     "GameModeWizard.MatchSetup.Start": "Start",
-    "GameModeWizard.MatchSetup.Ultimate.NoSettings": "No additional settings"
+    "GameModeWizard.MatchSetup.Ultimate.NoSettings": "No additional settings",
+    "GameModeWizard.ModeSelection.Cancel": "Cancel",
+    "GameModeWizard.ModeSelection.Continue": "Continue",
+    "GameModeWizard.ModeSelection.Title": "Select Game Mode"
   }
 }

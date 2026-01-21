@@ -3,6 +3,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
+using Runtime.Localization;
 using Runtime.UI.GameModes.Wizard;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -19,6 +20,7 @@ namespace Tests.EditMode.GameModes.Wizard
         private ModeSelectionView _view;
         private VisualTreeAsset _uxml;
         private ModeSelectionViewModel _viewModel;
+        private ILocalizationService _localization;
 
         [SetUp]
         public void SetUp()
@@ -44,7 +46,12 @@ namespace Tests.EditMode.GameModes.Wizard
             var coordinator = Substitute.For<IGameModeWizardCoordinator>();
             coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
 
-            _viewModel = new ModeSelectionViewModel(catalog, coordinator);
+            _localization = Substitute.For<ILocalizationService>();
+            _localization
+                .Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo => R3.Observable.Return(callInfo.Arg<TextKey>().Value));
+
+            _viewModel = new ModeSelectionViewModel(catalog, coordinator, _localization);
         }
 
         [TearDown]

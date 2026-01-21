@@ -15,6 +15,9 @@
     "GameModeWizard.MatchSetup.Opponent.Human": "Человек",
     "GameModeWizard.MatchSetup.Opponent.Title": "Соперник",
     "GameModeWizard.MatchSetup.Start": "Начать",
-    "GameModeWizard.MatchSetup.Ultimate.NoSettings": "Нет дополнительных настроек"
+    "GameModeWizard.MatchSetup.Ultimate.NoSettings": "Нет дополнительных настроек",
+    "GameModeWizard.ModeSelection.Cancel": "Отмена",
+    "GameModeWizard.ModeSelection.Continue": "Продолжить",
+    "GameModeWizard.ModeSelection.Title": "Выберите режим игры"
   }
 }

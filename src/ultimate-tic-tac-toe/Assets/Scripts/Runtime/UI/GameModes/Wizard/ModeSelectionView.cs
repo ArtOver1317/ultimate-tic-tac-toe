@@ -13,6 +13,9 @@ namespace Runtime.UI.GameModes.Wizard
     public sealed class ModeSelectionView : UIView<ModeSelectionViewModel>
     {
         private ILocalizationService _localization;
+
+        [Runtime.UI.Core.UxmlElementAttribute("Title")]
+        private Label _titleLabel;
         [Runtime.UI.Core.UxmlElementAttribute("ModeList")]
         private ListView _modeList;
 
@@ -35,6 +38,8 @@ namespace Runtime.UI.GameModes.Wizard
         {
             if (_modeList == null)
                 throw new InvalidOperationException("ModeList element is missing in UXML.");
+            if (_titleLabel == null)
+                throw new InvalidOperationException("Title element is missing in UXML.");
             if (_cancelButton == null)
                 throw new InvalidOperationException("CancelButton element is missing in UXML.");
             if (_continueButton == null)
@@ -45,6 +50,10 @@ namespace Runtime.UI.GameModes.Wizard
             _modeList.makeItem = static () => new ModeCardElement();
 
             _modeList.bindItem = BindModeCard;
+
+            BindText(ViewModel.TitleText, _titleLabel);
+            BindText(ViewModel.CancelButtonText, _cancelButton);
+            BindText(ViewModel.ContinueButtonText, _continueButton);
 
             SetModes(ViewModel.AvailableModes.CurrentValue);
             AddDisposable(ViewModel.AvailableModes.Subscribe(SetModes));
