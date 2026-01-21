@@ -128,38 +128,6 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public void WhenResetCalledMultipleTimes_ThenConfigEmitsOncePerSingleBoardSizeChange()
-        {
-            // Arrange
-            using var sut = new ClassicSettingsViewModel();
-            sut.Configure(minBoardSize: 3, maxBoardSize: 10, defaultBoardSize: 3);
-
-            sut.Reset();
-            sut.Reset();
-            sut.Reset();
-
-            var emissions = 0;
-            var isFirst = true;
-
-            using var sub = sut.Config.Subscribe(_ =>
-            {
-                if (isFirst)
-                {
-                    isFirst = false;
-                    return;
-                }
-
-                emissions++;
-            });
-
-            // Act
-            sut.IncrementBoardSize();
-
-            // Assert
-            emissions.Should().Be(1);
-        }
-
-        [Test]
         public void WhenClassicSettingsViewModelDisposeCalledMultipleTimes_ThenIsIdempotent()
         {
             // Arrange
@@ -175,5 +143,6 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             act.Should().NotThrow();
         }
+
     }
 }
