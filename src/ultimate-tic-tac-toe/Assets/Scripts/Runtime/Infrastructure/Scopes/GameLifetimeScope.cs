@@ -43,6 +43,7 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<IGameModeWizardCoordinator, GameModeWizardCoordinator>(Lifetime.Singleton);
             builder.Register<IGameModeWizardNavigator, GameModeWizardNavigator>(Lifetime.Singleton);
             builder.Register<IGameModeCatalog, GameModeCatalog>(Lifetime.Singleton);
+            builder.Register<IBotDifficultyCatalog, BotDifficultyCatalog>(Lifetime.Singleton);
             builder.Register<ClassicModeStrategy>(Lifetime.Singleton).As<IGameModeStrategy>();
             builder.Register<UltimateModeStrategy>(Lifetime.Singleton).As<IGameModeStrategy>();
 

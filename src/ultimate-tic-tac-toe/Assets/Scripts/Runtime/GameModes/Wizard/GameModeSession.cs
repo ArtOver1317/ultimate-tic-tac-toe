@@ -11,7 +11,6 @@ namespace Runtime.GameModes.Wizard
     public sealed class GameModeSession : IGameModeSession
     {
         private static readonly IReadOnlyList<ValidationError> _noErrors = Array.Empty<ValidationError>();
-        private const string DefaultBotDifficultyId = "Normal";
 
         private readonly object _lock = new();
         private readonly IGameModeCatalog _catalog;
@@ -120,11 +119,10 @@ namespace Runtime.GameModes.Wizard
             switch (snapshot.OpponentType)
             {
                 case OpponentType.Bot:
-                    var difficultyId = string.IsNullOrWhiteSpace(snapshot.BotDifficultyId)
-                        ? DefaultBotDifficultyId
-                        : snapshot.BotDifficultyId;
+                    if (string.IsNullOrWhiteSpace(snapshot.BotDifficultyId))
+                        throw new InvalidOperationException("Bot difficulty is missing after validation.");
 
-                    opponentConfig = new BotOpponentConfig(difficultyId);
+                    opponentConfig = new BotOpponentConfig(snapshot.BotDifficultyId);
                     break;
 
                 case OpponentType.Human:
@@ -219,9 +217,6 @@ namespace Runtime.GameModes.Wizard
 
             var s = snapshot;
 
-            if (s.OpponentType == OpponentType.Human)
-                s = s.WithBotDifficultyId(null);
-
             if (s.OpponentType == OpponentType.Bot)
             {
                 // Do not force a specific HumanOpponentKind when Bot is selected.
@@ -286,7 +281,8 @@ namespace Runtime.GameModes.Wizard
 
             if (snapshot.OpponentType == OpponentType.Bot)
             {
-                // Phase 6: bot difficulty selection is part of Phase 7, so it is optional here.
+                if (string.IsNullOrWhiteSpace(snapshot.BotDifficultyId))
+                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("BotDifficultyId", "Errors.GameModeWizard.DifficultyRequired"));
             }
             else
             {

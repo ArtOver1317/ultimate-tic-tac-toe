@@ -81,7 +81,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             snapshot.OpponentType.Should().Be(OpponentType.Human);
-            snapshot.BotDifficultyId.Should().BeNull("bot difficulty must not leak into human opponent state");
+            snapshot.BotDifficultyId.Should().Be("Hard", "bot difficulty should be preserved when switching to human");
             snapshot.TargetPlayerId.Should().Be("player-1", "direct invite requires keeping target player id");
             snapshot.MatchmakingState.Should().Be(MatchmakingState.Idle, "matchmaking state must reset when not in matchmaking kind");
         }
@@ -195,7 +195,7 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public void WhenOpponentChangedToHuman_ThenBotDifficultyIsCleared()
+        public void WhenOpponentChangedToHuman_ThenBotDifficultyIsPreserved()
         {
             // Arrange
             using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
@@ -206,7 +206,7 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.Update(s => s.WithOpponentType(OpponentType.Human));
 
             // Assert
-            sut.Snapshot.CurrentValue.BotDifficultyId.Should().BeNull();
+            sut.Snapshot.CurrentValue.BotDifficultyId.Should().Be("Hard");
         }
 
         [Test]
@@ -274,7 +274,7 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public void WhenOpponentIsHumanAndReducerSetsBotDifficulty_ThenBotDifficultyIsRemovedByNormalize()
+        public void WhenOpponentIsHumanAndReducerSetsBotDifficulty_ThenBotDifficultyIsPreserved()
         {
             // Arrange
             using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
@@ -285,7 +285,7 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.Update(s => s.WithBotDifficultyId("Hard"));
 
             // Assert
-            sut.Snapshot.CurrentValue.BotDifficultyId.Should().BeNull();
+            sut.Snapshot.CurrentValue.BotDifficultyId.Should().Be("Hard");
         }
 
         [Test]
@@ -412,7 +412,7 @@ namespace Tests.EditMode.GameModes.Wizard
         [TestCase(null)]
         [TestCase("")]
         [TestCase("   ")]
-        public void WhenOpponentIsBotAndDifficultyMissing_ThenCanStartIsTrue(string difficulty)
+        public void WhenOpponentIsBotAndDifficultyMissing_ThenCanStartIsFalse(string difficulty)
         {
             // Arrange
             using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
@@ -425,8 +425,8 @@ namespace Tests.EditMode.GameModes.Wizard
             var errors = sut.ValidationErrors.CurrentValue;
 
             // Assert
-            canStart.Should().BeTrue();
-            errors.Should().BeEmpty();
+            canStart.Should().BeFalse();
+            errors.Should().ContainSingle(e => e.Field == "BotDifficultyId" && e.MessageKey == "Errors.GameModeWizard.DifficultyRequired");
         }
 
         [Test]

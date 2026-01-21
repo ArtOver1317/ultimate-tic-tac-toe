@@ -19,6 +19,7 @@ namespace Tests.EditMode.GameModes.Wizard
         private IGameModeCatalog _catalog;
         private IGameModeWizardCoordinator _coordinator;
         private ILocalizationService _localization;
+        private IBotDifficultyCatalog _difficultyCatalog;
         private ReactiveProperty<bool> _isTransitioning;
         private ReactiveProperty<bool> _isSubmitting;
         private ReactiveProperty<WizardError?> _currentError;
@@ -45,6 +46,8 @@ namespace Tests.EditMode.GameModes.Wizard
             _localization
                 .Resolve(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(callInfo => $"resolved:{callInfo.Arg<TextKey>().Value}");
+
+            _difficultyCatalog = new BotDifficultyCatalog();
         }
 
         [TearDown]
@@ -61,7 +64,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Arrange
             _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
 
             // Act
             sut.Initialize();
@@ -91,7 +94,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var strategy = new TestStrategy("classic", "icons/classic", "Mode.Classic", subVm);
             SetupStrategy("classic", strategy);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
 
             // Act
             sut.Initialize();
@@ -122,7 +125,7 @@ namespace Tests.EditMode.GameModes.Wizard
                     return true;
                 });
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             session.EmitSnapshot(GameModeSessionSnapshot.Default
@@ -155,7 +158,7 @@ namespace Tests.EditMode.GameModes.Wizard
                     return true;
                 });
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
 
             // Act
             sut.Initialize();
@@ -195,7 +198,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var strategy = new TestStrategy("classic", "icons/classic", "Mode.Classic", subVm);
             SetupStrategy("classic", strategy);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -222,7 +225,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var strategy = new TestStrategy("classic", "icons/classic", "Mode.Classic", subVm);
             SetupStrategy("classic", strategy);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -242,7 +245,7 @@ namespace Tests.EditMode.GameModes.Wizard
             SetupCoordinatorWithSession(session);
             _catalog.TryGetStrategy(Arg.Any<string>(), out Arg.Any<IGameModeStrategy>()).Returns(false);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             session.EmitCanStart(false);
@@ -272,7 +275,7 @@ namespace Tests.EditMode.GameModes.Wizard
             SetupStrategy("classic", new TestStrategy("classic", "icons/classic", "Mode.Classic", classicVm));
             SetupStrategy("ultimate", new TestStrategy("ultimate", "icons/ultimate", "Mode.Ultimate", ultimateVm));
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -291,7 +294,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             var errors = new List<ValidationError>
@@ -314,7 +317,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             session.EmitValidationErrors(new List<ValidationError>
@@ -336,7 +339,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             session.EmitValidationErrors(new List<ValidationError>
@@ -358,7 +361,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             session.EmitValidationErrors(new List<ValidationError>
@@ -383,7 +386,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             session.EmitValidationErrors(new List<ValidationError>
@@ -411,7 +414,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -431,7 +434,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -449,7 +452,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -470,7 +473,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var subVm = new TestSettingsViewModel(new TestGameModeConfig("initial"));
             SetupStrategy("classic", new TestStrategy("classic", "icons/classic", "Mode.Classic", subVm));
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
             session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(1));
 
@@ -489,7 +492,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Arrange
             _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
 
             // Act
             Action act = () =>
@@ -513,7 +516,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var subVm = new TestSettingsViewModel(new TestGameModeConfig("initial"));
             SetupStrategy("classic", new TestStrategy("classic", "icons/classic", "Mode.Classic", subVm));
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
             session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(1));
 
@@ -542,7 +545,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -559,7 +562,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
 
             // Act
@@ -576,7 +579,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
             session.EmitCanStart(false);
 
@@ -594,7 +597,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
             session.EmitCanStart(true);
 
@@ -613,7 +616,7 @@ namespace Tests.EditMode.GameModes.Wizard
             SetupCoordinatorWithSession(session);
             _coordinator.TryPublishIntent(Arg.Any<WizardIntent>()).Returns(false);
 
-            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization);
+            using var sut = CreateSut();
             sut.Initialize();
             session.EmitCanStart(true);
 
@@ -642,6 +645,9 @@ namespace Tests.EditMode.GameModes.Wizard
                 callInfo[1] = strategy;
                 return true;
             });
+
+        private MatchSetupViewModel CreateSut() =>
+            new MatchSetupViewModel(_catalog, _coordinator, _localization, _difficultyCatalog);
 
         private sealed class FakeGameModeSession : IGameModeSession
         {

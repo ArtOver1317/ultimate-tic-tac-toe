@@ -4,6 +4,10 @@
   "table": "GameModeWizard",
   "entries": {
     "GameModeWizard.MatchSetup.Back": "Назад",
+    "GameModeWizard.MatchSetup.BotDifficulty.Easy": "Лёгкая",
+    "GameModeWizard.MatchSetup.BotDifficulty.Hard": "Сложная",
+    "GameModeWizard.MatchSetup.BotDifficulty.Normal": "Нормальная",
+    "GameModeWizard.MatchSetup.BotDifficulty.Title": "Сложность бота",
     "GameModeWizard.MatchSetup.Cancel": "Отмена",
     "GameModeWizard.MatchSetup.Classic.BoardSize": "Размер поля",
     "GameModeWizard.MatchSetup.ModeOptions.Title": "Правила",

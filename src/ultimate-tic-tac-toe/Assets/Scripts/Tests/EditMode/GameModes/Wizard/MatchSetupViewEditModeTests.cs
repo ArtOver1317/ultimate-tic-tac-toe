@@ -73,7 +73,8 @@ namespace Tests.EditMode.GameModes.Wizard
             });
 
             var catalog = Substitute.For<IGameModeCatalog>();
-            _viewModel = new MatchSetupViewModel(catalog, _coordinator, _localization);
+            var difficultyCatalog = new BotDifficultyCatalog();
+            _viewModel = new MatchSetupViewModel(catalog, _coordinator, _localization, difficultyCatalog);
 
             var assetProvider = new FakeViewAssetProvider();
             var binders = Array.Empty<IModeSettingsBinder>();

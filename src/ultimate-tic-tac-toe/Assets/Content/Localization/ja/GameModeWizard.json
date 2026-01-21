@@ -4,6 +4,10 @@
   "table": "GameModeWizard",
   "entries": {
     "GameModeWizard.MatchSetup.Back": "戻る",
+    "GameModeWizard.MatchSetup.BotDifficulty.Easy": "簡単",
+    "GameModeWizard.MatchSetup.BotDifficulty.Hard": "難しい",
+    "GameModeWizard.MatchSetup.BotDifficulty.Normal": "普通",
+    "GameModeWizard.MatchSetup.BotDifficulty.Title": "ボット難易度",
     "GameModeWizard.MatchSetup.Cancel": "キャンセル",
     "GameModeWizard.MatchSetup.Classic.BoardSize": "盤面サイズ",
     "GameModeWizard.MatchSetup.ModeOptions.Title": "ルール",

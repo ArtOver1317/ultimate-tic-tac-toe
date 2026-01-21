@@ -8,6 +8,7 @@ using R3;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Core;
+using Runtime.UI.Components;
 
 namespace Runtime.GameModes.Wizard
 {
@@ -26,14 +27,20 @@ namespace Runtime.GameModes.Wizard
             "Matchmaking",
             "ModeCatalog"
         };
+
         private readonly IGameModeCatalog _catalog;
         private readonly IGameModeWizardCoordinator _coordinator;
         private readonly ILocalizationService _localization;
+        private readonly IBotDifficultyCatalog _difficultyCatalog;
 
         private readonly ReactiveProperty<string> _modeTitleText = new(string.Empty);
         private readonly ReactiveProperty<string> _modeIconKey = new(string.Empty);
         private readonly ReactiveProperty<ModeSettingsPresentation?> _activeSettings = new(null);
         private readonly ReactiveProperty<OpponentType> _opponentType = new(global::Runtime.GameModes.Wizard.OpponentType.Bot);
+        private readonly ReactiveProperty<IReadOnlyList<BotDifficulty>> _availableDifficulties;
+        private readonly ReactiveProperty<IReadOnlyList<DifficultyChipItem>> _difficultyItems = new(Array.Empty<DifficultyChipItem>());
+        private readonly ReactiveProperty<string?> _selectedDifficultyId = new(null);
+        private readonly ReactiveProperty<bool> _isBotSettingsVisible = new(true);
         private readonly ReactiveProperty<bool> _canStart = new(false);
         private readonly ReactiveProperty<bool> _isBusy = new(false);
         private readonly ReactiveProperty<string?> _inlineErrorText = new(null);
@@ -45,19 +52,31 @@ namespace Runtime.GameModes.Wizard
         private int _lastAppliedVersion;
 
         private IDisposable? _modeTitleSubscription;
+        private CompositeDisposable? _difficultyLocalizationSubscriptions;
+        private readonly Dictionary<string, string> _difficultyLabels = new(StringComparer.Ordinal);
         private string? _validationErrorText;
         private string? _coordinatorInlineErrorText;
+
+        private int _difficultyItemsRebuildScheduled;
+        private int _difficultyItemsRebuildVersion;
 
         private ISpecificModeSettingsViewModel? _activeSettingsViewModel;
         private IDisposable? _activeConfigSubscription;
 
         private int _isWired;
+        // Protects against feedback loop: UI -> session -> UI
         private int _isSyncingFromSession;
+        // Protects against feedback loop: UI -> session -> UI
+        private int _isSyncingDifficultyFromSession;
 
         public ReadOnlyReactiveProperty<string> ModeTitleText => _modeTitleText;
         public ReadOnlyReactiveProperty<string> ModeIconKey => _modeIconKey;
         public ReadOnlyReactiveProperty<ModeSettingsPresentation?> ActiveSettings => _activeSettings;
         public ReactiveProperty<OpponentType> OpponentType => _opponentType;
+        public ReadOnlyReactiveProperty<IReadOnlyList<BotDifficulty>> AvailableDifficulties => _availableDifficulties;
+        public ReadOnlyReactiveProperty<IReadOnlyList<DifficultyChipItem>> DifficultyItems => _difficultyItems;
+        public ReactiveProperty<string?> SelectedDifficultyId => _selectedDifficultyId;
+        public ReadOnlyReactiveProperty<bool> IsBotSettingsVisible => _isBotSettingsVisible;
         public ReadOnlyReactiveProperty<bool> CanStart => _canStart;
         public ReadOnlyReactiveProperty<bool> IsBusy => _isBusy;
         public ReadOnlyReactiveProperty<WizardError?> Error => _coordinator.CurrentError;
@@ -70,15 +89,21 @@ namespace Runtime.GameModes.Wizard
         public Observable<string> OpponentHumanText { get; }
         public Observable<string> OpponentSectionTitle { get; }
         public Observable<string> ModeOptionsTitle { get; }
+        public Observable<string> BotDifficultyTitle { get; }
 
         public MatchSetupViewModel(
             IGameModeCatalog catalog,
             IGameModeWizardCoordinator coordinator,
-            ILocalizationService localization)
+            ILocalizationService localization,
+            IBotDifficultyCatalog difficultyCatalog)
         {
             _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
             _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
+            _difficultyCatalog = difficultyCatalog ?? throw new ArgumentNullException(nameof(difficultyCatalog));
+
+            _availableDifficulties = new ReactiveProperty<IReadOnlyList<BotDifficulty>>(
+                _difficultyCatalog.Difficulties ?? throw new ArgumentException("Difficulty catalog returned null list.", nameof(difficultyCatalog)));
 
             var table = new TextTableId("GameModeWizard");
             BackButtonText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.Back"));
@@ -88,6 +113,7 @@ namespace Runtime.GameModes.Wizard
             OpponentHumanText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.Opponent.Human"));
             OpponentSectionTitle = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.Opponent.Title"));
             ModeOptionsTitle = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.ModeOptions.Title"));
+            BotDifficultyTitle = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.BotDifficulty.Title"));
         }
 
         public override void Initialize()
@@ -125,10 +151,25 @@ namespace Runtime.GameModes.Wizard
             _opponentType.Value = opponentType;
         }
 
+        public void SetBotDifficultyId(string? difficultyId)
+        {
+            var normalized = string.IsNullOrWhiteSpace(difficultyId) ? null : difficultyId;
+            if (!string.IsNullOrWhiteSpace(normalized) && !IsDifficultyAvailable(normalized))
+                normalized = null;
+
+            if (string.Equals(_selectedDifficultyId.Value, normalized, StringComparison.Ordinal))
+                return;
+
+            _selectedDifficultyId.Value = normalized;
+        }
+
         protected override void OnReset()
         {
             Volatile.Write(ref _isWired, 0);
             Volatile.Write(ref _isSyncingFromSession, 0);
+            Volatile.Write(ref _isSyncingDifficultyFromSession, 0);
+            Volatile.Write(ref _difficultyItemsRebuildScheduled, 0);
+            Volatile.Write(ref _difficultyItemsRebuildVersion, 0);
 
             _session = null;
             _activeModeId = null;
@@ -136,6 +177,13 @@ namespace Runtime.GameModes.Wizard
             _modeTitleText.Value = string.Empty;
             _modeIconKey.Value = string.Empty;
             _opponentType.Value = global::Runtime.GameModes.Wizard.OpponentType.Bot;
+            _availableDifficulties.Value = _difficultyCatalog.Difficulties;
+            _difficultyItems.Value = Array.Empty<DifficultyChipItem>();
+            _selectedDifficultyId.Value = null;
+            _isBotSettingsVisible.Value = true;
+            _difficultyLabels.Clear();
+            _difficultyLocalizationSubscriptions?.Dispose();
+            _difficultyLocalizationSubscriptions = null;
 
             _sessionCanStart = false;
             _canStart.Value = false;
@@ -155,6 +203,9 @@ namespace Runtime.GameModes.Wizard
         {
             ReleaseActiveSettings();
 
+            _difficultyLocalizationSubscriptions?.Dispose();
+            _difficultyLocalizationSubscriptions = null;
+
             _modeTitleSubscription?.Dispose();
             _modeTitleSubscription = null;
 
@@ -162,6 +213,10 @@ namespace Runtime.GameModes.Wizard
             _modeIconKey.Dispose();
             _activeSettings.Dispose();
             _opponentType.Dispose();
+            _availableDifficulties.Dispose();
+            _difficultyItems.Dispose();
+            _selectedDifficultyId.Dispose();
+            _isBotSettingsVisible.Dispose();
             _canStart.Dispose();
             _isBusy.Dispose();
             _inlineErrorText.Dispose();
@@ -199,10 +254,20 @@ namespace Runtime.GameModes.Wizard
 
                 AddDisposable(_opponentType
                     .Subscribe(type => OnOpponentTypeChanged(type, session)));
+
+                AddDisposable(_selectedDifficultyId
+                    .Subscribe(id => OnSelectedDifficultyChanged(id, session)));
             }
 
             AddDisposable(_coordinator.CurrentError
                 .Subscribe(OnCoordinatorErrorChanged));
+
+            AddDisposable(_opponentType
+                .Select(type => type == global::Runtime.GameModes.Wizard.OpponentType.Bot)
+                .Subscribe(isBot => _isBotSettingsVisible.Value = isBot));
+
+            AddDisposable(_availableDifficulties
+                .Subscribe(OnAvailableDifficultiesChanged));
 
             UpdateCanStart();
         }
@@ -233,6 +298,7 @@ namespace Runtime.GameModes.Wizard
 
             ApplySelectedMode(snapshot.SelectedModeId);
             ApplyOpponentTypeFromSession(snapshot.OpponentType);
+            ApplyBotDifficultyFromSession(snapshot.BotDifficultyId);
         }
 
         private void ApplySelectedMode(string? selectedModeId)
@@ -277,7 +343,7 @@ namespace Runtime.GameModes.Wizard
             _modeTitleSubscription?.Dispose();
             _modeTitleSubscription = _localization
                 .Observe(new TextTableId("Mode"), new TextKey(strategy.Metadata.DisplayNameKey))
-                .Subscribe(text => _modeTitleText.Value = text);
+                .Subscribe(SetModeTitleTextSafe);
 
             var presentation = strategy.CreatePresentation();
             _activeSettings.Value = presentation;
@@ -308,6 +374,27 @@ namespace Runtime.GameModes.Wizard
             }
         }
 
+        private void ApplyBotDifficultyFromSession(string? difficultyId)
+        {
+            var normalized = string.IsNullOrWhiteSpace(difficultyId) ? null : difficultyId;
+            if (!string.IsNullOrWhiteSpace(normalized) && !IsDifficultyAvailable(normalized))
+                normalized = null;
+
+            if (string.Equals(_selectedDifficultyId.Value, normalized, StringComparison.Ordinal))
+                return;
+
+            Interlocked.Exchange(ref _isSyncingDifficultyFromSession, 1);
+
+            try
+            {
+                _selectedDifficultyId.Value = normalized;
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isSyncingDifficultyFromSession, 0);
+            }
+        }
+
         private void OnOpponentTypeChanged(OpponentType opponentType, IGameModeSession session)
         {
             if (Volatile.Read(ref _isSyncingFromSession) != 0)
@@ -333,6 +420,197 @@ namespace Runtime.GameModes.Wizard
             catch (ObjectDisposedException)
             {
             }
+        }
+
+        private void OnSelectedDifficultyChanged(string? difficultyId, IGameModeSession session)
+        {
+            if (Volatile.Read(ref _isSyncingDifficultyFromSession) != 0)
+                return;
+
+            string? current;
+            try
+            {
+                current = session.Snapshot.CurrentValue.BotDifficultyId;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+
+            var normalized = string.IsNullOrWhiteSpace(difficultyId) ? null : difficultyId;
+            if (string.Equals(current, normalized, StringComparison.Ordinal))
+                return;
+
+            try
+            {
+                session.Update(s =>
+                    string.Equals(s.BotDifficultyId, normalized, StringComparison.Ordinal)
+                        ? s
+                        : s.WithBotDifficultyId(normalized));
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
+        private void OnAvailableDifficultiesChanged(IReadOnlyList<BotDifficulty> difficulties)
+        {
+            if (!PlayerLoopHelper.IsMainThread)
+            {
+                ApplyAvailableDifficultiesOnMainThreadAsync(difficulties).Forget(ex => GameLog.Exception(ex));
+                return;
+            }
+
+            OnAvailableDifficultiesChangedCore(difficulties);
+        }
+
+        private void OnAvailableDifficultiesChangedCore(IReadOnlyList<BotDifficulty> difficulties)
+        {
+            _difficultyLocalizationSubscriptions?.Dispose();
+            _difficultyLocalizationSubscriptions = null;
+            _difficultyLabels.Clear();
+
+            if (difficulties == null || difficulties.Count == 0)
+            {
+                _difficultyItems.Value = Array.Empty<DifficultyChipItem>();
+                return;
+            }
+
+            var disposables = new CompositeDisposable();
+            var table = new TextTableId("GameModeWizard");
+
+            for (var i = 0; i < difficulties.Count; i++)
+            {
+                var difficulty = difficulties[i];
+                if (difficulty == null)
+                    throw new InvalidOperationException("Difficulty catalog returned null item.");
+
+                _localization
+                    .Observe(table, new TextKey(difficulty.NameKey))
+                    .Subscribe(text =>
+                    {
+                        SetDifficultyLabelSafe(difficulty.Id, text);
+                    })
+                    .AddTo(disposables);
+            }
+
+            _difficultyLocalizationSubscriptions = disposables;
+            RequestDifficultyItemsRebuild();
+        }
+
+        private void SetDifficultyLabelSafe(string difficultyId, string? text)
+        {
+            if (PlayerLoopHelper.IsMainThread)
+            {
+                _difficultyLabels[difficultyId] = text ?? string.Empty;
+                RequestDifficultyItemsRebuild();
+                return;
+            }
+
+            SetDifficultyLabelOnMainThreadAsync(difficultyId, text).Forget(ex => GameLog.Exception(ex));
+        }
+
+        private async UniTask SetDifficultyLabelOnMainThreadAsync(string difficultyId, string? text)
+        {
+            await UniTask.SwitchToMainThread();
+
+            if (IsDisposed)
+                return;
+
+            _difficultyLabels[difficultyId] = text ?? string.Empty;
+            RequestDifficultyItemsRebuild();
+        }
+
+        private void RequestDifficultyItemsRebuild()
+        {
+            Interlocked.Increment(ref _difficultyItemsRebuildVersion);
+
+            if (Interlocked.Exchange(ref _difficultyItemsRebuildScheduled, 1) != 0)
+                return;
+
+            RebuildDifficultyItemsCoalescedAsync().Forget(ex => GameLog.Exception(ex));
+        }
+
+        private async UniTask RebuildDifficultyItemsCoalescedAsync()
+        {
+            await UniTask.SwitchToMainThread();
+
+            if (IsDisposed)
+            {
+                Interlocked.Exchange(ref _difficultyItemsRebuildScheduled, 0);
+                return;
+            }
+
+            var observedVersion = Volatile.Read(ref _difficultyItemsRebuildVersion);
+
+            // Coalesce multiple localization emissions into a single rebuild per frame.
+            await UniTask.Yield(PlayerLoopTiming.Update);
+
+            if (IsDisposed)
+            {
+                Interlocked.Exchange(ref _difficultyItemsRebuildScheduled, 0);
+                return;
+            }
+
+            UpdateDifficultyItems(_availableDifficulties.Value);
+
+            Interlocked.Exchange(ref _difficultyItemsRebuildScheduled, 0);
+
+            if (observedVersion != Volatile.Read(ref _difficultyItemsRebuildVersion))
+                RequestDifficultyItemsRebuild();
+        }
+
+        private void UpdateDifficultyItems(IReadOnlyList<BotDifficulty> difficulties)
+        {
+            if (difficulties == null || difficulties.Count == 0)
+            {
+                _difficultyItems.Value = Array.Empty<DifficultyChipItem>();
+                return;
+            }
+
+            var items = new DifficultyChipItem[difficulties.Count];
+            for (var i = 0; i < difficulties.Count; i++)
+            {
+                var difficulty = difficulties[i];
+                if (difficulty == null)
+                    throw new InvalidOperationException("Difficulty catalog returned null item.");
+
+                _difficultyLabels.TryGetValue(difficulty.Id, out var label);
+                items[i] = new DifficultyChipItem(difficulty.Id, label ?? string.Empty);
+            }
+
+            _difficultyItems.Value = Array.AsReadOnly(items);
+        }
+
+        private void SetModeTitleTextSafe(string? text)
+        {
+            if (PlayerLoopHelper.IsMainThread)
+            {
+                _modeTitleText.Value = text ?? string.Empty;
+                return;
+            }
+
+            SetModeTitleTextOnMainThreadAsync(text).Forget(ex => GameLog.Exception(ex));
+        }
+
+        private async UniTask SetModeTitleTextOnMainThreadAsync(string? text)
+        {
+            await UniTask.SwitchToMainThread();
+
+            if (IsDisposed)
+                return;
+
+            _modeTitleText.Value = text ?? string.Empty;
+        }
+
+        private async UniTask ApplyAvailableDifficultiesOnMainThreadAsync(IReadOnlyList<BotDifficulty> difficulties)
+        {
+            await UniTask.SwitchToMainThread();
+
+            if (IsDisposed)
+                return;
+
+            OnAvailableDifficultiesChangedCore(difficulties);
         }
 
         private void OnSessionCanStartChanged(bool canStart)
@@ -541,6 +819,18 @@ namespace Runtime.GameModes.Wizard
 
             _activeSettings.Value = null;
             UpdateCanStart();
+        }
+
+        private bool IsDifficultyAvailable(string difficultyId)
+        {
+            var difficulties = _availableDifficulties.Value;
+            for (var i = 0; i < difficulties.Count; i++)
+            {
+                if (string.Equals(difficulties[i].Id, difficultyId, StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
         }
 
         private sealed class SessionSnapshotObserver : Observer<GameModeSessionSnapshot>

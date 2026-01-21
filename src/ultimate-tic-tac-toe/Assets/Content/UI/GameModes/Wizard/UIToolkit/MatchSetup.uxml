@@ -16,6 +16,11 @@
             <app:SegmentedToggle name="OpponentToggle" class="gmw-segmented-toggle" />
         </ui:VisualElement>
 
+        <ui:VisualElement name="BotSettingsSection" class="gmw-section gmw-bot-settings">
+            <ui:Label text="" name="BotSettingsTitle" class="gmw-section__title" />
+            <app:DifficultyChips name="DifficultyChips" class="gmw-difficulty-chips" />
+        </ui:VisualElement>
+
         <ui:VisualElement name="ActionBar" class="gmw-action-bar">
             <ui:Button text="" name="CancelButton" class="gmw-button gmw-button--secondary" />
             <ui:Button text="" name="StartButton" class="gmw-button gmw-button--primary" />

@@ -102,7 +102,14 @@ namespace Tests.PlayMode.GameModes.Wizard
                 return true;
             });
 
-            _viewModel = new MatchSetupViewModel(catalog, _coordinator, _localization);
+            var difficultyCatalog = Substitute.For<IBotDifficultyCatalog>();
+            difficultyCatalog.Difficulties.Returns(new[]
+            {
+                new BotDifficulty("Easy", "GameModeWizard.MatchSetup.BotDifficulty.Easy", 0),
+                new BotDifficulty("Normal", "GameModeWizard.MatchSetup.BotDifficulty.Normal", 1),
+                new BotDifficulty("Hard", "GameModeWizard.MatchSetup.BotDifficulty.Hard", 2),
+            });
+            _viewModel = new MatchSetupViewModel(catalog, _coordinator, _localization, difficultyCatalog);
 
             _assetProvider = new FakeViewAssetProvider();
             _assetProvider.Register("ui/mode-settings/classic", _classicSettingsUxml);
@@ -267,7 +274,14 @@ namespace Tests.PlayMode.GameModes.Wizard
                 return true;
             });
 
-            return new MatchSetupViewModel(catalog, coordinator, _localization);
+            var difficultyCatalog = Substitute.For<IBotDifficultyCatalog>();
+            difficultyCatalog.Difficulties.Returns(new[]
+            {
+                new BotDifficulty("Easy", "GameModeWizard.MatchSetup.BotDifficulty.Easy", 0),
+                new BotDifficulty("Normal", "GameModeWizard.MatchSetup.BotDifficulty.Normal", 1),
+                new BotDifficulty("Hard", "GameModeWizard.MatchSetup.BotDifficulty.Hard", 2),
+            });
+            return new MatchSetupViewModel(catalog, coordinator, _localization, difficultyCatalog);
         }
 
         private IGameModeWizardCoordinator CreateCoordinator(FakeGameModeSession session)

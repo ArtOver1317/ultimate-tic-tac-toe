@@ -36,6 +36,15 @@ namespace Runtime.UI.GameModes.Wizard
         [Runtime.UI.Core.UxmlElementAttribute("OpponentToggle")]
         private SegmentedToggle? _opponentToggle;
 
+        [Runtime.UI.Core.UxmlElementAttribute("BotSettingsSection")]
+        private VisualElement? _botSettingsSection;
+
+        [Runtime.UI.Core.UxmlElementAttribute("BotSettingsTitle")]
+        private Label? _botSettingsTitle;
+
+        [Runtime.UI.Core.UxmlElementAttribute("DifficultyChips")]
+        private DifficultyChips? _difficultyChips;
+
         [Runtime.UI.Core.UxmlElementAttribute("CancelButton")]
         private Button? _cancelButton;
 
@@ -72,11 +81,15 @@ namespace Runtime.UI.GameModes.Wizard
                 throw new InvalidOperationException("ModeOptionsHost element is missing in UXML.");
             var opponentTitle = _opponentTitle ?? throw new InvalidOperationException("OpponentTitle element is missing in UXML.");
             var opponentToggle = _opponentToggle ?? throw new InvalidOperationException("OpponentToggle element is missing in UXML.");
+            var botSettingsSection = _botSettingsSection ?? throw new InvalidOperationException("BotSettingsSection element is missing in UXML.");
+            var botSettingsTitle = _botSettingsTitle ?? throw new InvalidOperationException("BotSettingsTitle element is missing in UXML.");
+            var difficultyChips = _difficultyChips ?? throw new InvalidOperationException("DifficultyChips element is missing in UXML.");
             var cancelButton = _cancelButton ?? throw new InvalidOperationException("CancelButton element is missing in UXML.");
             var startButton = _startButton ?? throw new InvalidOperationException("StartButton element is missing in UXML.");
 
             AddDisposable(ViewModel.ModeOptionsTitle.Subscribe(text => modeOptionsTitle.text = text));
             AddDisposable(ViewModel.OpponentSectionTitle.Subscribe(text => opponentTitle.text = text));
+            AddDisposable(ViewModel.BotDifficultyTitle.Subscribe(text => botSettingsTitle.text = text));
 
             AddDisposable(ViewModel.BackButtonText.Subscribe(text => backButton.text = text));
             AddDisposable(ViewModel.CancelButtonText.Subscribe(text => cancelButton.text = text));
@@ -117,6 +130,9 @@ namespace Runtime.UI.GameModes.Wizard
             BindEnabled(canStart, startButton);
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), backButton);
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), opponentToggle);
+            BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), difficultyChips);
+
+            BindVisibility(ViewModel.IsBotSettingsVisible, botSettingsSection);
 
             AddDisposable(backButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestBack()));
             AddDisposable(startButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestStart()));
@@ -130,6 +146,21 @@ namespace Runtime.UI.GameModes.Wizard
                     _errorLabel.style.display = string.IsNullOrWhiteSpace(text) ? DisplayStyle.None : DisplayStyle.Flex;
                 }));
             }
+
+            AddDisposable(ViewModel.DifficultyItems
+                .Subscribe(items =>
+                {
+                    difficultyChips.SetItems(items);
+                    difficultyChips.SetSelectedIdWithoutNotify(ViewModel.SelectedDifficultyId.Value);
+                }));
+
+            AddDisposable(ViewModel.SelectedDifficultyId
+                .Subscribe(id => difficultyChips.SetSelectedIdWithoutNotify(id)));
+
+            void OnDifficultySelected(string id) => ViewModel.SetBotDifficultyId(id);
+
+            difficultyChips.SelectedIdChanged += OnDifficultySelected;
+            AddDisposable(Disposable.Create(() => difficultyChips.SelectedIdChanged -= OnDifficultySelected));
 
             AddDisposable(ViewModel.ActiveSettings
                 .Subscribe(presentation => LoadSettingsSafeAsync(presentation).Forget(ex => GameLog.Exception(ex))));

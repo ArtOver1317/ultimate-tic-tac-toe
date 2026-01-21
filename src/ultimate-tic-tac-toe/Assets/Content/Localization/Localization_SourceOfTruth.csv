@@ -92,6 +92,10 @@ GameModeWizard.MatchSetup.Opponent.Bot,Bot,Бот,ボット,Match setup opponent
 GameModeWizard.MatchSetup.Opponent.Human,Human,Человек,人間,Match setup opponent human toggle
 GameModeWizard.MatchSetup.Opponent.Title,Opponent,Соперник,対戦相手,Match setup opponent section title
 GameModeWizard.MatchSetup.ModeOptions.Title,Rules,Правила,ルール,Match setup mode options title
+GameModeWizard.MatchSetup.BotDifficulty.Title,Bot Difficulty,Сложность бота,ボット難易度,Match setup bot difficulty section title
+GameModeWizard.MatchSetup.BotDifficulty.Easy,Easy,Лёгкая,簡単,Bot difficulty: easy
+GameModeWizard.MatchSetup.BotDifficulty.Normal,Normal,Нормальная,普通,Bot difficulty: normal
+GameModeWizard.MatchSetup.BotDifficulty.Hard,Hard,Сложная,難しい,Bot difficulty: hard
 GameModeWizard.MatchSetup.Classic.BoardSize,Board Size,Размер поля,盤面サイズ,Classic mode board size label
 GameModeWizard.MatchSetup.Ultimate.NoSettings,No additional settings,Нет дополнительных настроек,追加設定なし,Ultimate mode no settings label
 Errors.GameModeWizard.ModeRequired,Select a game mode,Выберите режим игры,ゲームモードを選択してください,Wizard validation: mode is required

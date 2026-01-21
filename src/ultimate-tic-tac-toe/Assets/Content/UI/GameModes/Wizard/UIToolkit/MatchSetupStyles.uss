@@ -90,6 +90,39 @@
     flex-direction: row;
 }
 
+.gmw-bot-settings {
+    margin-top: 12px;
+}
+
+.gmw-difficulty-chips {
+    flex-direction: row;
+}
+
+.difficulty-chips {
+    flex-direction: row;
+    width: 100%;
+}
+
+.difficulty-chips__item {
+    flex-grow: 1;
+    height: 64px;
+    font-size: 28px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-bottom-left-radius: 14px;
+    margin-right: 12px;
+}
+
+.difficulty-chips__item--last {
+    margin-right: 0;
+}
+
+.difficulty-chips__item--selected {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
 .segmented-toggle {
     flex-direction: row;
     width: 100%;
