@@ -9,27 +9,38 @@ using FluentAssertions;
 
 namespace Tests.EditMode
 {
+    [TestFixture]
+    [Category("Integration")]
     public class ValidationTests
     {
         [TestCaseSource(nameof(AllScenesPaths))]
-        public void AllGameObjectsShouldNotHaveMissingScriptsInScenes(string scenePath)
+        public void WhenSceneLoaded_ThenGameObjectsHaveNoMissingScripts(string scenePath)
         {
             var openedScene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
             var gameObjectsWithMissingScripts = new List<string>();
-            
-            foreach (var gameObject in GetAllGameObjects(openedScene))
+
+            try
             {
-                if (HasMissingComponents(gameObject)) 
-                    gameObjectsWithMissingScripts.Add(gameObject.name);
+                foreach (var gameObject in GetAllGameObjects(openedScene))
+                {
+                    if (!HasMissingComponents(gameObject))
+                        continue;
+
+                    var path = BuildHierarchyPath(gameObject.transform);
+                    var count = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(gameObject);
+                    gameObjectsWithMissingScripts.Add($"{scenePath} | {path} | missing={count}");
+                }
             }
-            
-            EditorSceneManager.CloseScene(openedScene, true);
-            
+            finally
+            {
+                EditorSceneManager.CloseScene(openedScene, true);
+            }
+
             gameObjectsWithMissingScripts.Should().BeEmpty();
         }
 
         [TestCaseSource(nameof(AllPrefabPaths))]
-        public void AllGameObjectsShouldNotHaveMissingScriptsInPrefabs(string prefabPath)
+        public void WhenPrefabLoaded_ThenGameObjectsHaveNoMissingScripts(string prefabPath)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             prefab.Should().NotBeNull($"Failed to load prefab at '{prefabPath}'");
@@ -38,8 +49,12 @@ namespace Tests.EditMode
             
             foreach (var gameObject in GetAllGameObjects(prefab))
             {
-                if (HasMissingComponents(gameObject))
-                    gameObjectsWithMissingScripts.Add(gameObject.name);
+                if (!HasMissingComponents(gameObject))
+                    continue;
+
+                var path = BuildHierarchyPath(gameObject.transform);
+                var count = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(gameObject);
+                gameObjectsWithMissingScripts.Add($"{prefabPath} | {path} | missing={count}");
             }
             
             gameObjectsWithMissingScripts.Should().BeEmpty(prefab.name);
@@ -89,6 +104,20 @@ namespace Tests.EditMode
                     gameObjectsQueue.Enqueue(child.gameObject);
                 }
             }
+        }
+
+        private static string BuildHierarchyPath(Transform transform)
+        {
+            var stack = new Stack<string>();
+            var current = transform;
+
+            while (current != null)
+            {
+                stack.Push(current.name);
+                current = current.parent;
+            }
+
+            return string.Join("/", stack);
         }
     }
 }

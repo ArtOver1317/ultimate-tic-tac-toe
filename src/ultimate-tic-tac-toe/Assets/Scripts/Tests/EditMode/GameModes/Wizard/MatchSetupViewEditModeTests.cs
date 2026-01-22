@@ -18,7 +18,7 @@ using Object = UnityEngine.Object;
 namespace Tests.EditMode.GameModes.Wizard
 {
     [TestFixture]
-    [Category("Unit")]
+    [Category("Integration")]
     public class MatchSetupViewEditModeTests
     {
         private const string MatchSetupUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/MatchSetup.uxml";
@@ -197,7 +197,7 @@ namespace Tests.EditMode.GameModes.Wizard
             });
 
             // Act
-            GetDifficultyItemsProperty().Value = items;
+            _viewModel.SetDifficultyItemsForTests(items);
 
             // Assert
             chips.childCount.Should().Be(2);
@@ -210,11 +210,11 @@ namespace Tests.EditMode.GameModes.Wizard
         {
             // Arrange
             var chips = _view.RootForTests.Q<DifficultyChips>("DifficultyChips");
-            GetDifficultyItemsProperty().Value = Array.AsReadOnly(new[]
+            _viewModel.SetDifficultyItemsForTests(Array.AsReadOnly(new[]
             {
                 new DifficultyChipItem("Easy", "Easy"),
                 new DifficultyChipItem("Hard", "Hard")
-            });
+            }));
 
             // Act
             _viewModel.SelectedDifficultyId.Value = "Hard";
@@ -337,11 +337,5 @@ namespace Tests.EditMode.GameModes.Wizard
                 Cysharp.Threading.Tasks.UniTask.FromException<IAssetLease<VisualTreeAsset>>(new InvalidOperationException());
         }
 
-        private ReactiveProperty<IReadOnlyList<DifficultyChipItem>> GetDifficultyItemsProperty()
-        {
-            var property = _viewModel.DifficultyItems as ReactiveProperty<IReadOnlyList<DifficultyChipItem>>;
-            property.Should().NotBeNull();
-            return property!;
-        }
     }
 }

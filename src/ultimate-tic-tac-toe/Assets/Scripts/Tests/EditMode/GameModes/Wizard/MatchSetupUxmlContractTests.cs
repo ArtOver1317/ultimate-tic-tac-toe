@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 namespace Tests.EditMode.GameModes.Wizard
 {
     [TestFixture]
-    [Category("Unit")]
+    [Category("Integration")]
     public class MatchSetupUxmlContractTests
     {
         private const string MatchSetupUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/MatchSetup.uxml";

@@ -163,6 +163,11 @@ namespace Runtime.GameModes.Wizard
             _selectedDifficultyId.Value = normalized;
         }
 
+#if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+        internal void SetDifficultyItemsForTests(IReadOnlyList<DifficultyChipItem> items) =>
+            _difficultyItems.Value = items ?? Array.Empty<DifficultyChipItem>();
+#endif
+
         protected override void OnReset()
         {
             Volatile.Write(ref _isWired, 0);
