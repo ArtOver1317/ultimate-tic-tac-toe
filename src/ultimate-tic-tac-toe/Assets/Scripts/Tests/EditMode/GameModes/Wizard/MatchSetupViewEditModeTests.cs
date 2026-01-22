@@ -22,6 +22,7 @@ namespace Tests.EditMode.GameModes.Wizard
     public class MatchSetupViewEditModeTests
     {
         private const string MatchSetupUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/MatchSetup.uxml";
+        private const string MatchSetupPrefabPath = "Assets/Content/UI/GameModes/Wizard/Prefabs/MatchSetup.prefab";
 
         private GameObject _gameObject;
         private UIDocument _uiDocument;
@@ -158,6 +159,115 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenIsBotSettingsVisibleFalse_ThenBotSettingsSectionIsHidden()
+        {
+            // Arrange
+            var section = _view.RootForTests.Q<VisualElement>("BotSettingsSection");
+
+            // Act
+            _viewModel.SetOpponentType(OpponentType.Human);
+
+            // Assert
+            section.style.display.value.Should().Be(DisplayStyle.None);
+        }
+
+        [Test]
+        public void WhenIsBotSettingsVisibleTrue_ThenBotSettingsSectionIsVisible()
+        {
+            // Arrange
+            var section = _view.RootForTests.Q<VisualElement>("BotSettingsSection");
+            _viewModel.SetOpponentType(OpponentType.Human);
+
+            // Act
+            _viewModel.SetOpponentType(OpponentType.Bot);
+
+            // Assert
+            section.style.display.value.Should().Be(DisplayStyle.Flex);
+        }
+
+        [Test]
+        public void WhenDifficultyItemsChanges_ThenDifficultyChipsUpdates()
+        {
+            // Arrange
+            var chips = _view.RootForTests.Q<DifficultyChips>("DifficultyChips");
+            var items = Array.AsReadOnly(new[]
+            {
+                new DifficultyChipItem("Easy", "Easy"),
+                new DifficultyChipItem("Hard", "Hard")
+            });
+
+            // Act
+            GetDifficultyItemsProperty().Value = items;
+
+            // Assert
+            chips.childCount.Should().Be(2);
+            chips.Q<Button>("Easy").text.Should().Be("Easy");
+            chips.Q<Button>("Hard").text.Should().Be("Hard");
+        }
+
+        [Test]
+        public void WhenSelectedDifficultyIdChanges_ThenDifficultyChipsSelectionUpdates()
+        {
+            // Arrange
+            var chips = _view.RootForTests.Q<DifficultyChips>("DifficultyChips");
+            GetDifficultyItemsProperty().Value = Array.AsReadOnly(new[]
+            {
+                new DifficultyChipItem("Easy", "Easy"),
+                new DifficultyChipItem("Hard", "Hard")
+            });
+
+            // Act
+            _viewModel.SelectedDifficultyId.Value = "Hard";
+
+            // Assert
+            chips.SelectedId.Should().Be("Hard");
+        }
+
+        [Test]
+        public void WhenIsBusyTrue_ThenDifficultyChipsIsDisabled()
+        {
+            // Arrange
+            var chips = _view.RootForTests.Q<DifficultyChips>("DifficultyChips");
+
+            // Act
+            _isTransitioning.Value = true;
+
+            // Assert
+            chips.enabledSelf.Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenIsBusyFalse_ThenDifficultyChipsIsEnabled()
+        {
+            // Arrange
+            var chips = _view.RootForTests.Q<DifficultyChips>("DifficultyChips");
+            _isTransitioning.Value = true;
+
+            // Act
+            _isTransitioning.Value = false;
+
+            // Assert
+            chips.enabledSelf.Should().BeTrue();
+        }
+
+        [Test]
+        public void WhenMatchSetupPrefabLoaded_ThenHasRequiredComponentsAndValidUxmlAsset()
+        {
+            // Arrange
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(MatchSetupPrefabPath);
+            prefab.Should().NotBeNull();
+
+            // Act
+            var view = prefab.GetComponent<MatchSetupView>();
+            var document = prefab.GetComponent<UIDocument>();
+
+            // Assert
+            view.Should().NotBeNull();
+            document.Should().NotBeNull();
+            document.visualTreeAsset.Should().NotBeNull();
+        }
+
+        [Test]
         public void WhenErrorLabelIsMissingInUxml_ThenBindViewModelDoesNotThrowAndInlineErrorUpdatesDoNotCrash()
         {
             // Arrange
@@ -225,6 +335,13 @@ namespace Tests.EditMode.GameModes.Wizard
         {
             public Cysharp.Threading.Tasks.UniTask<IAssetLease<VisualTreeAsset>> LoadVisualTreeAsync(string key, System.Threading.CancellationToken ct) =>
                 Cysharp.Threading.Tasks.UniTask.FromException<IAssetLease<VisualTreeAsset>>(new InvalidOperationException());
+        }
+
+        private ReactiveProperty<IReadOnlyList<DifficultyChipItem>> GetDifficultyItemsProperty()
+        {
+            var property = _viewModel.DifficultyItems as ReactiveProperty<IReadOnlyList<DifficultyChipItem>>;
+            property.Should().NotBeNull();
+            return property!;
         }
     }
 }

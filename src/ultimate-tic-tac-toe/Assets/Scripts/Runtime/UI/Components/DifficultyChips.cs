@@ -76,6 +76,9 @@ namespace Runtime.UI.Components
 
             UpdateLastItemClass();
 
+            if (!string.IsNullOrWhiteSpace(_selectedId) && !_buttonsById.ContainsKey(_selectedId))
+                _selectedId = null;
+
             UpdateVisualState();
         }
 

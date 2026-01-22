@@ -34,6 +34,21 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenMatchSetupUxmlLoaded_ThenHasBotSettingsElements()
+        {
+            // Arrange
+            var uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(MatchSetupUxmlPath);
+            uxml.Should().NotBeNull();
+
+            var root = uxml.CloneTree();
+
+            // Assert
+            root.Q<VisualElement>("BotSettingsSection").Should().NotBeNull();
+            root.Q<Label>("BotSettingsTitle").Should().NotBeNull();
+            root.Q<VisualElement>("DifficultyChips").Should().NotBeNull();
+        }
+
+        [Test]
         public void WhenClassicModeSettingsUxmlLoaded_ThenHasAllRequiredNamedElements()
         {
             // Arrange

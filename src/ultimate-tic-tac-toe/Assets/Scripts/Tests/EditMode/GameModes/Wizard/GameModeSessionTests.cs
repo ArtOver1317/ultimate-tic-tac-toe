@@ -430,6 +430,24 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenOpponentIsHumanAndDifficultyMissing_ThenNoValidationErrorForDifficulty()
+        {
+            // Arrange
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
+                .WithModeConfig(new ClassicModeConfig(boardSize: 3))
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.Local)
+                .WithBotDifficultyId(null));
+
+            // Act
+            var errors = sut.ValidationErrors.CurrentValue;
+
+            // Assert
+            errors.Should().NotContain(e => e.Field == "BotDifficultyId");
+        }
+
+        [Test]
         public void WhenOpponentIsHumanLocalAndModeSelectedAndConfigSet_ThenCanStartIsTrue()
         {
             // Arrange

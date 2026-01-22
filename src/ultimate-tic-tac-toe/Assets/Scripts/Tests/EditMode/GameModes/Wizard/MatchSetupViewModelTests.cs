@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -16,6 +19,9 @@ namespace Tests.EditMode.GameModes.Wizard
     [Category("Unit")]
     public class MatchSetupViewModelTests
     {
+        private const int WaitUntilTimeoutMs = 3000;
+        private const int WaitUntilPollDelayMs = 10;
+
         private IGameModeCatalog _catalog;
         private IGameModeWizardCoordinator _coordinator;
         private ILocalizationService _localization;
@@ -98,6 +104,11 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Act
             sut.Initialize();
+
+            var snapshotGetsAfterFirstInit = session.SnapshotGetCount;
+            var canStartGetsAfterFirstInit = session.CanStartGetCount;
+            var validationGetsAfterFirstInit = session.ValidationErrorsGetCount;
+
             sut.Initialize();
 
             session.EmitSnapshot(GameModeSessionSnapshot.Default
@@ -106,6 +117,9 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             _coordinator.Received(1).TryGetSession(out Arg.Any<IGameModeSession>());
+            session.SnapshotGetCount.Should().Be(snapshotGetsAfterFirstInit);
+            session.CanStartGetCount.Should().Be(canStartGetsAfterFirstInit);
+            session.ValidationErrorsGetCount.Should().Be(validationGetsAfterFirstInit);
             subVm.InitializeCallCount.Should().Be(1);
         }
 
@@ -380,7 +394,7 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public void WhenValidationErrorsContainUnknownFields_ThenDoesNotThrowAndResolvesSomeMessageOrNull()
+        public void WhenValidationErrorsContainUnknownField_ThenInlineErrorShowsResolvedUnknownMessage()
         {
             // Arrange
             var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
@@ -394,8 +408,6 @@ namespace Tests.EditMode.GameModes.Wizard
                 new("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired"),
             });
 
-            var previous = sut.InlineErrorText.CurrentValue;
-
             // Act
             Action act = () => session.EmitValidationErrors(new List<ValidationError>
             {
@@ -404,7 +416,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             act.Should().NotThrow();
-            sut.InlineErrorText.CurrentValue.Should().NotBe(previous);
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameModeWizard.Unknown");
         }
 
         [Test]
@@ -461,6 +473,382 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             sut.OpponentType.Value.Should().Be(OpponentType.Human);
             session.UpdateCallCount.Should().Be(0);
+        }
+
+        [Test]
+        public void WhenSetBotDifficultyIdCalled_ThenWritesThroughToSession()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SetBotDifficultyId("Hard");
+
+            // Assert
+            session.UpdateCallCount.Should().Be(1);
+            session.Snapshot.CurrentValue.BotDifficultyId.Should().Be("Hard");
+            sut.SelectedDifficultyId.Value.Should().Be("Hard");
+        }
+
+        [Test]
+        public void WhenSetBotDifficultyIdCalledWithSameValue_ThenDoesNotCallSessionUpdate()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+            sut.SetBotDifficultyId("Easy");
+            var callsBefore = session.UpdateCallCount;
+
+            // Act
+            sut.SetBotDifficultyId("Easy");
+
+            // Assert
+            session.UpdateCallCount.Should().Be(callsBefore);
+        }
+
+        [Test]
+        public void WhenSetBotDifficultyIdCalledWithUnknownId_ThenNormalizesToNull()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+            sut.SetBotDifficultyId("Easy");
+
+            // Act
+            sut.SetBotDifficultyId("Unknown");
+
+            // Assert
+            sut.SelectedDifficultyId.Value.Should().BeNull();
+            session.Snapshot.CurrentValue.BotDifficultyId.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenSessionBotDifficultyIdChanges_ThenSelectedDifficultyIdUpdatesWithoutWriteBack()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithBotDifficultyId("Hard")
+                .WithOpponentType(OpponentType.Bot)
+                .WithVersion(1));
+
+            // Assert
+            sut.SelectedDifficultyId.Value.Should().Be("Hard");
+            session.UpdateCallCount.Should().Be(0);
+        }
+
+        [Test]
+        public void WhenSessionBotDifficultyIdIsUnknownAndOpponentIsBot_ThenVMSanitizesSessionByWritingBackNull()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithBotDifficultyId("UnknownDifficulty")
+                .WithOpponentType(OpponentType.Bot)
+                .WithVersion(1));
+
+            // Assert
+            sut.SelectedDifficultyId.Value.Should().BeNull();
+            session.UpdateCallCount.Should().Be(1);
+            session.Snapshot.CurrentValue.BotDifficultyId.Should().BeNull();
+        }
+
+        [Test]
+        public async Task WhenAvailableDifficultiesChangeAndSelectedIdIsNoLongerAvailable_ThenSelectionClearsAndWritesThroughToSession()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+            sut.SetBotDifficultyId("Hard");
+            var callsBefore = session.UpdateCallCount;
+            sut.SelectedDifficultyId.Value.Should().Be("Hard");
+
+            // Act
+            SetAvailableDifficulties(sut, Array.AsReadOnly(new[]
+            {
+                new BotDifficulty("Easy", "GameModeWizard.MatchSetup.BotDifficulty.Easy", 0),
+                new BotDifficulty("Normal", "GameModeWizard.MatchSetup.BotDifficulty.Normal", 1)
+            }));
+
+            await WaitUntilAsync(
+                () => sut.SelectedDifficultyId.Value == null && session.UpdateCallCount == callsBefore + 1,
+                timeoutMs: WaitUntilTimeoutMs);
+
+            // Assert
+            sut.SelectedDifficultyId.Value.Should().BeNull();
+            session.UpdateCallCount.Should().Be(callsBefore + 1);
+            session.Snapshot.CurrentValue.BotDifficultyId.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenOpponentTypeTogglesBotToHumanToBot_ThenSelectedDifficultyIdIsPreservedAndUIRestoresSelection()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+            sut.SetBotDifficultyId("Hard");
+
+            // Act
+            sut.SetOpponentType(OpponentType.Human);
+            sut.SetOpponentType(OpponentType.Bot);
+
+            // Assert
+            sut.SelectedDifficultyId.Value.Should().Be("Hard");
+        }
+
+        [Test]
+        public void WhenOpponentTypeChangesToHuman_ThenIsBotSettingsVisibleBecomesFalse()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SetOpponentType(OpponentType.Human);
+
+            // Assert
+            sut.IsBotSettingsVisible.CurrentValue.Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenOpponentTypeChangesToBot_ThenIsBotSettingsVisibleBecomesTrue()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+            sut.SetOpponentType(OpponentType.Human);
+
+            // Act
+            sut.SetOpponentType(OpponentType.Bot);
+
+            // Assert
+            sut.IsBotSettingsVisible.CurrentValue.Should().BeTrue();
+        }
+
+        [Test]
+        public void WhenResetCalled_ThenSelectedDifficultyIdIsCleared()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+            sut.SetBotDifficultyId("Hard");
+
+            // Act
+            sut.Reset();
+
+            // Assert
+            sut.SelectedDifficultyId.Value.Should().BeNull();
+        }
+
+        [Test]
+        public async Task WhenResetCalled_ThenDifficultyLocalizationSubscriptionsAreDisposed()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            var localization = Substitute.For<ILocalizationService>();
+            localization
+                .Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo => Observable.Return(callInfo.Arg<TextKey>().Value));
+            localization
+                .Resolve(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo => callInfo.Arg<TextKey>().Value);
+
+            using var easySubject = new Subject<string>();
+            localization
+                .Observe(Arg.Is<TextTableId>(t => t.Name == "GameModeWizard"),
+                    Arg.Is<TextKey>(k => k.Value == "GameModeWizard.MatchSetup.BotDifficulty.Easy"),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(easySubject);
+
+            var difficultyCatalog = Substitute.For<IBotDifficultyCatalog>();
+            difficultyCatalog.Difficulties.Returns(Array.AsReadOnly(new[]
+            {
+                new BotDifficulty("Easy", "GameModeWizard.MatchSetup.BotDifficulty.Easy", 0)
+            }));
+
+            using var sut = new MatchSetupViewModel(_catalog, _coordinator, localization, difficultyCatalog);
+            sut.Initialize();
+
+            easySubject.OnNext("Easy");
+
+            await WaitUntilAsync(
+                () => sut.DifficultyItems.CurrentValue.Count == 1
+                      && sut.DifficultyItems.CurrentValue[0].Id == "Easy"
+                      && sut.DifficultyItems.CurrentValue[0].Label == "Easy",
+                timeoutMs: WaitUntilTimeoutMs);
+
+            sut.DifficultyItems.CurrentValue.Should().ContainSingle(item => item.Id == "Easy" && item.Label == "Easy");
+
+            // Act
+            sut.Reset();
+
+            easySubject.OnNext("Easy+2");
+
+            await WaitUntilAsync(
+                () => sut.DifficultyItems.CurrentValue.Count == 0,
+                timeoutMs: WaitUntilTimeoutMs);
+
+            // Assert
+            sut.DifficultyItems.CurrentValue.Should().BeEmpty();
+        }
+
+        [Test]
+        public async Task WhenAvailableDifficultiesChanges_ThenDifficultyItemsAreRebuilt()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            SetAvailableDifficulties(sut, Array.AsReadOnly(new[]
+            {
+                new BotDifficulty("A", "Key.A", 0),
+                new BotDifficulty("B", "Key.B", 1)
+            }));
+
+            await WaitUntilAsync(
+                () => sut.DifficultyItems.CurrentValue.Count == 2,
+                timeoutMs: WaitUntilTimeoutMs);
+
+            // Assert
+            sut.DifficultyItems.CurrentValue.Should().HaveCount(2);
+            sut.DifficultyItems.CurrentValue[0].Id.Should().Be("A");
+            sut.DifficultyItems.CurrentValue[1].Id.Should().Be("B");
+        }
+
+        [Test]
+        public async Task WhenLocalizationEmitsNewLabel_ThenDifficultyItemsAreUpdated()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            var localization = Substitute.For<ILocalizationService>();
+            localization
+                .Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo => Observable.Return(callInfo.Arg<TextKey>().Value));
+            localization
+                .Resolve(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo => callInfo.Arg<TextKey>().Value);
+
+            using var easySubject = new Subject<string>();
+            localization
+                .Observe(Arg.Is<TextTableId>(t => t.Name == "GameModeWizard"),
+                    Arg.Is<TextKey>(k => k.Value == "GameModeWizard.MatchSetup.BotDifficulty.Easy"),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(easySubject);
+
+            var difficultyCatalog = Substitute.For<IBotDifficultyCatalog>();
+            difficultyCatalog.Difficulties.Returns(Array.AsReadOnly(new[]
+            {
+                new BotDifficulty("Easy", "GameModeWizard.MatchSetup.BotDifficulty.Easy", 0)
+            }));
+
+            using var sut = new MatchSetupViewModel(_catalog, _coordinator, localization, difficultyCatalog);
+            sut.Initialize();
+
+            easySubject.OnNext("Easy");
+
+            await WaitUntilAsync(
+                () => sut.DifficultyItems.CurrentValue.Count == 1
+                      && sut.DifficultyItems.CurrentValue[0].Label == "Easy",
+                timeoutMs: WaitUntilTimeoutMs);
+
+            sut.DifficultyItems.CurrentValue.Should().ContainSingle(item => item.Id == "Easy" && item.Label == "Easy");
+
+            // Act
+            easySubject.OnNext("Лёгкий");
+
+            await WaitUntilAsync(
+                () => sut.DifficultyItems.CurrentValue.Count == 1
+                      && sut.DifficultyItems.CurrentValue[0].Label == "Лёгкий",
+                timeoutMs: WaitUntilTimeoutMs);
+
+            // Assert
+            sut.DifficultyItems.CurrentValue.Should().ContainSingle(item => item.Id == "Easy" && item.Label == "Лёгкий");
+        }
+
+        [Test]
+        public void WhenValidationErrorsContainBotDifficultyId_ThenInlineErrorShowsIt()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            session.EmitValidationErrors(new List<ValidationError>
+            {
+                new("BotDifficultyId", "Errors.GameModeWizard.DifficultyRequired"),
+            });
+
+            // Assert
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameModeWizard.DifficultyRequired");
+        }
+
+        [Test]
+        public void WhenBotDifficultyIdErrorHasLowerPriorityThanModeConfig_ThenModeConfigErrorShown()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            session.EmitValidationErrors(new List<ValidationError>
+            {
+                new("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired"),
+                new("BotDifficultyId", "Errors.GameModeWizard.DifficultyRequired"),
+            });
+
+            // Assert
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameModeWizard.ModeConfigRequired");
         }
 
         [Test]
@@ -645,6 +1033,26 @@ namespace Tests.EditMode.GameModes.Wizard
                 callInfo[1] = strategy;
                 return true;
             });
+
+        private static void SetAvailableDifficulties(MatchSetupViewModel sut, IReadOnlyList<BotDifficulty> difficulties)
+        {
+            var property = sut.AvailableDifficulties as ReactiveProperty<IReadOnlyList<BotDifficulty>>;
+            property.Should().NotBeNull();
+            property!.Value = difficulties;
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMs)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            while (!condition())
+            {
+                if (stopwatch.ElapsedMilliseconds > timeoutMs)
+                    Assert.Fail($"Condition was not met within {timeoutMs} ms.");
+
+                await Task.Delay(WaitUntilPollDelayMs);
+            }
+        }
 
         private MatchSetupViewModel CreateSut() =>
             new MatchSetupViewModel(_catalog, _coordinator, _localization, _difficultyCatalog);

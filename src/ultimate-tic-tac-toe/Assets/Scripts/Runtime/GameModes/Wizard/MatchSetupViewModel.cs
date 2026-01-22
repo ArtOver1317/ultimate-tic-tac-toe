@@ -377,10 +377,15 @@ namespace Runtime.GameModes.Wizard
         private void ApplyBotDifficultyFromSession(string? difficultyId)
         {
             var normalized = string.IsNullOrWhiteSpace(difficultyId) ? null : difficultyId;
-            if (!string.IsNullOrWhiteSpace(normalized) && !IsDifficultyAvailable(normalized))
-                normalized = null;
+            var needsSanitize = false;
 
-            if (string.Equals(_selectedDifficultyId.Value, normalized, StringComparison.Ordinal))
+            if (!string.IsNullOrWhiteSpace(normalized) && !IsDifficultyAvailable(normalized))
+            {
+                normalized = null;
+                needsSanitize = true;
+            }
+
+            if (!needsSanitize && string.Equals(_selectedDifficultyId.Value, normalized, StringComparison.Ordinal))
                 return;
 
             Interlocked.Exchange(ref _isSyncingDifficultyFromSession, 1);
@@ -392,6 +397,27 @@ namespace Runtime.GameModes.Wizard
             finally
             {
                 Interlocked.Exchange(ref _isSyncingDifficultyFromSession, 0);
+            }
+
+            if (!needsSanitize)
+                return;
+
+            if (_opponentType.Value != global::Runtime.GameModes.Wizard.OpponentType.Bot)
+                return;
+
+            var session = _session;
+            if (session == null)
+                return;
+
+            try
+            {
+                session.Update(s =>
+                    string.IsNullOrWhiteSpace(s.BotDifficultyId)
+                        ? s
+                        : s.WithBotDifficultyId(null));
+            }
+            catch (ObjectDisposedException)
+            {
             }
         }
 
@@ -469,6 +495,10 @@ namespace Runtime.GameModes.Wizard
             _difficultyLocalizationSubscriptions?.Dispose();
             _difficultyLocalizationSubscriptions = null;
             _difficultyLabels.Clear();
+
+            var selectedId = _selectedDifficultyId.Value;
+            if (!string.IsNullOrWhiteSpace(selectedId) && !ContainsDifficultyId(difficulties, selectedId))
+                _selectedDifficultyId.Value = null;
 
             if (difficulties == null || difficulties.Count == 0)
             {
@@ -827,6 +857,20 @@ namespace Runtime.GameModes.Wizard
             for (var i = 0; i < difficulties.Count; i++)
             {
                 if (string.Equals(difficulties[i].Id, difficultyId, StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool ContainsDifficultyId(IReadOnlyList<BotDifficulty> difficulties, string difficultyId)
+        {
+            if (difficulties == null || difficulties.Count == 0)
+                return false;
+
+            for (var i = 0; i < difficulties.Count; i++)
+            {
+                if (difficulties[i] != null && string.Equals(difficulties[i].Id, difficultyId, StringComparison.Ordinal))
                     return true;
             }
 
