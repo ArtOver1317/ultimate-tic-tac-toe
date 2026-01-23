@@ -20,12 +20,12 @@ namespace Runtime.GameModes.Wizard
     {
         private static readonly string[] InlineErrorPriority =
         {
-            "SelectedModeId",
-            "ModeConfig",
-            "BotDifficultyId",
-            "TargetPlayerId",
-            "Matchmaking",
-            "ModeCatalog"
+            WizardFieldNames.SelectedModeId,
+            WizardFieldNames.ModeConfig,
+            WizardFieldNames.BotDifficultyId,
+            WizardFieldNames.TargetPlayerId,
+            WizardFieldNames.Matchmaking,
+            WizardFieldNames.ModeCatalog
         };
 
         private readonly IGameModeCatalog _catalog;

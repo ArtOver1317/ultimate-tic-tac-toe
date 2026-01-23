@@ -14,10 +14,10 @@ namespace Runtime.GameModes.Wizard
 
         private static readonly IReadOnlyList<ValidationError> _noErrors = Array.Empty<ValidationError>();
         private static readonly ReadOnlyCollection<ValidationError> _modeConfigRequiredError =
-            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired") });
+            Array.AsReadOnly(new[] { new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ModeConfigRequired") });
 
         private static readonly ReadOnlyCollection<ValidationError> _ultimateConfigInvalidError =
-            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "Errors.GameModeWizard.UltimateConfigInvalid") });
+            Array.AsReadOnly(new[] { new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.UltimateConfigInvalid") });
 
         private readonly Func<UltimateSettingsViewModel> _createSettingsViewModel;
 

@@ -18,13 +18,13 @@ namespace Runtime.GameModes.Wizard
 
         private static readonly IReadOnlyList<ValidationError> _noErrors = Array.Empty<ValidationError>();
         private static readonly ReadOnlyCollection<ValidationError> _modeConfigRequiredError =
-            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired") });
+            Array.AsReadOnly(new[] { new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ModeConfigRequired") });
 
         private static readonly ReadOnlyCollection<ValidationError> _classicConfigInvalidError =
-            Array.AsReadOnly(new[] { new ValidationError("ModeConfig", "Errors.GameModeWizard.ClassicConfigInvalid") });
+            Array.AsReadOnly(new[] { new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ClassicConfigInvalid") });
 
         private static readonly ReadOnlyCollection<ValidationError> _classicBoardSizeInvalidError =
-            Array.AsReadOnly(new[] { new ValidationError("BoardSize", "Errors.GameModeWizard.ClassicBoardSizeInvalid") });
+            Array.AsReadOnly(new[] { new ValidationError(nameof(ClassicModeConfig.BoardSize), "Errors.GameModeWizard.ClassicBoardSizeInvalid") });
 
         private readonly Func<ClassicSettingsViewModel> _createSettingsViewModel;
         private readonly int _minBoardSize;

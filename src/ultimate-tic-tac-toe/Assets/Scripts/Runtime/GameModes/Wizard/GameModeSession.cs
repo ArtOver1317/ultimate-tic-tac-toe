@@ -246,17 +246,17 @@ namespace Runtime.GameModes.Wizard
             List<ValidationError> errors = null;
 
             if (string.IsNullOrWhiteSpace(snapshot.SelectedModeId))
-                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("SelectedModeId", "Errors.GameModeWizard.ModeRequired"));
+                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.SelectedModeId, "Errors.GameModeWizard.ModeRequired"));
 
             if (snapshot.ModeConfig == null)
-                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired"));
+                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ModeConfigRequired"));
 
             if (!string.IsNullOrWhiteSpace(snapshot.SelectedModeId))
             {
                 if (_catalog == null)
                 {
                     (errors ??= new List<ValidationError>(capacity: 4))
-                        .Add(new ValidationError("ModeCatalog", "Errors.GameModeWizard.ModeCatalogMissing"));
+                        .Add(new ValidationError(WizardFieldNames.ModeCatalog, "Errors.GameModeWizard.ModeCatalogMissing"));
                 }
                 else
                 {
@@ -274,7 +274,7 @@ namespace Runtime.GameModes.Wizard
                     }
                     else
                     {
-                        (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("SelectedModeId", "Errors.GameModeWizard.ModeUnknown"));
+                        (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.SelectedModeId, "Errors.GameModeWizard.ModeUnknown"));
                     }
                 }
             }
@@ -282,17 +282,17 @@ namespace Runtime.GameModes.Wizard
             if (snapshot.OpponentType == OpponentType.Bot)
             {
                 if (string.IsNullOrWhiteSpace(snapshot.BotDifficultyId))
-                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("BotDifficultyId", "Errors.GameModeWizard.DifficultyRequired"));
+                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.BotDifficultyId, "Errors.GameModeWizard.DifficultyRequired"));
             }
             else
             {
                 if (snapshot.HumanOpponentKind == HumanOpponentKind.DirectInvite && string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
-                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("TargetPlayerId", "Errors.GameModeWizard.PlayerIdRequired"));
+                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired"));
 
                 // Phase 1: matchmaking resolution (MatchId/OpponentId) is not implemented.
                 // Keep CanStart consistent with BuildLaunchConfig() by treating matchmaking as invalid for now.
                 if (snapshot.HumanOpponentKind == HumanOpponentKind.Matchmaking)
-                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError("Matchmaking", "Errors.GameModeWizard.MatchmakingConfigMissing"));
+                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.Matchmaking, "Errors.GameModeWizard.MatchmakingConfigMissing"));
             }
 
             return errors ?? _noErrors;
