@@ -37,10 +37,12 @@ namespace Runtime.GameModes.Wizard
         private readonly ReactiveProperty<string> _modeIconKey = new(string.Empty);
         private readonly ReactiveProperty<ModeSettingsPresentation?> _activeSettings = new(null);
         private readonly ReactiveProperty<OpponentType> _opponentType = new(global::Runtime.GameModes.Wizard.OpponentType.Bot);
+        private readonly ReactiveProperty<HumanOpponentKind> _humanOpponentKind = new(global::Runtime.GameModes.Wizard.HumanOpponentKind.Local);
         private readonly ReactiveProperty<IReadOnlyList<BotDifficulty>> _availableDifficulties;
         private readonly ReactiveProperty<IReadOnlyList<DifficultyChipItem>> _difficultyItems = new(Array.Empty<DifficultyChipItem>());
         private readonly ReactiveProperty<string?> _selectedDifficultyId = new(null);
         private readonly ReactiveProperty<bool> _isBotSettingsVisible = new(true);
+        private readonly ReactiveProperty<bool> _isHumanSettingsVisible = new(false);
         private readonly ReactiveProperty<bool> _canStart = new(false);
         private readonly ReactiveProperty<bool> _isBusy = new(false);
         private readonly ReactiveProperty<string?> _inlineErrorText = new(null);
@@ -50,6 +52,7 @@ namespace Runtime.GameModes.Wizard
 
         private bool _sessionCanStart;
         private int _lastAppliedVersion;
+        private IGameModeConfig? _lastAppliedModeConfig;
 
         private IDisposable? _modeTitleSubscription;
         private CompositeDisposable? _difficultyLocalizationSubscriptions;
@@ -68,15 +71,20 @@ namespace Runtime.GameModes.Wizard
         private int _isSyncingFromSession;
         // Protects against feedback loop: UI -> session -> UI
         private int _isSyncingDifficultyFromSession;
+        // Protects against feedback loop: session -> subVM -> session
+        private int _isSyncingModeConfigFromSession;
+        private int _isSyncingHumanKindFromSession;
 
         public ReadOnlyReactiveProperty<string> ModeTitleText => _modeTitleText;
         public ReadOnlyReactiveProperty<string> ModeIconKey => _modeIconKey;
         public ReadOnlyReactiveProperty<ModeSettingsPresentation?> ActiveSettings => _activeSettings;
         public ReactiveProperty<OpponentType> OpponentType => _opponentType;
+        public ReactiveProperty<HumanOpponentKind> HumanOpponentKind => _humanOpponentKind;
         public ReadOnlyReactiveProperty<IReadOnlyList<BotDifficulty>> AvailableDifficulties => _availableDifficulties;
         public ReadOnlyReactiveProperty<IReadOnlyList<DifficultyChipItem>> DifficultyItems => _difficultyItems;
         public ReactiveProperty<string?> SelectedDifficultyId => _selectedDifficultyId;
         public ReadOnlyReactiveProperty<bool> IsBotSettingsVisible => _isBotSettingsVisible;
+        public ReadOnlyReactiveProperty<bool> IsHumanSettingsVisible => _isHumanSettingsVisible;
         public ReadOnlyReactiveProperty<bool> CanStart => _canStart;
         public ReadOnlyReactiveProperty<bool> IsBusy => _isBusy;
         public ReadOnlyReactiveProperty<WizardError?> Error => _coordinator.CurrentError;
@@ -90,6 +98,8 @@ namespace Runtime.GameModes.Wizard
         public Observable<string> OpponentSectionTitle { get; }
         public Observable<string> ModeOptionsTitle { get; }
         public Observable<string> BotDifficultyTitle { get; }
+        public Observable<string> HumanSettingsTitle { get; }
+        public Observable<string> HumanLocalText { get; }
 
         public MatchSetupViewModel(
             IGameModeCatalog catalog,
@@ -114,6 +124,8 @@ namespace Runtime.GameModes.Wizard
             OpponentSectionTitle = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.Opponent.Title"));
             ModeOptionsTitle = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.ModeOptions.Title"));
             BotDifficultyTitle = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.BotDifficulty.Title"));
+            HumanSettingsTitle = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.HumanSettings.Title"));
+            HumanLocalText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.HumanSettings.Local"));
         }
 
         public override void Initialize()
@@ -151,6 +163,14 @@ namespace Runtime.GameModes.Wizard
             _opponentType.Value = opponentType;
         }
 
+        public void SetHumanOpponentKind(HumanOpponentKind kind)
+        {
+            if (_humanOpponentKind.Value == kind)
+                return;
+
+            _humanOpponentKind.Value = kind;
+        }
+
         public void SetBotDifficultyId(string? difficultyId)
         {
             var normalized = string.IsNullOrWhiteSpace(difficultyId) ? null : difficultyId;
@@ -173,6 +193,7 @@ namespace Runtime.GameModes.Wizard
             Volatile.Write(ref _isWired, 0);
             Volatile.Write(ref _isSyncingFromSession, 0);
             Volatile.Write(ref _isSyncingDifficultyFromSession, 0);
+            Volatile.Write(ref _isSyncingHumanKindFromSession, 0);
             Volatile.Write(ref _difficultyItemsRebuildScheduled, 0);
             Volatile.Write(ref _difficultyItemsRebuildVersion, 0);
 
@@ -182,10 +203,12 @@ namespace Runtime.GameModes.Wizard
             _modeTitleText.Value = string.Empty;
             _modeIconKey.Value = string.Empty;
             _opponentType.Value = global::Runtime.GameModes.Wizard.OpponentType.Bot;
+            _humanOpponentKind.Value = global::Runtime.GameModes.Wizard.HumanOpponentKind.Local;
             _availableDifficulties.Value = _difficultyCatalog.Difficulties;
             _difficultyItems.Value = Array.Empty<DifficultyChipItem>();
             _selectedDifficultyId.Value = null;
             _isBotSettingsVisible.Value = true;
+            _isHumanSettingsVisible.Value = false;
             _difficultyLabels.Clear();
             _difficultyLocalizationSubscriptions?.Dispose();
             _difficultyLocalizationSubscriptions = null;
@@ -218,10 +241,12 @@ namespace Runtime.GameModes.Wizard
             _modeIconKey.Dispose();
             _activeSettings.Dispose();
             _opponentType.Dispose();
+            _humanOpponentKind.Dispose();
             _availableDifficulties.Dispose();
             _difficultyItems.Dispose();
             _selectedDifficultyId.Dispose();
             _isBotSettingsVisible.Dispose();
+            _isHumanSettingsVisible.Dispose();
             _canStart.Dispose();
             _isBusy.Dispose();
             _inlineErrorText.Dispose();
@@ -260,8 +285,16 @@ namespace Runtime.GameModes.Wizard
                 AddDisposable(_opponentType
                     .Subscribe(type => OnOpponentTypeChanged(type, session)));
 
+                AddDisposable(_humanOpponentKind
+                    .Subscribe(kind => OnHumanOpponentKindChanged(kind, session)));
+
                 AddDisposable(_selectedDifficultyId
                     .Subscribe(id => OnSelectedDifficultyChanged(id, session)));
+            }
+            else
+            {
+                _validationErrorText = ResolveMessageKey("Errors.GameModeWizard.SessionNotReady");
+                UpdateInlineError();
             }
 
             AddDisposable(_coordinator.CurrentError
@@ -270,6 +303,10 @@ namespace Runtime.GameModes.Wizard
             AddDisposable(_opponentType
                 .Select(type => type == global::Runtime.GameModes.Wizard.OpponentType.Bot)
                 .Subscribe(isBot => _isBotSettingsVisible.Value = isBot));
+
+            AddDisposable(_opponentType
+                .Select(type => type == global::Runtime.GameModes.Wizard.OpponentType.Human)
+                .Subscribe(isHuman => _isHumanSettingsVisible.Value = isHuman));
 
             AddDisposable(_availableDifficulties
                 .Subscribe(OnAvailableDifficultiesChanged));
@@ -300,10 +337,13 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             _lastAppliedVersion = snapshot.Version;
+            _lastAppliedModeConfig = snapshot.ModeConfig;
 
             ApplySelectedMode(snapshot.SelectedModeId);
             ApplyOpponentTypeFromSession(snapshot.OpponentType);
+            ApplyHumanOpponentKindFromSession(snapshot.HumanOpponentKind);
             ApplyBotDifficultyFromSession(snapshot.BotDifficultyId);
+            ApplyModeConfigFromSession(snapshot.ModeConfig);
         }
 
         private void ApplySelectedMode(string? selectedModeId)
@@ -357,6 +397,8 @@ namespace Runtime.GameModes.Wizard
             if (_activeSettingsViewModel is BaseViewModel baseViewModel)
                 baseViewModel.Initialize();
 
+            ApplyModeConfigFromSession(_lastAppliedModeConfig);
+
             _activeConfigSubscription = presentation.ViewModel.Config
                 .Subscribe(ApplyModeConfig);
             ApplyModeConfig(presentation.ViewModel.Config.CurrentValue);
@@ -376,6 +418,23 @@ namespace Runtime.GameModes.Wizard
             finally
             {
                 Interlocked.Exchange(ref _isSyncingFromSession, 0);
+            }
+        }
+
+        private void ApplyHumanOpponentKindFromSession(HumanOpponentKind kind)
+        {
+            if (_humanOpponentKind.Value == kind)
+                return;
+
+            Interlocked.Exchange(ref _isSyncingHumanKindFromSession, 1);
+
+            try
+            {
+                _humanOpponentKind.Value = kind;
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isSyncingHumanKindFromSession, 0);
             }
         }
 
@@ -447,6 +506,33 @@ namespace Runtime.GameModes.Wizard
             try
             {
                 session.Update(s => s.OpponentType == opponentType ? s : s.WithOpponentType(opponentType));
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
+        private void OnHumanOpponentKindChanged(HumanOpponentKind kind, IGameModeSession session)
+        {
+            if (Volatile.Read(ref _isSyncingHumanKindFromSession) != 0)
+                return;
+
+            HumanOpponentKind current;
+            try
+            {
+                current = session.Snapshot.CurrentValue.HumanOpponentKind;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+
+            if (current == kind)
+                return;
+
+            try
+            {
+                session.Update(s => s.HumanOpponentKind == kind ? s : s.WithHumanOpponentKind(kind));
             }
             catch (ObjectDisposedException)
             {
@@ -818,6 +904,9 @@ namespace Runtime.GameModes.Wizard
             if (config == null)
                 return;
 
+            if (Volatile.Read(ref _isSyncingModeConfigFromSession) != 0)
+                return;
+
             var session = _session;
             if (session == null)
                 return;
@@ -828,6 +917,28 @@ namespace Runtime.GameModes.Wizard
             }
             catch (ObjectDisposedException)
             {
+            }
+        }
+
+        private void ApplyModeConfigFromSession(IGameModeConfig? config)
+        {
+            if (config == null)
+                return;
+
+            var viewModel = _activeSettingsViewModel;
+            if (viewModel == null)
+                return;
+
+            Interlocked.Exchange(ref _isSyncingModeConfigFromSession, 1);
+
+            try
+            {
+                if (!viewModel.TryApplyConfig(config))
+                    GameLog.Warning($"[MatchSetupViewModel] Mode config type mismatch for {viewModel.GetType().Name}.");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isSyncingModeConfigFromSession, 0);
             }
         }
 

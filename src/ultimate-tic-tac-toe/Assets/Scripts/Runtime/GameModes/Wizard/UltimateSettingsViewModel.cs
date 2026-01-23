@@ -11,6 +11,15 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<IGameModeConfig> Config => _config;
         public ReadOnlyReactiveProperty<bool> IsValid => _isValid;
 
+        public bool TryApplyConfig(IGameModeConfig config)
+        {
+            if (config is not UltimateModeConfig)
+                return false;
+
+            _config.Value = config;
+            return true;
+        }
+
         protected override void OnDispose()
         {
             _config.Dispose();

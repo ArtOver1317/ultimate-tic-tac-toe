@@ -1188,6 +1188,15 @@ namespace Tests.EditMode.GameModes.Wizard
             public ReadOnlyReactiveProperty<IGameModeConfig> Config => _config;
             public ReadOnlyReactiveProperty<bool> IsValid => _isValid;
 
+            public bool TryApplyConfig(IGameModeConfig config)
+            {
+                if (config == null)
+                    return false;
+
+                _config.Value = config;
+                return true;
+            }
+
             public int InitializeCallCount { get; private set; }
             public int DisposeCallCount { get; private set; }
 

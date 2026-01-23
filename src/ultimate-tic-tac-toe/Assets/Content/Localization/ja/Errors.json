@@ -19,6 +19,7 @@
     "Errors.GameModeWizard.ModeRequired": "ゲームモードを選択してください",
     "Errors.GameModeWizard.ModeUnknown": "不明なゲームモードです",
     "Errors.GameModeWizard.PlayerIdRequired": "プレイヤーを選択してください",
+    "Errors.GameModeWizard.SessionNotReady": "セッションの準備ができていません",
     "Errors.GameModeWizard.UltimateConfigInvalid": "Ultimateモードの設定が無効です",
     "Errors.GameModeWizard.UnhandledException": "エラーが発生しました。もう一度お試しください。",
     "Errors.Lobby.AlreadyInRoom": "すでにルームに参加しています",

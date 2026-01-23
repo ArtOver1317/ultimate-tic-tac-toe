@@ -10,6 +10,8 @@
     "GameModeWizard.MatchSetup.BotDifficulty.Title": "Bot Difficulty",
     "GameModeWizard.MatchSetup.Cancel": "Cancel",
     "GameModeWizard.MatchSetup.Classic.BoardSize": "Board Size",
+    "GameModeWizard.MatchSetup.HumanSettings.Local": "Local (Same Screen)",
+    "GameModeWizard.MatchSetup.HumanSettings.Title": "Human Settings",
     "GameModeWizard.MatchSetup.ModeOptions.Title": "Rules",
     "GameModeWizard.MatchSetup.Opponent.Bot": "Bot",
     "GameModeWizard.MatchSetup.Opponent.Human": "Human",

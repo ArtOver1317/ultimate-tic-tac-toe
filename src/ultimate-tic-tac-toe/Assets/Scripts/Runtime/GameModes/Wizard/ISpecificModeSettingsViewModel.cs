@@ -14,5 +14,8 @@ namespace Runtime.GameModes.Wizard
 
         /// <summary>Is current mode config valid?</summary>
         ReadOnlyReactiveProperty<bool> IsValid { get; }
+
+        /// <summary>Apply config coming from session. Returns true when applied.</summary>
+        bool TryApplyConfig(IGameModeConfig config);
     }
 }

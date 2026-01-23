@@ -19,6 +19,7 @@
     "Errors.GameModeWizard.ModeRequired": "Выберите режим игры",
     "Errors.GameModeWizard.ModeUnknown": "Неизвестный режим игры",
     "Errors.GameModeWizard.PlayerIdRequired": "Выберите игрока",
+    "Errors.GameModeWizard.SessionNotReady": "Сессия не готова",
     "Errors.GameModeWizard.UltimateConfigInvalid": "Некорректные настройки режима Ultimate",
     "Errors.GameModeWizard.UnhandledException": "Произошла ошибка. Попробуйте ещё раз.",
     "Errors.Lobby.AlreadyInRoom": "Вы уже в комнате",

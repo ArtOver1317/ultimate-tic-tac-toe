@@ -94,6 +94,10 @@
     margin-top: 12px;
 }
 
+.gmw-human-settings {
+    margin-top: 12px;
+}
+
 .gmw-difficulty-chips {
     flex-direction: row;
 }
@@ -137,4 +141,36 @@
 
 .segmented-toggle__button--selected {
     background-color: rgba(255, 255, 255, 0.18);
+}
+
+.gmw-human-kind-radio {
+    flex-direction: column;
+}
+
+.human-kind-radio {
+    flex-direction: column;
+    width: 100%;
+}
+
+.human-kind-radio__item {
+    height: 64px;
+    font-size: 28px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-bottom-left-radius: 14px;
+    margin-bottom: 12px;
+}
+
+.human-kind-radio__item--last {
+    margin-bottom: 0;
+}
+
+.human-kind-radio__item--selected {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+.human-kind-radio__item--disabled {
+    opacity: 0.55;
 }

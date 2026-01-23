@@ -45,6 +45,15 @@ namespace Runtime.UI.GameModes.Wizard
         [Runtime.UI.Core.UxmlElementAttribute("DifficultyChips")]
         private DifficultyChips? _difficultyChips;
 
+        [Runtime.UI.Core.UxmlElementAttribute("HumanSettingsSection")]
+        private VisualElement? _humanSettingsSection;
+
+        [Runtime.UI.Core.UxmlElementAttribute("HumanSettingsTitle")]
+        private Label? _humanSettingsTitle;
+
+        [Runtime.UI.Core.UxmlElementAttribute("HumanKindRadio")]
+        private HumanKindRadio? _humanKindRadio;
+
         [Runtime.UI.Core.UxmlElementAttribute("CancelButton")]
         private Button? _cancelButton;
 
@@ -64,6 +73,7 @@ namespace Runtime.UI.GameModes.Wizard
 
         private string _botLabel = string.Empty;
         private string _humanLabel = string.Empty;
+        private string _humanLocalLabel = string.Empty;
 
         [Inject]
         public void Construct(IViewAssetProvider assetProvider, IEnumerable<IModeSettingsBinder> binders)
@@ -84,12 +94,16 @@ namespace Runtime.UI.GameModes.Wizard
             var botSettingsSection = _botSettingsSection ?? throw new InvalidOperationException("BotSettingsSection element is missing in UXML.");
             var botSettingsTitle = _botSettingsTitle ?? throw new InvalidOperationException("BotSettingsTitle element is missing in UXML.");
             var difficultyChips = _difficultyChips ?? throw new InvalidOperationException("DifficultyChips element is missing in UXML.");
+            var humanSettingsSection = _humanSettingsSection ?? throw new InvalidOperationException("HumanSettingsSection element is missing in UXML.");
+            var humanSettingsTitle = _humanSettingsTitle ?? throw new InvalidOperationException("HumanSettingsTitle element is missing in UXML.");
+            var humanKindRadio = _humanKindRadio ?? throw new InvalidOperationException("HumanKindRadio element is missing in UXML.");
             var cancelButton = _cancelButton ?? throw new InvalidOperationException("CancelButton element is missing in UXML.");
             var startButton = _startButton ?? throw new InvalidOperationException("StartButton element is missing in UXML.");
 
             AddDisposable(ViewModel.ModeOptionsTitle.Subscribe(text => modeOptionsTitle.text = text));
             AddDisposable(ViewModel.OpponentSectionTitle.Subscribe(text => opponentTitle.text = text));
             AddDisposable(ViewModel.BotDifficultyTitle.Subscribe(text => botSettingsTitle.text = text));
+            AddDisposable(ViewModel.HumanSettingsTitle.Subscribe(text => humanSettingsTitle.text = text));
 
             AddDisposable(ViewModel.BackButtonText.Subscribe(text => backButton.text = text));
             AddDisposable(ViewModel.CancelButtonText.Subscribe(text => cancelButton.text = text));
@@ -131,8 +145,10 @@ namespace Runtime.UI.GameModes.Wizard
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), backButton);
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), opponentToggle);
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), difficultyChips);
+            BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), humanKindRadio);
 
             BindVisibility(ViewModel.IsBotSettingsVisible, botSettingsSection);
+            BindVisibility(ViewModel.IsHumanSettingsVisible, humanSettingsSection);
 
             AddDisposable(backButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestBack()));
             AddDisposable(startButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestStart()));
@@ -162,6 +178,23 @@ namespace Runtime.UI.GameModes.Wizard
             difficultyChips.SelectedIdChanged += OnDifficultySelected;
             AddDisposable(Disposable.Create(() => difficultyChips.SelectedIdChanged -= OnDifficultySelected));
 
+            AddDisposable(ViewModel.HumanLocalText.Subscribe(text =>
+            {
+                _humanLocalLabel = text ?? string.Empty;
+                UpdateHumanKindOptions();
+            }));
+
+            UpdateHumanKindOptions();
+            humanKindRadio.SetSelectedKindWithoutNotify(ViewModel.HumanOpponentKind.Value);
+
+            AddDisposable(ViewModel.HumanOpponentKind
+                .Subscribe(kind => humanKindRadio.SetSelectedKindWithoutNotify(kind)));
+
+            void OnHumanKindSelected(HumanOpponentKind kind) => ViewModel.SetHumanOpponentKind(kind);
+
+            humanKindRadio.SelectedKindChanged += OnHumanKindSelected;
+            AddDisposable(Disposable.Create(() => humanKindRadio.SelectedKindChanged -= OnHumanKindSelected));
+
             AddDisposable(ViewModel.ActiveSettings
                 .Subscribe(presentation => LoadSettingsSafeAsync(presentation).Forget(ex => GameLog.Exception(ex))));
         }
@@ -188,6 +221,21 @@ namespace Runtime.UI.GameModes.Wizard
             toggle.SetSelectedIndexWithoutNotify(index);
         }
 
+        private void UpdateHumanKindOptions()
+        {
+            var humanKindRadio = _humanKindRadio;
+            if (humanKindRadio == null)
+                return;
+
+            var items = new[]
+            {
+                new HumanKindRadioItem(HumanOpponentKind.Local, _humanLocalLabel)
+            };
+
+            humanKindRadio.SetItems(items);
+            humanKindRadio.SetSelectedKindWithoutNotify(ViewModel.HumanOpponentKind.Value);
+        }
+
         private async UniTask LoadSettingsSafeAsync(ModeSettingsPresentation? presentation)
         {
             CancelPendingLoad();
@@ -206,7 +254,17 @@ namespace Runtime.UI.GameModes.Wizard
 
             var cts = new CancellationTokenSource();
             var previousCts = Interlocked.Exchange(ref _loadCts, cts);
-            previousCts?.Cancel();
+            if (previousCts != null)
+            {
+                try
+                {
+                    previousCts.Cancel();
+                }
+                finally
+                {
+                    previousCts.Dispose();
+                }
+            }
 
             try
             {
@@ -266,7 +324,18 @@ namespace Runtime.UI.GameModes.Wizard
             if (_loadCts == null)
                 return;
 
-            _loadCts.Cancel();
+            var cts = Interlocked.Exchange(ref _loadCts, null);
+            if (cts == null)
+                return;
+
+            try
+            {
+                cts.Cancel();
+            }
+            finally
+            {
+                cts.Dispose();
+            }
         }
 
         private void CleanupCurrentSettings()

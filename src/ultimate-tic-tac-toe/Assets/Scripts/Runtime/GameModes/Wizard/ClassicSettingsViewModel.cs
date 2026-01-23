@@ -52,6 +52,16 @@ namespace Runtime.GameModes.Wizard
         public void IncrementBoardSize() => _boardSize.Value = checked(_boardSize.Value + 1);
         public void DecrementBoardSize() => _boardSize.Value = checked(_boardSize.Value - 1);
 
+        public bool TryApplyConfig(IGameModeConfig config)
+        {
+            if (config is not ClassicModeConfig classic)
+                return false;
+
+            EnsureWired();
+            _boardSize.Value = classic.BoardSize;
+            return true;
+        }
+
         protected override void OnReset()
         {
             // BaseViewModel.Reset() clears its CompositeDisposable.

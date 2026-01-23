@@ -19,6 +19,7 @@
     "Errors.GameModeWizard.ModeRequired": "Select a game mode",
     "Errors.GameModeWizard.ModeUnknown": "Unknown game mode",
     "Errors.GameModeWizard.PlayerIdRequired": "Select a player",
+    "Errors.GameModeWizard.SessionNotReady": "Session is not ready",
     "Errors.GameModeWizard.UltimateConfigInvalid": "Invalid Ultimate mode settings",
     "Errors.GameModeWizard.UnhandledException": "An error occurred. Please try again.",
     "Errors.Lobby.AlreadyInRoom": "Already in a room",

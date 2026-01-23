@@ -10,6 +10,8 @@
     "GameModeWizard.MatchSetup.BotDifficulty.Title": "Сложность бота",
     "GameModeWizard.MatchSetup.Cancel": "Отмена",
     "GameModeWizard.MatchSetup.Classic.BoardSize": "Размер поля",
+    "GameModeWizard.MatchSetup.HumanSettings.Local": "Локально (один экран)",
+    "GameModeWizard.MatchSetup.HumanSettings.Title": "Настройки игрока",
     "GameModeWizard.MatchSetup.ModeOptions.Title": "Правила",
     "GameModeWizard.MatchSetup.Opponent.Bot": "Бот",
     "GameModeWizard.MatchSetup.Opponent.Human": "Человек",
