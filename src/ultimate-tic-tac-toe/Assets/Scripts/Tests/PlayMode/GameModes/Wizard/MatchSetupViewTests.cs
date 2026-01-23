@@ -317,8 +317,15 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             public void EmitSnapshot(GameModeSessionSnapshot snapshot) => _snapshot.Value = snapshot;
 
-            public void Update(Func<GameModeSessionSnapshot, GameModeSessionSnapshot> reducer) =>
-                _snapshot.Value = reducer(_snapshot.Value);
+            public void Update(Func<GameModeSessionSnapshot, GameModeSessionSnapshot> reducer)
+            {
+                var current = _snapshot.Value ?? GameModeSessionSnapshot.Default;
+                var updated = reducer(current) ?? GameModeSessionSnapshot.Default;
+                var nextVersion = current.Version + 1;
+                if (updated.Version < nextVersion)
+                    updated = updated.WithVersion(nextVersion);
+                _snapshot.Value = updated;
+            }
 
             public void SetModeConfig(IGameModeConfig config) { }
 

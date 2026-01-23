@@ -180,7 +180,7 @@ namespace Tests.EditMode.GameModes.Wizard
                 .WithOpponentType(OpponentType.Human)
                 .WithVersion(1));
 
-            sut.OpponentType.Value.Should().Be(OpponentType.Human);
+            sut.OpponentType.CurrentValue.Should().Be(OpponentType.Human);
 
             sut.Reset();
 
@@ -192,13 +192,13 @@ namespace Tests.EditMode.GameModes.Wizard
                 .WithVersion(1));
 
             // Assert
-            sut.OpponentType.Value.Should().Be(OpponentType.Bot);
+            sut.OpponentType.CurrentValue.Should().Be(OpponentType.Bot);
 
             sessionA.EmitSnapshot(GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithVersion(2));
 
-            sut.OpponentType.Value.Should().Be(OpponentType.Bot);
+            sut.OpponentType.CurrentValue.Should().Be(OpponentType.Bot);
         }
 
         [Test]
@@ -471,7 +471,7 @@ namespace Tests.EditMode.GameModes.Wizard
             session.EmitSnapshot(GameModeSessionSnapshot.Default.WithOpponentType(OpponentType.Human).WithVersion(1));
 
             // Assert
-            sut.OpponentType.Value.Should().Be(OpponentType.Human);
+            sut.OpponentType.CurrentValue.Should().Be(OpponentType.Human);
             session.UpdateCallCount.Should().Be(0);
         }
 
@@ -491,7 +491,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             session.UpdateCallCount.Should().Be(1);
             session.Snapshot.CurrentValue.BotDifficultyId.Should().Be("Hard");
-            sut.SelectedDifficultyId.Value.Should().Be("Hard");
+            sut.SelectedDifficultyId.CurrentValue.Should().Be("Hard");
         }
 
         [Test]
@@ -528,7 +528,7 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.SetBotDifficultyId("Unknown");
 
             // Assert
-            sut.SelectedDifficultyId.Value.Should().BeNull();
+            sut.SelectedDifficultyId.CurrentValue.Should().BeNull();
             session.Snapshot.CurrentValue.BotDifficultyId.Should().BeNull();
         }
 
@@ -549,7 +549,7 @@ namespace Tests.EditMode.GameModes.Wizard
                 .WithVersion(1));
 
             // Assert
-            sut.SelectedDifficultyId.Value.Should().Be("Hard");
+            sut.SelectedDifficultyId.CurrentValue.Should().Be("Hard");
             session.UpdateCallCount.Should().Be(0);
         }
 
@@ -570,7 +570,7 @@ namespace Tests.EditMode.GameModes.Wizard
                 .WithVersion(1));
 
             // Assert
-            sut.SelectedDifficultyId.Value.Should().BeNull();
+            sut.SelectedDifficultyId.CurrentValue.Should().BeNull();
             session.UpdateCallCount.Should().Be(1);
             session.Snapshot.CurrentValue.BotDifficultyId.Should().BeNull();
         }
@@ -586,7 +586,7 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.Initialize();
             sut.SetBotDifficultyId("Hard");
             var callsBefore = session.UpdateCallCount;
-            sut.SelectedDifficultyId.Value.Should().Be("Hard");
+            sut.SelectedDifficultyId.CurrentValue.Should().Be("Hard");
 
             // Act
             SetAvailableDifficulties(sut, Array.AsReadOnly(new[]
@@ -596,11 +596,11 @@ namespace Tests.EditMode.GameModes.Wizard
             }));
 
             await WaitUntilAsync(
-                () => sut.SelectedDifficultyId.Value == null && session.UpdateCallCount == callsBefore + 1,
+                () => sut.SelectedDifficultyId.CurrentValue == null && session.UpdateCallCount == callsBefore + 1,
                 timeoutMs: WaitUntilTimeoutMs);
 
             // Assert
-            sut.SelectedDifficultyId.Value.Should().BeNull();
+            sut.SelectedDifficultyId.CurrentValue.Should().BeNull();
             session.UpdateCallCount.Should().Be(callsBefore + 1);
             session.Snapshot.CurrentValue.BotDifficultyId.Should().BeNull();
         }
@@ -621,7 +621,7 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.SetOpponentType(OpponentType.Bot);
 
             // Assert
-            sut.SelectedDifficultyId.Value.Should().Be("Hard");
+            sut.SelectedDifficultyId.CurrentValue.Should().Be("Hard");
         }
 
         [Test]
@@ -674,7 +674,7 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.Reset();
 
             // Assert
-            sut.SelectedDifficultyId.Value.Should().BeNull();
+            sut.SelectedDifficultyId.CurrentValue.Should().BeNull();
         }
 
         [Test]
@@ -891,7 +891,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             act.Should().NotThrow();
-            sut.OpponentType.Value.Should().Be(OpponentType.Human);
+            sut.OpponentType.CurrentValue.Should().Be(OpponentType.Bot);
         }
 
         [Test]
@@ -1116,7 +1116,12 @@ namespace Tests.EditMode.GameModes.Wizard
             {
                 EnsureNotDisposed();
                 UpdateCallCount++;
-                _snapshot.Value = reducer(_snapshot.Value ?? GameModeSessionSnapshot.Default);
+                var current = _snapshot.Value ?? GameModeSessionSnapshot.Default;
+                var updated = reducer(current) ?? GameModeSessionSnapshot.Default;
+                var nextVersion = current.Version + 1;
+                if (updated.Version < nextVersion)
+                    updated = updated.WithVersion(nextVersion);
+                _snapshot.Value = updated;
             }
 
             public void SetModeConfig(IGameModeConfig config)

@@ -67,22 +67,17 @@ namespace Runtime.GameModes.Wizard
         private IDisposable? _activeConfigSubscription;
 
         private int _isWired;
-        // Protects against feedback loop: UI -> session -> UI
-        private int _isSyncingFromSession;
-        // Protects against feedback loop: UI -> session -> UI
-        private int _isSyncingDifficultyFromSession;
         // Protects against feedback loop: session -> subVM -> session
         private int _isSyncingModeConfigFromSession;
-        private int _isSyncingHumanKindFromSession;
 
         public ReadOnlyReactiveProperty<string> ModeTitleText => _modeTitleText;
         public ReadOnlyReactiveProperty<string> ModeIconKey => _modeIconKey;
         public ReadOnlyReactiveProperty<ModeSettingsPresentation?> ActiveSettings => _activeSettings;
-        public ReactiveProperty<OpponentType> OpponentType => _opponentType;
-        public ReactiveProperty<HumanOpponentKind> HumanOpponentKind => _humanOpponentKind;
+        public ReadOnlyReactiveProperty<OpponentType> OpponentType => _opponentType;
+        public ReadOnlyReactiveProperty<HumanOpponentKind> HumanOpponentKind => _humanOpponentKind;
         public ReadOnlyReactiveProperty<IReadOnlyList<BotDifficulty>> AvailableDifficulties => _availableDifficulties;
         public ReadOnlyReactiveProperty<IReadOnlyList<DifficultyChipItem>> DifficultyItems => _difficultyItems;
-        public ReactiveProperty<string?> SelectedDifficultyId => _selectedDifficultyId;
+        public ReadOnlyReactiveProperty<string?> SelectedDifficultyId => _selectedDifficultyId;
         public ReadOnlyReactiveProperty<bool> IsBotSettingsVisible => _isBotSettingsVisible;
         public ReadOnlyReactiveProperty<bool> IsHumanSettingsVisible => _isHumanSettingsVisible;
         public ReadOnlyReactiveProperty<bool> CanStart => _canStart;
@@ -157,30 +152,81 @@ namespace Runtime.GameModes.Wizard
 
         public void SetOpponentType(OpponentType opponentType)
         {
-            if (_opponentType.Value == opponentType)
+            if (IsDisposed)
                 return;
 
-            _opponentType.Value = opponentType;
+            if (_opponentType.CurrentValue == opponentType)
+                return;
+
+            var session = _session;
+            if (session == null)
+            {
+                GameLog.Warning("[MatchSetupViewModel] SetOpponentType ignored: session not available.");
+                return;
+            }
+
+            try
+            {
+                session.Update(s => s.OpponentType == opponentType ? s : s.WithOpponentType(opponentType));
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
 
         public void SetHumanOpponentKind(HumanOpponentKind kind)
         {
-            if (_humanOpponentKind.Value == kind)
+            if (IsDisposed)
                 return;
 
-            _humanOpponentKind.Value = kind;
+            if (_humanOpponentKind.CurrentValue == kind)
+                return;
+
+            var session = _session;
+            if (session == null)
+            {
+                GameLog.Warning("[MatchSetupViewModel] SetHumanOpponentKind ignored: session not available.");
+                return;
+            }
+
+            try
+            {
+                session.Update(s => s.HumanOpponentKind == kind ? s : s.WithHumanOpponentKind(kind));
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
 
         public void SetBotDifficultyId(string? difficultyId)
         {
+            if (IsDisposed)
+                return;
+
             var normalized = string.IsNullOrWhiteSpace(difficultyId) ? null : difficultyId;
             if (!string.IsNullOrWhiteSpace(normalized) && !IsDifficultyAvailable(normalized))
                 normalized = null;
 
-            if (string.Equals(_selectedDifficultyId.Value, normalized, StringComparison.Ordinal))
+            if (string.Equals(_selectedDifficultyId.CurrentValue, normalized, StringComparison.Ordinal))
                 return;
 
-            _selectedDifficultyId.Value = normalized;
+            var session = _session;
+            if (session == null)
+            {
+                GameLog.Warning("[MatchSetupViewModel] SetBotDifficultyId ignored: session not available.");
+                return;
+            }
+
+            try
+            {
+                session.Update(s =>
+                    string.Equals(s.BotDifficultyId, normalized, StringComparison.Ordinal)
+                        ? s
+                        : s.WithBotDifficultyId(normalized));
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
 
 #if UNITY_INCLUDE_TESTS || UNITY_EDITOR
@@ -191,9 +237,6 @@ namespace Runtime.GameModes.Wizard
         protected override void OnReset()
         {
             Volatile.Write(ref _isWired, 0);
-            Volatile.Write(ref _isSyncingFromSession, 0);
-            Volatile.Write(ref _isSyncingDifficultyFromSession, 0);
-            Volatile.Write(ref _isSyncingHumanKindFromSession, 0);
             Volatile.Write(ref _difficultyItemsRebuildScheduled, 0);
             Volatile.Write(ref _difficultyItemsRebuildVersion, 0);
 
@@ -281,15 +324,6 @@ namespace Runtime.GameModes.Wizard
 
                 AddDisposable(session.ValidationErrors
                     .Subscribe(errors => OnValidationErrorsChanged(errors)));
-
-                AddDisposable(_opponentType
-                    .Subscribe(type => OnOpponentTypeChanged(type, session)));
-
-                AddDisposable(_humanOpponentKind
-                    .Subscribe(kind => OnHumanOpponentKindChanged(kind, session)));
-
-                AddDisposable(_selectedDifficultyId
-                    .Subscribe(id => OnSelectedDifficultyChanged(id, session)));
             }
             else
             {
@@ -409,16 +443,7 @@ namespace Runtime.GameModes.Wizard
             if (_opponentType.Value == opponentType)
                 return;
 
-            Interlocked.Exchange(ref _isSyncingFromSession, 1);
-
-            try
-            {
-                _opponentType.Value = opponentType;
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _isSyncingFromSession, 0);
-            }
+            _opponentType.Value = opponentType;
         }
 
         private void ApplyHumanOpponentKindFromSession(HumanOpponentKind kind)
@@ -426,16 +451,7 @@ namespace Runtime.GameModes.Wizard
             if (_humanOpponentKind.Value == kind)
                 return;
 
-            Interlocked.Exchange(ref _isSyncingHumanKindFromSession, 1);
-
-            try
-            {
-                _humanOpponentKind.Value = kind;
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _isSyncingHumanKindFromSession, 0);
-            }
+            _humanOpponentKind.Value = kind;
         }
 
         private void ApplyBotDifficultyFromSession(string? difficultyId)
@@ -452,16 +468,7 @@ namespace Runtime.GameModes.Wizard
             if (!needsSanitize && string.Equals(_selectedDifficultyId.Value, normalized, StringComparison.Ordinal))
                 return;
 
-            Interlocked.Exchange(ref _isSyncingDifficultyFromSession, 1);
-
-            try
-            {
-                _selectedDifficultyId.Value = normalized;
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _isSyncingDifficultyFromSession, 0);
-            }
+            _selectedDifficultyId.Value = normalized;
 
             if (!needsSanitize)
                 return;
@@ -485,90 +492,6 @@ namespace Runtime.GameModes.Wizard
             }
         }
 
-        private void OnOpponentTypeChanged(OpponentType opponentType, IGameModeSession session)
-        {
-            if (Volatile.Read(ref _isSyncingFromSession) != 0)
-                return;
-
-            OpponentType current;
-            try
-            {
-                current = session.Snapshot.CurrentValue.OpponentType;
-            }
-            catch (ObjectDisposedException)
-            {
-                return;
-            }
-
-            if (current == opponentType)
-                return;
-
-            try
-            {
-                session.Update(s => s.OpponentType == opponentType ? s : s.WithOpponentType(opponentType));
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-        }
-
-        private void OnHumanOpponentKindChanged(HumanOpponentKind kind, IGameModeSession session)
-        {
-            if (Volatile.Read(ref _isSyncingHumanKindFromSession) != 0)
-                return;
-
-            HumanOpponentKind current;
-            try
-            {
-                current = session.Snapshot.CurrentValue.HumanOpponentKind;
-            }
-            catch (ObjectDisposedException)
-            {
-                return;
-            }
-
-            if (current == kind)
-                return;
-
-            try
-            {
-                session.Update(s => s.HumanOpponentKind == kind ? s : s.WithHumanOpponentKind(kind));
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-        }
-
-        private void OnSelectedDifficultyChanged(string? difficultyId, IGameModeSession session)
-        {
-            if (Volatile.Read(ref _isSyncingDifficultyFromSession) != 0)
-                return;
-
-            string? current;
-            try
-            {
-                current = session.Snapshot.CurrentValue.BotDifficultyId;
-            }
-            catch (ObjectDisposedException)
-            {
-                return;
-            }
-
-            var normalized = string.IsNullOrWhiteSpace(difficultyId) ? null : difficultyId;
-            if (string.Equals(current, normalized, StringComparison.Ordinal))
-                return;
-
-            try
-            {
-                session.Update(s =>
-                    string.Equals(s.BotDifficultyId, normalized, StringComparison.Ordinal)
-                        ? s
-                        : s.WithBotDifficultyId(normalized));
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-        }
 
         private void OnAvailableDifficultiesChanged(IReadOnlyList<BotDifficulty> difficulties)
         {
@@ -589,7 +512,29 @@ namespace Runtime.GameModes.Wizard
 
             var selectedId = _selectedDifficultyId.Value;
             if (!string.IsNullOrWhiteSpace(selectedId) && !ContainsDifficultyId(difficulties, selectedId))
-                _selectedDifficultyId.Value = null;
+            {
+                var session = _session;
+                if (session != null)
+                {
+                    try
+                    {
+                        session.Update(s =>
+                            string.IsNullOrWhiteSpace(s.BotDifficultyId)
+                                ? s
+                                : s.WithBotDifficultyId(null));
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        _selectedDifficultyId.Value = null;
+                        GameLog.Warning("[MatchSetupViewModel] Session disposed while normalizing difficulty selection.");
+                    }
+                }
+                else
+                {
+                    _selectedDifficultyId.Value = null;
+                    GameLog.Warning("[MatchSetupViewModel] Session not available while normalizing difficulty selection.");
+                }
+            }
 
             if (difficulties == null || difficulties.Count == 0)
             {

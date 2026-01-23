@@ -121,7 +121,7 @@ namespace Runtime.UI.GameModes.Wizard
                 opponentToggle.SetLabels(_botLabel, _humanLabel);
             }));
 
-            SyncOpponentToggle(ViewModel.OpponentType.Value);
+            SyncOpponentToggle(ViewModel.OpponentType.CurrentValue);
 
             AddDisposable(ViewModel.OpponentType.Subscribe(SyncOpponentToggle));
 
@@ -167,7 +167,7 @@ namespace Runtime.UI.GameModes.Wizard
                 .Subscribe(items =>
                 {
                     difficultyChips.SetItems(items);
-                    difficultyChips.SetSelectedIdWithoutNotify(ViewModel.SelectedDifficultyId.Value);
+                    difficultyChips.SetSelectedIdWithoutNotify(ViewModel.SelectedDifficultyId.CurrentValue);
                 }));
 
             AddDisposable(ViewModel.SelectedDifficultyId
@@ -185,7 +185,7 @@ namespace Runtime.UI.GameModes.Wizard
             }));
 
             UpdateHumanKindOptions();
-            humanKindRadio.SetSelectedKindWithoutNotify(ViewModel.HumanOpponentKind.Value);
+            humanKindRadio.SetSelectedKindWithoutNotify(ViewModel.HumanOpponentKind.CurrentValue);
 
             AddDisposable(ViewModel.HumanOpponentKind
                 .Subscribe(kind => humanKindRadio.SetSelectedKindWithoutNotify(kind)));
@@ -233,7 +233,7 @@ namespace Runtime.UI.GameModes.Wizard
             };
 
             humanKindRadio.SetItems(items);
-            humanKindRadio.SetSelectedKindWithoutNotify(ViewModel.HumanOpponentKind.Value);
+            humanKindRadio.SetSelectedKindWithoutNotify(ViewModel.HumanOpponentKind.CurrentValue);
         }
 
         private async UniTask LoadSettingsSafeAsync(ModeSettingsPresentation? presentation)
