@@ -186,6 +186,142 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenMatchSetupUxmlLoaded_ThenHasHumanSettingsElements()
+        {
+            // Arrange
+            var root = _uxml.CloneTree();
+
+            // Act
+            var section = root.Q<VisualElement>("HumanSettingsSection");
+            var title = root.Q<Label>("HumanSettingsTitle");
+            var radio = root.Q<HumanKindRadio>("HumanKindRadio");
+
+            // Assert
+            section.Should().NotBeNull();
+            title.Should().NotBeNull();
+            radio.Should().NotBeNull();
+        }
+
+        [Test]
+        public void WhenIsHumanSettingsVisibleFalse_ThenHumanSettingsSectionIsHidden()
+        {
+            // Arrange
+            var section = _view.RootForTests.Q<VisualElement>("HumanSettingsSection");
+            _viewModel.SetOpponentType(OpponentType.Human);
+
+            // Act
+            _viewModel.SetOpponentType(OpponentType.Bot);
+
+            // Assert
+            section.style.display.value.Should().Be(DisplayStyle.None);
+        }
+
+        [Test]
+        public void WhenIsHumanSettingsVisibleTrue_ThenHumanSettingsSectionIsVisible()
+        {
+            // Arrange
+            var section = _view.RootForTests.Q<VisualElement>("HumanSettingsSection");
+            _viewModel.SetOpponentType(OpponentType.Bot);
+            section.style.display.value.Should().Be(DisplayStyle.None);
+
+            // Act
+            _viewModel.SetOpponentType(OpponentType.Human);
+
+            // Assert
+            section.style.display.value.Should().Be(DisplayStyle.Flex);
+        }
+
+        [Test]
+        public void WhenSessionHasLocalHumanKind_ThenSectionVisibleAndLocalSelected()
+        {
+            // Arrange
+            var section = _view.RootForTests.Q<VisualElement>("HumanSettingsSection");
+            var radio = _view.RootForTests.Q<HumanKindRadio>("HumanKindRadio");
+
+            // Act
+            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.Local)
+                .WithVersion(1));
+
+            // Assert
+            section.style.display.value.Should().Be(DisplayStyle.Flex);
+            radio.SelectedKind.Should().Be(HumanOpponentKind.Local);
+        }
+
+        [Test]
+        public void WhenSessionHasUnsupportedHumanKindAtBindTime_ThenSectionVisibleAndSelectionIsNull()
+        {
+            // Arrange
+            _viewModel.SetOpponentType(OpponentType.Bot);
+            var section = _view.RootForTests.Q<VisualElement>("HumanSettingsSection");
+            section.style.display.value.Should().Be(DisplayStyle.None);
+
+            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithVersion(1));
+
+            _view.ClearViewModel();
+            _viewModel.Dispose();
+            _viewModel = CreateViewModel();
+            _view.SetViewModel(_viewModel);
+            _view.RebindUxmlForTests();
+
+            section = _view.RootForTests.Q<VisualElement>("HumanSettingsSection");
+            var radio = _view.RootForTests.Q<HumanKindRadio>("HumanKindRadio");
+
+            // Act
+
+            // Assert
+            section.style.display.value.Should().Be(DisplayStyle.Flex);
+            radio.SelectedKind.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenSessionSwitchesFromLocalToUnsupportedKindAfterBind_ThenSelectionStaysLocalAndDoesNotThrow()
+        {
+            // Arrange
+            var radio = _view.RootForTests.Q<HumanKindRadio>("HumanKindRadio");
+
+            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.Local)
+                .WithVersion(1));
+
+            radio.SelectedKind.Should().Be(HumanOpponentKind.Local);
+
+            // Act
+            Action act = () => _session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithVersion(2));
+
+            // Assert
+            act.Should().NotThrow();
+            radio.SelectedKind.Should().Be(HumanOpponentKind.Local);
+        }
+
+        [Test]
+        public void WhenIsBusyChanges_ThenHumanKindRadioEnabledStateUpdates()
+        {
+            // Arrange
+            var radio = _view.RootForTests.Q<HumanKindRadio>("HumanKindRadio");
+
+            // Act
+            _isTransitioning.Value = true;
+
+            // Assert
+            radio.enabledSelf.Should().BeFalse();
+
+            // Act
+            _isTransitioning.Value = false;
+
+            // Assert
+            radio.enabledSelf.Should().BeTrue();
+        }
+
+        [Test]
         public void WhenDifficultyItemsChanges_ThenDifficultyChipsUpdates()
         {
             // Arrange
@@ -310,6 +446,8 @@ namespace Tests.EditMode.GameModes.Wizard
             public ReadOnlyReactiveProperty<bool> CanStart => _canStart;
             public ReadOnlyReactiveProperty<IReadOnlyList<ValidationError>> ValidationErrors => _validationErrors;
 
+            public void EmitSnapshot(GameModeSessionSnapshot snapshot) => _snapshot.Value = snapshot;
+
             public void EmitCanStart(bool value) => _canStart.Value = value;
 
             public void EmitValidationErrors(IReadOnlyList<ValidationError> errors) => _validationErrors.Value = errors;
@@ -342,6 +480,13 @@ namespace Tests.EditMode.GameModes.Wizard
         {
             public Cysharp.Threading.Tasks.UniTask<IAssetLease<VisualTreeAsset>> LoadVisualTreeAsync(string key, System.Threading.CancellationToken ct) =>
                 Cysharp.Threading.Tasks.UniTask.FromException<IAssetLease<VisualTreeAsset>>(new InvalidOperationException());
+        }
+
+        private MatchSetupViewModel CreateViewModel()
+        {
+            var catalog = Substitute.For<IGameModeCatalog>();
+            var difficultyCatalog = new BotDifficultyCatalog();
+            return new MatchSetupViewModel(catalog, _coordinator, _localization, difficultyCatalog);
         }
 
     }

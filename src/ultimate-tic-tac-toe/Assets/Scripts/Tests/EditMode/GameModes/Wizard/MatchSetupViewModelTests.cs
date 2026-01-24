@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using FluentAssertions;
@@ -9,6 +9,7 @@ using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
+using Runtime.UI.Components;
 using Runtime.UI.Core;
 
 #pragma warning disable CS8632
@@ -20,7 +21,6 @@ namespace Tests.EditMode.GameModes.Wizard
     public class MatchSetupViewModelTests
     {
         private const int WaitUntilTimeoutMs = 3000;
-        private const int WaitUntilPollDelayMs = 10;
 
         private IGameModeCatalog _catalog;
         private IGameModeWizardCoordinator _coordinator;
@@ -476,6 +476,174 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenSetHumanOpponentKindCalled_ThenWritesThroughToSession()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SetHumanOpponentKind(HumanOpponentKind.DirectInvite);
+
+            // Assert
+            session.UpdateCallCount.Should().Be(1);
+            session.Snapshot.CurrentValue.HumanOpponentKind.Should().Be(HumanOpponentKind.DirectInvite);
+        }
+
+        [Test]
+        public void WhenSetHumanOpponentKindCalledWithSameValue_ThenDoesNotCallSessionUpdate()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.HumanOpponentKind.CurrentValue.Should().Be(HumanOpponentKind.DirectInvite);
+            sut.SetHumanOpponentKind(HumanOpponentKind.DirectInvite);
+
+            // Assert
+            session.UpdateCallCount.Should().Be(0);
+        }
+
+        [Test]
+        public void WhenSessionHumanOpponentKindChanges_ThenHumanOpponentKindUpdatesWithoutWriteBack()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithVersion(1));
+
+            // Assert
+            sut.HumanOpponentKind.CurrentValue.Should().Be(HumanOpponentKind.DirectInvite);
+            session.UpdateCallCount.Should().Be(0);
+        }
+
+        [Test]
+        public void WhenSetHumanOpponentKindCalledAndSessionIsNull_ThenDoesNotThrowAndDoesNotChangeState()
+        {
+            // Arrange
+            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            Action act = () => sut.SetHumanOpponentKind(HumanOpponentKind.DirectInvite);
+
+            // Assert
+            act.Should().NotThrow();
+            sut.HumanOpponentKind.CurrentValue.Should().Be(HumanOpponentKind.Local);
+        }
+
+        [Test]
+        public void WhenSetOpponentTypeCalledAndSessionIsNull_ThenDoesNotThrowAndDoesNotChangeState()
+        {
+            // Arrange
+            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            Action act = () => sut.SetOpponentType(OpponentType.Human);
+
+            // Assert
+            act.Should().NotThrow();
+            sut.OpponentType.CurrentValue.Should().Be(OpponentType.Bot);
+        }
+
+        [Test]
+        public void WhenOpponentTypeChangesToHuman_ThenIsHumanSettingsVisibleBecomesTrue()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SetOpponentType(OpponentType.Human);
+
+            // Assert
+            sut.IsHumanSettingsVisible.CurrentValue.Should().BeTrue();
+        }
+
+        [Test]
+        public void WhenOpponentTypeChangesToBot_ThenIsHumanSettingsVisibleBecomesFalse()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+            sut.SetOpponentType(OpponentType.Human);
+
+            // Act
+            sut.SetOpponentType(OpponentType.Bot);
+
+            // Assert
+            sut.IsHumanSettingsVisible.CurrentValue.Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenOpponentTypeTogglesHumanToBotToHuman_ThenHumanOpponentKindIsPreserved()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithVersion(1));
+
+            // Act
+            sut.SetOpponentType(OpponentType.Bot);
+            sut.SetOpponentType(OpponentType.Human);
+
+            // Assert
+            sut.HumanOpponentKind.CurrentValue.Should().Be(HumanOpponentKind.DirectInvite);
+        }
+
+        [Test]
+        public void WhenResetCalled_ThenHumanOpponentKindIsSetToDefault()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+            sut.SetHumanOpponentKind(HumanOpponentKind.DirectInvite);
+
+            // Act
+            sut.Reset();
+
+            // Assert
+            sut.HumanOpponentKind.CurrentValue.Should().Be(HumanOpponentKind.Local);
+        }
+
+        [Test]
         public void WhenSetBotDifficultyIdCalled_ThenWritesThroughToSession()
         {
             // Arrange
@@ -595,9 +763,7 @@ namespace Tests.EditMode.GameModes.Wizard
                 new BotDifficulty("Normal", "GameModeWizard.MatchSetup.BotDifficulty.Normal", 1)
             }));
 
-            await WaitUntilAsync(
-                () => sut.SelectedDifficultyId.CurrentValue == null && session.UpdateCallCount == callsBefore + 1,
-                timeoutMs: WaitUntilTimeoutMs);
+            await WaitForSelectedDifficultyAsync(sut, value => value == null);
 
             // Assert
             sut.SelectedDifficultyId.CurrentValue.Should().BeNull();
@@ -710,11 +876,10 @@ namespace Tests.EditMode.GameModes.Wizard
 
             easySubject.OnNext("Easy");
 
-            await WaitUntilAsync(
-                () => sut.DifficultyItems.CurrentValue.Count == 1
-                      && sut.DifficultyItems.CurrentValue[0].Id == "Easy"
-                      && sut.DifficultyItems.CurrentValue[0].Label == "Easy",
-                timeoutMs: WaitUntilTimeoutMs);
+            await WaitForDifficultyItemsAsync(sut, items =>
+                items.Count == 1
+                && items[0].Id == "Easy"
+                && items[0].Label == "Easy");
 
             sut.DifficultyItems.CurrentValue.Should().ContainSingle(item => item.Id == "Easy" && item.Label == "Easy");
 
@@ -723,9 +888,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             easySubject.OnNext("Easy+2");
 
-            await WaitUntilAsync(
-                () => sut.DifficultyItems.CurrentValue.Count == 0,
-                timeoutMs: WaitUntilTimeoutMs);
+            await WaitForDifficultyItemsAsync(sut, items => items.Count == 0);
 
             // Assert
             sut.DifficultyItems.CurrentValue.Should().BeEmpty();
@@ -748,9 +911,7 @@ namespace Tests.EditMode.GameModes.Wizard
                 new BotDifficulty("B", "Key.B", 1)
             }));
 
-            await WaitUntilAsync(
-                () => sut.DifficultyItems.CurrentValue.Count == 2,
-                timeoutMs: WaitUntilTimeoutMs);
+            await WaitForDifficultyItemsAsync(sut, items => items.Count == 2);
 
             // Assert
             sut.DifficultyItems.CurrentValue.Should().HaveCount(2);
@@ -791,20 +952,18 @@ namespace Tests.EditMode.GameModes.Wizard
 
             easySubject.OnNext("Easy");
 
-            await WaitUntilAsync(
-                () => sut.DifficultyItems.CurrentValue.Count == 1
-                      && sut.DifficultyItems.CurrentValue[0].Label == "Easy",
-                timeoutMs: WaitUntilTimeoutMs);
+            await WaitForDifficultyItemsAsync(sut, items =>
+                items.Count == 1
+                && items[0].Label == "Easy");
 
             sut.DifficultyItems.CurrentValue.Should().ContainSingle(item => item.Id == "Easy" && item.Label == "Easy");
 
             // Act
             easySubject.OnNext("Лёгкий");
 
-            await WaitUntilAsync(
-                () => sut.DifficultyItems.CurrentValue.Count == 1
-                      && sut.DifficultyItems.CurrentValue[0].Label == "Лёгкий",
-                timeoutMs: WaitUntilTimeoutMs);
+            await WaitForDifficultyItemsAsync(sut, items =>
+                items.Count == 1
+                && items[0].Label == "Лёгкий");
 
             // Assert
             sut.DifficultyItems.CurrentValue.Should().ContainSingle(item => item.Id == "Easy" && item.Label == "Лёгкий");
@@ -1041,16 +1200,47 @@ namespace Tests.EditMode.GameModes.Wizard
             property!.Value = difficulties;
         }
 
-        private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMs)
+        private static async Task WaitForDifficultyItemsAsync(
+            MatchSetupViewModel sut,
+            Func<IReadOnlyList<DifficultyChipItem>, bool> predicate)
         {
-            var stopwatch = Stopwatch.StartNew();
-
-            while (!condition())
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var subscription = sut.DifficultyItems.Subscribe(items =>
             {
-                if (stopwatch.ElapsedMilliseconds > timeoutMs)
-                    Assert.Fail($"Condition was not met within {timeoutMs} ms.");
+                if (predicate(items))
+                    tcs.TrySetResult(true);
+            });
 
-                await Task.Delay(WaitUntilPollDelayMs);
+            if (predicate(sut.DifficultyItems.CurrentValue))
+                return;
+
+            using var cts = new CancellationTokenSource(WaitUntilTimeoutMs);
+            using (cts.Token.Register(() => tcs.TrySetException(new TimeoutException(
+                       $"Condition was not met within {WaitUntilTimeoutMs} ms."))))
+            {
+                await tcs.Task.ConfigureAwait(false);
+            }
+        }
+
+        private static async Task WaitForSelectedDifficultyAsync(
+            MatchSetupViewModel sut,
+            Func<string?, bool> predicate)
+        {
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var subscription = sut.SelectedDifficultyId.Subscribe(value =>
+            {
+                if (predicate(value))
+                    tcs.TrySetResult(true);
+            });
+
+            if (predicate(sut.SelectedDifficultyId.CurrentValue))
+                return;
+
+            using var cts = new CancellationTokenSource(WaitUntilTimeoutMs);
+            using (cts.Token.Register(() => tcs.TrySetException(new TimeoutException(
+                       $"Condition was not met within {WaitUntilTimeoutMs} ms."))))
+            {
+                await tcs.Task.ConfigureAwait(false);
             }
         }
 
