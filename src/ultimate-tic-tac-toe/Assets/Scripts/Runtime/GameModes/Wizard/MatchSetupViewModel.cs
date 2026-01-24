@@ -63,6 +63,10 @@ namespace Runtime.GameModes.Wizard
         private int _difficultyItemsRebuildScheduled;
         private int _difficultyItemsRebuildVersion;
 
+    #if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+        private bool _disablePlayerLoopForTests;
+    #endif
+
         private ISpecificModeSettingsViewModel? _activeSettingsViewModel;
         private IDisposable? _activeConfigSubscription;
 
@@ -232,6 +236,8 @@ namespace Runtime.GameModes.Wizard
 #if UNITY_INCLUDE_TESTS || UNITY_EDITOR
         internal void SetDifficultyItemsForTests(IReadOnlyList<DifficultyChipItem> items) =>
             _difficultyItems.Value = items ?? Array.Empty<DifficultyChipItem>();
+
+    internal void DisablePlayerLoopForTests() => _disablePlayerLoopForTests = true;
 #endif
 
         protected override void OnReset()
@@ -352,6 +358,14 @@ namespace Runtime.GameModes.Wizard
         {
             if (snapshot == null)
                 return;
+
+#if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+            if (_disablePlayerLoopForTests)
+            {
+                ApplySnapshotCore(snapshot);
+                return;
+            }
+#endif
 
             if (!PlayerLoopHelper.IsMainThread)
             {
@@ -495,6 +509,14 @@ namespace Runtime.GameModes.Wizard
 
         private void OnAvailableDifficultiesChanged(IReadOnlyList<BotDifficulty> difficulties)
         {
+#if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+            if (_disablePlayerLoopForTests)
+            {
+                OnAvailableDifficultiesChangedCore(difficulties);
+                return;
+            }
+#endif
+
             if (!PlayerLoopHelper.IsMainThread)
             {
                 ApplyAvailableDifficultiesOnMainThreadAsync(difficulties).Forget(ex => GameLog.Exception(ex));
@@ -566,6 +588,15 @@ namespace Runtime.GameModes.Wizard
 
         private void SetDifficultyLabelSafe(string difficultyId, string? text)
         {
+#if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+            if (_disablePlayerLoopForTests)
+            {
+                _difficultyLabels[difficultyId] = text ?? string.Empty;
+                UpdateDifficultyItems(_availableDifficulties.Value);
+                return;
+            }
+#endif
+
             if (PlayerLoopHelper.IsMainThread)
             {
                 _difficultyLabels[difficultyId] = text ?? string.Empty;
@@ -589,6 +620,14 @@ namespace Runtime.GameModes.Wizard
 
         private void RequestDifficultyItemsRebuild()
         {
+#if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+            if (_disablePlayerLoopForTests)
+            {
+                UpdateDifficultyItems(_availableDifficulties.Value);
+                return;
+            }
+#endif
+
             Interlocked.Increment(ref _difficultyItemsRebuildVersion);
 
             if (Interlocked.Exchange(ref _difficultyItemsRebuildScheduled, 1) != 0)
@@ -650,6 +689,14 @@ namespace Runtime.GameModes.Wizard
 
         private void SetModeTitleTextSafe(string? text)
         {
+#if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+            if (_disablePlayerLoopForTests)
+            {
+                _modeTitleText.Value = text ?? string.Empty;
+                return;
+            }
+#endif
+
             if (PlayerLoopHelper.IsMainThread)
             {
                 _modeTitleText.Value = text ?? string.Empty;
@@ -671,6 +718,14 @@ namespace Runtime.GameModes.Wizard
 
         private async UniTask ApplyAvailableDifficultiesOnMainThreadAsync(IReadOnlyList<BotDifficulty> difficulties)
         {
+#if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+            if (_disablePlayerLoopForTests)
+            {
+                OnAvailableDifficultiesChangedCore(difficulties);
+                return;
+            }
+#endif
+
             await UniTask.SwitchToMainThread();
 
             if (IsDisposed)
@@ -681,6 +736,15 @@ namespace Runtime.GameModes.Wizard
 
         private void OnSessionCanStartChanged(bool canStart)
         {
+#if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+            if (_disablePlayerLoopForTests)
+            {
+                _sessionCanStart = canStart;
+                UpdateCanStart();
+                return;
+            }
+#endif
+
             if (!PlayerLoopHelper.IsMainThread)
             {
                 ApplyCanStartOnMainThreadAsync(canStart).Forget(ex => GameLog.Exception(ex));
@@ -693,6 +757,15 @@ namespace Runtime.GameModes.Wizard
 
         private void OnValidationErrorsChanged(IReadOnlyList<ValidationError> errors)
         {
+#if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+            if (_disablePlayerLoopForTests)
+            {
+                _validationErrorText = BuildInlineErrorText(errors);
+                UpdateInlineError();
+                return;
+            }
+#endif
+
             if (!PlayerLoopHelper.IsMainThread)
             {
                 ApplyValidationErrorsOnMainThreadAsync(errors).Forget(ex => GameLog.Exception(ex));
@@ -705,6 +778,29 @@ namespace Runtime.GameModes.Wizard
 
         private void OnCoordinatorErrorChanged(WizardError? error)
         {
+#if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+            if (_disablePlayerLoopForTests)
+            {
+                if (error == null)
+                {
+                    _coordinatorInlineErrorText = null;
+                    UpdateInlineError();
+                    return;
+                }
+
+                if (error.DisplayType == ErrorDisplayType.Inline)
+                {
+                    _coordinatorInlineErrorText = ResolveMessageKey(error.MessageKey);
+                    UpdateInlineError();
+                    return;
+                }
+
+                _coordinatorInlineErrorText = null;
+                UpdateInlineError();
+                return;
+            }
+#endif
+
             if (!PlayerLoopHelper.IsMainThread)
             {
                 ApplyCoordinatorErrorOnMainThreadAsync(error).Forget(ex => GameLog.Exception(ex));

@@ -872,6 +872,7 @@ namespace Tests.EditMode.GameModes.Wizard
             }));
 
             using var sut = new MatchSetupViewModel(_catalog, _coordinator, localization, difficultyCatalog);
+            sut.DisablePlayerLoopForTests();
             sut.Initialize();
 
             easySubject.OnNext("Easy");
@@ -948,6 +949,7 @@ namespace Tests.EditMode.GameModes.Wizard
             }));
 
             using var sut = new MatchSetupViewModel(_catalog, _coordinator, localization, difficultyCatalog);
+            sut.DisablePlayerLoopForTests();
             sut.Initialize();
 
             easySubject.OnNext("Easy");
@@ -1245,7 +1247,14 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         private MatchSetupViewModel CreateSut() =>
-            new MatchSetupViewModel(_catalog, _coordinator, _localization, _difficultyCatalog);
+            CreateSutWithDefaults();
+
+        private MatchSetupViewModel CreateSutWithDefaults()
+        {
+            var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization, _difficultyCatalog);
+            sut.DisablePlayerLoopForTests();
+            return sut;
+        }
 
         private sealed class FakeGameModeSession : IGameModeSession
         {
