@@ -24,6 +24,7 @@
         <ui:VisualElement name="HumanSettingsSection" class="gmw-section gmw-human-settings">
             <ui:Label text="" name="HumanSettingsTitle" class="gmw-section__title" />
             <app:HumanKindRadio name="HumanKindRadio" class="gmw-human-kind-radio" />
+            <app:PlayerIdInput name="PlayerIdInput" class="gmw-player-id-input" />
         </ui:VisualElement>
 
         <ui:VisualElement name="ActionBar" class="gmw-action-bar">

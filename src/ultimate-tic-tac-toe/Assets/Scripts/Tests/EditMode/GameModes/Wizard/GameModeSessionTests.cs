@@ -71,7 +71,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var invalid = GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
-                .WithTargetPlayerId("player-1")
+                .WithTargetPlayerId("1001")
                 .WithMatchmakingState(MatchmakingState.Searching)
                 .WithBotDifficultyId("Hard");
 
@@ -82,7 +82,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             snapshot.OpponentType.Should().Be(OpponentType.Human);
             snapshot.BotDifficultyId.Should().Be("Hard", "bot difficulty should be preserved when switching to human");
-            snapshot.TargetPlayerId.Should().Be("player-1", "direct invite requires keeping target player id");
+            snapshot.TargetPlayerId.Should().Be("1001", "direct invite requires keeping target player id");
             snapshot.MatchmakingState.Should().Be(MatchmakingState.Idle, "matchmaking state must reset when not in matchmaking kind");
         }
 
@@ -154,7 +154,7 @@ namespace Tests.EditMode.GameModes.Wizard
             using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
-                .WithTargetPlayerId("user-1"));
+                .WithTargetPlayerId("2001"));
 
             // Act
             sut.Update(s => s.WithOpponentType(OpponentType.Bot));
@@ -474,7 +474,7 @@ namespace Tests.EditMode.GameModes.Wizard
                 .WithModeConfig(new ClassicModeConfig(boardSize: 3))
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
-                .WithTargetPlayerId("user1"));
+                .WithTargetPlayerId("3001"));
 
             // Act
             var canStart = sut.CanStart.CurrentValue;
@@ -504,6 +504,26 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             canStart.Should().BeFalse();
             errors.Should().ContainSingle(e => e.Field == "TargetPlayerId" && e.MessageKey == "Errors.GameModeWizard.PlayerIdRequired");
+        }
+
+        [Test]
+        public void WhenOpponentIsDirectInviteAndPlayerIdInvalid_ThenCanStartIsFalse()
+        {
+            // Arrange
+            using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
+                .WithModeConfig(new ClassicModeConfig(boardSize: 3))
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithTargetPlayerId("invalid-id"));
+
+            // Act
+            var canStart = sut.CanStart.CurrentValue;
+            var errors = sut.ValidationErrors.CurrentValue;
+
+            // Assert
+            canStart.Should().BeFalse();
+            errors.Should().ContainSingle(e => e.Field == "TargetPlayerId" && e.MessageKey == "Errors.GameModeWizard.PlayerIdInvalid");
         }
 
         [Test]
@@ -540,7 +560,7 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.ValidationErrors.CurrentValue.Should().NotBeEmpty();
 
             // Act
-            sut.Update(s => s.WithTargetPlayerId("user1"));
+            sut.Update(s => s.WithTargetPlayerId("3002"));
 
             // Assert
             sut.CanStart.CurrentValue.Should().BeTrue();
@@ -602,7 +622,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Arrange
             var modeId = ClassicModeStrategy.DefaultModeId;
             var modeConfig = new ClassicModeConfig(boardSize: 3);
-            var playerId = "user1";
+            var playerId = "3003";
 
             using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
                 .WithSelectedModeId(modeId)

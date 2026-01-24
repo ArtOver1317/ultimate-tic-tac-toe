@@ -18,6 +18,7 @@
     "Errors.GameModeWizard.ModeConfigRequired": "Нужны настройки режима",
     "Errors.GameModeWizard.ModeRequired": "Выберите режим игры",
     "Errors.GameModeWizard.ModeUnknown": "Неизвестный режим игры",
+    "Errors.GameModeWizard.PlayerIdInvalid": "Некорректный ID игрока",
     "Errors.GameModeWizard.PlayerIdRequired": "Выберите игрока",
     "Errors.GameModeWizard.SessionNotReady": "Сессия не готова",
     "Errors.GameModeWizard.UltimateConfigInvalid": "Некорректные настройки режима Ultimate",

@@ -147,6 +147,10 @@
     flex-direction: column;
 }
 
+.gmw-player-id-input {
+    margin-top: 12px;
+}
+
 .human-kind-radio {
     flex-direction: column;
     width: 100%;
@@ -173,4 +177,32 @@
 
 .human-kind-radio__item--disabled {
     opacity: 0.55;
+}
+
+.player-id-input {
+    flex-direction: column;
+    width: 100%;
+}
+
+.player-id-input__label {
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 6px;
+}
+
+.player-id-input__field {
+    height: 60px;
+    font-size: 24px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+.player-id-input__error {
+    margin-top: 6px;
+    color: rgb(255, 140, 140);
+    font-size: 18px;
+    display: none;
 }

@@ -286,8 +286,19 @@ namespace Runtime.GameModes.Wizard
             }
             else
             {
-                if (snapshot.HumanOpponentKind == HumanOpponentKind.DirectInvite && string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
-                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired"));
+                if (snapshot.HumanOpponentKind == HumanOpponentKind.DirectInvite)
+                {
+                    if (string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
+                    {
+                        (errors ??= new List<ValidationError>(capacity: 4))
+                            .Add(new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired"));
+                    }
+                    else if (!PlayerId.TryCreate(snapshot.TargetPlayerId, out _))
+                    {
+                        (errors ??= new List<ValidationError>(capacity: 4))
+                            .Add(new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdInvalid"));
+                    }
+                }
 
                 // Phase 1: matchmaking resolution (MatchId/OpponentId) is not implemented.
                 // Keep CanStart consistent with BuildLaunchConfig() by treating matchmaking as invalid for now.

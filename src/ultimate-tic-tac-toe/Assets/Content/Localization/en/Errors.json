@@ -18,6 +18,7 @@
     "Errors.GameModeWizard.ModeConfigRequired": "Mode settings are required",
     "Errors.GameModeWizard.ModeRequired": "Select a game mode",
     "Errors.GameModeWizard.ModeUnknown": "Unknown game mode",
+    "Errors.GameModeWizard.PlayerIdInvalid": "Invalid player ID",
     "Errors.GameModeWizard.PlayerIdRequired": "Select a player",
     "Errors.GameModeWizard.SessionNotReady": "Session is not ready",
     "Errors.GameModeWizard.UltimateConfigInvalid": "Invalid Ultimate mode settings",

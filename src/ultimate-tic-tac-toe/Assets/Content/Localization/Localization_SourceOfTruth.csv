@@ -95,6 +95,9 @@ GameModeWizard.MatchSetup.ModeOptions.Title,Rules,Правила,ルール,Match
 GameModeWizard.MatchSetup.BotDifficulty.Title,Bot Difficulty,Сложность бота,ボット難易度,Match setup bot difficulty section title
 GameModeWizard.MatchSetup.HumanSettings.Title,Human Settings,Настройки игрока,人間の設定,Match setup human settings section title
 GameModeWizard.MatchSetup.HumanSettings.Local,Local (Same Screen),Локально (один экран),ローカル（同一画面）,Match setup human opponent: local option
+GameModeWizard.MatchSetup.HumanSettings.DirectInvite,Invite by ID,По ID игрока,IDで招待,Match setup human opponent: direct invite option
+GameModeWizard.MatchSetup.HumanSettings.Matchmaking,Find Match,Найти матч,マッチ検索,Match setup human opponent: matchmaking option
+GameModeWizard.MatchSetup.PlayerId.Label,Player ID,ID игрока,プレイヤーID,Match setup player id input label
 GameModeWizard.MatchSetup.BotDifficulty.Easy,Easy,Лёгкая,簡単,Bot difficulty: easy
 GameModeWizard.MatchSetup.BotDifficulty.Normal,Normal,Нормальная,普通,Bot difficulty: normal
 GameModeWizard.MatchSetup.BotDifficulty.Hard,Hard,Сложная,難しい,Bot difficulty: hard
@@ -109,6 +112,7 @@ Errors.GameModeWizard.ModeCatalogMissing,Mode catalog is not available,Ката�
 Errors.GameModeWizard.ModeUnknown,Unknown game mode,Неизвестный режим игры,不明なゲームモードです,Wizard validation: unknown mode
 Errors.GameModeWizard.DifficultyRequired,Select bot difficulty,Выберите сложность бота,ボットの難易度を選択してください,Wizard validation: bot difficulty required
 Errors.GameModeWizard.PlayerIdRequired,Select a player,Выберите игрока,プレイヤーを選択してください,Wizard validation: target player required
+Errors.GameModeWizard.PlayerIdInvalid,Invalid player ID,Некорректный ID игрока,無効なプレイヤーIDです,Wizard validation: player id invalid
 Errors.GameModeWizard.MatchmakingConfigMissing,Matchmaking is not available yet,Матчмейкинг пока недоступен,マッチメイキングはまだ利用できません,Wizard validation: matchmaking not implemented
 Errors.GameModeWizard.SessionNotReady,Session is not ready,Сессия не готова,セッションの準備ができていません,Wizard validation: session missing
 Errors.GameModeWizard.ClassicConfigInvalid,Invalid Classic mode settings,Некорректные настройки классического режима,Classicモードの設定が無効です,Wizard validation: classic config invalid

@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using FluentAssertions;
@@ -24,18 +26,18 @@ namespace Tests.EditMode.GameModes.Wizard
         private const string MatchSetupUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/MatchSetup.uxml";
         private const string MatchSetupPrefabPath = "Assets/Content/UI/GameModes/Wizard/Prefabs/MatchSetup.prefab";
 
-        private GameObject _gameObject;
-        private UIDocument _uiDocument;
-        private MatchSetupView _view;
-        private VisualTreeAsset _uxml;
+        private GameObject _gameObject = null!;
+        private UIDocument _uiDocument = null!;
+        private MatchSetupView _view = null!;
+        private VisualTreeAsset _uxml = null!;
 
-        private MatchSetupViewModel _viewModel;
-        private FakeGameModeSession _session;
-        private IGameModeWizardCoordinator _coordinator;
-        private ILocalizationService _localization;
-        private ReactiveProperty<bool> _isTransitioning;
-        private ReactiveProperty<bool> _isSubmitting;
-        private ReactiveProperty<WizardError?> _currentError;
+        private MatchSetupViewModel _viewModel = null!;
+        private FakeGameModeSession _session = null!;
+        private IGameModeWizardCoordinator _coordinator = null!;
+        private ILocalizationService _localization = null!;
+        private ReactiveProperty<bool> _isTransitioning = null!;
+        private ReactiveProperty<bool> _isSubmitting = null!;
+        private ReactiveProperty<WizardError?> _currentError = null!;
 
         [SetUp]
         public void SetUp()
@@ -67,11 +69,13 @@ namespace Tests.EditMode.GameModes.Wizard
             _coordinator.IsTransitioning.Returns(_isTransitioning);
             _coordinator.IsSubmitting.Returns(_isSubmitting);
             _coordinator.CurrentError.Returns(_currentError);
+#pragma warning disable CS8601
             _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(callInfo =>
             {
-                callInfo[0] = _session;
+                callInfo[0] = _session!;
                 return true;
             });
+#pragma warning restore CS8601
 
             var catalog = Substitute.For<IGameModeCatalog>();
             var difficultyCatalog = new BotDifficultyCatalog();
@@ -196,11 +200,13 @@ namespace Tests.EditMode.GameModes.Wizard
             var section = root.Q<VisualElement>("HumanSettingsSection");
             var title = root.Q<Label>("HumanSettingsTitle");
             var radio = root.Q<HumanKindRadio>("HumanKindRadio");
+            var playerIdInput = root.Q<PlayerIdInput>("PlayerIdInput");
 
             // Assert
             section.Should().NotBeNull();
             title.Should().NotBeNull();
             radio.Should().NotBeNull();
+            playerIdInput.Should().NotBeNull();
         }
 
         [Test]
@@ -251,7 +257,7 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public void WhenSessionHasUnsupportedHumanKindAtBindTime_ThenSectionVisibleAndSelectionIsNull()
+        public void WhenSessionHasDirectInviteHumanKindAtBindTime_ThenSectionVisibleAndDirectInviteSelected()
         {
             // Arrange
             _viewModel.SetOpponentType(OpponentType.Bot);
@@ -266,8 +272,8 @@ namespace Tests.EditMode.GameModes.Wizard
             _view.ClearViewModel();
             _viewModel.Dispose();
             _viewModel = CreateViewModel();
-            _view.SetViewModel(_viewModel);
             _view.RebindUxmlForTests();
+            _view.SetViewModel(_viewModel);
 
             section = _view.RootForTests.Q<VisualElement>("HumanSettingsSection");
             var radio = _view.RootForTests.Q<HumanKindRadio>("HumanKindRadio");
@@ -276,11 +282,66 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             section.style.display.value.Should().Be(DisplayStyle.Flex);
-            radio.SelectedKind.Should().BeNull();
+            radio.SelectedKind.Should().Be(HumanOpponentKind.DirectInvite);
         }
 
         [Test]
-        public void WhenSessionSwitchesFromLocalToUnsupportedKindAfterBind_ThenSelectionStaysLocalAndDoesNotThrow()
+        public void WhenSessionHasDirectInviteHumanKind_ThenPlayerIdInputIsVisible()
+        {
+            // Arrange
+            var input = _view.RootForTests.Q<PlayerIdInput>("PlayerIdInput");
+
+            // Act
+            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithVersion(1));
+
+            // Assert
+            input.style.display.value.Should().Be(DisplayStyle.Flex);
+        }
+
+        [Test]
+        public void WhenSessionHasLocalHumanKind_ThenPlayerIdInputIsHidden()
+        {
+            // Arrange
+            var input = _view.RootForTests.Q<PlayerIdInput>("PlayerIdInput");
+
+            // Act
+            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.Local)
+                .WithVersion(1));
+
+            // Assert
+            input.style.display.value.Should().Be(DisplayStyle.None);
+        }
+
+        [Test]
+        public void WhenValidationErrorTargetsPlayerId_ThenPlayerIdErrorLabelUpdates()
+        {
+            // Arrange
+            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithVersion(1));
+
+            var input = _view.RootForTests.Q<PlayerIdInput>("PlayerIdInput");
+            var errorLabel = input.Q<Label>("ErrorLabel");
+
+            // Act
+            _session.EmitValidationErrors(new List<ValidationError>
+            {
+                new(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdInvalid")
+            });
+
+            // Assert
+            errorLabel.text.Should().Be("Errors.GameModeWizard.PlayerIdInvalid");
+            errorLabel.style.display.value.Should().Be(DisplayStyle.Flex);
+        }
+
+        [Test]
+        public void WhenSessionSwitchesFromLocalToDirectInviteAfterBind_ThenSelectionUpdatesAndDoesNotThrow()
         {
             // Arrange
             var radio = _view.RootForTests.Q<HumanKindRadio>("HumanKindRadio");
@@ -300,7 +361,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             act.Should().NotThrow();
-            radio.SelectedKind.Should().Be(HumanOpponentKind.Local);
+            radio.SelectedKind.Should().Be(HumanOpponentKind.DirectInvite);
         }
 
         [Test]
@@ -487,8 +548,11 @@ namespace Tests.EditMode.GameModes.Wizard
         {
             var catalog = Substitute.For<IGameModeCatalog>();
             var difficultyCatalog = new BotDifficultyCatalog();
-            return new MatchSetupViewModel(catalog, _coordinator, _localization, difficultyCatalog);
+            var viewModel = new MatchSetupViewModel(catalog, _coordinator, _localization, difficultyCatalog);
+            viewModel.DisablePlayerLoopForTests();
+            return viewModel;
         }
 
     }
+#nullable restore
 }

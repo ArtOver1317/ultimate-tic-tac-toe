@@ -18,6 +18,7 @@
     "Errors.GameModeWizard.ModeConfigRequired": "モード設定が必要です",
     "Errors.GameModeWizard.ModeRequired": "ゲームモードを選択してください",
     "Errors.GameModeWizard.ModeUnknown": "不明なゲームモードです",
+    "Errors.GameModeWizard.PlayerIdInvalid": "無効なプレイヤーIDです",
     "Errors.GameModeWizard.PlayerIdRequired": "プレイヤーを選択してください",
     "Errors.GameModeWizard.SessionNotReady": "セッションの準備ができていません",
     "Errors.GameModeWizard.UltimateConfigInvalid": "Ultimateモードの設定が無効です",

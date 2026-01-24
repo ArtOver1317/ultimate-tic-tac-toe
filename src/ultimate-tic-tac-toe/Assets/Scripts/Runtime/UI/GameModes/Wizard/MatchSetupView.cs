@@ -54,6 +54,9 @@ namespace Runtime.UI.GameModes.Wizard
         [Runtime.UI.Core.UxmlElementAttribute("HumanKindRadio")]
         private HumanKindRadio? _humanKindRadio;
 
+        [Runtime.UI.Core.UxmlElementAttribute("PlayerIdInput")]
+        private PlayerIdInput? _playerIdInput;
+
         [Runtime.UI.Core.UxmlElementAttribute("CancelButton")]
         private Button? _cancelButton;
 
@@ -74,6 +77,8 @@ namespace Runtime.UI.GameModes.Wizard
         private string _botLabel = string.Empty;
         private string _humanLabel = string.Empty;
         private string _humanLocalLabel = string.Empty;
+        private string _humanDirectInviteLabel = string.Empty;
+        private string _humanMatchmakingLabel = string.Empty;
 
         [Inject]
         public void Construct(IViewAssetProvider assetProvider, IEnumerable<IModeSettingsBinder> binders)
@@ -97,6 +102,7 @@ namespace Runtime.UI.GameModes.Wizard
             var humanSettingsSection = _humanSettingsSection ?? throw new InvalidOperationException("HumanSettingsSection element is missing in UXML.");
             var humanSettingsTitle = _humanSettingsTitle ?? throw new InvalidOperationException("HumanSettingsTitle element is missing in UXML.");
             var humanKindRadio = _humanKindRadio ?? throw new InvalidOperationException("HumanKindRadio element is missing in UXML.");
+            var playerIdInput = _playerIdInput ?? throw new InvalidOperationException("PlayerIdInput element is missing in UXML.");
             var cancelButton = _cancelButton ?? throw new InvalidOperationException("CancelButton element is missing in UXML.");
             var startButton = _startButton ?? throw new InvalidOperationException("StartButton element is missing in UXML.");
 
@@ -146,9 +152,11 @@ namespace Runtime.UI.GameModes.Wizard
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), opponentToggle);
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), difficultyChips);
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), humanKindRadio);
+            BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), playerIdInput);
 
             BindVisibility(ViewModel.IsBotSettingsVisible, botSettingsSection);
             BindVisibility(ViewModel.IsHumanSettingsVisible, humanSettingsSection);
+            BindVisibility(ViewModel.IsPlayerIdInputVisible, playerIdInput);
 
             AddDisposable(backButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestBack()));
             AddDisposable(startButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestStart()));
@@ -184,6 +192,18 @@ namespace Runtime.UI.GameModes.Wizard
                 UpdateHumanKindOptions();
             }));
 
+            AddDisposable(ViewModel.HumanDirectInviteText.Subscribe(text =>
+            {
+                _humanDirectInviteLabel = text ?? string.Empty;
+                UpdateHumanKindOptions();
+            }));
+
+            AddDisposable(ViewModel.HumanMatchmakingText.Subscribe(text =>
+            {
+                _humanMatchmakingLabel = text ?? string.Empty;
+                UpdateHumanKindOptions();
+            }));
+
             UpdateHumanKindOptions();
             humanKindRadio.SetSelectedKindWithoutNotify(ViewModel.HumanOpponentKind.CurrentValue);
 
@@ -194,6 +214,15 @@ namespace Runtime.UI.GameModes.Wizard
 
             humanKindRadio.SelectedKindChanged += OnHumanKindSelected;
             AddDisposable(Disposable.Create(() => humanKindRadio.SelectedKindChanged -= OnHumanKindSelected));
+
+            AddDisposable(ViewModel.PlayerIdLabelText.Subscribe(text => playerIdInput.SetLabel(text)));
+            AddDisposable(ViewModel.TargetPlayerId.Subscribe(id => playerIdInput.SetValueWithoutNotify(id)));
+            AddDisposable(ViewModel.PlayerIdErrorText.Subscribe(error => playerIdInput.SetError(error)));
+
+            void OnPlayerIdChanged(string value) => ViewModel.SetTargetPlayerId(value);
+
+            playerIdInput.ValueChanged += OnPlayerIdChanged;
+            AddDisposable(Disposable.Create(() => playerIdInput.ValueChanged -= OnPlayerIdChanged));
 
             AddDisposable(ViewModel.ActiveSettings
                 .Subscribe(presentation => LoadSettingsSafeAsync(presentation).Forget(ex => GameLog.Exception(ex))));
@@ -229,7 +258,9 @@ namespace Runtime.UI.GameModes.Wizard
 
             var items = new[]
             {
-                new HumanKindRadioItem(HumanOpponentKind.Local, _humanLocalLabel)
+                new HumanKindRadioItem(HumanOpponentKind.Local, _humanLocalLabel),
+                new HumanKindRadioItem(HumanOpponentKind.DirectInvite, _humanDirectInviteLabel),
+                new HumanKindRadioItem(HumanOpponentKind.Matchmaking, _humanMatchmakingLabel, isEnabled: false)
             };
 
             humanKindRadio.SetItems(items);

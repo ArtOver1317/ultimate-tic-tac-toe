@@ -6,10 +6,10 @@ namespace Runtime.GameModes.Wizard
 
         public DirectInviteConfig(string playerId)
         {
-            if (string.IsNullOrWhiteSpace(playerId))
-                throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(playerId));
+            if (!global::Runtime.GameModes.Wizard.PlayerId.TryCreate(playerId, out var parsed))
+                throw new System.ArgumentException("PlayerId must be a numeric ulong.", nameof(playerId));
 
-            PlayerId = playerId;
+            PlayerId = parsed.Value;
         }
     }
 }
