@@ -65,6 +65,14 @@ namespace Runtime.UI.Components
                 : DisplayStyle.Flex;
         }
 
+        internal void NotifyValueChangedForTests(string value)
+        {
+            _textField.SetValueWithoutNotify(value ?? string.Empty);
+
+            using var evt = ChangeEvent<string>.GetPooled(string.Empty, value ?? string.Empty);
+            OnValueChanged(evt);
+        }
+
         private void OnValueChanged(ChangeEvent<string> evt)
         {
             if (_suppressNotify)

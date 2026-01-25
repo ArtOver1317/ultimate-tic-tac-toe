@@ -449,6 +449,49 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenIsBusyTrue_ThenPlayerIdInputIsDisabled()
+        {
+            // Arrange
+            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithVersion(1));
+
+            var playerIdInput = _view.RootForTests.Q<PlayerIdInput>("PlayerIdInput");
+
+            // Act
+            _isTransitioning.Value = true;
+
+            // Assert
+            playerIdInput.enabledSelf.Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenSessionTargetPlayerIdChanges_ThenPlayerIdInputValueUpdates()
+        {
+            // Arrange
+            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithTargetPlayerId("777")
+                .WithVersion(1));
+
+            var playerIdInput = _view.RootForTests.Q<PlayerIdInput>("PlayerIdInput");
+
+            playerIdInput.Value.Should().Be("777");
+
+            // Act
+            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithTargetPlayerId("12345")
+                .WithVersion(2));
+
+            // Assert
+            playerIdInput.Value.Should().Be("12345");
+        }
+
+        [Test]
         public void WhenMatchSetupPrefabLoaded_ThenHasRequiredComponentsAndValidUxmlAsset()
         {
             // Arrange

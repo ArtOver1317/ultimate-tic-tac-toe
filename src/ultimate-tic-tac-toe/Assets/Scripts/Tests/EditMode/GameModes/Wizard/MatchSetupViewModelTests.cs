@@ -1181,6 +1181,441 @@ namespace Tests.EditMode.GameModes.Wizard
             act.Should().NotThrow();
         }
 
+        [Test]
+        public void WhenSetTargetPlayerIdCalled_ThenWritesThroughToSessionSnapshot()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SetTargetPlayerId("12345");
+
+            // Assert
+            session.Snapshot.CurrentValue.TargetPlayerId.Should().Be("12345");
+        }
+
+        [Test]
+        public void WhenSetTargetPlayerIdCalledWithSameValue_ThenDoesNotUpdateSession()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithTargetPlayerId("12345"));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            var updatesBefore = session.UpdateCallCount;
+
+            // Act
+            sut.SetTargetPlayerId("12345");
+
+            // Assert
+            session.UpdateCallCount.Should().Be(updatesBefore);
+        }
+
+        [Test]
+        public void WhenSetTargetPlayerIdCalledWithWhitespace_ThenNormalizesInSnapshot()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SetTargetPlayerId("  123  ");
+
+            // Assert
+            session.Snapshot.CurrentValue.TargetPlayerId.Should().Be("123");
+        }
+
+        [Test]
+        public void WhenSetTargetPlayerIdCalledWithInvalidString_ThenWritesTrimmedRawValueToSession()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SetTargetPlayerId("invalid");
+
+            // Assert
+            session.Snapshot.CurrentValue.TargetPlayerId.Should().Be("invalid");
+        }
+
+        [Test]
+        public void WhenSetTargetPlayerIdCalledWithInvalidStringWithWhitespace_ThenWritesTrimmedRawValueToSession()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SetTargetPlayerId("  abc  ");
+
+            // Assert
+            session.Snapshot.CurrentValue.TargetPlayerId.Should().Be("abc");
+        }
+
+        [Test]
+        public void WhenSetTargetPlayerIdCalledAndSessionIsNull_ThenDoesNotThrowAndDoesNotChangeState()
+        {
+            // Arrange
+            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            var before = (
+                sut.OpponentType.CurrentValue,
+                sut.HumanOpponentKind.CurrentValue,
+                sut.TargetPlayerId.CurrentValue,
+                sut.PlayerIdErrorText.CurrentValue);
+
+            // Act
+            Action act = () => sut.SetTargetPlayerId("123");
+
+            // Assert
+            act.Should().NotThrow();
+            (
+                sut.OpponentType.CurrentValue,
+                sut.HumanOpponentKind.CurrentValue,
+                sut.TargetPlayerId.CurrentValue,
+                sut.PlayerIdErrorText.CurrentValue)
+                .Should().Be(before);
+        }
+
+        [Test]
+        public void WhenSetTargetPlayerIdCalledAndOpponentTypeIsBot_ThenNormalizesToNullInSnapshot()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Bot));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SetTargetPlayerId("123");
+
+            // Assert
+            session.Snapshot.CurrentValue.TargetPlayerId.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenSetTargetPlayerIdCalledAndHumanKindIsLocal_ThenNormalizesToNullInSnapshot()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.Local));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SetTargetPlayerId("123");
+
+            // Assert
+            session.Snapshot.CurrentValue.TargetPlayerId.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenLatePlayerIdChangeArrivesAfterSwitchToLocal_ThenDoesNotReintroduceTargetPlayerId()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SetHumanOpponentKind(HumanOpponentKind.Local);
+            sut.SetTargetPlayerId("123");
+
+            // Assert
+            session.Snapshot.CurrentValue.TargetPlayerId.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenSessionTargetPlayerIdChanges_ThenVMUpdatesWithoutWriteBack()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            var updatesBefore = session.UpdateCallCount;
+
+            // Act
+            session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithTargetPlayerId("456")
+                .WithVersion(1));
+
+            // Assert
+            sut.TargetPlayerId.CurrentValue.Should().Be("456");
+            session.UpdateCallCount.Should().Be(updatesBefore);
+        }
+
+        [Test]
+        public void WhenSessionTargetPlayerIdIsNull_ThenVMTargetPlayerIdIsEmptyString()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithTargetPlayerId(null));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+
+            // Act
+            sut.Initialize();
+
+            // Assert
+            sut.TargetPlayerId.CurrentValue.Should().Be("");
+        }
+
+        [Test]
+        public void WhenValidationErrorTargetsPlayerId_ThenPlayerIdErrorTextShowsError()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            const string expected = "resolved:Errors.GameModeWizard.PlayerIdRequired";
+
+            var errors = new[]
+            {
+                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired")
+            };
+
+            // Act
+            session.EmitValidationErrors(errors);
+
+            // Assert
+            sut.PlayerIdErrorText.CurrentValue.Should().Be(expected);
+        }
+
+        [Test]
+        public void WhenValidationErrorsContainPlayerIdAndOtherFields_ThenPlayerIdErrorTextPicksTargetPlayerIdOnly()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            const string expected = "resolved:Errors.GameModeWizard.PlayerIdRequired";
+
+            var errors = new[]
+            {
+                new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ModeConfigInvalid"),
+                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired"),
+                new ValidationError(WizardFieldNames.BotDifficultyId, "Errors.GameModeWizard.DifficultyRequired")
+            };
+
+            // Act
+            session.EmitValidationErrors(errors);
+
+            // Assert
+            sut.PlayerIdErrorText.CurrentValue.Should().Be(expected);
+        }
+
+        [Test]
+        public void WhenValidationErrorsContainPlayerIdAndOtherFieldsAndTargetPlayerIdErrorIsNotFirst_ThenPlayerIdErrorTextStillPicksTargetPlayerId()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            const string expected = "resolved:Errors.GameModeWizard.PlayerIdRequired";
+
+            var errors = new[]
+            {
+                new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ModeConfigInvalid"),
+                new ValidationError(WizardFieldNames.BotDifficultyId, "Errors.GameModeWizard.DifficultyRequired"),
+                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired")
+            };
+
+            // Act
+            session.EmitValidationErrors(errors);
+
+            // Assert
+            sut.PlayerIdErrorText.CurrentValue.Should().Be(expected);
+        }
+
+        [Test]
+        public void WhenValidationErrorTargetsPlayerIdButNotInDirectInviteMode_ThenPlayerIdErrorTextIsNull()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.Local));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            var errors = new[]
+            {
+                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired")
+            };
+
+            // Act
+            session.EmitValidationErrors(errors);
+
+            // Assert
+            sut.PlayerIdErrorText.CurrentValue.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenHumanOpponentKindChangesFromDirectInvite_ThenPlayerIdErrorTextClears()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            var errors = new[]
+            {
+                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired")
+            };
+            session.EmitValidationErrors(errors);
+
+            // Act
+            session.EmitSnapshot(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.Local)
+                .WithVersion(1));
+
+            // Assert
+            sut.PlayerIdErrorText.CurrentValue.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenOpponentTypeIsHumanAndKindIsDirectInvite_ThenIsPlayerIdInputVisibleIsTrue()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+
+            // Act
+            sut.Initialize();
+
+            // Assert
+            sut.IsPlayerIdInputVisible.CurrentValue.Should().BeTrue();
+        }
+
+        [Test]
+        public void WhenOpponentTypeIsBot_ThenIsPlayerIdInputVisibleIsFalse()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Bot));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+
+            // Act
+            sut.Initialize();
+
+            // Assert
+            sut.IsPlayerIdInputVisible.CurrentValue.Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenHumanKindIsLocal_ThenIsPlayerIdInputVisibleIsFalse()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.Local));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+
+            // Act
+            sut.Initialize();
+
+            // Assert
+            sut.IsPlayerIdInputVisible.CurrentValue.Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenResetCalled_ThenTargetPlayerIdIsCleared()
+        {
+            // Arrange
+            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithTargetPlayerId("12345"));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.Reset();
+
+            // Assert
+            sut.TargetPlayerId.CurrentValue.Should().Be("");
+        }
+
         private void SetupCoordinatorWithSession(FakeGameModeSession session) =>
             _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(callInfo =>
             {
