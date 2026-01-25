@@ -13,6 +13,7 @@
     "Errors.GameModeWizard.ClassicBoardSizeInvalid": "Board size is out of range",
     "Errors.GameModeWizard.ClassicConfigInvalid": "Invalid Classic mode settings",
     "Errors.GameModeWizard.DifficultyRequired": "Select bot difficulty",
+    "Errors.GameModeWizard.MatchmakingCancelled": "Matchmaking was cancelled",
     "Errors.GameModeWizard.MatchmakingConfigMissing": "Matchmaking is not available yet",
     "Errors.GameModeWizard.ModeCatalogMissing": "Mode catalog is not available",
     "Errors.GameModeWizard.ModeConfigRequired": "Mode settings are required",

@@ -114,6 +114,7 @@ Errors.GameModeWizard.DifficultyRequired,Select bot difficulty,Выберите 
 Errors.GameModeWizard.PlayerIdRequired,Select a player,Выберите игрока,プレイヤーを選択してください,Wizard validation: target player required
 Errors.GameModeWizard.PlayerIdInvalid,Invalid player ID,Некорректный ID игрока,無効なプレイヤーIDです,Wizard validation: player id invalid
 Errors.GameModeWizard.MatchmakingConfigMissing,Matchmaking is not available yet,Матчмейкинг пока недоступен,マッチメイキングはまだ利用できません,Wizard validation: matchmaking not implemented
+Errors.GameModeWizard.MatchmakingCancelled,Matchmaking was cancelled,Поиск матча отменён,マッチメイキングがキャンセルされました,Wizard: matchmaking cancelled
 Errors.GameModeWizard.SessionNotReady,Session is not ready,Сессия не готова,セッションの準備ができていません,Wizard validation: session missing
 Errors.GameModeWizard.ClassicConfigInvalid,Invalid Classic mode settings,Некорректные настройки классического режима,Classicモードの設定が無効です,Wizard validation: classic config invalid
 Errors.GameModeWizard.ClassicBoardSizeInvalid,Board size is out of range,Размер поля вне допустимого диапазона,ボードサイズが範囲外です,Wizard validation: classic board size out of range

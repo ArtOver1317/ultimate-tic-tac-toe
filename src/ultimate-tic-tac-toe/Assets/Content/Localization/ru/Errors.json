@@ -13,6 +13,7 @@
     "Errors.GameModeWizard.ClassicBoardSizeInvalid": "Размер поля вне допустимого диапазона",
     "Errors.GameModeWizard.ClassicConfigInvalid": "Некорректные настройки классического режима",
     "Errors.GameModeWizard.DifficultyRequired": "Выберите сложность бота",
+    "Errors.GameModeWizard.MatchmakingCancelled": "Поиск матча отменён",
     "Errors.GameModeWizard.MatchmakingConfigMissing": "Матчмейкинг пока недоступен",
     "Errors.GameModeWizard.ModeCatalogMissing": "Каталог режимов недоступен",
     "Errors.GameModeWizard.ModeConfigRequired": "Нужны настройки режима",

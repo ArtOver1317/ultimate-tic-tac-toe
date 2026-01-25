@@ -13,6 +13,7 @@
     "Errors.GameModeWizard.ClassicBoardSizeInvalid": "ボードサイズが範囲外です",
     "Errors.GameModeWizard.ClassicConfigInvalid": "Classicモードの設定が無効です",
     "Errors.GameModeWizard.DifficultyRequired": "ボットの難易度を選択してください",
+    "Errors.GameModeWizard.MatchmakingCancelled": "マッチメイキングがキャンセルされました",
     "Errors.GameModeWizard.MatchmakingConfigMissing": "マッチメイキングはまだ利用できません",
     "Errors.GameModeWizard.ModeCatalogMissing": "モードカタログが利用できません",
     "Errors.GameModeWizard.ModeConfigRequired": "モード設定が必要です",
