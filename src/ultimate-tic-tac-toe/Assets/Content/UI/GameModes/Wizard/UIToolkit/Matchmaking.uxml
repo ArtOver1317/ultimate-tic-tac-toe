@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:app="Runtime.UI.Components" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="MatchmakingStyles.uss" />
+    <ui:VisualElement name="Root" class="gmw-root gmw-matchmaking-root">
+        <ui:Label text="" name="TitleLabel" class="gmw-title" />
+
+        <ui:VisualElement name="SearchingState" class="gmw-matchmaking-state gmw-matchmaking-state--searching">
+            <app:MatchmakingSpinner name="Spinner" class="gmw-matchmaking-spinner" />
+            <app:MatchmakingTimer name="Timer" class="gmw-matchmaking-timer" />
+            <ui:Label text="" name="HintLabel" class="gmw-matchmaking-hint" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="FoundState" class="gmw-matchmaking-state gmw-matchmaking-state--found">
+            <ui:Label text="" name="FoundLabel" class="gmw-matchmaking-status" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="FailedState" class="gmw-matchmaking-state gmw-matchmaking-state--failed">
+            <ui:Label text="" name="FailedLabel" class="gmw-matchmaking-status" />
+            <ui:Label text="" name="ErrorLabel" class="gmw-error-label" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="CancelledState" class="gmw-matchmaking-state gmw-matchmaking-state--cancelled">
+            <ui:Label text="" name="CancelledLabel" class="gmw-matchmaking-status" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="ActionBar" class="gmw-action-bar">
+            <ui:Button text="" name="CancelButton" class="gmw-button gmw-button--secondary" />
+            <ui:Button text="" name="RetryButton" class="gmw-button gmw-button--primary" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

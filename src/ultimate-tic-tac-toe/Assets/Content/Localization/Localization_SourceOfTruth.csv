@@ -97,6 +97,15 @@ GameModeWizard.MatchSetup.HumanSettings.Title,Human Settings,Настройки 
 GameModeWizard.MatchSetup.HumanSettings.Local,Local (Same Screen),Локально (один экран),ローカル（同一画面）,Match setup human opponent: local option
 GameModeWizard.MatchSetup.HumanSettings.DirectInvite,Invite by ID,По ID игрока,IDで招待,Match setup human opponent: direct invite option
 GameModeWizard.MatchSetup.HumanSettings.Matchmaking,Find Match,Найти матч,マッチ検索,Match setup human opponent: matchmaking option
+GameModeWizard.Matchmaking.Title,Finding Opponent...,Поиск соперника...,対戦相手を探しています...,Matchmaking title
+GameModeWizard.Matchmaking.SearchingFor,Searching for,Идёт поиск,検索中,Matchmaking searching prefix
+GameModeWizard.Matchmaking.Found,Match found!,Матч найден!,対戦相手が見つかりました!,Matchmaking found status
+GameModeWizard.Matchmaking.Failed,Matchmaking failed,Поиск матча не удался,マッチメイキングに失敗しました,Matchmaking failed status
+GameModeWizard.Matchmaking.Cancelled,Matchmaking cancelled,Поиск матча отменён,マッチメイキングがキャンセルされました,Matchmaking cancelled status
+GameModeWizard.Matchmaking.Cancel,Cancel,Отмена,キャンセル,Matchmaking cancel button
+GameModeWizard.Matchmaking.Retry,Retry,Повторить,再試行,Matchmaking retry button
+GameModeWizard.Matchmaking.Back,Back,Назад,戻る,Matchmaking back button
+GameModeWizard.Matchmaking.Hint,{count} players with different params,{count} игроков с другими параметрами,{count} 人が異なる条件で検索中,Matchmaking hint
 GameModeWizard.MatchSetup.PlayerId.Label,Player ID,ID игрока,プレイヤーID,Match setup player id input label
 GameModeWizard.MatchSetup.BotDifficulty.Easy,Easy,Лёгкая,簡単,Bot difficulty: easy
 GameModeWizard.MatchSetup.BotDifficulty.Normal,Normal,Нормальная,普通,Bot difficulty: normal
@@ -115,6 +124,8 @@ Errors.GameModeWizard.PlayerIdRequired,Select a player,Выберите игро
 Errors.GameModeWizard.PlayerIdInvalid,Invalid player ID,Некорректный ID игрока,無効なプレイヤーIDです,Wizard validation: player id invalid
 Errors.GameModeWizard.MatchmakingConfigMissing,Matchmaking is not available yet,Матчмейкинг пока недоступен,マッチメイキングはまだ利用できません,Wizard validation: matchmaking not implemented
 Errors.GameModeWizard.MatchmakingCancelled,Matchmaking was cancelled,Поиск матча отменён,マッチメイキングがキャンセルされました,Wizard: matchmaking cancelled
+Errors.GameModeWizard.MatchmakingTimeout,Matchmaking timed out,Поиск матча превысил таймаут,マッチメイキングがタイムアウトしました,Matchmaking timeout
+Errors.GameModeWizard.MatchmakingFailed,Matchmaking failed,Поиск матча не удался,マッチメイキングに失敗しました,Matchmaking failed error
 Errors.GameModeWizard.SessionNotReady,Session is not ready,Сессия не готова,セッションの準備ができていません,Wizard validation: session missing
 Errors.GameModeWizard.ClassicConfigInvalid,Invalid Classic mode settings,Некорректные настройки классического режима,Classicモードの設定が無効です,Wizard validation: classic config invalid
 Errors.GameModeWizard.ClassicBoardSizeInvalid,Board size is out of range,Размер поля вне допустимого диапазона,ボードサイズが範囲外です,Wizard validation: classic board size out of range

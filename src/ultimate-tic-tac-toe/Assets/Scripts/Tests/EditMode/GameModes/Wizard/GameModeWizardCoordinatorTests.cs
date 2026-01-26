@@ -583,12 +583,16 @@ namespace Tests.EditMode.GameModes.Wizard
             public Func<CancellationToken, UniTask> CloseModeSelectionImpl;
             public Func<CancellationToken, UniTask> OpenMatchSetupImpl;
             public Func<CancellationToken, UniTask> CloseMatchSetupImpl;
+            public Func<CancellationToken, UniTask<MatchmakingViewModel>> OpenMatchmakingImpl;
+            public Func<CancellationToken, UniTask> CloseMatchmakingImpl;
             public Func<CancellationToken, UniTask> CloseAllImpl;
 
             public int OpenModeSelectionCalls { get; private set; }
             public int CloseModeSelectionCalls { get; private set; }
             public int OpenMatchSetupCalls { get; private set; }
             public int CloseMatchSetupCalls { get; private set; }
+            public int OpenMatchmakingCalls { get; private set; }
+            public int CloseMatchmakingCalls { get; private set; }
             public int CloseAllCalls { get; private set; }
 
             public List<string> CallHistory { get; } = new();
@@ -599,6 +603,8 @@ namespace Tests.EditMode.GameModes.Wizard
                 CloseModeSelectionImpl = _ => UniTask.CompletedTask;
                 OpenMatchSetupImpl = _ => UniTask.CompletedTask;
                 CloseMatchSetupImpl = _ => UniTask.CompletedTask;
+                OpenMatchmakingImpl = _ => UniTask.FromResult<MatchmakingViewModel>(null);
+                CloseMatchmakingImpl = _ => UniTask.CompletedTask;
                 CloseAllImpl = _ => UniTask.CompletedTask;
             }
 
@@ -644,6 +650,28 @@ namespace Tests.EditMode.GameModes.Wizard
                 }
 
                 return CloseMatchSetupImpl(ct);
+            }
+
+            public UniTask<MatchmakingViewModel> OpenMatchmakingAsync(CancellationToken ct)
+            {
+                lock (_lock)
+                {
+                    OpenMatchmakingCalls++;
+                    CallHistory.Add(nameof(OpenMatchmakingAsync));
+                }
+
+                return OpenMatchmakingImpl(ct);
+            }
+
+            public UniTask CloseMatchmakingAsync(CancellationToken ct)
+            {
+                lock (_lock)
+                {
+                    CloseMatchmakingCalls++;
+                    CallHistory.Add(nameof(CloseMatchmakingAsync));
+                }
+
+                return CloseMatchmakingImpl(ct);
             }
 
             public UniTask CloseAllWizardWindowsAsync(CancellationToken ct)

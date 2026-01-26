@@ -15,6 +15,8 @@
     "Errors.GameModeWizard.DifficultyRequired": "Выберите сложность бота",
     "Errors.GameModeWizard.MatchmakingCancelled": "Поиск матча отменён",
     "Errors.GameModeWizard.MatchmakingConfigMissing": "Матчмейкинг пока недоступен",
+    "Errors.GameModeWizard.MatchmakingFailed": "Поиск матча не удался",
+    "Errors.GameModeWizard.MatchmakingTimeout": "Поиск матча превысил таймаут",
     "Errors.GameModeWizard.ModeCatalogMissing": "Каталог режимов недоступен",
     "Errors.GameModeWizard.ModeConfigRequired": "Нужны настройки режима",
     "Errors.GameModeWizard.ModeRequired": "Выберите режим игры",

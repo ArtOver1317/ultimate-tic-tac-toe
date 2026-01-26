@@ -15,6 +15,8 @@
     "Errors.GameModeWizard.DifficultyRequired": "Select bot difficulty",
     "Errors.GameModeWizard.MatchmakingCancelled": "Matchmaking was cancelled",
     "Errors.GameModeWizard.MatchmakingConfigMissing": "Matchmaking is not available yet",
+    "Errors.GameModeWizard.MatchmakingFailed": "Matchmaking failed",
+    "Errors.GameModeWizard.MatchmakingTimeout": "Matchmaking timed out",
     "Errors.GameModeWizard.ModeCatalogMissing": "Mode catalog is not available",
     "Errors.GameModeWizard.ModeConfigRequired": "Mode settings are required",
     "Errors.GameModeWizard.ModeRequired": "Select a game mode",

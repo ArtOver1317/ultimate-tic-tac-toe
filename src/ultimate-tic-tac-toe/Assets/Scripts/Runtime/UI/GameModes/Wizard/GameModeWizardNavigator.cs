@@ -41,11 +41,26 @@ namespace Runtime.UI.GameModes.Wizard
             return UniTask.CompletedTask;
         }
 
+        public UniTask<MatchmakingViewModel> OpenMatchmakingAsync(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            var view = _uiService.Open<MatchmakingView, MatchmakingViewModel>();
+            return UniTask.FromResult(view?.GetViewModel());
+        }
+
+        public UniTask CloseMatchmakingAsync(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            _uiService.Close<MatchmakingView>();
+            return UniTask.CompletedTask;
+        }
+
         public UniTask CloseAllWizardWindowsAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
             _uiService.Close<ModeSelectionView>();
             _uiService.Close<MatchSetupView>();
+            _uiService.Close<MatchmakingView>();
             return UniTask.CompletedTask;
         }
     }

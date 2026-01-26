@@ -44,11 +44,13 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<IGameModeWizardNavigator, GameModeWizardNavigator>(Lifetime.Singleton);
             builder.Register<IGameModeCatalog, GameModeCatalog>(Lifetime.Singleton);
             builder.Register<IBotDifficultyCatalog, BotDifficultyCatalog>(Lifetime.Singleton);
+            builder.Register<IMatchmakingService, MatchmakingServiceStub>(Lifetime.Singleton);
             builder.Register<ClassicModeStrategy>(Lifetime.Singleton).As<IGameModeStrategy>();
             builder.Register<UltimateModeStrategy>(Lifetime.Singleton).As<IGameModeStrategy>();
 
             builder.Register<ModeSelectionViewModel>(Lifetime.Transient);
             builder.Register<MatchSetupViewModel>(Lifetime.Transient);
+            builder.Register<MatchmakingViewModel>(Lifetime.Transient);
             builder.Register<ClassicSettingsViewModel>(Lifetime.Transient);
             builder.Register<UltimateSettingsViewModel>(Lifetime.Transient);
 

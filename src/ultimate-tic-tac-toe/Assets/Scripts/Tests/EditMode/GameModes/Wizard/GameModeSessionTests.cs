@@ -527,7 +527,7 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public void WhenOpponentIsHumanMatchmaking_ThenCanStartIsFalse()
+        public void WhenOpponentIsHumanMatchmaking_ThenCanStartIsTrue()
         {
             // Arrange
             using var sut = new GameModeSession(_catalog, GameModeSessionSnapshot.Default
@@ -541,8 +541,8 @@ namespace Tests.EditMode.GameModes.Wizard
             var errors = sut.ValidationErrors.CurrentValue;
 
             // Assert
-            canStart.Should().BeFalse();
-            errors.Should().ContainSingle(e => e.Field == "Matchmaking" && e.MessageKey == "Errors.GameModeWizard.MatchmakingConfigMissing");
+            canStart.Should().BeTrue();
+            errors.Should().BeEmpty();
         }
 
         [Test]

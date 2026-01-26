@@ -659,6 +659,30 @@ namespace Tests.PlayMode.GameModes.Wizard
 
         [UnityTest]
         [Timeout(10000)]
+        public IEnumerator WhenOpponentIsBotButHumanKindIsMatchmaking_ThenStartDoesNotOpenMatchmaking() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            await _sut.StartWizardAsync(CancellationToken.None);
+            await MoveToMatchSetupAsync();
+
+            var session = _sessionFactory.CreatedSessions.Single();
+            session.Update(s => s
+                .WithSelectedModeId(ClassicModeStrategy.DefaultModeId)
+                .WithModeConfig(new ClassicModeConfig(boardSize: 3))
+                .WithOpponentType(OpponentType.Bot)
+                .WithHumanOpponentKind(HumanOpponentKind.Matchmaking));
+
+            // Act
+            _sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
+            await WaitUntilAsync(() => session.DisposeCallCount == 1);
+
+            // Assert
+            _navigator.OpenMatchmakingCalls.Should().Be(0);
+            _navigator.CloseMatchmakingCalls.Should().Be(0);
+        });
+
+        [UnityTest]
+        [Timeout(10000)]
         public IEnumerator WhenAbortCalledFromNonMainThread_ThenStillClosesWindowsOnMainThreadBestEffort() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
@@ -692,12 +716,16 @@ namespace Tests.PlayMode.GameModes.Wizard
             public Func<CancellationToken, UniTask> CloseModeSelectionImpl;
             public Func<CancellationToken, UniTask> OpenMatchSetupImpl;
             public Func<CancellationToken, UniTask> CloseMatchSetupImpl;
+            public Func<CancellationToken, UniTask<MatchmakingViewModel>> OpenMatchmakingImpl;
+            public Func<CancellationToken, UniTask> CloseMatchmakingImpl;
             public Func<CancellationToken, UniTask> CloseAllImpl;
 
             public int OpenModeSelectionCalls { get; private set; }
             public int CloseModeSelectionCalls { get; private set; }
             public int OpenMatchSetupCalls { get; private set; }
             public int CloseMatchSetupCalls { get; private set; }
+            public int OpenMatchmakingCalls { get; private set; }
+            public int CloseMatchmakingCalls { get; private set; }
             public int CloseAllCalls { get; private set; }
 
             public int TotalCalls { get; private set; }
@@ -710,6 +738,8 @@ namespace Tests.PlayMode.GameModes.Wizard
                 CloseModeSelectionImpl = _ => UniTask.CompletedTask;
                 OpenMatchSetupImpl = _ => UniTask.CompletedTask;
                 CloseMatchSetupImpl = _ => UniTask.CompletedTask;
+                OpenMatchmakingImpl = _ => UniTask.FromResult<MatchmakingViewModel>(null);
+                CloseMatchmakingImpl = _ => UniTask.CompletedTask;
                 CloseAllImpl = _ => UniTask.CompletedTask;
             }
 
@@ -767,6 +797,30 @@ namespace Tests.PlayMode.GameModes.Wizard
                 }
 
                 return CloseMatchSetupImpl(ct);
+            }
+
+            public UniTask<MatchmakingViewModel> OpenMatchmakingAsync(CancellationToken ct)
+            {
+                lock (_lock)
+                {
+                    OpenMatchmakingCalls++;
+                    TotalCalls++;
+                    CallHistory.Add(nameof(IGameModeWizardNavigator.OpenMatchmakingAsync));
+                }
+
+                return OpenMatchmakingImpl(ct);
+            }
+
+            public UniTask CloseMatchmakingAsync(CancellationToken ct)
+            {
+                lock (_lock)
+                {
+                    CloseMatchmakingCalls++;
+                    TotalCalls++;
+                    CallHistory.Add(nameof(IGameModeWizardNavigator.CloseMatchmakingAsync));
+                }
+
+                return CloseMatchmakingImpl(ct);
             }
 
             public UniTask CloseAllWizardWindowsAsync(CancellationToken ct)

@@ -1,3 +1,5 @@
+using System;
+
 namespace Runtime.GameModes.Wizard
 {
     public sealed class MatchmakingConfig : IOpponentConfig
@@ -8,9 +10,9 @@ namespace Runtime.GameModes.Wizard
         public MatchmakingConfig(string matchId, string opponentId)
         {
             if (string.IsNullOrWhiteSpace(matchId))
-                throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(matchId));
+                throw new ArgumentException("Value cannot be null or whitespace.", nameof(matchId));
             if (string.IsNullOrWhiteSpace(opponentId))
-                throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(opponentId));
+                throw new ArgumentException("Value cannot be null or whitespace.", nameof(opponentId));
 
             MatchId = matchId;
             OpponentId = opponentId;

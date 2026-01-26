@@ -140,7 +140,8 @@ namespace Runtime.GameModes.Wizard
                             break;
 
                         case HumanOpponentKind.Matchmaking:
-                            throw new InvalidOperationException("Matchmaking is not supported in the current phase.");
+                            return Result<GameLaunchConfig>.Failure(
+                                new ValidationError(WizardFieldNames.Matchmaking, "Errors.GameModeWizard.MatchmakingConfigMissing"));
 
                         default:
                             throw new ArgumentOutOfRangeException(nameof(snapshot.HumanOpponentKind), snapshot.HumanOpponentKind, null);
@@ -300,10 +301,7 @@ namespace Runtime.GameModes.Wizard
                     }
                 }
 
-                // Phase 1: matchmaking resolution (MatchId/OpponentId) is not implemented.
-                // Keep CanStart consistent with BuildLaunchConfig() by treating matchmaking as invalid for now.
-                if (snapshot.HumanOpponentKind == HumanOpponentKind.Matchmaking)
-                    (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.Matchmaking, "Errors.GameModeWizard.MatchmakingConfigMissing"));
+                // Matchmaking is handled by the wizard flow and does not block Start.
             }
 
             return errors ?? _noErrors;

@@ -260,7 +260,7 @@ namespace Runtime.UI.GameModes.Wizard
             {
                 new HumanKindRadioItem(HumanOpponentKind.Local, _humanLocalLabel),
                 new HumanKindRadioItem(HumanOpponentKind.DirectInvite, _humanDirectInviteLabel),
-                new HumanKindRadioItem(HumanOpponentKind.Matchmaking, _humanMatchmakingLabel, isEnabled: false)
+                new HumanKindRadioItem(HumanOpponentKind.Matchmaking, _humanMatchmakingLabel, isEnabled: true)
             };
 
             humanKindRadio.SetItems(items);

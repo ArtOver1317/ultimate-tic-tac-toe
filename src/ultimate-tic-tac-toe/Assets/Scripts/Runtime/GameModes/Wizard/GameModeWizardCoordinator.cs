@@ -18,6 +18,7 @@ namespace Runtime.GameModes.Wizard
     public sealed class GameModeWizardCoordinator : IGameModeWizardCoordinator, IDisposable
     {
         private static readonly TimeSpan AbortSwitchToMainThreadTimeout = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan MatchmakingFoundAutoCloseDelay = TimeSpan.FromMilliseconds(450);
 
         // Invariant: processing loop is started via .AsTask() and does not use ConfigureAwait(false).
         // This marker is used to avoid self-await when abort is triggered from inside the processing loop.
@@ -28,6 +29,7 @@ namespace Runtime.GameModes.Wizard
             None = 0,
             ModeSelection = 1,
             MatchSetup = 2,
+            Matchmaking = 3,
         }
 
         private readonly IGameModeWizardNavigator _navigator;
@@ -58,6 +60,10 @@ namespace Runtime.GameModes.Wizard
         private Task? _processingTask;
 
         private IGameModeSession? _session;
+
+        private MatchmakingViewModel? _matchmakingViewModel;
+        private CompositeDisposable? _matchmakingSubscriptions;
+        private int _matchmakingCloseInProgress;
 
         private int _isActiveFlag;
 
@@ -286,6 +292,7 @@ namespace Runtime.GameModes.Wizard
                 _intentQueue = null;
                 _session = null;
                 _step = WizardStep.None;
+                CleanupMatchmakingBindings();
                 Volatile.Write(ref _isActiveFlag, 0);
             }
 
@@ -478,8 +485,12 @@ namespace Runtime.GameModes.Wizard
                     if (_step != WizardStep.MatchSetup)
                         return;
 
-                    // Phase 3: Start results in aborting the wizard with a "GameStarted" reason.
-                    // Actual game launch handoff is implemented in later phases.
+                    if (TryGetSessionSnapshot(out var snapshot) && snapshot.OpponentType == OpponentType.Human && snapshot.HumanOpponentKind == HumanOpponentKind.Matchmaking)
+                    {
+                        await OpenMatchmakingAsync(snapshot, ct);
+                        return;
+                    }
+
                     SetIsSubmitting(true);
                     try
                     {
@@ -493,6 +504,191 @@ namespace Runtime.GameModes.Wizard
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(intent), intent, null);
+            }
+        }
+
+        private async UniTask OpenMatchmakingAsync(GameModeSessionSnapshot snapshot, CancellationToken ct)
+        {
+            if (snapshot == null)
+                throw new ArgumentNullException(nameof(snapshot));
+
+            if (string.IsNullOrWhiteSpace(snapshot.SelectedModeId) || snapshot.ModeConfig == null)
+            {
+                TrySetCurrentError(new WizardError(
+                    code: "wizard.mode_config_required",
+                    messageKey: "Errors.GameModeWizard.ModeConfigRequired",
+                    isBlocking: true,
+                    displayType: ErrorDisplayType.Inline));
+                return;
+            }
+
+            await TransitionAsync(
+                close: _navigator.CloseMatchSetupAsync,
+                open: async token =>
+                {
+                    var viewModel = await _navigator.OpenMatchmakingAsync(token);
+                    if (viewModel == null)
+                        throw new InvalidOperationException("Matchmaking ViewModel is not available.");
+
+                    BindMatchmakingViewModel(viewModel, snapshot, token);
+                },
+                ct: ct);
+
+            _step = WizardStep.Matchmaking;
+        }
+
+        private void BindMatchmakingViewModel(MatchmakingViewModel viewModel, GameModeSessionSnapshot snapshot, CancellationToken ct)
+        {
+            CleanupMatchmakingBindings();
+
+            _matchmakingViewModel = viewModel;
+            _matchmakingSubscriptions = new CompositeDisposable();
+
+            viewModel.CancelRequested
+                .Subscribe(_ => CloseMatchmakingToSetupAsync(ct).Forget(LogForgetException))
+                .AddTo(_matchmakingSubscriptions);
+
+            viewModel.BackRequested
+                .Subscribe(_ => CloseMatchmakingToSetupAsync(ct).Forget(LogForgetException))
+                .AddTo(_matchmakingSubscriptions);
+
+            viewModel.RetryRequested
+                .Subscribe(_ => TryRestartMatchmaking(snapshot, ct))
+                .AddTo(_matchmakingSubscriptions);
+
+            viewModel.State
+                .Subscribe(state => HandleMatchmakingStateChanged(state, ct).Forget(LogForgetException))
+                .AddTo(_matchmakingSubscriptions);
+
+            var request = new MatchmakingRequest(snapshot.SelectedModeId, snapshot.ModeConfig);
+            viewModel.BeginSearch(request, ct);
+        }
+
+        private void TryRestartMatchmaking(GameModeSessionSnapshot snapshot, CancellationToken ct)
+        {
+            if (_matchmakingViewModel == null)
+                return;
+
+            if (string.IsNullOrWhiteSpace(snapshot.SelectedModeId) || snapshot.ModeConfig == null)
+            {
+                TrySetCurrentError(new WizardError(
+                    code: "wizard.mode_config_required",
+                    messageKey: "Errors.GameModeWizard.ModeConfigRequired",
+                    isBlocking: true,
+                    displayType: ErrorDisplayType.Inline));
+                return;
+            }
+
+            var request = new MatchmakingRequest(snapshot.SelectedModeId, snapshot.ModeConfig);
+            _matchmakingViewModel.BeginSearch(request, ct);
+        }
+
+        private async UniTask HandleMatchmakingStateChanged(MatchmakingState state, CancellationToken ct)
+        {
+            if (_step != WizardStep.Matchmaking)
+                return;
+
+            switch (state)
+            {
+                case MatchmakingState.Found:
+                    await UniTask.Delay(MatchmakingFoundAutoCloseDelay, cancellationToken: ct);
+                    await CloseMatchmakingAndStartAsync(ct);
+                    break;
+
+                case MatchmakingState.Cancelled:
+                    await CloseMatchmakingToSetupAsync(ct);
+                    break;
+            }
+        }
+
+        private static void LogForgetException(Exception ex)
+        {
+            if (ex is OperationCanceledException)
+                return;
+
+            GameLog.Exception(ex);
+        }
+
+        private async UniTask CloseMatchmakingToSetupAsync(CancellationToken ct)
+        {
+            if (_step != WizardStep.Matchmaking)
+                return;
+
+            if (Interlocked.Exchange(ref _matchmakingCloseInProgress, 1) != 0)
+                return;
+
+            try
+            {
+                await TransitionAsync(
+                    close: _navigator.CloseMatchmakingAsync,
+                    open: _navigator.OpenMatchSetupAsync,
+                    ct: ct);
+
+                CleanupMatchmakingBindings();
+                _step = WizardStep.MatchSetup;
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _matchmakingCloseInProgress, 0);
+            }
+        }
+
+        private async UniTask CloseMatchmakingAndStartAsync(CancellationToken ct)
+        {
+            if (_step != WizardStep.Matchmaking)
+                return;
+
+            if (Interlocked.Exchange(ref _matchmakingCloseInProgress, 1) != 0)
+                return;
+
+            try
+            {
+                await TransitionAsync(
+                    close: _navigator.CloseMatchmakingAsync,
+                    open: _ => UniTask.CompletedTask,
+                    ct: ct);
+
+                CleanupMatchmakingBindings();
+
+                SetIsSubmitting(true);
+                try
+                {
+                    await AbortWizardCoreAsync(AbortReason.GameStarted, awaitProcessingTask: false);
+                }
+                finally
+                {
+                    SetIsSubmitting(false);
+                }
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _matchmakingCloseInProgress, 0);
+            }
+        }
+
+        private void CleanupMatchmakingBindings()
+        {
+            _matchmakingSubscriptions?.Dispose();
+            _matchmakingSubscriptions = null;
+            _matchmakingViewModel = null;
+            Interlocked.Exchange(ref _matchmakingCloseInProgress, 0);
+        }
+
+        private bool TryGetSessionSnapshot(out GameModeSessionSnapshot snapshot)
+        {
+            snapshot = null;
+
+            if (_session == null)
+                return false;
+
+            try
+            {
+                snapshot = _session.Snapshot.CurrentValue;
+                return snapshot != null;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
             }
         }
 
