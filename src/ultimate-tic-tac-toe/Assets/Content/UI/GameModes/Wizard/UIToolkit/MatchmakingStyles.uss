@@ -56,13 +56,14 @@
 }
 
 .matchmaking-spinner {
+    width: 72px;
+    height: 72px;
     align-items: center;
     justify-content: center;
-}
-
-.matchmaking-spinner__label {
-    font-size: 56px;
-    color: rgb(255, 255, 255);
+    background-image: url("Assets/Content/UI/Common/LoadingIcon.png");
+    -unity-background-scale-mode: scale-to-fit;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
 .matchmaking-timer {

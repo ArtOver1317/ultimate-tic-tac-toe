@@ -1,6 +1,5 @@
 #nullable enable
 
-using System;
 using UnityEngine.UIElements;
 
 namespace Runtime.UI.Components
@@ -8,22 +7,17 @@ namespace Runtime.UI.Components
     [UxmlElement]
     public sealed partial class MatchmakingSpinner : VisualElement
     {
-        private static readonly string[] Frames = { "◐", "◓", "◑", "◒" };
+        private const float RotationStep = 18f;
 
-        private readonly Label _label;
         private IVisualElementScheduledItem? _schedule;
-        private int _frameIndex;
+        private float _angle;
         private bool _isRunning;
 
         public MatchmakingSpinner()
         {
             AddToClassList("matchmaking-spinner");
-
-            _label = new Label { name = "SpinnerLabel" };
-            _label.AddToClassList("matchmaking-spinner__label");
-            Add(_label);
-
-            SetFrame(0);
+            _angle = 0f;
+            style.rotate = new Rotate(new Angle(_angle, AngleUnit.Degree));
         }
 
         public void Start()
@@ -32,15 +26,22 @@ namespace Runtime.UI.Components
                 return;
 
             _isRunning = true;
-            _schedule = schedule.Execute(AdvanceFrame).Every(200);
+            if (_schedule == null)
+            {
+                _schedule = schedule.Execute(AdvanceFrame).Every(60);
+            }
+            else
+            {
+                _schedule.Resume();
+            }
         }
 
         public void Stop()
         {
             _isRunning = false;
             _schedule?.Pause();
-            _schedule = null;
-            SetFrame(0);
+            _angle = 0f;
+            style.rotate = new Rotate(new Angle(_angle, AngleUnit.Degree));
         }
 
         private void AdvanceFrame()
@@ -48,16 +49,11 @@ namespace Runtime.UI.Components
             if (!_isRunning)
                 return;
 
-            _frameIndex = (_frameIndex + 1) % Frames.Length;
-            SetFrame(_frameIndex);
-        }
+            _angle += RotationStep;
+            if (_angle >= 360f)
+                _angle -= 360f;
 
-        private void SetFrame(int index)
-        {
-            if (index < 0 || index >= Frames.Length)
-                throw new ArgumentOutOfRangeException(nameof(index), index, "Spinner frame index is out of range.");
-
-            _label.text = Frames[index];
+            style.rotate = new Rotate(new Angle(_angle, AngleUnit.Degree));
         }
     }
 }
