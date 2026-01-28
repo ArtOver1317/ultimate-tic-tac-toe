@@ -123,13 +123,25 @@ namespace Runtime.UI.GameModes.Wizard
             }));
 
             AddDisposable(cancelButton.OnClickAsObservable().Subscribe(_ =>
-            {
-                if (ViewModel.State.CurrentValue == MatchmakingState.Searching)
-                    ViewModel.RequestCancel();
-                else
-                    ViewModel.RequestBack();
-            }));
-            AddDisposable(retryButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestRetry()));
+                OnCancelButtonClicked()));
+            AddDisposable(retryButton.OnClickAsObservable().Subscribe(_ => OnRetryButtonClicked()));
+        }
+
+        internal void OnCancelButtonClicked()
+        {
+            var viewModel = ViewModel;
+            if (viewModel == null)
+                return;
+
+            if (viewModel.State.CurrentValue == MatchmakingState.Searching)
+                viewModel.RequestCancel();
+            else
+                viewModel.RequestBack();
+        }
+
+        internal void OnRetryButtonClicked()
+        {
+            ViewModel?.RequestRetry();
         }
 
         protected override void OnResetForPool()
