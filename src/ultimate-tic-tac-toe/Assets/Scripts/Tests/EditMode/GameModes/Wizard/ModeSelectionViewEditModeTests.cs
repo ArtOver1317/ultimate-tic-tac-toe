@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
 using Runtime.UI.GameModes.Wizard;
@@ -21,6 +22,7 @@ namespace Tests.EditMode.GameModes.Wizard
         private VisualTreeAsset _uxml;
         private ModeSelectionViewModel _viewModel;
         private ILocalizationService _localization;
+        private ReactiveProperty<WizardError?> _currentError;
 
         [SetUp]
         public void SetUp()
@@ -46,10 +48,18 @@ namespace Tests.EditMode.GameModes.Wizard
             var coordinator = Substitute.For<IGameModeWizardCoordinator>();
             coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
 
+            _currentError = new ReactiveProperty<WizardError?>(null);
+            coordinator.CurrentError.Returns(_currentError);
+
             _localization = Substitute.For<ILocalizationService>();
+            _localization
+                .Resolve(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo => callInfo.Arg<TextKey>().Value);
             _localization
                 .Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(callInfo => R3.Observable.Return(callInfo.Arg<TextKey>().Value));
+
+            _view.Construct(_localization);
 
             _viewModel = new ModeSelectionViewModel(catalog, coordinator, _localization);
         }
@@ -58,6 +68,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void TearDown()
         {
             _viewModel?.Dispose();
+            _currentError?.Dispose();
             if (_gameObject != null)
                 Object.DestroyImmediate(_gameObject);
         }

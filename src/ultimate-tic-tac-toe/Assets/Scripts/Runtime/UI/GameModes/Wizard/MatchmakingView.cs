@@ -4,9 +4,11 @@ using System;
 using R3;
 using Runtime.Extensions;
 using Runtime.GameModes.Wizard;
+using Runtime.Localization;
 using Runtime.UI.Components;
 using Runtime.UI.Core;
 using UnityEngine.UIElements;
+using VContainer;
 
 namespace Runtime.UI.GameModes.Wizard
 {
@@ -54,9 +56,22 @@ namespace Runtime.UI.GameModes.Wizard
         [Runtime.UI.Core.UxmlElementAttribute("RetryButton")]
         private Button? _retryButton;
 
+        [Runtime.UI.Core.UxmlElementAttribute("ErrorOverlay", isOptional: true)]
+        private WizardErrorOverlay? _errorOverlay;
+
+        private IGameModeWizardCoordinator? _coordinator;
+        private ILocalizationService? _localization;
+
         private string _cancelLabel = string.Empty;
         private string _backLabel = string.Empty;
         private int _hintCount;
+
+        [Inject]
+        public void Construct(IGameModeWizardCoordinator coordinator, ILocalizationService localization)
+        {
+            _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+            _localization = localization ?? throw new ArgumentNullException(nameof(localization));
+        }
 
         protected override void BindViewModel()
         {
@@ -122,9 +137,24 @@ namespace Runtime.UI.GameModes.Wizard
                 UpdateCancelButtonLabel(state);
             }));
 
+            BindErrorOverlay();
+
             AddDisposable(cancelButton.OnClickAsObservable().Subscribe(_ =>
                 OnCancelButtonClicked()));
             AddDisposable(retryButton.OnClickAsObservable().Subscribe(_ => OnRetryButtonClicked()));
+        }
+
+        private void BindErrorOverlay()
+        {
+            var overlay = _errorOverlay;
+            if (overlay == null)
+                return;
+
+            // Wizard-level errors are sourced from coordinator (single source of truth).
+            var coordinator = _coordinator ?? throw new InvalidOperationException("Coordinator is not available for error overlay binding.");
+            var localization = _localization ?? throw new InvalidOperationException("Localization service is not available for error overlay binding.");
+
+            AddDisposable(WizardErrorOverlayBinder.Bind(overlay, localization, coordinator.CurrentError, coordinator.ClearCurrentError));
         }
 
         internal void OnCancelButtonClicked()

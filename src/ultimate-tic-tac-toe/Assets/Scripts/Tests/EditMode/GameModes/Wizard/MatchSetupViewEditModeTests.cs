@@ -84,7 +84,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             var assetProvider = new FakeViewAssetProvider();
             var binders = Array.Empty<IModeSettingsBinder>();
-            _view.Construct(assetProvider, binders);
+            _view.Construct(assetProvider, binders, _localization);
 
             _view.SetViewModel(_viewModel);
             _view.RebindUxmlForTests();

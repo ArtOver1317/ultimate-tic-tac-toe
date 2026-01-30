@@ -5,6 +5,7 @@
     padding-right: 24px;
     padding-top: 24px;
     padding-bottom: 24px;
+    position: relative;
 }
 
 .gmw-title {
@@ -101,3 +102,4 @@
 .gmw-matchmaking-state--cancelled {
     display: none;
 }
+

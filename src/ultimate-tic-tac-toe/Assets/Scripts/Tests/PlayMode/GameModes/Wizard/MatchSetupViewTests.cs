@@ -118,7 +118,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             _binder = new TestBinder(typeof(TestSettingsViewModel));
             var binders = new IModeSettingsBinder[] { _binder };
 
-            _view.Construct(_assetProvider, binders);
+            _view.Construct(_assetProvider, binders, _localization);
 
             yield return null;
 
@@ -261,7 +261,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             var uiDocument = go.AddComponent<UIDocument>();
             uiDocument.visualTreeAsset = _matchSetupUxml;
             var view = go.AddComponent<MatchSetupView>();
-            view.Construct(_assetProvider, binders);
+            view.Construct(_assetProvider, binders, _localization);
             return view;
         }
 

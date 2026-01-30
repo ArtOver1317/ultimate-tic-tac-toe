@@ -1,0 +1,81 @@
+.gmw-error-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.wizard-toast {
+    margin-top: 16px;
+    width: 90%;
+    max-width: 720px;
+    padding: 12px 16px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    background-color: rgba(20, 20, 20, 0.9);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+.wizard-toast__label {
+    font-size: 20px;
+    color: rgb(255, 255, 255);
+    margin-right: 12px;
+    flex-grow: 1;
+}
+
+
+.wizard-modal {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+.wizard-modal__backdrop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.wizard-modal__panel {
+    width: 520px;
+    padding: 20px;
+    background-color: rgba(40, 44, 120, 0.95);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+    align-items: center;
+    justify-content: center;
+}
+
+.wizard-modal__message {
+    font-size: 22px;
+    color: rgb(255, 255, 255);
+    margin-bottom: 16px;
+    -unity-text-align: middle-center;
+}
+
+.wizard-modal__button {
+    width: 200px;
+    height: 54px;
+    font-size: 24px;
+    background-color: rgba(255, 255, 255, 0.12);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+}

@@ -1,5 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:app="Runtime.UI.Components" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
     <Style src="MatchSetupStyles.uss" />
+    <Style src="WizardErrorOverlayStyles.uss" />
     <ui:VisualElement name="Root" class="gmw-root">
         <ui:VisualElement name="Header" class="gmw-header">
             <ui:Button text="" name="BackButton" class="gmw-button gmw-button--back" />
@@ -33,5 +34,6 @@
         </ui:VisualElement>
 
         <ui:Label text="" name="ErrorLabel" class="gmw-error-label" />
+        <app:WizardErrorOverlay name="ErrorOverlay" class="gmw-error-overlay" />
     </ui:VisualElement>
 </ui:UXML>

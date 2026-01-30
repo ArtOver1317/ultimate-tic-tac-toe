@@ -28,6 +28,7 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<IReadOnlyList<GameModeMetadata>> AvailableModes => _availableModes;
         public ReactiveProperty<string?> SelectedModeId => _selectedModeId;
         public ReadOnlyReactiveProperty<bool> CanContinue => _canContinue;
+        public ReadOnlyReactiveProperty<WizardError?> Error => _coordinator.CurrentError;
 
         public Observable<string> TitleText { get; }
         public Observable<string> CancelButtonText { get; }
@@ -87,6 +88,11 @@ namespace Runtime.GameModes.Wizard
             // Cancel is expected to be accepted even during busy state.
             if (!_coordinator.TryPublishIntent(WizardIntent.Cancel))
                 GameLog.Debug("[ModeSelectionViewModel] Cancel intent rejected.");
+        }
+
+        public void AcknowledgeError()
+        {
+            _coordinator.ClearCurrentError();
         }
 
         protected override void OnReset()

@@ -1,5 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:app="Runtime.UI.Components" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
     <Style src="MatchmakingStyles.uss" />
+    <Style src="WizardErrorOverlayStyles.uss" />
     <ui:VisualElement name="Root" class="gmw-root gmw-matchmaking-root">
         <ui:Label text="" name="TitleLabel" class="gmw-title" />
 
@@ -26,5 +27,7 @@
             <ui:Button text="" name="CancelButton" class="gmw-button gmw-button--secondary" />
             <ui:Button text="" name="RetryButton" class="gmw-button gmw-button--primary" />
         </ui:VisualElement>
+
+        <app:WizardErrorOverlay name="ErrorOverlay" class="gmw-error-overlay" />
     </ui:VisualElement>
 </ui:UXML>

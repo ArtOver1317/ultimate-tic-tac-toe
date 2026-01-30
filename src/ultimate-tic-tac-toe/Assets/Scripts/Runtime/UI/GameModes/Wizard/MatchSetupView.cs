@@ -8,6 +8,7 @@ using R3;
 using Runtime.Extensions;
 using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.Logging;
+using Runtime.Localization;
 using Runtime.Services.UI.Assets;
 using Runtime.UI.Components;
 using Runtime.UI.Core;
@@ -66,8 +67,12 @@ namespace Runtime.UI.GameModes.Wizard
         [Runtime.UI.Core.UxmlElementAttribute("ErrorLabel", isOptional: true)]
         private Label? _errorLabel;
 
+        [Runtime.UI.Core.UxmlElementAttribute("ErrorOverlay", isOptional: true)]
+        private WizardErrorOverlay? _errorOverlay;
+
         private IViewAssetProvider _assetProvider = null!;
         private IModeSettingsBinder[] _binders = System.Array.Empty<IModeSettingsBinder>();
+        private ILocalizationService? _localization;
 
         private CancellationTokenSource? _loadCts;
         private IAssetLease<VisualTreeAsset>? _currentLease;
@@ -81,10 +86,11 @@ namespace Runtime.UI.GameModes.Wizard
         private string _humanMatchmakingLabel = string.Empty;
 
         [Inject]
-        public void Construct(IViewAssetProvider assetProvider, IEnumerable<IModeSettingsBinder> binders)
+        public void Construct(IViewAssetProvider assetProvider, IEnumerable<IModeSettingsBinder> binders, ILocalizationService localization)
         {
             _assetProvider = assetProvider ?? throw new ArgumentNullException(nameof(assetProvider));
             _binders = binders != null ? new List<IModeSettingsBinder>(binders).ToArray() : System.Array.Empty<IModeSettingsBinder>();
+            _localization = localization ?? throw new ArgumentNullException(nameof(localization));
         }
 
         protected override void BindViewModel()
@@ -142,10 +148,12 @@ namespace Runtime.UI.GameModes.Wizard
 
             BindText(ViewModel.ModeTitleText, titleLabel);
 
+            var isBlocking = ViewModel.Error.Select(static error => error != null && error.IsBlocking);
             var canStart = Observable.CombineLatest(
                 ViewModel.CanStart,
                 ViewModel.IsBusy,
-                static (isAllowed, isBusy) => isAllowed && !isBusy);
+                isBlocking,
+                static (isAllowed, isBusy, blocked) => isAllowed && !isBusy && !blocked);
 
             BindEnabled(canStart, startButton);
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), backButton);
@@ -170,6 +178,8 @@ namespace Runtime.UI.GameModes.Wizard
                     _errorLabel.style.display = string.IsNullOrWhiteSpace(text) ? DisplayStyle.None : DisplayStyle.Flex;
                 }));
             }
+
+            BindErrorOverlay();
 
             AddDisposable(ViewModel.DifficultyItems
                 .Subscribe(items =>
@@ -226,6 +236,18 @@ namespace Runtime.UI.GameModes.Wizard
 
             AddDisposable(ViewModel.ActiveSettings
                 .Subscribe(presentation => LoadSettingsSafeAsync(presentation).Forget(ex => GameLog.Exception(ex))));
+        }
+
+        private void BindErrorOverlay()
+        {
+            var overlay = _errorOverlay;
+            if (overlay == null)
+                return;
+
+            if (_localization == null)
+                throw new InvalidOperationException("Localization service is not available for error overlay binding.");
+
+            AddDisposable(WizardErrorOverlayBinder.Bind(overlay, _localization, ViewModel.Error, ViewModel.AcknowledgeError));
         }
 
         protected override void OnResetForPool()

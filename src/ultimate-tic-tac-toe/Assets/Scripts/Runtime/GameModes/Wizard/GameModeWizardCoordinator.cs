@@ -78,6 +78,22 @@ namespace Runtime.GameModes.Wizard
         public IGameModeSession Session => _session ?? throw new InvalidOperationException("Wizard is not active.");
         public bool IsActive => Volatile.Read(ref _isActiveFlag) != 0;
 
+        public void ClearCurrentError()
+        {
+            if (_isDisposed)
+                return;
+
+            Interlocked.Exchange(ref _pendingError, null);
+
+            if (PlayerLoopHelper.IsMainThread)
+            {
+                _currentError.Value = null;
+                return;
+            }
+
+            ClearCurrentErrorOnMainThreadAsync().Forget();
+        }
+
         public bool TryGetSession([NotNullWhen(true)] out IGameModeSession? session)
         {
             if (Volatile.Read(ref _abortInProgress) != 0)
@@ -518,7 +534,7 @@ namespace Runtime.GameModes.Wizard
                     code: "wizard.mode_config_required",
                     messageKey: "Errors.GameModeWizard.ModeConfigRequired",
                     isBlocking: true,
-                    displayType: ErrorDisplayType.Inline));
+                    displayType: ErrorDisplayType.Modal));
                 return;
             }
 
@@ -560,8 +576,7 @@ namespace Runtime.GameModes.Wizard
                 .Subscribe(state => HandleMatchmakingStateChanged(state, ct).Forget(LogForgetException))
                 .AddTo(_matchmakingSubscriptions);
 
-            var request = new MatchmakingRequest(snapshot.SelectedModeId, snapshot.ModeConfig);
-            viewModel.BeginSearch(request, ct);
+            viewModel.BeginSearch(new MatchmakingRequest(snapshot.SelectedModeId, snapshot.ModeConfig), ct);
         }
 
         private void TryRestartMatchmaking(GameModeSessionSnapshot snapshot, CancellationToken ct)
@@ -575,7 +590,9 @@ namespace Runtime.GameModes.Wizard
                     code: "wizard.mode_config_required",
                     messageKey: "Errors.GameModeWizard.ModeConfigRequired",
                     isBlocking: true,
-                    displayType: ErrorDisplayType.Inline));
+                    displayType: ErrorDisplayType.Modal));
+
+                CloseMatchmakingToSetupAsync(ct).Forget(LogForgetException);
                 return;
             }
 
@@ -676,7 +693,7 @@ namespace Runtime.GameModes.Wizard
 
         private bool TryGetSessionSnapshot(out GameModeSessionSnapshot snapshot)
         {
-            snapshot = null;
+            snapshot = default!;
 
             if (_session == null)
                 return false;
@@ -761,6 +778,25 @@ namespace Runtime.GameModes.Wizard
             var pending = Interlocked.Exchange(ref _pendingError, null);
             if (pending != null)
                 _currentError.Value = pending;
+        }
+
+        private async UniTaskVoid ClearCurrentErrorOnMainThreadAsync()
+        {
+            try
+            {
+                await UniTask.SwitchToMainThread(_lifetimeCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            if (_isDisposed)
+                return;
+
+            Interlocked.Exchange(ref _pendingError, null);
+
+            _currentError.Value = null;
         }
 
         private static async UniTask<bool> TrySwitchToMainThreadWithTimeoutAsync(TimeSpan timeout)

@@ -1,3 +1,5 @@
+﻿#nullable enable
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -5,6 +7,7 @@ using System.Reflection;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using FluentAssertions;
+using NSubstitute;
 using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
@@ -25,15 +28,17 @@ namespace Tests.PlayMode.GameModes.Wizard
     {
         private const string MatchmakingUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/Matchmaking.uxml";
 
-        private GameObject _gameObject;
-        private UIDocument _uiDocument;
-        private MatchmakingView _view;
-        private VisualTreeAsset _uxml;
-        private PanelSettings _panelSettings;
+        private GameObject _gameObject = null!;
+        private UIDocument _uiDocument = null!;
+        private MatchmakingView _view = null!;
+        private VisualTreeAsset _uxml = null!;
+        private PanelSettings _panelSettings = null!;
 
-        private MatchmakingViewModel _viewModel;
-        private FakeMatchmakingService _service;
-        private TestLocalizationService _localization;
+        private MatchmakingViewModel _viewModel = null!;
+        private FakeMatchmakingService _service = null!;
+        private TestLocalizationService _localization = null!;
+        private IGameModeWizardCoordinator _coordinator = null!;
+        private ReactiveProperty<WizardError?> _currentError = null!;
 
         private VisualElement Root => _view.RootForTests;
 
@@ -56,6 +61,12 @@ namespace Tests.PlayMode.GameModes.Wizard
             _localization.SetText("GameModeWizard.Matchmaking.Back", "Back");
             _localization.SetText("GameModeWizard.Matchmaking.Retry", "Retry");
 
+            _currentError = new ReactiveProperty<WizardError?>(null);
+            _coordinator = Substitute.For<IGameModeWizardCoordinator>();
+            _coordinator.CurrentError.Returns(_currentError);
+
+            _view.Construct(_coordinator, _localization);
+
             _viewModel = new MatchmakingViewModel(_localization, _service);
 
             yield return null;
@@ -72,6 +83,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             _viewModel?.Dispose();
             _localization?.Dispose();
+            _currentError?.Dispose();
 
             if (_gameObject != null)
                 Object.Destroy(_gameObject);
@@ -494,13 +506,13 @@ namespace Tests.PlayMode.GameModes.Wizard
             public UniTask PreloadAsync(LocaleId locale, IReadOnlyList<TextTableId> tables, CancellationToken cancellationToken) =>
                 UniTask.CompletedTask;
 
-            public string Resolve(TextTableId table, TextKey key, IReadOnlyDictionary<string, object> args = null) =>
+            public string Resolve(TextTableId table, TextKey key, IReadOnlyDictionary<string, object> args = null!) =>
                 GetOrCreate(key.Value).Value;
 
             public Observable<string> Observe(TextTableId table, TextKey key, Observable<IReadOnlyDictionary<string, object>> args) =>
                 GetOrCreate(key.Value);
 
-            public Observable<string> Observe(TextTableId table, TextKey key, IReadOnlyDictionary<string, object> args = null) =>
+            public Observable<string> Observe(TextTableId table, TextKey key, IReadOnlyDictionary<string, object> args = null!) =>
                 GetOrCreate(key.Value);
 
             public IReadOnlyList<LocaleId> GetSupportedLocales() => new[] { LocaleId.EnglishUs, LocaleId.Russian };
@@ -519,12 +531,13 @@ namespace Tests.PlayMode.GameModes.Wizard
                 _texts.Clear();
             }
 
-            private ReactiveProperty<string> GetOrCreate(string key)
+            private ReactiveProperty<string> GetOrCreate(string? key)
             {
-                if (!_texts.TryGetValue(key, out var value))
+                var safeKey = key ?? string.Empty;
+                if (!_texts.TryGetValue(safeKey, out var value))
                 {
-                    value = new ReactiveProperty<string>(key ?? string.Empty);
-                    _texts.Add(key, value);
+                    value = new ReactiveProperty<string>(safeKey);
+                    _texts.Add(safeKey, value);
                 }
 
                 return value;
@@ -532,3 +545,5 @@ namespace Tests.PlayMode.GameModes.Wizard
         }
     }
 }
+
+#nullable restore

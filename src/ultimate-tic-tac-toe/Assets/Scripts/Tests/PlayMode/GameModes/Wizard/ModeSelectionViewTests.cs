@@ -1,3 +1,5 @@
+﻿#nullable enable
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -28,6 +30,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
         private ModeSelectionViewModel _viewModel;
         private IGameModeWizardCoordinator _coordinator;
+        private ReactiveProperty<WizardError?> _currentError;
         private List<GameModeMetadata> _modes;
         private ILocalizationService _localization;
 
@@ -54,11 +57,18 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             _coordinator = Substitute.For<IGameModeWizardCoordinator>();
             _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            _currentError = new ReactiveProperty<WizardError?>(null);
+            _coordinator.CurrentError.Returns(_currentError);
 
             _localization = Substitute.For<ILocalizationService>();
             _localization
+                .Resolve(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo => callInfo.Arg<TextKey>().Value);
+            _localization
                 .Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(callInfo => Observable.Return(callInfo.Arg<TextKey>().Value));
+
+            _view.Construct(_localization);
 
             _viewModel = new ModeSelectionViewModel(catalog, _coordinator, _localization);
 
@@ -69,6 +79,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator TearDown()
         {
             _viewModel?.Dispose();
+            _currentError?.Dispose();
 
             if (_gameObject != null)
                 Object.Destroy(_gameObject);
@@ -357,6 +368,8 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             var coordinatorB = Substitute.For<IGameModeWizardCoordinator>();
             coordinatorB.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            var currentErrorB = new ReactiveProperty<WizardError?>(null);
+            coordinatorB.CurrentError.Returns(currentErrorB);
 
             var viewModelB = new ModeSelectionViewModel(catalogB, coordinatorB, _localization);
             _view.SetViewModel(viewModelB);
@@ -376,6 +389,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             viewModelA.SelectedModeId.Value.Should().BeNull();
 
             viewModelB.Dispose();
+            currentErrorB.Dispose();
         }
 
         [UnityTest]
@@ -554,3 +568,5 @@ namespace Tests.PlayMode.GameModes.Wizard
 
     }
 }
+
+#nullable restore

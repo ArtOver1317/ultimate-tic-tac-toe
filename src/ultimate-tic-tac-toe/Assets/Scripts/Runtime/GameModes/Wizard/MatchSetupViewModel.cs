@@ -166,6 +166,11 @@ namespace Runtime.GameModes.Wizard
                 GameLog.Debug("[MatchSetupViewModel] Cancel intent rejected.");
         }
 
+        public void AcknowledgeError()
+        {
+            _coordinator.ClearCurrentError();
+        }
+
         public void SetOpponentType(OpponentType opponentType)
         {
             if (IsDisposed)

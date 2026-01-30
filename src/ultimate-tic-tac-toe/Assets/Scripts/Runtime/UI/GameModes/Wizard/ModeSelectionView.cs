@@ -1,9 +1,12 @@
+﻿#nullable enable
+
 using System;
 using System.Collections.Generic;
 using R3;
 using Runtime.Extensions;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
+using Runtime.UI.Components;
 using Runtime.UI.Core;
 using UnityEngine.UIElements;
 using VContainer;
@@ -12,23 +15,26 @@ namespace Runtime.UI.GameModes.Wizard
 {
     public sealed class ModeSelectionView : UIView<ModeSelectionViewModel>
     {
-        private ILocalizationService _localization;
+        private ILocalizationService? _localization;
 
         [Runtime.UI.Core.UxmlElementAttribute("Title")]
-        private Label _titleLabel;
+        private Label? _titleLabel;
         [Runtime.UI.Core.UxmlElementAttribute("ModeList")]
-        private ListView _modeList;
+        private ListView? _modeList;
 
         [Runtime.UI.Core.UxmlElementAttribute("CancelButton")]
-        private Button _cancelButton;
+        private Button? _cancelButton;
 
         [Runtime.UI.Core.UxmlElementAttribute("ContinueButton")]
-        private Button _continueButton;
+        private Button? _continueButton;
+
+        [Runtime.UI.Core.UxmlElementAttribute("ErrorOverlay", isOptional: true)]
+        private WizardErrorOverlay? _errorOverlay;
 
         private IReadOnlyList<GameModeMetadata> _modes = Array.Empty<GameModeMetadata>();
         private bool _isSyncingSelection;
 
-        internal Action<string?> OnSelectModeInvokedForTests { get; set; }
+        internal Action<string?> OnSelectModeInvokedForTests { get; set; } = static _ => { };
 
         [Inject]
         public void Construct(ILocalizationService localization) =>
@@ -78,10 +84,30 @@ namespace Runtime.UI.GameModes.Wizard
             _modeList.selectionChanged += OnSelectionChanged;
             AddDisposable(Disposable.Create(() => _modeList.selectionChanged -= OnSelectionChanged));
 
-            BindEnabled(ViewModel.CanContinue, _continueButton);
+            var isBlocking = ViewModel.Error.Select(static error => error != null && error.IsBlocking);
+            var canContinue = Observable.CombineLatest(
+                ViewModel.CanContinue,
+                isBlocking,
+                static (can, blocked) => can && !blocked);
+
+            BindEnabled(canContinue, _continueButton);
 
             AddDisposable(_cancelButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestCancel()));
             AddDisposable(_continueButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestContinue()));
+
+            BindErrorOverlay();
+        }
+
+        private void BindErrorOverlay()
+        {
+            var overlay = _errorOverlay;
+            if (overlay == null)
+                return;
+
+            if (_localization == null)
+                throw new InvalidOperationException("Localization service is not available for error overlay binding.");
+
+            AddDisposable(WizardErrorOverlayBinder.Bind(overlay, _localization, ViewModel.Error, ViewModel.AcknowledgeError));
         }
 
         private void BindModeCard(VisualElement element, int index)
@@ -112,8 +138,9 @@ namespace Runtime.UI.GameModes.Wizard
         {
             _modes = modes ?? Array.Empty<GameModeMetadata>();
 
-            _modeList.itemsSource = _modes as System.Collections.IList ?? new List<GameModeMetadata>(_modes);
-            _modeList.Rebuild();
+            var modeList = _modeList ?? throw new InvalidOperationException("ModeList element is missing in UXML.");
+            modeList.itemsSource = _modes as System.Collections.IList ?? new List<GameModeMetadata>(_modes);
+            modeList.Rebuild();
 
             SyncSelectionFromViewModel();
         }
@@ -121,6 +148,7 @@ namespace Runtime.UI.GameModes.Wizard
         private void SyncSelectionFromViewModel()
         {
             var selectedId = ViewModel.SelectedModeId.Value;
+            var modeList = _modeList ?? throw new InvalidOperationException("ModeList element is missing in UXML.");
 
             _isSyncingSelection = true;
 
@@ -128,8 +156,8 @@ namespace Runtime.UI.GameModes.Wizard
             {
                 if (string.IsNullOrWhiteSpace(selectedId) || _modes.Count == 0)
                 {
-                    _modeList.ClearSelection();
-                    _modeList.RefreshItems();
+                    modeList.ClearSelection();
+                    modeList.RefreshItems();
                     return;
                 }
 
@@ -145,13 +173,13 @@ namespace Runtime.UI.GameModes.Wizard
 
                 if (selectedIndex < 0)
                 {
-                    _modeList.ClearSelection();
-                    _modeList.RefreshItems();
+                    modeList.ClearSelection();
+                    modeList.RefreshItems();
                     return;
                 }
 
-                _modeList.SetSelection(selectedIndex);
-                _modeList.RefreshItems();
+                modeList.SetSelection(selectedIndex);
+                modeList.RefreshItems();
             }
             finally
             {
@@ -160,3 +188,5 @@ namespace Runtime.UI.GameModes.Wizard
         }
     }
 }
+
+#nullable restore

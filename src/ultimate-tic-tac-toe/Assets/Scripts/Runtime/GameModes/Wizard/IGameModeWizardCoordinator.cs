@@ -38,6 +38,11 @@ namespace Runtime.GameModes.Wizard
         ReadOnlyReactiveProperty<WizardError?> CurrentError { get; }
 
         /// <summary>
+        /// Clears the current error after user acknowledgement.
+        /// </summary>
+        void ClearCurrentError();
+
+        /// <summary>
         /// True while coordinator is transitioning between windows.
         /// </summary>
         ReadOnlyReactiveProperty<bool> IsTransitioning { get; }
