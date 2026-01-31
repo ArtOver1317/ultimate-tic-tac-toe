@@ -11,6 +11,7 @@ using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
+using Runtime.UI.Components;
 using Runtime.UI.GameModes.Wizard;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -321,14 +322,14 @@ namespace Tests.PlayMode.GameModes.Wizard
             yield return null;
 
             // Assert
-            continueButton.enabledSelf.Should().BeFalse();
+            continueButton.enabledInHierarchy.Should().BeFalse();
 
             // Act
             _viewModel.SelectedModeId.Value = "classic";
             yield return null;
 
             // Assert
-            continueButton.enabledSelf.Should().BeTrue();
+            continueButton.enabledInHierarchy.Should().BeTrue();
         }
 
         [UnityTest]
@@ -487,8 +488,145 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             // Assert
             GetModeList().selectedIndex.Should().Be(-1);
-            GetContinueButton().enabledSelf.Should().BeFalse();
+            GetContinueButton().enabledInHierarchy.Should().BeFalse();
             _viewModel.SelectedModeId.Value.Should().BeNull();
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenModeSelectionViewBindsError_ThenOverlayReactsToCoordinatorError()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            // Act
+            _currentError.Value = new WizardError(
+                "code",
+                "Errors.GameModeWizard.Modal",
+                true,
+                ErrorDisplayType.Modal);
+            yield return null;
+
+            // Assert
+            GetErrorOverlay().Q<WizardModal>("WizardModal").IsVisible.Should().BeTrue();
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenViewResetForPoolCalledWithActiveError_ThenBinderDisposedAndOverlayCleared()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            _currentError.Value = new WizardError(
+                "code",
+                "Errors.GameModeWizard.Modal",
+                true,
+                ErrorDisplayType.Modal);
+            yield return null;
+
+            GetErrorOverlay().Q<WizardModal>("WizardModal").IsVisible.Should().BeTrue();
+
+            // Act
+            _view.ResetForPool();
+            yield return null;
+
+            // Assert
+            GetErrorOverlay().style.display.value.Should().Be(DisplayStyle.None);
+            GetErrorOverlay().Q<WizardModal>("WizardModal").IsVisible.Should().BeFalse();
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenViewReusedAfterPooling_ThenNewBinderWorksCorrectly()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            _currentError.Value = new WizardError(
+                "code",
+                "Errors.GameModeWizard.Modal",
+                true,
+                ErrorDisplayType.Modal);
+            yield return null;
+
+            _view.ResetForPool();
+            yield return null;
+
+            var catalogB = Substitute.For<IGameModeCatalog>();
+            catalogB.Metadata.Returns(_modes);
+
+            var coordinatorB = Substitute.For<IGameModeWizardCoordinator>();
+            coordinatorB.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            var currentErrorB = new ReactiveProperty<WizardError?>(null);
+            coordinatorB.CurrentError.Returns(currentErrorB);
+
+            var viewModelB = new ModeSelectionViewModel(catalogB, coordinatorB, _localization);
+            _view.SetViewModel(viewModelB);
+            yield return null;
+
+            // Act
+            currentErrorB.Value = new WizardError(
+                "code",
+                "Errors.GameModeWizard.Toast",
+                false,
+                ErrorDisplayType.Toast);
+            yield return null;
+
+            // Assert
+            GetErrorOverlay().Q<WizardToast>("WizardToast").IsVisible.Should().BeTrue();
+
+            viewModelB.Dispose();
+            currentErrorB.Dispose();
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenBlockingErrorIsPresentInModeSelectionView_ThenContinueIsDisabledRegardlessOfCanContinue()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            _viewModel.SelectedModeId.Value = "classic";
+            yield return null;
+
+            // Act
+            _currentError.Value = new WizardError(
+                "code",
+                "Errors.GameModeWizard.Blocking",
+                true,
+                ErrorDisplayType.Modal);
+            yield return null;
+
+            // Assert
+            GetContinueButton().enabledInHierarchy.Should().BeFalse();
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenNonBlockingToastErrorIsPresentInModeSelectionView_ThenContinueRemainsEnabledIfCanContinue()
+        {
+            // Arrange
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            _viewModel.SelectedModeId.Value = "classic";
+            yield return null;
+
+            // Act
+            _currentError.Value = new WizardError(
+                "code",
+                "Errors.GameModeWizard.Toast",
+                false,
+                ErrorDisplayType.Toast);
+            yield return null;
+
+            // Assert
+            GetContinueButton().enabledInHierarchy.Should().BeTrue();
         }
 
         private ListView GetModeList() => _uiDocument.rootVisualElement.Q<ListView>("ModeList");
@@ -496,6 +634,8 @@ namespace Tests.PlayMode.GameModes.Wizard
         private Button GetCancelButton() => _uiDocument.rootVisualElement.Q<Button>("CancelButton");
 
         private Button GetContinueButton() => _uiDocument.rootVisualElement.Q<Button>("ContinueButton");
+
+        private WizardErrorOverlay GetErrorOverlay() => _uiDocument.rootVisualElement.Q<WizardErrorOverlay>("ErrorOverlay");
 
         private static GameModeMetadata CreateMode(string id, int sortOrder) => new(
             id,

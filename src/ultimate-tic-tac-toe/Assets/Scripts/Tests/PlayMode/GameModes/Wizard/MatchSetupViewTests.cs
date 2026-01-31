@@ -253,7 +253,51 @@ namespace Tests.PlayMode.GameModes.Wizard
             GetModeOptionsHost().childCount.Should().Be(0);
         });
 
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenBlockingErrorIsPresentInMatchSetupView_ThenStartIsDisabled()
+        {
+            // Arrange
+            _session.SetCanStart(true);
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            // Act
+            _currentError.Value = new WizardError(
+                "code",
+                "Errors.GameModeWizard.Blocking",
+                true,
+                ErrorDisplayType.Modal);
+            yield return null;
+
+            // Assert
+            GetStartButton().enabledInHierarchy.Should().BeFalse();
+        }
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenNonBlockingModalErrorIsPresentInMatchSetupView_ThenStartRemainsEnabledIfCanStart()
+        {
+            // Arrange
+            _session.SetCanStart(true);
+            _view.SetViewModel(_viewModel);
+            yield return null;
+
+            // Act
+            _currentError.Value = new WizardError(
+                "code",
+                "Errors.GameModeWizard.NonBlocking",
+                false,
+                ErrorDisplayType.Modal);
+            yield return null;
+
+            // Assert
+            GetStartButton().enabledInHierarchy.Should().BeTrue();
+        }
+
         private ModeOptionsHost GetModeOptionsHost() => _view.RootForTests.Q<ModeOptionsHost>("ModeOptionsHost");
+
+        private Button GetStartButton() => _uiDocument.rootVisualElement.Q<Button>("StartButton");
 
         private MatchSetupView CreateViewWithBinders(IModeSettingsBinder[] binders)
         {
@@ -316,6 +360,8 @@ namespace Tests.PlayMode.GameModes.Wizard
             public ReadOnlyReactiveProperty<IReadOnlyList<ValidationError>> ValidationErrors => _validationErrors;
 
             public void EmitSnapshot(GameModeSessionSnapshot snapshot) => _snapshot.Value = snapshot;
+
+            public void SetCanStart(bool canStart) => _canStart.Value = canStart;
 
             public void Update(Func<GameModeSessionSnapshot, GameModeSessionSnapshot> reducer)
             {
