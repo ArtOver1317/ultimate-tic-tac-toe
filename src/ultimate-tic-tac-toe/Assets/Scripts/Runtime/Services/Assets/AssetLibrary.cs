@@ -7,6 +7,7 @@ namespace Runtime.Services.Assets
     public class AssetLibrary : ScriptableObject
     {
         [Header("UI")] public AssetReferenceGameObject MainMenuPrefab;
+        public AssetReferenceGameObject BackgroundPrefab;
         public AssetReferenceGameObject SettingsPrefab;
         public AssetReferenceGameObject LanguageSelectionPrefab;
         public AssetReferenceGameObject GameBoardPrefab;

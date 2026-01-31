@@ -4,6 +4,7 @@ using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.Services.Assets;
 using Runtime.Services.UI;
+using Runtime.UI.Common;
 using Runtime.UI.MainMenu;
 using Runtime.UI.GameModes.Wizard;
 using StripLog;
@@ -40,6 +41,17 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             Log.Debug(LogTags.Scenes, "[MainMenuState] Entered MainMenu");
             
             // Load and register UI prefabs
+            if (_assetLibrary.BackgroundPrefab != null && _assetLibrary.BackgroundPrefab.RuntimeKeyIsValid())
+            {
+                var backgroundPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.BackgroundPrefab, cancellationToken);
+                _uiService.RegisterWindowPrefab<UIBackgroundView>(backgroundPrefab);
+                _uiService.Open<UIBackgroundView, UIBackgroundViewModel>();
+            }
+            else
+            {
+                Log.Error(LogTags.Scenes, "[MainMenuState] BackgroundPrefab is missing or invalid. UI background will be disabled.");
+            }
+
             var mainMenuPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.MainMenuPrefab, cancellationToken);
             _uiService.RegisterWindowPrefab<MainMenuView>(mainMenuPrefab);
 
@@ -120,6 +132,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             _uiService.Close<Runtime.UI.Settings.LanguageSelectionView>();
             _uiService.Close<Runtime.UI.Settings.SettingsView>();
             _uiService.Close<MainMenuView>();
+            _uiService.Close<UIBackgroundView>();
             
             _coordinator.Dispose();
         }

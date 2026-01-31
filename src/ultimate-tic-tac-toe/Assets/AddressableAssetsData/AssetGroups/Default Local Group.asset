@@ -30,6 +30,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8
+    m_Address: Assets/Content/UI/Common/Prefabs/UIBackground.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 6b7c529509c1a554b82932de3c4dfbc6
     m_Address: Assets/Content/UI/Settings/Prefabs/SettingsUI.prefab
     m_ReadOnly: 0
