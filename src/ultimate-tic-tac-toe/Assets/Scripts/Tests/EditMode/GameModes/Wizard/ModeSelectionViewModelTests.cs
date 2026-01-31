@@ -33,6 +33,9 @@ namespace Tests.EditMode.GameModes.Wizard
             _session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
             _localization = Substitute.For<ILocalizationService>();
 
+            _coordinator.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
+            _coordinator.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
+
             _localization
                 .Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(callInfo => Observable.Return(callInfo.Arg<TextKey>().Value));

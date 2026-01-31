@@ -15,6 +15,16 @@ MonoBehaviour:
   m_GroupName: Default Local Group
   m_GUID: 3e32a67f6ae4a3e42b2eb76f9774ae52
   m_SerializeEntries:
+  - m_GUID: 2faa5138f5746a543918bb5d371d1146
+    m_Address: Assets/Content/UI/GameModes/Wizard/Prefabs/MatchSetup.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4d2c5e937b434074d894d4654f9e6b45
+    m_Address: ui/mode-settings/ultimate
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 5503c9ae470ccad48a563f38fa80c405
     m_Address: Assets/Content/UI/MainMenu/Prefabs/MainMenu.prefab
     m_ReadOnly: 0
@@ -22,6 +32,21 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 6b7c529509c1a554b82932de3c4dfbc6
     m_Address: Assets/Content/UI/Settings/Prefabs/SettingsUI.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 768c8e006587fb5419cc5c3cf7b86612
+    m_Address: Assets/Content/UI/GameModes/Wizard/Prefabs/ModeSelection.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 77050aae58904eb4c964afff05a0a954
+    m_Address: ui/mode-settings/classic
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8bc4d21f8fe28c24195ee6257048964f
+    m_Address: Assets/Content/UI/GameModes/Wizard/Prefabs/Matchmaking.prefab
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

@@ -30,6 +30,9 @@ namespace Tests.EditMode
         private TestMainMenuView _testView;
         private MainMenuViewModel _viewModel;
         private GameObject _mainMenuPrefab;
+        private GameObject _modeSelectionPrefab;
+        private GameObject _matchSetupPrefab;
+        private GameObject _matchmakingPrefab;
 
         [SetUp]
         public void SetUp()
@@ -54,10 +57,16 @@ namespace Tests.EditMode
             _assetLibrary.MainMenuPrefab = new AssetReferenceGameObject("00000000000000000000000000000000");
             _assetLibrary.SettingsPrefab = new AssetReferenceGameObject("00000000000000000000000000000001");
             _assetLibrary.LanguageSelectionPrefab = new AssetReferenceGameObject("00000000000000000000000000000002");
+            _assetLibrary.ModeSelectionPrefab = new AssetReferenceGameObject("00000000000000000000000000000003");
+            _assetLibrary.MatchSetupPrefab = new AssetReferenceGameObject("00000000000000000000000000000004");
+            _assetLibrary.MatchmakingPrefab = new AssetReferenceGameObject("00000000000000000000000000000005");
 
             _mainMenuPrefab = new GameObject("MainMenuPrefab");
             var settingsPrefab = new GameObject("SettingsPrefab");
             var languagePrefab = new GameObject("LanguagePrefab");
+            _modeSelectionPrefab = new GameObject("ModeSelectionPrefab");
+            _matchSetupPrefab = new GameObject("MatchSetupPrefab");
+            _matchmakingPrefab = new GameObject("MatchmakingPrefab");
             
             _assets
                 .LoadAsync<GameObject>(_assetLibrary.MainMenuPrefab, Arg.Any<System.Threading.CancellationToken>())
@@ -70,6 +79,18 @@ namespace Tests.EditMode
             _assets
                 .LoadAsync<GameObject>(_assetLibrary.LanguageSelectionPrefab, Arg.Any<System.Threading.CancellationToken>())
                 .Returns(UniTask.FromResult(languagePrefab));
+
+            _assets
+                .LoadAsync<GameObject>(_assetLibrary.ModeSelectionPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .Returns(UniTask.FromResult(_modeSelectionPrefab));
+
+            _assets
+                .LoadAsync<GameObject>(_assetLibrary.MatchSetupPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .Returns(UniTask.FromResult(_matchSetupPrefab));
+
+            _assets
+                .LoadAsync<GameObject>(_assetLibrary.MatchmakingPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .Returns(UniTask.FromResult(_matchmakingPrefab));
 
             _viewGameObject = new GameObject("TestMainMenuView");
             _testView = _viewGameObject.AddComponent<TestMainMenuView>();
@@ -88,6 +109,15 @@ namespace Tests.EditMode
 
             if (_mainMenuPrefab != null)
                 Object.DestroyImmediate(_mainMenuPrefab);
+
+            if (_modeSelectionPrefab != null)
+                Object.DestroyImmediate(_modeSelectionPrefab);
+
+            if (_matchSetupPrefab != null)
+                Object.DestroyImmediate(_matchSetupPrefab);
+
+            if (_matchmakingPrefab != null)
+                Object.DestroyImmediate(_matchmakingPrefab);
 
             if (_assetLibrary != null)
                 Object.DestroyImmediate(_assetLibrary);

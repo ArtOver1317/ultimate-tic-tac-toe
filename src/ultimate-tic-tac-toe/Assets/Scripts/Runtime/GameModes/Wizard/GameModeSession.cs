@@ -140,8 +140,15 @@ namespace Runtime.GameModes.Wizard
                             break;
 
                         case HumanOpponentKind.Matchmaking:
-                            return Result<GameLaunchConfig>.Failure(
-                                new ValidationError(WizardFieldNames.Matchmaking, "Errors.GameModeWizard.MatchmakingConfigMissing"));
+                            if (string.IsNullOrWhiteSpace(snapshot.MatchmakingMatchId) ||
+                                string.IsNullOrWhiteSpace(snapshot.MatchmakingOpponentId))
+                            {
+                                return Result<GameLaunchConfig>.Failure(
+                                    new ValidationError(WizardFieldNames.Matchmaking, "Errors.GameModeWizard.MatchmakingConfigMissing"));
+                            }
+
+                            opponentConfig = new MatchmakingConfig(snapshot.MatchmakingMatchId, snapshot.MatchmakingOpponentId);
+                            break;
 
                         default:
                             throw new ArgumentOutOfRangeException(nameof(snapshot.HumanOpponentKind), snapshot.HumanOpponentKind, null);
@@ -224,7 +231,8 @@ namespace Runtime.GameModes.Wizard
                 // Keep the last chosen human kind to preserve UX when toggling back.
                 s = s
                     .WithTargetPlayerId(null)
-                    .WithMatchmakingState(MatchmakingState.Idle);
+                    .WithMatchmakingState(MatchmakingState.Idle)
+                    .WithMatchmakingResult(null, null);
             }
             else
             {
@@ -233,7 +241,8 @@ namespace Runtime.GameModes.Wizard
                     s = s.WithTargetPlayerId(null);
 
                 if (s.HumanOpponentKind != HumanOpponentKind.Matchmaking)
-                    s = s.WithMatchmakingState(MatchmakingState.Idle);
+                    s = s.WithMatchmakingState(MatchmakingState.Idle)
+                        .WithMatchmakingResult(null, null);
             }
 
             return s;

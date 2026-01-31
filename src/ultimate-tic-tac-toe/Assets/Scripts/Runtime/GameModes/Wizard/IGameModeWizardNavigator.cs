@@ -6,6 +6,10 @@ namespace Runtime.GameModes.Wizard
     /// <summary>
     /// Navigation adapter used by <see cref="GameModeWizardCoordinator"/>.
     /// Abstracts away concrete UI windows and allows Phase 3 to stay UI-agnostic.
+    /// 
+    /// Contract: during transitions the coordinator closes the previous window
+    /// before opening the next one. All wizard windows must disable input
+    /// while the coordinator is transitioning/submitting.
     /// </summary>
     public interface IGameModeWizardNavigator
     {

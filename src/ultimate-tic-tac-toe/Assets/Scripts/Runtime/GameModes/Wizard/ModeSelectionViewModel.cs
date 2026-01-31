@@ -21,6 +21,7 @@ namespace Runtime.GameModes.Wizard
         private readonly ReactiveProperty<IReadOnlyList<GameModeMetadata>> _availableModes;
         private readonly ReactiveProperty<string?> _selectedModeId = new(null);
         private readonly ReactiveProperty<bool> _canContinue = new(false);
+        private readonly ReactiveProperty<bool> _isBusy = new(false);
 
         private int _isWired;
         private int _isSyncingFromSession;
@@ -28,6 +29,7 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<IReadOnlyList<GameModeMetadata>> AvailableModes => _availableModes;
         public ReactiveProperty<string?> SelectedModeId => _selectedModeId;
         public ReadOnlyReactiveProperty<bool> CanContinue => _canContinue;
+        public ReadOnlyReactiveProperty<bool> IsBusy => _isBusy;
         public ReadOnlyReactiveProperty<WizardError?> Error => _coordinator.CurrentError;
 
         public Observable<string> TitleText { get; }
@@ -106,6 +108,7 @@ namespace Runtime.GameModes.Wizard
 
             _selectedModeId.Value = null;
             _canContinue.Value = false;
+            _isBusy.Value = false;
         }
 
         protected override void OnDispose()
@@ -113,6 +116,7 @@ namespace Runtime.GameModes.Wizard
             _availableModes.Dispose();
             _selectedModeId.Dispose();
             _canContinue.Dispose();
+            _isBusy.Dispose();
             base.OnDispose();
         }
 
@@ -123,6 +127,12 @@ namespace Runtime.GameModes.Wizard
 
             if (System.Threading.Interlocked.Exchange(ref _isWired, 1) != 0)
                 return;
+
+            AddDisposable(Observable.CombineLatest(
+                    _coordinator.IsTransitioning,
+                    _coordinator.IsSubmitting,
+                    static (isTransitioning, isSubmitting) => isTransitioning || isSubmitting)
+                .Subscribe(isBusy => _isBusy.Value = isBusy));
 
             if (_coordinator.TryGetSession(out var session))
             {

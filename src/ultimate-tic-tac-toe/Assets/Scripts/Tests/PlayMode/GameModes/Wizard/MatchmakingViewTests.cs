@@ -64,6 +64,8 @@ namespace Tests.PlayMode.GameModes.Wizard
             _currentError = new ReactiveProperty<WizardError?>(null);
             _coordinator = Substitute.For<IGameModeWizardCoordinator>();
             _coordinator.CurrentError.Returns(_currentError);
+            _coordinator.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
+            _coordinator.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
 
             _view.Construct(_coordinator, _localization);
 

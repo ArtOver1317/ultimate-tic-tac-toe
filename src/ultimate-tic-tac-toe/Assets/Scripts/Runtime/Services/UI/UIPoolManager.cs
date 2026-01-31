@@ -13,6 +13,8 @@ namespace Runtime.Services.UI
         private readonly IObjectResolver _container;
         private readonly IObjectPool<IUIView> _windowPool;
         private readonly IObjectPool<BaseViewModel> _viewModelPool;
+        // Inject is intentionally one-time per instance lifetime (pool-safe contract).
+        private readonly HashSet<int> _injectedInstanceIds = new();
 
         public UIPoolManager(
             IObjectResolver container,
@@ -34,13 +36,23 @@ namespace Runtime.Services.UI
                 if (pooledWindow is MonoBehaviour mb) 
                     mb.gameObject.SetActive(true);
 
+                if (pooledWindow is MonoBehaviour pooledMb)
+                {
+                    EnsureInjected(pooledMb.gameObject);
+                    EnsureInjected(pooledMb);
+                }
+                else
+                {
+                    EnsureInjected(pooledWindow);
+                }
+
                 Log.Debug(LogTags.Services, $"[UIPoolManager] Retrieved window from pool: {windowType.Name}");
                 return pooledWindow;
             }
 
             var instance = UnityEngine.Object.Instantiate(prefab);
             UnityEngine.Object.DontDestroyOnLoad(instance);
-            _container.Inject(instance);
+            EnsureInjected(instance);
             var window = instance.GetComponent<TWindow>();
             
             if (window == null)
@@ -49,6 +61,8 @@ namespace Runtime.Services.UI
                 UnityEngine.Object.Destroy(instance);
                 return null;
             }
+
+            EnsureInjected(window);
 
             Log.Debug(LogTags.Services, $"[UIPoolManager] Created new window instance: {windowType.Name}");
             return window;
@@ -89,6 +103,7 @@ namespace Runtime.Services.UI
         {
             _windowPool.ClearAll(w =>
             {
+                RemoveInjectedId(w);
                 w.Close();
                 
                 if (w is MonoBehaviour mb) 
@@ -97,12 +112,14 @@ namespace Runtime.Services.UI
             
             _viewModelPool.ClearAll(vm => vm.Dispose());
             Log.Debug(LogTags.Services, "[UIPoolManager] All pools cleared");
+            _injectedInstanceIds.Clear();
         }
 
         public void ClearPool(Type windowType)
         {
             _windowPool.Clear(windowType, w =>
             {
+                RemoveInjectedId(w);
                 w.Close();
                 
                 if (w is MonoBehaviour mb) 
@@ -110,6 +127,27 @@ namespace Runtime.Services.UI
             });
             
             Log.Debug(LogTags.Services, $"[UIPoolManager] Cleared pool for {windowType.Name}");
+        }
+
+        private void EnsureInjected(object target)
+        {
+            if (target is UnityEngine.Object unityObject)
+            {
+                var id = unityObject.GetInstanceID();
+                if (!_injectedInstanceIds.Add(id))
+                    return;
+            }
+
+            _container.Inject(target);
+        }
+
+        private void RemoveInjectedId(IUIView view)
+        {
+            if (view is MonoBehaviour mb)
+            {
+                _injectedInstanceIds.Remove(mb.gameObject.GetInstanceID());
+                _injectedInstanceIds.Remove(mb.GetInstanceID());
+            }
         }
 
         public int GetPoolSize(Type windowType) => _windowPool.GetSize(windowType);

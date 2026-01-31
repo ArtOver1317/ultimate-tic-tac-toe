@@ -865,7 +865,53 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             public void SetModeConfig(IGameModeConfig config) => throw new NotSupportedException();
 
-            public Result<GameLaunchConfig> BuildLaunchConfig() => throw new NotSupportedException();
+            public Result<GameLaunchConfig> BuildLaunchConfig()
+            {
+                var snapshot = _snapshot.Value;
+
+                var modeId = string.IsNullOrWhiteSpace(snapshot.SelectedModeId)
+                    ? ClassicModeStrategy.DefaultModeId
+                    : snapshot.SelectedModeId;
+
+                var modeConfig = snapshot.ModeConfig ?? new ClassicModeConfig(3);
+
+                IOpponentConfig opponentConfig;
+
+                switch (snapshot.OpponentType)
+                {
+                    case OpponentType.Bot:
+                        opponentConfig = new BotOpponentConfig(snapshot.BotDifficultyId ?? "Easy");
+                        break;
+
+                    case OpponentType.Human:
+                        switch (snapshot.HumanOpponentKind)
+                        {
+                            case HumanOpponentKind.Local:
+                                opponentConfig = new LocalHumanConfig();
+                                break;
+
+                            case HumanOpponentKind.DirectInvite:
+                                opponentConfig = new DirectInviteConfig(snapshot.TargetPlayerId ?? "TestPlayer");
+                                break;
+
+                            case HumanOpponentKind.Matchmaking:
+                                opponentConfig = new MatchmakingConfig("Match", "Opponent");
+                                break;
+
+                            default:
+                                opponentConfig = new LocalHumanConfig();
+                                break;
+                        }
+
+                        break;
+
+                    default:
+                        opponentConfig = new LocalHumanConfig();
+                        break;
+                }
+
+                return Result<GameLaunchConfig>.Success(new GameLaunchConfig(modeId, modeConfig, opponentConfig));
+            }
 
             public void Reset() => _snapshot.Value = GameModeSessionSnapshot.Default;
 

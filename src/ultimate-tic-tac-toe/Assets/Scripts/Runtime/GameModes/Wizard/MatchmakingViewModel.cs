@@ -25,6 +25,7 @@ namespace Runtime.GameModes.Wizard
         private readonly ReactiveProperty<int> _playersWithDifferentParams = new(0);
         private readonly ReactiveProperty<string?> _errorMessage = new(null);
         private readonly ReactiveProperty<string?> _errorMessageKey = new(null);
+        private readonly ReactiveProperty<MatchmakingResult?> _result = new(null);
 
         private readonly Subject<Unit> _cancelRequested = new();
         private readonly Subject<Unit> _backRequested = new();
@@ -40,6 +41,7 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<TimeSpan> ElapsedTime => _elapsedTime;
         public ReadOnlyReactiveProperty<int> PlayersWithDifferentParams => _playersWithDifferentParams;
         public ReadOnlyReactiveProperty<string?> ErrorMessage => _errorMessage;
+        public ReadOnlyReactiveProperty<MatchmakingResult?> Result => _result;
 
         public Observable<Unit> CancelRequested => _cancelRequested;
         public Observable<Unit> BackRequested => _backRequested;
@@ -118,6 +120,7 @@ namespace Runtime.GameModes.Wizard
             _playersWithDifferentParams.Value = 0;
             _errorMessage.Value = null;
             _errorMessageKey.Value = null;
+            _result.Value = null;
 
             DisposeFsm();
         }
@@ -133,6 +136,7 @@ namespace Runtime.GameModes.Wizard
             _playersWithDifferentParams.Dispose();
             _errorMessage.Dispose();
             _errorMessageKey.Dispose();
+            _result.Dispose();
 
             _cancelRequested.OnCompleted();
             _cancelRequested.Dispose();
@@ -154,6 +158,7 @@ namespace Runtime.GameModes.Wizard
 
             AddDisposable(_fsm.State.Subscribe(ApplyState));
             AddDisposable(_fsm.Failure.Subscribe(ApplyFailure));
+            AddDisposable(_fsm.Result.Subscribe(result => _result.Value = result));
 
             AddDisposable(Observable.CombineLatest(
                     _errorMessageKey,

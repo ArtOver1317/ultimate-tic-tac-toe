@@ -15,6 +15,8 @@ namespace Runtime.GameModes.Wizard
         public HumanOpponentKind HumanOpponentKind { get; }
         public string? TargetPlayerId { get; }
         public MatchmakingState MatchmakingState { get; }
+        public string? MatchmakingMatchId { get; }
+        public string? MatchmakingOpponentId { get; }
         public int Version { get; }
 
         private GameModeSessionSnapshot(
@@ -25,6 +27,8 @@ namespace Runtime.GameModes.Wizard
             HumanOpponentKind humanOpponentKind,
             string? targetPlayerId,
             MatchmakingState matchmakingState,
+            string? matchmakingMatchId,
+            string? matchmakingOpponentId,
             int version)
         {
             SelectedModeId = selectedModeId;
@@ -34,6 +38,8 @@ namespace Runtime.GameModes.Wizard
             HumanOpponentKind = humanOpponentKind;
             TargetPlayerId = targetPlayerId;
             MatchmakingState = matchmakingState;
+            MatchmakingMatchId = matchmakingMatchId;
+            MatchmakingOpponentId = matchmakingOpponentId;
             Version = version;
         }
 
@@ -49,6 +55,8 @@ namespace Runtime.GameModes.Wizard
             HumanOpponentKind humanOpponentKind,
             string? targetPlayerId,
             MatchmakingState matchmakingState,
+            string? matchmakingMatchId,
+            string? matchmakingOpponentId,
             int version) =>
             new GameModeSessionSnapshot(
                 selectedModeId,
@@ -58,6 +66,8 @@ namespace Runtime.GameModes.Wizard
                 humanOpponentKind,
                 targetPlayerId,
                 matchmakingState,
+                matchmakingMatchId,
+                matchmakingOpponentId,
                 version);
 
         public static GameModeSessionSnapshot Default => Create(
@@ -68,6 +78,8 @@ namespace Runtime.GameModes.Wizard
             humanOpponentKind: HumanOpponentKind.Local,
             targetPlayerId: null,
             matchmakingState: MatchmakingState.Idle,
+            matchmakingMatchId: null,
+            matchmakingOpponentId: null,
             version: 0);
 
         public GameModeSessionSnapshot WithSelectedModeId(string? selectedModeId)
@@ -81,29 +93,34 @@ namespace Runtime.GameModes.Wizard
                 HumanOpponentKind,
                 TargetPlayerId,
                 MatchmakingState,
+                MatchmakingMatchId,
+                MatchmakingOpponentId,
                 Version);
         }
 
         public GameModeSessionSnapshot WithModeConfig(IGameModeConfig? modeConfig) =>
-            new GameModeSessionSnapshot(SelectedModeId, modeConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, Version);
+            new GameModeSessionSnapshot(SelectedModeId, modeConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
 
         public GameModeSessionSnapshot WithOpponentType(OpponentType opponentType) =>
-            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, opponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, Version);
+            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, opponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
 
         public GameModeSessionSnapshot WithBotDifficultyId(string? botDifficultyId) =>
-            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, OpponentType, botDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, Version);
+            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, OpponentType, botDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
 
         public GameModeSessionSnapshot WithHumanOpponentKind(HumanOpponentKind humanOpponentKind) =>
-            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, OpponentType, BotDifficultyId, humanOpponentKind, TargetPlayerId, MatchmakingState, Version);
+            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, OpponentType, BotDifficultyId, humanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
 
         public GameModeSessionSnapshot WithTargetPlayerId(string? targetPlayerId) =>
-            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, OpponentType, BotDifficultyId, HumanOpponentKind, targetPlayerId, MatchmakingState, Version);
+            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, OpponentType, BotDifficultyId, HumanOpponentKind, targetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
 
         public GameModeSessionSnapshot WithMatchmakingState(MatchmakingState matchmakingState) =>
-            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, matchmakingState, Version);
+            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, matchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
+
+        public GameModeSessionSnapshot WithMatchmakingResult(string? matchId, string? opponentId) =>
+            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, matchId, opponentId, Version);
 
         public GameModeSessionSnapshot WithVersion(int version) =>
-            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, version);
+            new GameModeSessionSnapshot(SelectedModeId, ModeConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, version);
     }
 
     public enum OpponentType

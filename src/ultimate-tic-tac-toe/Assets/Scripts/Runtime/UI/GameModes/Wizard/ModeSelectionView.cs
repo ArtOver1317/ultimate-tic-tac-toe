@@ -91,6 +91,7 @@ namespace Runtime.UI.GameModes.Wizard
                 static (can, blocked) => can && !blocked);
 
             BindEnabled(canContinue, _continueButton);
+            BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), Root);
 
             AddDisposable(_cancelButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestCancel()));
             AddDisposable(_continueButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestContinue()));

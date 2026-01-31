@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.Localization;
 using Runtime.GameModes.Wizard;
 using Runtime.Services.UI;
 
@@ -9,15 +10,32 @@ namespace Runtime.UI.GameModes.Wizard
     public sealed class GameModeWizardNavigator : IGameModeWizardNavigator
     {
         private readonly IUIService _uiService;
+        private readonly ILocalizationService _localization;
 
-        public GameModeWizardNavigator(IUIService uiService) =>
+        private static readonly TextTableId[] ModeSelectionTables =
+        {
+            new("GameModeWizard"),
+            new("Mode"),
+        };
+
+        private static readonly TextTableId[] WizardTables =
+        {
+            new("GameModeWizard"),
+        };
+
+        public GameModeWizardNavigator(IUIService uiService, ILocalizationService localization)
+        {
             _uiService = uiService ?? throw new ArgumentNullException(nameof(uiService));
+            _localization = localization ?? throw new ArgumentNullException(nameof(localization));
+        }
 
-        public UniTask OpenModeSelectionAsync(CancellationToken ct)
+        public async UniTask OpenModeSelectionAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            _uiService.Open<ModeSelectionView, ModeSelectionViewModel>();
-            return UniTask.CompletedTask;
+            await _uiService.OpenWithLocalizationPreloadAsync<ModeSelectionView, ModeSelectionViewModel>(
+                _localization,
+                ModeSelectionTables,
+                ct);
         }
 
         public UniTask CloseModeSelectionAsync(CancellationToken ct)
@@ -27,11 +45,13 @@ namespace Runtime.UI.GameModes.Wizard
             return UniTask.CompletedTask;
         }
 
-        public UniTask OpenMatchSetupAsync(CancellationToken ct)
+        public async UniTask OpenMatchSetupAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            _uiService.Open<MatchSetupView, MatchSetupViewModel>();
-            return UniTask.CompletedTask;
+            await _uiService.OpenWithLocalizationPreloadAsync<MatchSetupView, MatchSetupViewModel>(
+                _localization,
+                WizardTables,
+                ct);
         }
 
         public UniTask CloseMatchSetupAsync(CancellationToken ct)
@@ -41,11 +61,14 @@ namespace Runtime.UI.GameModes.Wizard
             return UniTask.CompletedTask;
         }
 
-        public UniTask<MatchmakingViewModel> OpenMatchmakingAsync(CancellationToken ct)
+        public async UniTask<MatchmakingViewModel> OpenMatchmakingAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            var view = _uiService.Open<MatchmakingView, MatchmakingViewModel>();
-            return UniTask.FromResult(view?.GetViewModel());
+            var view = await _uiService.OpenWithLocalizationPreloadAsync<MatchmakingView, MatchmakingViewModel>(
+                _localization,
+                WizardTables,
+                ct);
+            return view?.GetViewModel();
         }
 
         public UniTask CloseMatchmakingAsync(CancellationToken ct)

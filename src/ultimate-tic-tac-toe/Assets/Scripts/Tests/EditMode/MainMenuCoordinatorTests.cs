@@ -8,6 +8,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
+using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Localization;
@@ -27,6 +28,9 @@ namespace Tests.EditMode
         private IGameStateMachine _stateMachineMock;
         private IUIService _uiServiceMock;
         private ILocalizationService _localizationMock;
+        private IGameModeWizardCoordinator _wizardCoordinatorMock;
+        private Subject<GameLaunchConfig> _gameLaunchRequested;
+        private Subject<AbortReason> _wizardAborted;
         private MainMenuViewModel _viewModel;
         private CancellationToken _cancellationToken;
 
@@ -38,6 +42,9 @@ namespace Tests.EditMode
             _stateMachineMock = Substitute.For<IGameStateMachine>();
             _uiServiceMock = Substitute.For<IUIService>();
             _localizationMock = Substitute.For<ILocalizationService>();
+            _wizardCoordinatorMock = Substitute.For<IGameModeWizardCoordinator>();
+            _gameLaunchRequested = new Subject<GameLaunchConfig>();
+            _wizardAborted = new Subject<AbortReason>();
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Test"));
             _localizationMock.CurrentLocale.Returns(new ReactiveProperty<LocaleId>(LocaleId.EnglishUs));
@@ -47,12 +54,17 @@ namespace Tests.EditMode
                     Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
             
-            _coordinator = new MainMenuCoordinator(_stateMachineMock, _uiServiceMock, _localizationMock);
+            _wizardCoordinatorMock.GameLaunchRequested.Returns(_gameLaunchRequested);
+            _wizardCoordinatorMock.WizardAborted.Returns(_wizardAborted);
+            _wizardCoordinatorMock.StartWizardAsync(Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+
+            _coordinator = new MainMenuCoordinator(_stateMachineMock, _uiServiceMock, _localizationMock, _wizardCoordinatorMock);
             _viewModel = new MainMenuViewModel(_localizationMock);
             _viewModel.Initialize();
             _cancellationToken = CancellationToken.None;
 
-            _stateMachineMock.EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>())
+            _stateMachineMock.EnterAsync<LoadGameplayState, GameLaunchConfig>(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
         }
 
@@ -61,6 +73,8 @@ namespace Tests.EditMode
         {
             _coordinator?.Dispose();
             _viewModel?.Dispose();
+            _gameLaunchRequested?.Dispose();
+            _wizardAborted?.Dispose();
 
             for (var i = 0; i < _createdGameObjects.Count; i++)
             {
@@ -108,7 +122,7 @@ namespace Tests.EditMode
             _viewModel.RequestStartGame();
 
             // Assert
-            await _stateMachineMock.Received(1).EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>());
+            await _wizardCoordinatorMock.Received(1).StartWizardAsync(Arg.Any<CancellationToken>());
         }
 
         [Test]
@@ -118,12 +132,18 @@ namespace Tests.EditMode
             _coordinator.Initialize(_viewModel);
             bool? interactableValue = null;
             var subscription = _viewModel.IsInteractable.Subscribe(value => interactableValue = value);
+            var config = new GameLaunchConfig("Classic", new ClassicModeConfig(3), new LocalHumanConfig());
 
             // Act
             _viewModel.RequestStartGame();
+            await UniTask.Yield();
+            _gameLaunchRequested.OnNext(config);
+            await UniTask.Yield();
 
             // Assert
-            await _stateMachineMock.Received(1).EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>());
+            await _wizardCoordinatorMock.Received(1).StartWizardAsync(Arg.Any<CancellationToken>());
+            await _stateMachineMock.Received(1)
+                .EnterAsync<LoadGameplayState, GameLaunchConfig>(config, Arg.Any<CancellationToken>());
             
             interactableValue.Should().BeFalse("UI должен быть заблокирован во время перехода в игру");
 
@@ -156,13 +176,17 @@ namespace Tests.EditMode
             
             try
             {
-                _stateMachineMock.EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>())
+                _stateMachineMock.EnterAsync<LoadGameplayState, GameLaunchConfig>(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
                     .Returns(UniTask.FromException(new InvalidOperationException("boom")));
 
                 _coordinator.Initialize(_viewModel);
 
                 // Act
+                var config = new GameLaunchConfig("Classic", new ClassicModeConfig(3), new LocalHumanConfig());
+
                 _viewModel.Invoking(vm => vm.RequestStartGame()).Should().NotThrow();
+                await UniTask.Yield();
+                _gameLaunchRequested.OnNext(config);
                 await UniTask.Yield();
 
                 // Assert
@@ -194,7 +218,7 @@ namespace Tests.EditMode
             viewModel1.RequestStartGame();
 
             // Assert - старая подписка не должна работать
-            await _stateMachineMock.DidNotReceive().EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>());
+            await _wizardCoordinatorMock.DidNotReceive().StartWizardAsync(Arg.Any<CancellationToken>());
 
             // Cleanup
             viewModel1.Dispose();
@@ -216,7 +240,7 @@ namespace Tests.EditMode
             _viewModel.RequestStartGame();
 
             // Assert
-            await _stateMachineMock.DidNotReceive().EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>());
+            await _wizardCoordinatorMock.DidNotReceive().StartWizardAsync(Arg.Any<CancellationToken>());
         }
 
         [Test]
@@ -253,7 +277,7 @@ namespace Tests.EditMode
         public void WhenConstructorWithNullStateMachine_ThenThrowsArgumentNullException()
         {
             // Act & Assert
-            Action act = () => new MainMenuCoordinator(null, _uiServiceMock, _localizationMock);
+            Action act = () => new MainMenuCoordinator(null, _uiServiceMock, _localizationMock, _wizardCoordinatorMock);
             
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("stateMachine");
@@ -263,7 +287,7 @@ namespace Tests.EditMode
         public void WhenConstructorWithNullUIService_ThenThrowsArgumentNullException()
         {
             // Act & Assert
-            Action act = () => new MainMenuCoordinator(_stateMachineMock, null, _localizationMock);
+            Action act = () => new MainMenuCoordinator(_stateMachineMock, null, _localizationMock, _wizardCoordinatorMock);
             
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("uiService");
@@ -273,10 +297,20 @@ namespace Tests.EditMode
         public void WhenConstructorWithNullLocalization_ThenThrowsArgumentNullException()
         {
             // Act & Assert
-            Action act = () => new MainMenuCoordinator(_stateMachineMock, _uiServiceMock, null);
+            Action act = () => new MainMenuCoordinator(_stateMachineMock, _uiServiceMock, null, _wizardCoordinatorMock);
 
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("localization");
+        }
+
+        [Test]
+        public void WhenConstructorWithNullWizardCoordinator_ThenThrowsArgumentNullException()
+        {
+            // Act & Assert
+            Action act = () => new MainMenuCoordinator(_stateMachineMock, _uiServiceMock, _localizationMock, null);
+
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("wizardCoordinator");
         }
 
         #endregion
@@ -304,13 +338,20 @@ namespace Tests.EditMode
         public async Task WhenStartGameRequested_ThenClosesOverlaysAndEntersGameplayState()
         {
             _coordinator.Initialize(_viewModel);
+            var config = new GameLaunchConfig("Classic", new ClassicModeConfig(3), new LocalHumanConfig());
 
             _viewModel.RequestStartGame();
             await UniTask.Yield();
 
             _uiServiceMock.Received(1).Close<LanguageSelectionView>();
             _uiServiceMock.Received(1).Close<SettingsView>();
-            await _stateMachineMock.Received(1).EnterAsync<LoadGameplayState>(Arg.Any<CancellationToken>());
+            await _wizardCoordinatorMock.Received(1).StartWizardAsync(Arg.Any<CancellationToken>());
+
+            _gameLaunchRequested.OnNext(config);
+            await UniTask.Yield();
+
+            await _stateMachineMock.Received(1)
+                .EnterAsync<LoadGameplayState, GameLaunchConfig>(config, Arg.Any<CancellationToken>());
         }
 
         [Test]

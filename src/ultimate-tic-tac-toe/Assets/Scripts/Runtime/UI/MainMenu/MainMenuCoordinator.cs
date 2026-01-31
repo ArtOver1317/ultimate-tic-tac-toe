@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.Logging;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
@@ -19,15 +20,23 @@ namespace Runtime.UI.MainMenu
         private readonly IGameStateMachine _stateMachine;
         private readonly IUIService _uiService;
         private readonly ILocalizationService _localization;
+        private readonly IGameModeWizardCoordinator _wizardCoordinator;
         private CompositeDisposable _disposables = new();
+        private CompositeDisposable _wizardDisposables = new();
         private CancellationTokenSource _lifecycleCts = new();
         private bool _isDisposed;
+        private int _startInProgress;
 
-        public MainMenuCoordinator(IGameStateMachine stateMachine, IUIService uiService, ILocalizationService localization)
+        public MainMenuCoordinator(
+            IGameStateMachine stateMachine,
+            IUIService uiService,
+            ILocalizationService localization,
+            IGameModeWizardCoordinator wizardCoordinator)
         {
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             _uiService = uiService ?? throw new ArgumentNullException(nameof(uiService));
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
+            _wizardCoordinator = wizardCoordinator ?? throw new ArgumentNullException(nameof(wizardCoordinator));
         }
 
         public void Initialize(MainMenuViewModel viewModel)
@@ -64,6 +73,8 @@ namespace Runtime.UI.MainMenu
                     Log.Exception(ex, LogTags.UI);
                 }))
                 .AddTo(_disposables);
+
+            WireWizardEvents();
         }
 
         private void Cleanup()
@@ -73,6 +84,9 @@ namespace Runtime.UI.MainMenu
             _lifecycleCts = new CancellationTokenSource();
             _disposables?.Dispose();
             _disposables = new CompositeDisposable();
+            _wizardDisposables?.Dispose();
+            _wizardDisposables = new CompositeDisposable();
+            _startInProgress = 0;
         }
 
         private async UniTask OnStartGameAsync(CancellationToken cancellationToken = default)
@@ -85,7 +99,24 @@ namespace Runtime.UI.MainMenu
             _uiService.Close<SettingsView>();
             
             _viewModel.SetInteractable(false);
-            await _stateMachine.EnterAsync<LoadGameplayState>(cancellationToken);
+
+            try
+            {
+                await _wizardCoordinator.StartWizardAsync(cancellationToken);
+                _uiService.Hide<MainMenuView>();
+            }
+            catch (OperationCanceledException)
+            {
+                _uiService.Get<MainMenuView>()?.Show();
+                _viewModel.SetInteractable(true);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _uiService.Get<MainMenuView>()?.Show();
+                _viewModel.SetInteractable(true);
+                Log.Exception(ex, LogTags.UI);
+            }
         }
 
         private void OnExit()
@@ -147,6 +178,79 @@ namespace Runtime.UI.MainMenu
             _lifecycleCts.Cancel();
             _lifecycleCts.Dispose();
             _disposables.Dispose();
+            _wizardDisposables.Dispose();
+            _wizardCoordinator.AbortWizardAsync(AbortReason.SceneChange).Forget(ex =>
+            {
+                if (ex is OperationCanceledException || ex is ObjectDisposedException)
+                    return;
+
+                Log.Exception(ex, LogTags.UI);
+            });
+        }
+
+        private void WireWizardEvents()
+        {
+            _wizardCoordinator.GameLaunchRequested
+                .Subscribe(config => OnLaunchRequestedAsync(config, _lifecycleCts.Token).Forget(ex =>
+                {
+                    if (ex is OperationCanceledException)
+                        return;
+
+                    Log.Exception(ex, LogTags.UI);
+                }))
+                .AddTo(_wizardDisposables);
+
+            _wizardCoordinator.WizardAborted
+                .Subscribe(HandleWizardAborted)
+                .AddTo(_wizardDisposables);
+        }
+
+        private async UniTask OnLaunchRequestedAsync(GameLaunchConfig config, CancellationToken cancellationToken)
+        {
+            if (config == null)
+                throw new ArgumentNullException(nameof(config));
+
+            if (Interlocked.Exchange(ref _startInProgress, 1) != 0)
+                return;
+
+            try
+            {
+                _viewModel.SetInteractable(false);
+                await _stateMachine.EnterAsync<LoadGameplayState, GameLaunchConfig>(config, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                _viewModel.SetInteractable(true);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _viewModel.SetInteractable(true);
+                Log.Exception(ex, LogTags.UI);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _startInProgress, 0);
+            }
+        }
+
+        private void HandleWizardAborted(AbortReason reason)
+        {
+            if (_viewModel == null)
+                return;
+
+            switch (reason)
+            {
+                case AbortReason.UserCancel:
+                case AbortReason.Error:
+                case AbortReason.StartCancelled:
+                case AbortReason.Disconnect:
+                    _uiService.Get<MainMenuView>()?.Show();
+                    _viewModel.SetInteractable(true);
+                    break;
+                case AbortReason.GameStarted:
+                    break;
+            }
         }
     }
 }

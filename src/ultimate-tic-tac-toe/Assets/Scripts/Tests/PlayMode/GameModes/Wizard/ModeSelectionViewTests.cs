@@ -58,6 +58,8 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             _coordinator = Substitute.For<IGameModeWizardCoordinator>();
             _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            _coordinator.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
+            _coordinator.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
             _currentError = new ReactiveProperty<WizardError?>(null);
             _coordinator.CurrentError.Returns(_currentError);
 
@@ -108,6 +110,8 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             var coordinator = Substitute.For<IGameModeWizardCoordinator>();
             coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            coordinator.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
+            coordinator.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
 
             var viewModel = new ModeSelectionViewModel(catalog, coordinator, _localization);
 
@@ -369,6 +373,8 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             var coordinatorB = Substitute.For<IGameModeWizardCoordinator>();
             coordinatorB.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            coordinatorB.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
+            coordinatorB.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
             var currentErrorB = new ReactiveProperty<WizardError?>(null);
             coordinatorB.CurrentError.Returns(currentErrorB);
 
@@ -561,6 +567,8 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             var coordinatorB = Substitute.For<IGameModeWizardCoordinator>();
             coordinatorB.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            coordinatorB.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
+            coordinatorB.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
             var currentErrorB = new ReactiveProperty<WizardError?>(null);
             coordinatorB.CurrentError.Returns(currentErrorB);
 

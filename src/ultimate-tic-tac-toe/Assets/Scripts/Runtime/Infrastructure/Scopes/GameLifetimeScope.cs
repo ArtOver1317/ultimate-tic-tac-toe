@@ -1,3 +1,4 @@
+using System;
 using Runtime.Infrastructure.EntryPoint;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
@@ -39,20 +40,41 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<IUIService, UIService>(Lifetime.Singleton);
 
             // Game Mode Wizard (Phase 1-6)
-            builder.Register<IGameModeSession, GameModeSession>(Lifetime.Transient);
+            builder.Register<IGameLaunchConfigStore, GameLaunchConfigStore>(Lifetime.Singleton);
+            builder.Register<IGameModeSession>(resolver =>
+                    new GameModeSession(resolver.Resolve<IGameModeCatalog>()),
+                Lifetime.Transient);
+            builder.Register<Func<IGameModeSession>>(
+                resolver => () => resolver.Resolve<IGameModeSession>(),
+                Lifetime.Singleton);
             builder.Register<IGameModeWizardCoordinator, GameModeWizardCoordinator>(Lifetime.Singleton);
             builder.Register<IGameModeWizardNavigator, GameModeWizardNavigator>(Lifetime.Singleton);
             builder.Register<IGameModeCatalog, GameModeCatalog>(Lifetime.Singleton);
             builder.Register<IBotDifficultyCatalog, BotDifficultyCatalog>(Lifetime.Singleton);
             builder.Register<IMatchmakingService, MatchmakingServiceStub>(Lifetime.Singleton);
-            builder.Register<ClassicModeStrategy>(Lifetime.Singleton).As<IGameModeStrategy>();
-            builder.Register<UltimateModeStrategy>(Lifetime.Singleton).As<IGameModeStrategy>();
 
             builder.Register<ModeSelectionViewModel>(Lifetime.Transient);
             builder.Register<MatchSetupViewModel>(Lifetime.Transient);
             builder.Register<MatchmakingViewModel>(Lifetime.Transient);
             builder.Register<ClassicSettingsViewModel>(Lifetime.Transient);
             builder.Register<UltimateSettingsViewModel>(Lifetime.Transient);
+
+            builder.Register<Func<ClassicSettingsViewModel>>(
+                resolver => () => resolver.Resolve<ClassicSettingsViewModel>(),
+                Lifetime.Singleton);
+            builder.Register<Func<UltimateSettingsViewModel>>(
+                resolver => () => resolver.Resolve<UltimateSettingsViewModel>(),
+                Lifetime.Singleton);
+
+            builder.Register<ClassicModeStrategy>(resolver =>
+                    new ClassicModeStrategy(resolver.Resolve<Func<ClassicSettingsViewModel>>()),
+                Lifetime.Singleton)
+                .As<IGameModeStrategy>();
+
+            builder.Register<UltimateModeStrategy>(resolver =>
+                    new UltimateModeStrategy(resolver.Resolve<Func<UltimateSettingsViewModel>>()),
+                Lifetime.Singleton)
+                .As<IGameModeStrategy>();
 
             builder.Register<IModeSettingsBinder, ClassicModeSettingsBinder>(Lifetime.Singleton);
             builder.Register<IModeSettingsBinder, UltimateModeSettingsBinder>(Lifetime.Singleton);

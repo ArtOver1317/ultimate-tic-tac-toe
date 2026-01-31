@@ -5,6 +5,7 @@ using Runtime.Localization;
 using Runtime.Services.Assets;
 using Runtime.Services.UI;
 using Runtime.UI.MainMenu;
+using Runtime.UI.GameModes.Wizard;
 using StripLog;
 
 namespace Runtime.Infrastructure.GameStateMachine.States
@@ -60,6 +61,36 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             else
             {
                  Log.Error(LogTags.Scenes, "[MainMenuState] LanguageSelectionPrefab is missing or invalid. Language selection will be disabled.");
+            }
+
+            if (_assetLibrary.ModeSelectionPrefab != null && _assetLibrary.ModeSelectionPrefab.RuntimeKeyIsValid())
+            {
+                var modeSelectionPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.ModeSelectionPrefab, cancellationToken);
+                _uiService.RegisterWindowPrefab<ModeSelectionView>(modeSelectionPrefab);
+            }
+            else
+            {
+                Log.Error(LogTags.Scenes, "[MainMenuState] ModeSelectionPrefab is missing or invalid. Game mode wizard will be disabled.");
+            }
+
+            if (_assetLibrary.MatchSetupPrefab != null && _assetLibrary.MatchSetupPrefab.RuntimeKeyIsValid())
+            {
+                var matchSetupPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.MatchSetupPrefab, cancellationToken);
+                _uiService.RegisterWindowPrefab<MatchSetupView>(matchSetupPrefab);
+            }
+            else
+            {
+                Log.Error(LogTags.Scenes, "[MainMenuState] MatchSetupPrefab is missing or invalid. Game mode wizard will be disabled.");
+            }
+
+            if (_assetLibrary.MatchmakingPrefab != null && _assetLibrary.MatchmakingPrefab.RuntimeKeyIsValid())
+            {
+                var matchmakingPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.MatchmakingPrefab, cancellationToken);
+                _uiService.RegisterWindowPrefab<MatchmakingView>(matchmakingPrefab);
+            }
+            else
+            {
+                Log.Error(LogTags.Scenes, "[MainMenuState] MatchmakingPrefab is missing or invalid. Game mode wizard will be disabled.");
             }
 
             var view = await _uiService.OpenWithLocalizationPreloadAsync<MainMenuView, MainMenuViewModel>(

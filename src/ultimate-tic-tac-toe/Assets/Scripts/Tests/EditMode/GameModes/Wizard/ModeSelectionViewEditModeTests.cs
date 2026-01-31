@@ -47,6 +47,8 @@ namespace Tests.EditMode.GameModes.Wizard
 
             var coordinator = Substitute.For<IGameModeWizardCoordinator>();
             coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            coordinator.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
+            coordinator.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
 
             _currentError = new ReactiveProperty<WizardError?>(null);
             coordinator.CurrentError.Returns(_currentError);

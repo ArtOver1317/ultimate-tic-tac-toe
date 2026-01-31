@@ -161,6 +161,7 @@ namespace Runtime.UI.GameModes.Wizard
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), difficultyChips);
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), humanKindRadio);
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), playerIdInput);
+            BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), Root);
 
             BindVisibility(ViewModel.IsBotSettingsVisible, botSettingsSection);
             BindVisibility(ViewModel.IsHumanSettingsVisible, humanSettingsSection);

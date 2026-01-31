@@ -139,6 +139,15 @@ namespace Runtime.UI.GameModes.Wizard
 
             BindErrorOverlay();
 
+            if (_coordinator != null)
+            {
+                var isBusy = Observable.CombineLatest(
+                    _coordinator.IsTransitioning,
+                    _coordinator.IsSubmitting,
+                    static (isTransitioning, isSubmitting) => isTransitioning || isSubmitting);
+                BindEnabled(isBusy.Select(static busy => !busy), Root);
+            }
+
             AddDisposable(cancelButton.OnClickAsObservable().Subscribe(_ =>
                 OnCancelButtonClicked()));
             AddDisposable(retryButton.OnClickAsObservable().Subscribe(_ => OnRetryButtonClicked()));

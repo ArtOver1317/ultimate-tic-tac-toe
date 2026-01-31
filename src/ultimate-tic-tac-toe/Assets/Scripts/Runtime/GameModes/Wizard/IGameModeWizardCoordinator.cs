@@ -38,6 +38,16 @@ namespace Runtime.GameModes.Wizard
         ReadOnlyReactiveProperty<WizardError?> CurrentError { get; }
 
         /// <summary>
+        /// Fired when the wizard builds a valid <see cref="GameLaunchConfig"/> and requests game start.
+        /// </summary>
+        Observable<GameLaunchConfig> GameLaunchRequested { get; }
+
+        /// <summary>
+        /// Fired when the wizard is aborted for any reason.
+        /// </summary>
+        Observable<AbortReason> WizardAborted { get; }
+
+        /// <summary>
         /// Clears the current error after user acknowledgement.
         /// </summary>
         void ClearCurrentError();

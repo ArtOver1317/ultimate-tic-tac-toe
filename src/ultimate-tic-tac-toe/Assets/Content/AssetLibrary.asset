@@ -36,6 +36,24 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  ModeSelectionPrefab:
+    m_AssetGUID: 768c8e006587fb5419cc5c3cf7b86612
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
+  MatchSetupPrefab:
+    m_AssetGUID: 2faa5138f5746a543918bb5d371d1146
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
+  MatchmakingPrefab:
+    m_AssetGUID: 8bc4d21f8fe28c24195ee6257048964f
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
   X_MarkPrefab:
     m_AssetGUID: 
     m_SubObjectName: 
