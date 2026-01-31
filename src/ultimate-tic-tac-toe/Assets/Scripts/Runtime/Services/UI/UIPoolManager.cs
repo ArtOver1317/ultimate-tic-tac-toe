@@ -143,11 +143,18 @@ namespace Runtime.Services.UI
 
         private void RemoveInjectedId(IUIView view)
         {
-            if (view is MonoBehaviour mb)
-            {
-                _injectedInstanceIds.Remove(mb.gameObject.GetInstanceID());
-                _injectedInstanceIds.Remove(mb.GetInstanceID());
-            }
+            if (view is not MonoBehaviour mb)
+                return;
+
+            if (!mb)
+                return;
+
+            var go = mb.gameObject;
+            if (!go)
+                return;
+
+            _injectedInstanceIds.Remove(go.GetInstanceID());
+            _injectedInstanceIds.Remove(mb.GetInstanceID());
         }
 
         public int GetPoolSize(Type windowType) => _windowPool.GetSize(windowType);

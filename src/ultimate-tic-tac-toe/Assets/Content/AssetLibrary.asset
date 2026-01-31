@@ -18,6 +18,12 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  BackgroundPrefab:
+    m_AssetGUID: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
   SettingsPrefab:
     m_AssetGUID: 6b7c529509c1a554b82932de3c4dfbc6
     m_SubObjectName: 
