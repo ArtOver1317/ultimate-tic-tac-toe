@@ -78,6 +78,43 @@ namespace Runtime.UI.GameModes.Wizard
             return UniTask.CompletedTask;
         }
 
+        public UniTask ReplaceModeSelectionWithMatchSetupAsync(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            return _uiService.ReplaceWithLocalizationPreloadAsync<ModeSelectionView, MatchSetupView, MatchSetupViewModel>(
+                _localization,
+                WizardTables,
+                ct);
+        }
+
+        public UniTask ReplaceMatchSetupWithModeSelectionAsync(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            return _uiService.ReplaceWithLocalizationPreloadAsync<MatchSetupView, ModeSelectionView, ModeSelectionViewModel>(
+                _localization,
+                ModeSelectionTables,
+                ct);
+        }
+
+        public async UniTask<MatchmakingViewModel> ReplaceMatchSetupWithMatchmakingAsync(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            var view = await _uiService.ReplaceWithLocalizationPreloadAsync<MatchSetupView, MatchmakingView, MatchmakingViewModel>(
+                _localization,
+                WizardTables,
+                ct);
+            return view?.GetViewModel();
+        }
+
+        public UniTask ReplaceMatchmakingWithMatchSetupAsync(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            return _uiService.ReplaceWithLocalizationPreloadAsync<MatchmakingView, MatchSetupView, MatchSetupViewModel>(
+                _localization,
+                WizardTables,
+                ct);
+        }
+
         public UniTask CloseAllWizardWindowsAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();

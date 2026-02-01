@@ -502,8 +502,7 @@ namespace Runtime.GameModes.Wizard
                         return;
 
                     await TransitionAsync(
-                        close: _navigator.CloseModeSelectionAsync,
-                        open: _navigator.OpenMatchSetupAsync,
+                        transition: _navigator.ReplaceModeSelectionWithMatchSetupAsync,
                         ct: ct);
 
                     _step = WizardStep.MatchSetup;
@@ -514,8 +513,7 @@ namespace Runtime.GameModes.Wizard
                         return;
 
                     await TransitionAsync(
-                        close: _navigator.CloseMatchSetupAsync,
-                        open: _navigator.OpenModeSelectionAsync,
+                        transition: _navigator.ReplaceMatchSetupWithModeSelectionAsync,
                         ct: ct);
 
                     _step = WizardStep.ModeSelection;
@@ -571,10 +569,9 @@ namespace Runtime.GameModes.Wizard
             }
 
             await TransitionAsync(
-                close: _navigator.CloseMatchSetupAsync,
-                open: async token =>
+                transition: async token =>
                 {
-                    var viewModel = await _navigator.OpenMatchmakingAsync(token);
+                    var viewModel = await _navigator.ReplaceMatchSetupWithMatchmakingAsync(token);
                     if (viewModel == null)
                         throw new InvalidOperationException("Matchmaking ViewModel is not available.");
 
@@ -675,8 +672,7 @@ namespace Runtime.GameModes.Wizard
             try
             {
                 await TransitionAsync(
-                    close: _navigator.CloseMatchmakingAsync,
-                    open: _navigator.OpenMatchSetupAsync,
+                    transition: _navigator.ReplaceMatchmakingWithMatchSetupAsync,
                     ct: ct);
 
                 CleanupMatchmakingBindings();
@@ -704,8 +700,7 @@ namespace Runtime.GameModes.Wizard
                         TrySetCurrentError(error);
 
                     await TransitionAsync(
-                        close: _navigator.CloseMatchmakingAsync,
-                        open: _navigator.OpenMatchSetupAsync,
+                        transition: _navigator.ReplaceMatchmakingWithMatchSetupAsync,
                         ct: ct);
 
                     CleanupMatchmakingBindings();
@@ -714,8 +709,7 @@ namespace Runtime.GameModes.Wizard
                 }
 
                 await TransitionAsync(
-                    close: _navigator.CloseMatchmakingAsync,
-                    open: _ => UniTask.CompletedTask,
+                    transition: _navigator.CloseMatchmakingAsync,
                     ct: ct);
 
                 CleanupMatchmakingBindings();
@@ -913,14 +907,11 @@ namespace Runtime.GameModes.Wizard
         }
 
         private async UniTask TransitionAsync(
-            Func<CancellationToken, UniTask> close,
-            Func<CancellationToken, UniTask> open,
+            Func<CancellationToken, UniTask> transition,
             CancellationToken ct)
         {
-            if (close == null)
-                throw new ArgumentNullException(nameof(close));
-            if (open == null)
-                throw new ArgumentNullException(nameof(open));
+            if (transition == null)
+                throw new ArgumentNullException(nameof(transition));
 
             if (Volatile.Read(ref _isTransitioningFlag) != 0)
                 return;
@@ -931,8 +922,7 @@ namespace Runtime.GameModes.Wizard
 
             try
             {
-                await close(ct);
-                await open(ct);
+                await transition(ct);
             }
             finally
             {

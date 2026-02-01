@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using R3;
 using Runtime.Infrastructure.Logging;
 using Runtime.UI.Core;
@@ -17,6 +18,7 @@ namespace Runtime.Services.UI
         private readonly Dictionary<Type, IUIView> _activeWindows = new();
         private readonly Dictionary<Type, GameObject> _windowPrefabs = new();
         private readonly Dictionary<Type, IDisposable> _closeSubscriptions = new();
+        private readonly SemaphoreSlim _replaceGate = new(1, 1);
 
         public UIService(UIPoolManager poolManager, ViewModelFactory viewModelFactory)
         {
@@ -65,6 +67,54 @@ namespace Runtime.Services.UI
             }
             
             return window;
+        }
+
+        public async Cysharp.Threading.Tasks.UniTask<TTo> ReplaceAsync<TFrom, TTo, TToViewModel>(
+            CancellationToken ct,
+            Action<TToViewModel> configureViewModel = null,
+            ReplaceOptions? options = null)
+            where TFrom : class, IUIView
+            where TTo : class, IUIView<TToViewModel>
+            where TToViewModel : BaseViewModel
+        {
+            await _replaceGate.WaitAsync(ct);
+
+            try
+            {
+                await Cysharp.Threading.Tasks.UniTask.SwitchToMainThread(ct);
+
+                var effective = options ?? new ReplaceOptions(
+                    keepFromVisibleUntilToShown: true,
+                    disableFromInputImmediately: true,
+                    closeFromAfterToOpened: true);
+                var from = Get<TFrom>();
+
+                if (from is IInputBlockableView inputBlockable && effective.DisableFromInputImmediately)
+                    inputBlockable.SetInputEnabled(false);
+
+                if (!effective.KeepFromVisibleUntilToShown)
+                    from?.Hide();
+
+                var to = configureViewModel == null
+                    ? Open<TTo, TToViewModel>()
+                    : Open<TTo, TToViewModel>(configureViewModel);
+
+                if (to == null)
+                {
+                    if (from is IInputBlockableView rollback)
+                        rollback.SetInputEnabled(true);
+                    throw new InvalidOperationException("Failed to open target view.");
+                }
+
+                if (effective.CloseFromAfterToOpened && from != null)
+                    Close<TFrom>();
+
+                return to;
+            }
+            finally
+            {
+                _replaceGate.Release();
+            }
         }
 
         public void Hide<TWindow>() where TWindow : IUIView

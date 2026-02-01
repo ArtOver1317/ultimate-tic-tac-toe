@@ -22,6 +22,11 @@ namespace Runtime.GameModes.Wizard
         UniTask<MatchmakingViewModel> OpenMatchmakingAsync(CancellationToken ct);
         UniTask CloseMatchmakingAsync(CancellationToken ct);
 
+        UniTask ReplaceModeSelectionWithMatchSetupAsync(CancellationToken ct);
+        UniTask ReplaceMatchSetupWithModeSelectionAsync(CancellationToken ct);
+        UniTask<MatchmakingViewModel> ReplaceMatchSetupWithMatchmakingAsync(CancellationToken ct);
+        UniTask ReplaceMatchmakingWithMatchSetupAsync(CancellationToken ct);
+
         UniTask CloseAllWizardWindowsAsync(CancellationToken ct);
     }
 }

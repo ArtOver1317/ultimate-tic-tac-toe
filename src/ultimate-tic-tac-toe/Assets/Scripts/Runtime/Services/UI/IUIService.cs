@@ -15,6 +15,14 @@ namespace Runtime.Services.UI
         TWindow Open<TWindow, TViewModel>(Action<TViewModel> configureViewModel) 
             where TWindow : class, IUIView<TViewModel> 
             where TViewModel : BaseViewModel;
+
+        Cysharp.Threading.Tasks.UniTask<TTo> ReplaceAsync<TFrom, TTo, TToViewModel>(
+            System.Threading.CancellationToken ct,
+            System.Action<TToViewModel> configureViewModel = null,
+            ReplaceOptions? options = null)
+            where TFrom : class, IUIView
+            where TTo : class, IUIView<TToViewModel>
+            where TToViewModel : BaseViewModel;
         
         void Hide<TWindow>() where TWindow : IUIView;
         

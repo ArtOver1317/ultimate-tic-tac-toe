@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 namespace Runtime.UI.Core
 {
     [RequireComponent(typeof(UIDocument))]
-    public abstract class BaseView<TViewModel> : MonoBehaviour where TViewModel : BaseViewModel
+    public abstract class BaseView<TViewModel> : MonoBehaviour, IInputBlockableView where TViewModel : BaseViewModel
     {
         private UIDocument _uiDocument;
         private readonly CompositeDisposable _disposables = new();
@@ -109,6 +109,15 @@ namespace Runtime.UI.Core
         {
             ViewModel?.Dispose();
             _disposables.Dispose();
+        }
+
+        public void SetInputEnabled(bool enabled)
+        {
+            if (Root == null)
+                return;
+
+            Root.SetEnabled(enabled);
+            Root.pickingMode = enabled ? PickingMode.Position : PickingMode.Ignore;
         }
 
         internal void RebindUxmlForTests()

@@ -15,6 +15,11 @@ namespace Runtime.UI.Core
         void InitializeFromPool();
     }
 
+    public interface IInputBlockableView
+    {
+        void SetInputEnabled(bool enabled);
+    }
+
     public interface IUIView<TViewModel> : IUIView where TViewModel : BaseViewModel
     {
         new TViewModel GetViewModel();

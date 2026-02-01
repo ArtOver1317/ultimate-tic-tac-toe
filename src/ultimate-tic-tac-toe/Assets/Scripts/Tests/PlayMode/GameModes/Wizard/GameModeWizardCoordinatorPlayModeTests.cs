@@ -48,7 +48,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             var closeStarted = new UniTaskCompletionSource<bool>();
             var closeGate = new UniTaskCompletionSource<bool>();
 
-            _navigator.CloseModeSelectionImpl = async ct =>
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = async ct =>
             {
                 closeStarted.TrySetResult(true);
                 await closeGate.Task.AttachExternalCancellation(ct);
@@ -106,7 +106,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             // Make processing/transition slow so the second publish happens while the first is still pending/in-flight.
             var closeGate = new UniTaskCompletionSource<bool>();
-            _navigator.CloseModeSelectionImpl = ct => closeGate.Task.AttachExternalCancellation(ct);
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = ct => closeGate.Task.AttachExternalCancellation(ct);
 
             // Act
             var first = _sut.TryPublishIntent(WizardIntent.Continue);
@@ -148,12 +148,11 @@ namespace Tests.PlayMode.GameModes.Wizard
             {
                 // Act
                 _sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
-                await WaitUntilAsync(() => _navigator.OpenMatchSetupCalls == 1);
+                await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1);
 
                 // Assert
                 _navigator.CallHistory.Should().ContainInOrder(
-                    nameof(IGameModeWizardNavigator.CloseModeSelectionAsync),
-                    nameof(IGameModeWizardNavigator.OpenMatchSetupAsync));
+                    nameof(IGameModeWizardNavigator.ReplaceModeSelectionWithMatchSetupAsync));
 
                 trueCount.Should().Be(1);
                 falseAfterTrueCount.Should().Be(1);
@@ -195,12 +194,11 @@ namespace Tests.PlayMode.GameModes.Wizard
             {
                 // Act
                 _sut.TryPublishIntent(WizardIntent.Back).Should().BeTrue();
-                await WaitUntilAsync(() => _navigator.OpenModeSelectionCalls >= 2);
+                await WaitUntilAsync(() => _navigator.ReplaceMatchSetupWithModeSelectionCalls == 1);
 
                 // Assert
                 _navigator.CallHistory.Should().ContainInOrder(
-                    nameof(IGameModeWizardNavigator.CloseMatchSetupAsync),
-                    nameof(IGameModeWizardNavigator.OpenModeSelectionAsync));
+                    nameof(IGameModeWizardNavigator.ReplaceMatchSetupWithModeSelectionAsync));
 
                 trueCount.Should().Be(1);
                 falseAfterTrueCount.Should().Be(1);
@@ -258,14 +256,13 @@ namespace Tests.PlayMode.GameModes.Wizard
 
                 // Deterministic: wait until wrong intent is consumed (gate released)
                 await WaitUntilIntentIsAcceptedAsync(WizardIntent.Continue);
-                await WaitUntilAsync(() => _navigator.OpenMatchSetupCalls == 1);
+                await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1);
 
                 // Assert
                 _navigator.CallHistory.Should().ContainInOrder(
-                    nameof(IGameModeWizardNavigator.CloseModeSelectionAsync),
-                    nameof(IGameModeWizardNavigator.OpenMatchSetupAsync));
+                    nameof(IGameModeWizardNavigator.ReplaceModeSelectionWithMatchSetupAsync));
 
-                _navigator.CallHistory.Should().NotContain(nameof(IGameModeWizardNavigator.CloseMatchSetupAsync));
+                _navigator.CallHistory.Should().NotContain(nameof(IGameModeWizardNavigator.ReplaceMatchSetupWithModeSelectionAsync));
                 _navigator.CloseAllCalls.Should().Be(0);
 
                 await _sut.TryAbortBestEffortAsync();
@@ -285,13 +282,12 @@ namespace Tests.PlayMode.GameModes.Wizard
 
                 // Deterministic: wait until wrong intent is consumed
                 await WaitUntilIntentIsAcceptedAsync(WizardIntent.Continue);
-                await WaitUntilAsync(() => _navigator.OpenMatchSetupCalls == 1);
+                await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1);
 
                 // Assert
                 _navigator.CloseAllCalls.Should().Be(0, "Start in ModeSelection must be ignored and must not abort wizard");
                 _navigator.CallHistory.Should().ContainInOrder(
-                    nameof(IGameModeWizardNavigator.CloseModeSelectionAsync),
-                    nameof(IGameModeWizardNavigator.OpenMatchSetupAsync));
+                    nameof(IGameModeWizardNavigator.ReplaceModeSelectionWithMatchSetupAsync));
 
                 await _sut.TryAbortBestEffortAsync();
             });
@@ -311,16 +307,15 @@ namespace Tests.PlayMode.GameModes.Wizard
 
                 // Deterministic: wait until wrong intent is consumed
                 await WaitUntilIntentIsAcceptedAsync(WizardIntent.Back);
-                await WaitUntilAsync(() => _navigator.OpenModeSelectionCalls == 2);
+                await WaitUntilAsync(() => _navigator.ReplaceMatchSetupWithModeSelectionCalls == 1);
 
                 // Assert
                 _navigator.CloseAllCalls.Should().Be(0);
                 _navigator.CallHistory.Should().ContainInOrder(
-                    nameof(IGameModeWizardNavigator.CloseMatchSetupAsync),
-                    nameof(IGameModeWizardNavigator.OpenModeSelectionAsync));
+                    nameof(IGameModeWizardNavigator.ReplaceMatchSetupWithModeSelectionAsync));
 
-                _navigator.CallHistory.Should().NotContain(nameof(IGameModeWizardNavigator.CloseModeSelectionAsync));
-                _navigator.CallHistory.Should().NotContain(nameof(IGameModeWizardNavigator.OpenMatchSetupAsync));
+                _navigator.CallHistory.Should().NotContain(nameof(IGameModeWizardNavigator.ReplaceModeSelectionWithMatchSetupAsync));
+                _navigator.CallHistory.Should().NotContain(nameof(IGameModeWizardNavigator.ReplaceMatchSetupWithMatchmakingAsync));
 
                 await _sut.TryAbortBestEffortAsync();
             });
@@ -332,7 +327,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Arrange
             await _sut.StartWizardAsync(CancellationToken.None);
 
-            _navigator.CloseModeSelectionImpl = _ => throw new Exception("close failed");
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = _ => throw new Exception("close failed");
             var session = _sessionFactory.CreatedSessions.Single();
 
             LogAssert.Expect(LogType.Error, new Regex("close failed"));
@@ -357,7 +352,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Arrange
             await _sut.StartWizardAsync(CancellationToken.None);
 
-            _navigator.OpenMatchSetupImpl = _ => throw new Exception("open failed");
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = _ => throw new Exception("open failed");
             var session = _sessionFactory.CreatedSessions.Single();
 
             LogAssert.Expect(LogType.Error, new Regex("open failed"));
@@ -385,7 +380,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             var closeStarted = new UniTaskCompletionSource<bool>();
             var closeGate = new UniTaskCompletionSource<bool>();
 
-            _navigator.CloseModeSelectionImpl = async ct =>
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = async ct =>
             {
                 closeStarted.TrySetResult(true);
                 await closeGate.Task.AttachExternalCancellation(ct);
@@ -398,7 +393,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             await _sut.AbortWizardAsync(AbortReason.SceneChange);
 
             // Assert
-            _navigator.OpenMatchSetupCalls.Should().Be(0);
+            _navigator.ReplaceModeSelectionWithMatchSetupCalls.Should().Be(1);
 
             closeGate.TrySetResult(true);
         });
@@ -409,7 +404,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             // Arrange
             await _sut.StartWizardAsync(CancellationToken.None);
-            _navigator.CloseModeSelectionImpl = _ => throw new Exception("boom");
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = _ => throw new Exception("boom");
 
             LogAssert.Expect(LogType.Error, new Regex("boom"));
 
@@ -429,7 +424,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             // Arrange
             await _sut.StartWizardAsync(CancellationToken.None);
-            _navigator.CloseModeSelectionImpl = _ => throw new Exception("boom");
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = _ => throw new Exception("boom");
 
             LogAssert.Expect(LogType.Error, new Regex("boom"));
 
@@ -451,7 +446,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Block transition so Cancel can win deterministically.
             var closeStarted = new UniTaskCompletionSource<bool>();
             var closeGate = new UniTaskCompletionSource<bool>();
-            _navigator.CloseModeSelectionImpl = async ct =>
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = async ct =>
             {
                 closeStarted.TrySetResult(true);
                 await closeGate.Task.AttachExternalCancellation(ct);
@@ -468,7 +463,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             cancelAccepted.Should().BeTrue();
 
             await WaitUntilAsync(() => _navigator.CloseAllCalls == 1);
-            _navigator.OpenMatchSetupCalls.Should().Be(0);
+            _navigator.ReplaceModeSelectionWithMatchSetupCalls.Should().Be(1);
 
             closeGate.TrySetResult(true);
         });
@@ -496,7 +491,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             var openGate = new UniTaskCompletionSource<bool>();
             var openFinished = new UniTaskCompletionSource<bool>();
 
-            _navigator.OpenMatchSetupImpl = async _ =>
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = async _ =>
             {
                 openStarted.TrySetResult(true);
 
@@ -567,7 +562,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             var closeStarted = new UniTaskCompletionSource<bool>();
             var closeGate = new UniTaskCompletionSource<bool>();
-            _navigator.CloseModeSelectionImpl = async ct =>
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = async ct =>
             {
                 closeStarted.TrySetResult(true);
                 await closeGate.Task.AttachExternalCancellation(ct);
@@ -616,7 +611,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             var closeStarted = new UniTaskCompletionSource<bool>();
             var closeGate = new UniTaskCompletionSource<bool>();
-            _navigator.CloseModeSelectionImpl = async ct =>
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = async ct =>
             {
                 closeStarted.TrySetResult(true);
                 await closeGate.Task.AttachExternalCancellation(ct);
@@ -630,7 +625,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             await WaitUntilAsync(() => _navigator.CloseAllCalls == 1);
 
             // Assert
-            _navigator.OpenMatchSetupCalls.Should().Be(0);
+            _navigator.ReplaceModeSelectionWithMatchSetupCalls.Should().Be(1);
 
             closeGate.TrySetResult(true);
         });
@@ -677,8 +672,8 @@ namespace Tests.PlayMode.GameModes.Wizard
             await WaitUntilAsync(() => session.DisposeCallCount == 1);
 
             // Assert
-            _navigator.OpenMatchmakingCalls.Should().Be(0);
-            _navigator.CloseMatchmakingCalls.Should().Be(0);
+            _navigator.ReplaceMatchSetupWithMatchmakingCalls.Should().Be(0);
+            _navigator.ReplaceMatchmakingWithMatchSetupCalls.Should().Be(0);
         });
 
         [UnityTest]
@@ -699,7 +694,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         private async UniTask MoveToMatchSetupAsync()
         {
             _sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
-            await WaitUntilAsync(() => _navigator.OpenMatchSetupCalls == 1);
+            await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1);
         }
 
         private static async UniTask WaitUntilAsync(Func<bool> predicate)
@@ -718,6 +713,10 @@ namespace Tests.PlayMode.GameModes.Wizard
             public Func<CancellationToken, UniTask> CloseMatchSetupImpl;
             public Func<CancellationToken, UniTask<MatchmakingViewModel>> OpenMatchmakingImpl;
             public Func<CancellationToken, UniTask> CloseMatchmakingImpl;
+            public Func<CancellationToken, UniTask> ReplaceModeSelectionWithMatchSetupImpl;
+            public Func<CancellationToken, UniTask> ReplaceMatchSetupWithModeSelectionImpl;
+            public Func<CancellationToken, UniTask<MatchmakingViewModel>> ReplaceMatchSetupWithMatchmakingImpl;
+            public Func<CancellationToken, UniTask> ReplaceMatchmakingWithMatchSetupImpl;
             public Func<CancellationToken, UniTask> CloseAllImpl;
 
             public int OpenModeSelectionCalls { get; private set; }
@@ -726,6 +725,10 @@ namespace Tests.PlayMode.GameModes.Wizard
             public int CloseMatchSetupCalls { get; private set; }
             public int OpenMatchmakingCalls { get; private set; }
             public int CloseMatchmakingCalls { get; private set; }
+            public int ReplaceModeSelectionWithMatchSetupCalls { get; private set; }
+            public int ReplaceMatchSetupWithModeSelectionCalls { get; private set; }
+            public int ReplaceMatchSetupWithMatchmakingCalls { get; private set; }
+            public int ReplaceMatchmakingWithMatchSetupCalls { get; private set; }
             public int CloseAllCalls { get; private set; }
 
             public int TotalCalls { get; private set; }
@@ -740,6 +743,10 @@ namespace Tests.PlayMode.GameModes.Wizard
                 CloseMatchSetupImpl = _ => UniTask.CompletedTask;
                 OpenMatchmakingImpl = _ => UniTask.FromResult<MatchmakingViewModel>(null);
                 CloseMatchmakingImpl = _ => UniTask.CompletedTask;
+                ReplaceModeSelectionWithMatchSetupImpl = _ => UniTask.CompletedTask;
+                ReplaceMatchSetupWithModeSelectionImpl = _ => UniTask.CompletedTask;
+                ReplaceMatchSetupWithMatchmakingImpl = _ => UniTask.FromResult<MatchmakingViewModel>(null);
+                ReplaceMatchmakingWithMatchSetupImpl = _ => UniTask.CompletedTask;
                 CloseAllImpl = _ => UniTask.CompletedTask;
             }
 
@@ -821,6 +828,54 @@ namespace Tests.PlayMode.GameModes.Wizard
                 }
 
                 return CloseMatchmakingImpl(ct);
+            }
+
+            public UniTask ReplaceModeSelectionWithMatchSetupAsync(CancellationToken ct)
+            {
+                lock (_lock)
+                {
+                    ReplaceModeSelectionWithMatchSetupCalls++;
+                    TotalCalls++;
+                    CallHistory.Add(nameof(IGameModeWizardNavigator.ReplaceModeSelectionWithMatchSetupAsync));
+                }
+
+                return ReplaceModeSelectionWithMatchSetupImpl(ct);
+            }
+
+            public UniTask ReplaceMatchSetupWithModeSelectionAsync(CancellationToken ct)
+            {
+                lock (_lock)
+                {
+                    ReplaceMatchSetupWithModeSelectionCalls++;
+                    TotalCalls++;
+                    CallHistory.Add(nameof(IGameModeWizardNavigator.ReplaceMatchSetupWithModeSelectionAsync));
+                }
+
+                return ReplaceMatchSetupWithModeSelectionImpl(ct);
+            }
+
+            public UniTask<MatchmakingViewModel> ReplaceMatchSetupWithMatchmakingAsync(CancellationToken ct)
+            {
+                lock (_lock)
+                {
+                    ReplaceMatchSetupWithMatchmakingCalls++;
+                    TotalCalls++;
+                    CallHistory.Add(nameof(IGameModeWizardNavigator.ReplaceMatchSetupWithMatchmakingAsync));
+                }
+
+                return ReplaceMatchSetupWithMatchmakingImpl(ct);
+            }
+
+            public UniTask ReplaceMatchmakingWithMatchSetupAsync(CancellationToken ct)
+            {
+                lock (_lock)
+                {
+                    ReplaceMatchmakingWithMatchSetupCalls++;
+                    TotalCalls++;
+                    CallHistory.Add(nameof(IGameModeWizardNavigator.ReplaceMatchmakingWithMatchSetupAsync));
+                }
+
+                return ReplaceMatchmakingWithMatchSetupImpl(ct);
             }
 
             public UniTask CloseAllWizardWindowsAsync(CancellationToken ct)

@@ -49,21 +49,21 @@ namespace Tests.PlayMode.GameModes.Wizard
             var service = new HarnessMatchmakingService();
             var localization = new TestLocalizationService();
             var viewModel = new MatchmakingViewModel(localization, service);
-            _navigator.OpenMatchmakingImpl = _ => UniTask.FromResult(viewModel);
+            _navigator.ReplaceMatchSetupWithMatchmakingImpl = _ => UniTask.FromResult(viewModel);
 
             // Act
             _sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
-            await WaitUntilAsync(() => _navigator.OpenMatchmakingCalls == 1, 2000);
+            await WaitUntilAsync(() => _navigator.ReplaceMatchSetupWithMatchmakingCalls == 1, 2000);
             await WaitUntilAsync(() => viewModel.State.CurrentValue == MatchmakingState.Searching, 2000);
 
             viewModel.RequestCancel();
             viewModel.RequestCancel();
 
-            await WaitUntilAsync(() => _navigator.CloseMatchmakingCalls == 1, 2000);
+            await WaitUntilAsync(() => _navigator.ReplaceMatchmakingWithMatchSetupCalls == 1, 2000);
 
             // Assert
-            _navigator.CloseMatchmakingCalls.Should().Be(1);
-            _navigator.OpenMatchSetupCalls.Should().Be(2);
+            _navigator.ReplaceMatchmakingWithMatchSetupCalls.Should().Be(1);
+            _navigator.ReplaceModeSelectionWithMatchSetupCalls.Should().Be(1);
 
             viewModel.Dispose();
             localization.Dispose();
@@ -83,24 +83,22 @@ namespace Tests.PlayMode.GameModes.Wizard
             var service = new HarnessMatchmakingService();
             var localization = new TestLocalizationService();
             var viewModel = new MatchmakingViewModel(localization, service);
-            _navigator.OpenMatchmakingImpl = _ => UniTask.FromResult(viewModel);
+            _navigator.ReplaceMatchSetupWithMatchmakingImpl = _ => UniTask.FromResult(viewModel);
 
             // Act
             _sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
-            await WaitUntilAsync(() => _navigator.OpenMatchmakingCalls == 1, 2000);
+            await WaitUntilAsync(() => _navigator.ReplaceMatchSetupWithMatchmakingCalls == 1, 2000);
             await WaitUntilAsync(() => viewModel.State.CurrentValue == MatchmakingState.Searching, 2000);
 
             await service.SearchStarted.Task;
             viewModel.RequestCancel();
             service.AllowComplete.TrySetResult(true);
 
-            await WaitUntilAsync(() => _navigator.CloseMatchmakingCalls == 1, 4000);
+            await WaitUntilAsync(() => _navigator.ReplaceMatchmakingWithMatchSetupCalls == 1 || _navigator.CloseMatchmakingCalls == 1, 4000);
 
             // Assert
-            _navigator.CloseMatchmakingCalls.Should().Be(1);
-
-            var cancelPath = _navigator.OpenMatchSetupCalls == 2 && _navigator.CloseAllCalls == 0;
-            var foundPath = _navigator.OpenMatchSetupCalls == 1 && _navigator.CloseAllCalls == 1;
+            var cancelPath = _navigator.ReplaceMatchmakingWithMatchSetupCalls == 1 && _navigator.CloseAllCalls == 0;
+            var foundPath = _navigator.CloseMatchmakingCalls == 1 && _navigator.CloseAllCalls == 1;
 
             (cancelPath || foundPath).Should().BeTrue("должен выполниться только один путь перехода");
 
@@ -111,7 +109,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         private async UniTask MoveToMatchSetupAsync()
         {
             _sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
-            await WaitUntilAsync(() => _navigator.OpenMatchSetupCalls == 1, 2000);
+            await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1, 2000);
         }
 
         private static async UniTask WaitUntilAsync(Func<bool> predicate, int timeoutMs)
@@ -189,6 +187,10 @@ namespace Tests.PlayMode.GameModes.Wizard
             public Func<CancellationToken, UniTask> CloseMatchSetupImpl { get; set; } = _ => UniTask.CompletedTask;
             public Func<CancellationToken, UniTask<MatchmakingViewModel>> OpenMatchmakingImpl { get; set; } = _ => UniTask.FromResult<MatchmakingViewModel>(null);
             public Func<CancellationToken, UniTask> CloseMatchmakingImpl { get; set; } = _ => UniTask.CompletedTask;
+            public Func<CancellationToken, UniTask> ReplaceModeSelectionWithMatchSetupImpl { get; set; } = _ => UniTask.CompletedTask;
+            public Func<CancellationToken, UniTask> ReplaceMatchSetupWithModeSelectionImpl { get; set; } = _ => UniTask.CompletedTask;
+            public Func<CancellationToken, UniTask<MatchmakingViewModel>> ReplaceMatchSetupWithMatchmakingImpl { get; set; } = _ => UniTask.FromResult<MatchmakingViewModel>(null);
+            public Func<CancellationToken, UniTask> ReplaceMatchmakingWithMatchSetupImpl { get; set; } = _ => UniTask.CompletedTask;
             public Func<CancellationToken, UniTask> CloseAllImpl { get; set; } = _ => UniTask.CompletedTask;
 
             public int OpenModeSelectionCalls { get; private set; }
@@ -197,6 +199,10 @@ namespace Tests.PlayMode.GameModes.Wizard
             public int CloseMatchSetupCalls { get; private set; }
             public int OpenMatchmakingCalls { get; private set; }
             public int CloseMatchmakingCalls { get; private set; }
+            public int ReplaceModeSelectionWithMatchSetupCalls { get; private set; }
+            public int ReplaceMatchSetupWithModeSelectionCalls { get; private set; }
+            public int ReplaceMatchSetupWithMatchmakingCalls { get; private set; }
+            public int ReplaceMatchmakingWithMatchSetupCalls { get; private set; }
             public int CloseAllCalls { get; private set; }
 
             public UniTask OpenModeSelectionAsync(CancellationToken ct)
@@ -233,6 +239,30 @@ namespace Tests.PlayMode.GameModes.Wizard
             {
                 CloseMatchmakingCalls++;
                 return CloseMatchmakingImpl(ct);
+            }
+
+            public UniTask ReplaceModeSelectionWithMatchSetupAsync(CancellationToken ct)
+            {
+                ReplaceModeSelectionWithMatchSetupCalls++;
+                return ReplaceModeSelectionWithMatchSetupImpl(ct);
+            }
+
+            public UniTask ReplaceMatchSetupWithModeSelectionAsync(CancellationToken ct)
+            {
+                ReplaceMatchSetupWithModeSelectionCalls++;
+                return ReplaceMatchSetupWithModeSelectionImpl(ct);
+            }
+
+            public UniTask<MatchmakingViewModel> ReplaceMatchSetupWithMatchmakingAsync(CancellationToken ct)
+            {
+                ReplaceMatchSetupWithMatchmakingCalls++;
+                return ReplaceMatchSetupWithMatchmakingImpl(ct);
+            }
+
+            public UniTask ReplaceMatchmakingWithMatchSetupAsync(CancellationToken ct)
+            {
+                ReplaceMatchmakingWithMatchSetupCalls++;
+                return ReplaceMatchmakingWithMatchSetupImpl(ct);
             }
 
             public UniTask CloseAllWizardWindowsAsync(CancellationToken ct)
