@@ -3,27 +3,58 @@
     background-color: rgba(0, 0, 0, 0.9);
     justify-content: center;
     align-items: center;
+    padding-left: 24px;
+    padding-right: 24px;
 }
 
 .panel {
     background-color: rgb(50, 54, 132);
     border-radius: 10px;
-    padding: 20px;
-    width: 400px;
+    padding: 28px;
+    width: 720px;
+    max-width: 95%;
+    min-height: 420px;
+    max-height: 90%;
     align-items: center;
 }
 
 .title {
-    font-size: 32px;
+    font-size: 40px;
     color: white;
     margin-bottom: 20px;
     -unity-font-style: bold;
 }
 
+.settings-container {
+    width: 100%;
+    flex-grow: 1;
+    max-height: 480px;
+    margin-bottom: 20px;
+    align-items: stretch;
+}
+
+.settings-container .unity-scroll-view__vertical-scroller,
+.settings-container .unity-scroll-view__horizontal-scroller {
+    display: none;
+}
+
+.language-button {
+    width: 100%;
+    height: 64px;
+    font-size: 28px;
+    margin-bottom: 8px;
+    background-color: rgb(255, 255, 255);
+    border-radius: 5px;
+    color: rgb(50, 54, 132);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
 .menu-button {
-    width: 300px;
-    height: 60px;
-    font-size: 24px;
+    width: 420px;
+    max-width: 95%;
+    height: 80px;
+    font-size: 32px;
     margin-bottom: 10px;
     background-color: rgb(255, 255, 255);
     border-radius: 5px;

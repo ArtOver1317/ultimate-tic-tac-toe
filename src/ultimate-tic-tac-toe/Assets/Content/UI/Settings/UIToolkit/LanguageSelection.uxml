@@ -3,7 +3,7 @@
     <ui:VisualElement name="Root" class="root">
         <ui:VisualElement name="Panel" class="panel">
             <ui:Label text="..." name="Title" class="title" />
-            <ui:ScrollView name="Container" style="width: 100%; height: 300px; margin-bottom: 20px;" />
+            <ui:ScrollView name="Container" class="settings-container" show-horizontal-scroller="false" show-vertical-scroller="false" />
             <ui:Button text="..." name="BackButton" class="menu-button" />
         </ui:VisualElement>
     </ui:VisualElement>

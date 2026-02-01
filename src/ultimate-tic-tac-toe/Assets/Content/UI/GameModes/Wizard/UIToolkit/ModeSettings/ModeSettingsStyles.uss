@@ -13,6 +13,7 @@
 .gmw-stepper {
     flex-direction: row;
     align-items: center;
+    justify-content: flex-start;
 }
 
 .gmw-stepper__button {
@@ -23,8 +24,8 @@
 }
 
 .gmw-stepper__value {
-    min-width: 60px;
-    text-align: center;
+    width: 80px;
+    -unity-text-align: middle-center;
     font-size: 26px;
     color: rgb(255, 255, 255);
     margin-left: 12px;

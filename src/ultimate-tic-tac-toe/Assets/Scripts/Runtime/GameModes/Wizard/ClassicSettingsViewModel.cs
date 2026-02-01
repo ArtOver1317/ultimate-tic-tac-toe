@@ -49,8 +49,21 @@ namespace Runtime.GameModes.Wizard
             _boardSize.Value = defaultBoardSize;
         }
 
-        public void IncrementBoardSize() => _boardSize.Value = checked(_boardSize.Value + 1);
-        public void DecrementBoardSize() => _boardSize.Value = checked(_boardSize.Value - 1);
+        public void IncrementBoardSize()
+        {
+            if (_boardSize.Value >= _maxBoardSize)
+                return;
+
+            _boardSize.Value = checked(_boardSize.Value + 1);
+        }
+
+        public void DecrementBoardSize()
+        {
+            if (_boardSize.Value <= _minBoardSize)
+                return;
+
+            _boardSize.Value = checked(_boardSize.Value - 1);
+        }
 
         public bool TryApplyConfig(IGameModeConfig config)
         {

@@ -21,6 +21,9 @@ namespace Runtime.UI.Settings
 
         protected override void BindViewModel()
         {
+            _container.verticalScrollerVisibility = ScrollerVisibility.Hidden;
+            _container.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+
             BindText(ViewModel.TitleText, _titleLabel);
             BindText(ViewModel.BackButtonText, _backButton);
 
