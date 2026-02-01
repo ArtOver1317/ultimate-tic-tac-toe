@@ -16,6 +16,7 @@
 
 # Local documentation (not tracked in git)
 /.docs/
+/.github/
 
 # Copilot instructions (personal, not for public repo)
 **/.copilot-instructions.md

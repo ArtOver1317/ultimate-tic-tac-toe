@@ -50,7 +50,7 @@ MonoBehaviour:
   sourceAsset: {fileID: 9197481963319205126, guid: db416f2399b0aac43a74d1d4ba40fe41, type: 3}
   m_SortingOrder: 0
   m_Position: 0
-  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceSizeMode: 0
   m_WorldSpaceWidth: 1920
   m_WorldSpaceHeight: 1080
   m_PivotReferenceSize: 0
