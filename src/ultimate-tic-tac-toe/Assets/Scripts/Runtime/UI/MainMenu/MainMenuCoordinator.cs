@@ -26,6 +26,7 @@ namespace Runtime.UI.MainMenu
         private CancellationTokenSource _lifecycleCts = new();
         private bool _isDisposed;
         private int _startInProgress;
+        private int _wizardStartInProgress;
 
         public MainMenuCoordinator(
             IGameStateMachine stateMachine,
@@ -87,12 +88,16 @@ namespace Runtime.UI.MainMenu
             _wizardDisposables?.Dispose();
             _wizardDisposables = new CompositeDisposable();
             _startInProgress = 0;
+            _wizardStartInProgress = 0;
         }
 
         private async UniTask OnStartGameAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Log.Debug(LogTags.UI, "[MainMenuCoordinator] Starting game...");
+
+            if (Interlocked.Exchange(ref _wizardStartInProgress, 1) != 0)
+                return;
             
             // Close overlays before starting game
             _uiService.Close<LanguageSelectionView>();
@@ -116,6 +121,10 @@ namespace Runtime.UI.MainMenu
                 _uiService.Get<MainMenuView>()?.Show();
                 _viewModel.SetInteractable(true);
                 Log.Exception(ex, LogTags.UI);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _wizardStartInProgress, 0);
             }
         }
 

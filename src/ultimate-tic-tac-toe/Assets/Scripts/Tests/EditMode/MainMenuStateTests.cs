@@ -151,7 +151,7 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public async Task WhenEnter_ThenOpensMainMenuWindow()
+        public async Task WhenEnterAndViewIsValid_ThenOpensMainMenuAndInitializesCoordinator()
         {
             // Arrange
 
@@ -160,17 +160,6 @@ namespace Tests.EditMode
 
             // Assert
             _uiService.Received(1).Open<MainMenuView, MainMenuViewModel>();
-        }
-
-        [Test]
-        public async Task WhenEnterAndViewIsValid_ThenInitializesCoordinatorWithCorrectViewModel()
-        {
-            // Arrange
-
-            // Act
-            await _state.EnterAsync();
-
-            // Assert
             _coordinator.Received(1).Initialize(_viewModel);
         }
 

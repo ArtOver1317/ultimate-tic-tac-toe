@@ -98,6 +98,16 @@ namespace Tests.EditMode
             return view;
         }
 
+        private TestMainMenuViewForCoordinator CreateInactiveMainMenuView()
+        {
+            var go = new GameObject("MainMenuView_Test");
+            go.SetActive(false);
+
+            var view = go.AddComponent<TestMainMenuViewForCoordinator>();
+            _createdGameObjects.Add(go);
+            return view;
+        }
+
         private LanguageSelectionView CreateInactiveLanguageSelectionView(LanguageSelectionViewModel viewModel)
         {
             var go = new GameObject("LanguageSelectionView_Test");
@@ -123,6 +133,183 @@ namespace Tests.EditMode
 
             // Assert
             await _wizardCoordinatorMock.Received(1).StartWizardAsync(Arg.Any<CancellationToken>());
+        }
+
+        [Test]
+        public async Task WhenPlayButtonPressedAndWizardSucceeds_ThenHidesMainMenuView()
+        {
+            // Arrange
+            _coordinator.Initialize(_viewModel);
+
+            // Act
+            _viewModel.RequestStartGame();
+            await UniTask.Yield();
+
+            // Assert
+            await _wizardCoordinatorMock.Received(1).StartWizardAsync(Arg.Any<CancellationToken>());
+            _uiServiceMock.Received(1).Hide<MainMenuView>();
+        }
+
+        [Test]
+        public async Task WhenWizardCancelled_ThenShowsMainMenuViewAndRestoresInteractability()
+        {
+            // Arrange
+            var view = CreateInactiveMainMenuView();
+            _uiServiceMock.Get<MainMenuView>().Returns(view);
+
+            _wizardCoordinatorMock.StartWizardAsync(Arg.Any<CancellationToken>())
+                .Returns(UniTask.FromException(new OperationCanceledException()));
+
+            _coordinator.Initialize(_viewModel);
+
+            // Act
+            _viewModel.RequestStartGame();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            await UniTask.WaitUntil(
+                () => view.ShowCalls == 1 && _viewModel.IsInteractable.CurrentValue,
+                cancellationToken: cts.Token);
+
+            // Assert
+            view.ShowCalls.Should().Be(1);
+            _viewModel.IsInteractable.CurrentValue.Should().BeTrue();
+        }
+
+        [Test]
+        public async Task WhenWizardThrowsException_ThenShowsMainMenuViewAndRestoresInteractability()
+        {
+            // Arrange
+            var view = CreateInactiveMainMenuView();
+            _uiServiceMock.Get<MainMenuView>().Returns(view);
+
+            LogAssert.Expect(LogType.Error, new Regex("InvalidOperationException: boom"));
+
+            _wizardCoordinatorMock.StartWizardAsync(Arg.Any<CancellationToken>())
+                .Returns(UniTask.FromException(new InvalidOperationException("boom")));
+
+            _coordinator.Initialize(_viewModel);
+
+            // Act
+            _viewModel.RequestStartGame();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            await UniTask.WaitUntil(
+                () => view.ShowCalls == 1 && _viewModel.IsInteractable.CurrentValue,
+                cancellationToken: cts.Token);
+
+            // Assert
+            view.ShowCalls.Should().Be(1);
+            _viewModel.IsInteractable.CurrentValue.Should().BeTrue();
+        }
+
+        [Test]
+        public async Task WhenPlayClickedMultipleTimesWhileWizardActive_ThenStartsWizardOnlyOnce()
+        {
+            // Arrange
+            var started = new UniTaskCompletionSource<bool>();
+            var gate = new UniTaskCompletionSource<bool>();
+            _wizardCoordinatorMock.StartWizardAsync(Arg.Any<CancellationToken>())
+                .Returns(_ =>
+                {
+                    started.TrySetResult(true);
+                    return gate.Task;
+                });
+
+            _coordinator.Initialize(_viewModel);
+
+            // Act
+            _viewModel.RequestStartGame();
+            _viewModel.RequestStartGame();
+            _viewModel.RequestStartGame();
+            _viewModel.RequestStartGame();
+            _viewModel.RequestStartGame();
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            await started.Task.AttachExternalCancellation(cts.Token);
+
+            // Assert
+            await _wizardCoordinatorMock.Received(1).StartWizardAsync(Arg.Any<CancellationToken>());
+
+            gate.TrySetResult(true);
+        }
+
+        [TestCase(AbortReason.UserCancel)]
+        [TestCase(AbortReason.Error)]
+        [TestCase(AbortReason.StartCancelled)]
+        [TestCase(AbortReason.Disconnect)]
+        public async Task WhenWizardAbortedAfterStart_ThenMainMenuIsRestoredByWizardAbortedEvent(AbortReason reason)
+        {
+            // Arrange
+            var view = CreateInactiveMainMenuView();
+            _uiServiceMock.Get<MainMenuView>().Returns(view);
+
+            _coordinator.Initialize(_viewModel);
+
+            _viewModel.RequestStartGame();
+            await UniTask.Yield();
+
+            // Act
+            _wizardAborted.OnNext(reason);
+            await UniTask.Yield();
+
+            // Assert
+            view.ShowCalls.Should().Be(1);
+            _viewModel.IsInteractable.CurrentValue.Should().BeTrue();
+        }
+
+        [Test]
+        public async Task WhenGameLaunchRequestedRaisedTwice_ThenLoadGameplayEnteredOnlyOnce()
+        {
+            // Arrange
+            _coordinator.Initialize(_viewModel);
+            var config = new GameLaunchConfig("Classic", new ClassicModeConfig(3), new LocalHumanConfig());
+
+            var enterStarted = new UniTaskCompletionSource<bool>();
+            var enterGate = new UniTaskCompletionSource<bool>();
+            _stateMachineMock
+                .EnterAsync<LoadGameplayState, GameLaunchConfig>(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
+                .Returns(_ =>
+                {
+                    enterStarted.TrySetResult(true);
+                    return enterGate.Task;
+                });
+
+            // Act
+            _viewModel.RequestStartGame();
+            await UniTask.Yield();
+
+            _gameLaunchRequested.OnNext(config);
+            _gameLaunchRequested.OnNext(config);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            await enterStarted.Task.AttachExternalCancellation(cts.Token);
+
+            // Assert
+            await _stateMachineMock.Received(1)
+                .EnterAsync<LoadGameplayState, GameLaunchConfig>(config, Arg.Any<CancellationToken>());
+
+            enterGate.TrySetResult(true);
+            await UniTask.Yield();
+        }
+
+        [Test]
+        public async Task WhenWizardAbortedWithGameStarted_ThenDoesNotRestoreMainMenu()
+        {
+            // Arrange
+            var view = CreateInactiveMainMenuView();
+            _uiServiceMock.Get<MainMenuView>().Returns(view);
+
+            _coordinator.Initialize(_viewModel);
+            _viewModel.RequestStartGame();
+            await UniTask.Yield();
+
+            _viewModel.IsInteractable.CurrentValue.Should().BeFalse();
+
+            // Act
+            _wizardAborted.OnNext(AbortReason.GameStarted);
+            await UniTask.Yield();
+
+            // Assert
+            view.ShowCalls.Should().Be(0);
+            _viewModel.IsInteractable.CurrentValue.Should().BeFalse();
         }
 
         [Test]
@@ -155,29 +342,23 @@ namespace Tests.EditMode
         {
             // Arrange
             Exception unobservedException = null;
-            var exceptionLogReceived = false;
 
             void OnUnobservedException(Exception ex) => unobservedException = ex;
 
-            void OnUnityLogReceived(string condition, string stackTrace, LogType type)
-            {
-                if (type is not (LogType.Error or LogType.Exception))
-                    return;
-
-                if (condition?.Contains("InvalidOperationException: boom") == true)
-                    exceptionLogReceived = true;
-            }
-
             UniTaskScheduler.UnobservedTaskException += OnUnobservedException;
-            Application.logMessageReceived += OnUnityLogReceived;
 
-            var previousIgnoreFailingMessages = LogAssert.ignoreFailingMessages;
-            LogAssert.ignoreFailingMessages = true;
+            LogAssert.Expect(LogType.Error, new Regex("InvalidOperationException: boom"));
             
             try
             {
-                _stateMachineMock.EnterAsync<LoadGameplayState, GameLaunchConfig>(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
-                    .Returns(UniTask.FromException(new InvalidOperationException("boom")));
+                var enterStarted = new UniTaskCompletionSource<bool>();
+                _stateMachineMock
+                    .EnterAsync<LoadGameplayState, GameLaunchConfig>(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
+                    .Returns(_ =>
+                    {
+                        enterStarted.TrySetResult(true);
+                        return UniTask.FromException(new InvalidOperationException("boom"));
+                    });
 
                 _coordinator.Initialize(_viewModel);
 
@@ -187,17 +368,14 @@ namespace Tests.EditMode
                 _viewModel.Invoking(vm => vm.RequestStartGame()).Should().NotThrow();
                 await UniTask.Yield();
                 _gameLaunchRequested.OnNext(config);
-                await UniTask.Yield();
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                await enterStarted.Task.AttachExternalCancellation(cts.Token);
 
                 // Assert
                 unobservedException.Should().BeNull("MainMenuCoordinator should handle exceptions from fire-and-forget async handlers");
-                exceptionLogReceived.Should().BeTrue("handled exceptions should be logged so they are not silently lost");
             }
             finally
             {
-                LogAssert.ignoreFailingMessages = previousIgnoreFailingMessages;
-
-                Application.logMessageReceived -= OnUnityLogReceived;
                 UniTaskScheduler.UnobservedTaskException -= OnUnobservedException;
             }
         }
@@ -436,5 +614,19 @@ namespace Tests.EditMode
         }
 
         #endregion
+    }
+
+    internal sealed class TestMainMenuViewForCoordinator : MainMenuView
+    {
+        public int ShowCalls { get; private set; }
+        public int HideCalls { get; private set; }
+
+        protected override void Awake() { }
+
+        protected override void BindViewModel() { }
+
+        public override void Show() => ShowCalls++;
+
+        public override void Hide() => HideCalls++;
     }
 }

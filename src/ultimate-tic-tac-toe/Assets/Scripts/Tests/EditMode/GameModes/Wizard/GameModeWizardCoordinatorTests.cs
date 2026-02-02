@@ -132,6 +132,21 @@ namespace Tests.EditMode.GameModes.Wizard
 
         [Test]
         [Timeout(5000)]
+        public async Task WhenStartWizardAsyncCalledTwice_ThenSecondCallIsNoOp()
+        {
+            // Arrange
+            await _sut.StartWizardAsync(CancellationToken.None);
+
+            // Act
+            await _sut.StartWizardAsync(CancellationToken.None);
+
+            // Assert
+            _sessionFactory.CreatedSessions.Should().HaveCount(1);
+            _navigator.OpenModeSelectionCalls.Should().Be(1);
+        }
+
+        [Test]
+        [Timeout(5000)]
         public async Task WhenStartWizardCalledConcurrently_ThenCreatesSingleSessionAndOpensOnce()
         {
             // Arrange
@@ -296,6 +311,112 @@ namespace Tests.EditMode.GameModes.Wizard
 
             Action sessionAccess = () => _ = _sut.Session;
             sessionAccess.Should().Throw<InvalidOperationException>();
+        }
+
+        [Test]
+        [Timeout(5000)]
+        public async Task WhenTryPublishIntentCalledBeforeWizardIsReady_ThenIsRejected()
+        {
+            // Arrange
+            var openStarted = new UniTaskCompletionSource<bool>();
+            var openGate = new UniTaskCompletionSource<bool>();
+
+            _navigator.OpenModeSelectionImpl = async ct =>
+            {
+                openStarted.TrySetResult(true);
+                await openGate.Task.AttachExternalCancellation(ct);
+            };
+
+            var startTask = _sut.StartWizardAsync(CancellationToken.None).AsTask();
+            await openStarted.Task.AsTask();
+
+            // Act
+            var accepted = _sut.TryPublishIntent(WizardIntent.Continue);
+
+            // Assert
+            accepted.Should().BeFalse();
+
+            await _sut.AbortWizardAsync(AbortReason.SceneChange);
+            openGate.TrySetResult(true);
+            await startTask.ContinueWith(_ => { });
+        }
+
+        [Test]
+        [Timeout(5000)]
+        public async Task WhenCancelIntentPublishedBeforeWizardIsReady_ThenAbortStillHappens()
+        {
+            // Arrange
+            var openStarted = new UniTaskCompletionSource<bool>();
+            var openGate = new UniTaskCompletionSource<bool>();
+
+            _navigator.OpenModeSelectionImpl = async ct =>
+            {
+                openStarted.TrySetResult(true);
+                await openGate.Task.AttachExternalCancellation(ct);
+            };
+
+            var startTask = _sut.StartWizardAsync(CancellationToken.None).AsTask();
+            await openStarted.Task.AsTask();
+
+            // Act
+            var accepted = _sut.TryPublishIntent(WizardIntent.Cancel);
+
+            // Assert
+            accepted.Should().BeTrue();
+            await _navigator.CloseAllCalled.Task;
+            _navigator.CloseAllCalls.Should().BeGreaterThan(0);
+
+            openGate.TrySetResult(true);
+            await startTask.ContinueWith(_ => { });
+        }
+
+        [Test]
+        [Timeout(5000)]
+        public async Task WhenStartWizardAsyncCancelledDuringOpenFirstWindow_ThenAbortsWithStartCancelledAndCleansUp()
+        {
+            // Arrange
+            var openStarted = new UniTaskCompletionSource<bool>();
+            var openGate = new UniTaskCompletionSource<bool>();
+
+            _navigator.OpenModeSelectionImpl = async ct =>
+            {
+                openStarted.TrySetResult(true);
+                await openGate.Task.AttachExternalCancellation(ct);
+            };
+
+            using var cts = new CancellationTokenSource();
+            var startTask = _sut.StartWizardAsync(cts.Token).AsTask();
+            await openStarted.Task.AsTask();
+
+            // Act
+            cts.Cancel();
+
+            // Assert
+            Func<Task> act = async () => await startTask;
+            await act.Should().ThrowAsync<OperationCanceledException>();
+            _sessionFactory.CreatedSessions.Should().ContainSingle();
+            _sessionFactory.CreatedSessions.Single().DisposeCallCount.Should().Be(1);
+
+            Action sessionAccess = () => _ = _sut.Session;
+            sessionAccess.Should().Throw<InvalidOperationException>();
+
+            openGate.TrySetResult(true);
+        }
+
+        [Test]
+        [Timeout(5000)]
+        public async Task WhenNavigatorOpenModeSelectionThrows_ThenAbortsWithErrorAndDisposesSession()
+        {
+            // Arrange
+            _navigator.OpenModeSelectionImpl = _ => throw new InvalidOperationException("open failed");
+
+            // Act
+            Func<Task> act = async () => await _sut.StartWizardAsync(CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<InvalidOperationException>();
+            _sessionFactory.CreatedSessions.Should().ContainSingle();
+            _sessionFactory.CreatedSessions.Single().DisposeCallCount.Should().Be(1);
         }
 
         [Test]

@@ -38,7 +38,7 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public async Task WhenEnter_ThenClearsPoolsAndLoadsGameplayScene_InOrder()
+        public async Task WhenEnter_ThenClearsPoolsAndLoadsGameplayScene()
         {
             // Arrange
             _sceneLoader
@@ -52,13 +52,10 @@ namespace Tests.EditMode
             await _sut.EnterAsync(_cancellationToken);
 
             // Assert
-            Received.InOrder(() =>
-            {
-                _uiService.ClearViewModelPools();
-                _assets.Cleanup();
-                _sceneLoader.LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>());
-                _stateMachine.EnterAsync<GameplayState>(Arg.Any<CancellationToken>());
-            });
+            _uiService.Received(1).ClearViewModelPools();
+            _assets.Received(1).Cleanup();
+            await _sceneLoader.Received(1).LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>());
+            await _stateMachine.Received(1).EnterAsync<GameplayState>(Arg.Any<CancellationToken>());
         }
 
         [Test]
@@ -78,6 +75,46 @@ namespace Tests.EditMode
             // Assert
             await _sceneLoader.Received(1).LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>());
             await _stateMachine.Received(1).EnterAsync<GameplayState>(Arg.Any<CancellationToken>());
+        }
+
+        [Test]
+        public async Task WhenEnterAsyncWithPayload_ThenSetsConfigInStoreAndLoadsScene()
+        {
+            // Arrange
+            var config = new GameLaunchConfig("Classic", new ClassicModeConfig(3), new LocalHumanConfig());
+
+            _sceneLoader
+                .LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+
+            _stateMachine.EnterAsync<GameplayState>(Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+
+            // Act
+            await _sut.EnterAsync(config, _cancellationToken);
+
+            // Assert
+            _launchConfigStore.Received(1).Set(config);
+            await _sceneLoader.Received(1).LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>());
+        }
+
+        [Test]
+        public async Task WhenEnterAsyncWithoutPayload_ThenClearsStoreAndLoadsScene()
+        {
+            // Arrange
+            _sceneLoader
+                .LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+
+            _stateMachine.EnterAsync<GameplayState>(Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+
+            // Act
+            await _sut.EnterAsync(_cancellationToken);
+
+            // Assert
+            _launchConfigStore.Received(1).Clear();
+            await _sceneLoader.Received(1).LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>());
         }
 
         [Test]

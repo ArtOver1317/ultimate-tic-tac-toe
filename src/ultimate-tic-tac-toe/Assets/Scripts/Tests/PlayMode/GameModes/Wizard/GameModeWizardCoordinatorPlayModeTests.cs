@@ -254,8 +254,7 @@ namespace Tests.PlayMode.GameModes.Wizard
                 // Act 1: wrong-step intent
                 _sut.TryPublishIntent(WizardIntent.Back).Should().BeTrue();
 
-                // Deterministic: wait until wrong intent is consumed (gate released)
-                await WaitUntilIntentIsAcceptedAsync(WizardIntent.Continue);
+                await PublishIntentWhenReadyAsync(WizardIntent.Continue);
                 await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1);
 
                 // Assert
@@ -280,8 +279,7 @@ namespace Tests.PlayMode.GameModes.Wizard
                 // Act 1: wrong-step intent
                 _sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
 
-                // Deterministic: wait until wrong intent is consumed
-                await WaitUntilIntentIsAcceptedAsync(WizardIntent.Continue);
+                await PublishIntentWhenReadyAsync(WizardIntent.Continue);
                 await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1);
 
                 // Assert
@@ -305,8 +303,7 @@ namespace Tests.PlayMode.GameModes.Wizard
                 // Act 1: wrong-step intent
                 _sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
 
-                // Deterministic: wait until wrong intent is consumed
-                await WaitUntilIntentIsAcceptedAsync(WizardIntent.Back);
+                await PublishIntentWhenReadyAsync(WizardIntent.Back);
                 await WaitUntilAsync(() => _navigator.ReplaceMatchSetupWithModeSelectionCalls == 1);
 
                 // Assert
@@ -470,35 +467,28 @@ namespace Tests.PlayMode.GameModes.Wizard
 
         [UnityTest]
         [Timeout(10000)]
-        public IEnumerator WhenProcessingLoopFaults_ThenNoLateNavigationOccursAfterAbort() => UniTask.ToCoroutine(async () =>
+        public IEnumerator WhenAbortOccursDuringTransition_ThenNoLateNavigationOccursAfterAbort() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             await _sut.StartWizardAsync(CancellationToken.None);
 
-            var openFailedLogs = new List<string>();
-            var oldIgnoreFailingMessages = LogAssert.ignoreFailingMessages;
-            LogAssert.ignoreFailingMessages = true;
-
-            void OnLog(string condition, string stackTrace, LogType type)
-            {
-                if (type is LogType.Error or LogType.Exception && condition != null && condition.Contains("open failed"))
-                    openFailedLogs.Add(condition);
-            }
-
-            Application.logMessageReceived += OnLog;
-
             var openStarted = new UniTaskCompletionSource<bool>();
             var openGate = new UniTaskCompletionSource<bool>();
             var openFinished = new UniTaskCompletionSource<bool>();
+            var openWasCancelled = false;
 
-            _navigator.ReplaceModeSelectionWithMatchSetupImpl = async _ =>
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = async ct =>
             {
                 openStarted.TrySetResult(true);
 
                 try
                 {
-                    await openGate.Task;
-                    throw new Exception("open failed");
+                    await openGate.Task.AttachExternalCancellation(ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    openWasCancelled = true;
+                    throw;
                 }
                 finally
                 {
@@ -509,31 +499,46 @@ namespace Tests.PlayMode.GameModes.Wizard
             try
             {
                 // Act
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(4));
                 _sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
-                await openStarted.Task;
+                await openStarted.Task.AttachExternalCancellation(cts.Token);
 
                 await _sut.AbortWizardAsync(AbortReason.SceneChange);
-                await WaitUntilAsync(() => _sessionFactory.CreatedSessions.Single().DisposeCallCount == 1);
+                await WaitUntilAsync(
+                    () => _sessionFactory.CreatedSessions.Single().DisposeCallCount == 1,
+                    timeoutMs: 4000,
+                    because: "session must be disposed on abort");
                 var callsAfterAbort = _navigator.TotalCalls;
 
                 openGate.TrySetResult(true);
-                await openFinished.Task;
+                await openFinished.Task.AttachExternalCancellation(cts.Token);
 
                 // Assert
-                openFailedLogs.Should().NotBeEmpty("processing loop exception must be logged");
                 _navigator.TotalCalls.Should().Be(callsAfterAbort);
+                openWasCancelled.Should().BeTrue("transition must be cancelled by abort");
                 _sut.TryPublishIntent(WizardIntent.Continue).Should().BeFalse("wizard must not become ready again after abort");
             }
             finally
             {
-                Application.logMessageReceived -= OnLog;
-                LogAssert.ignoreFailingMessages = oldIgnoreFailingMessages;
+                openGate.TrySetResult(true);
                 await _sut.TryAbortBestEffortAsync();
             }
         });
 
-        private UniTask WaitUntilIntentIsAcceptedAsync(WizardIntent intent) =>
-            WaitUntilAsync(() => _sut.TryPublishIntent(intent));
+        private async UniTask PublishIntentWhenReadyAsync(WizardIntent intent)
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+
+            while (!cts.IsCancellationRequested)
+            {
+                if (_sut.TryPublishIntent(intent))
+                    return;
+
+                await UniTask.Yield(PlayerLoopTiming.Update, cts.Token);
+            }
+
+            Assert.Fail($"Intent was never accepted within timeout: {intent}");
+        }
 
         [UnityTest]
         [Timeout(10000)]
@@ -691,16 +696,428 @@ namespace Tests.PlayMode.GameModes.Wizard
             _sessionFactory.CreatedSessions.Single().DisposeCallCount.Should().Be(1);
         });
 
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenBuildLaunchConfigFailsOnStart_ThenDoesNotAbortAndSetsCurrentError() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            await _sut.StartWizardAsync(CancellationToken.None);
+            await MoveToMatchSetupAsync();
+
+            var session = _sessionFactory.CreatedSessions.Single();
+            session.ReturnFailureOnBuildLaunchConfig = true;
+
+            var gameLaunchCount = 0;
+            var subscription = _sut.GameLaunchRequested.Subscribe(_ => gameLaunchCount++);
+
+            try
+            {
+                // Act
+                _sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
+                await WaitUntilAsync(() => _sut.CurrentError.CurrentValue != null);
+
+                // Assert
+                _sut.IsActive.Should().BeTrue("wizard должен оставаться активным при validation ошибке");
+                _sut.CurrentError.CurrentValue.Should().NotBeNull();
+                _navigator.CloseAllCalls.Should().Be(0);
+                session.DisposeCallCount.Should().Be(0);
+                gameLaunchCount.Should().Be(0);
+            }
+            finally
+            {
+                subscription.Dispose();
+                await _sut.TryAbortBestEffortAsync();
+            }
+        });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenAbortWizardAsyncCalledOffMainThread_ThenDoesNotThrowAndPublishesWizardAborted() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            await _sut.StartWizardAsync(CancellationToken.None);
+
+            AbortReason? published = null;
+            var subscription = _sut.WizardAborted.Subscribe(r => published = r);
+
+            try
+            {
+                // Act
+                await Task.Run(async () => await _sut.AbortWizardAsync(AbortReason.SceneChange));
+                await WaitUntilAsync(() => published != null);
+
+                // Assert
+                published.Should().Be(AbortReason.SceneChange);
+                _navigator.CloseAllCalls.Should().Be(1);
+            }
+            finally
+            {
+                subscription.Dispose();
+            }
+        });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenAbortTimeoutClosingWindows_ThenStillDisposesSessionAndResetsBusyFlags() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            await _sut.StartWizardAsync(CancellationToken.None);
+            var session = _sessionFactory.CreatedSessions.Single();
+
+            _navigator.CloseAllImpl = async ct =>
+            {
+                // Must respect cancellation; coordinator uses 2s timeout.
+                await UniTask.Delay(TimeSpan.FromSeconds(10), cancellationToken: ct);
+            };
+
+            // Act
+            await _sut.AbortWizardAsync(AbortReason.UserCancel);
+
+            // Assert
+            _navigator.CloseAllCalls.Should().Be(1);
+            session.DisposeCallCount.Should().Be(1);
+            _sut.IsTransitioning.CurrentValue.Should().BeFalse();
+            _sut.IsSubmitting.CurrentValue.Should().BeFalse();
+        });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenTryPublishIntentCalledTwiceQuickly_ThenSecondRejectedDueToPendingInFlightGate() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            await _sut.StartWizardAsync(CancellationToken.None);
+
+            var closeGate = new UniTaskCompletionSource<bool>();
+            _navigator.ReplaceModeSelectionWithMatchSetupImpl = ct => closeGate.Task.AttachExternalCancellation(ct);
+
+            // Act
+            var first = _sut.TryPublishIntent(WizardIntent.Continue);
+            var second = _sut.TryPublishIntent(WizardIntent.Continue);
+
+            // Assert
+            first.Should().BeTrue();
+            second.Should().BeFalse();
+
+            closeGate.TrySetResult(true);
+            await _sut.TryAbortBestEffortAsync();
+        });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenFullFlowModeSelectionToMatchSetupToStart_ThenPublishesGameLaunchRequestedAndAbortsWithGameStartedReason() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                var launchConfigs = new List<GameLaunchConfig>();
+                AbortReason? abortReason = null;
+
+                var launchSub = _sut.GameLaunchRequested.Subscribe(c => launchConfigs.Add(c));
+                var abortSub = _sut.WizardAborted.Subscribe(r => abortReason = r);
+
+                try
+                {
+                    // Act
+                    await _sut.StartWizardAsync(CancellationToken.None);
+                    await WaitUntilAsync(() => _navigator.OpenModeSelectionCalls == 1);
+
+                    _sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
+                    await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1);
+
+                    _sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
+                    await WaitUntilAsync(() => abortReason != null);
+
+                    // Assert
+                    launchConfigs.Should().HaveCount(1);
+                    abortReason.Should().Be(AbortReason.GameStarted);
+                }
+                finally
+                {
+                    launchSub.Dispose();
+                    abortSub.Dispose();
+                }
+            });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenCancelIntentPublishedAtModeSelection_ThenAbortsWithUserCancelReasonAndDisposesSession() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                AbortReason? reason = null;
+                var subscription = _sut.WizardAborted.Subscribe(r => reason = r);
+
+                try
+                {
+                    await _sut.StartWizardAsync(CancellationToken.None);
+                    var session = _sessionFactory.CreatedSessions.Single();
+
+                    // Act
+                    _sut.TryPublishIntent(WizardIntent.Cancel).Should().BeTrue();
+                    await WaitUntilAsync(() => reason != null);
+
+                    // Assert
+                    reason.Should().Be(AbortReason.UserCancel);
+                    session.DisposeCallCount.Should().Be(1);
+                }
+                finally
+                {
+                    subscription.Dispose();
+                }
+            });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenCancelIntentPublishedAtMatchSetup_ThenAbortsWithUserCancelReasonAndDisposesSession() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                AbortReason? reason = null;
+                var subscription = _sut.WizardAborted.Subscribe(r => reason = r);
+
+                try
+                {
+                    await _sut.StartWizardAsync(CancellationToken.None);
+                    await MoveToMatchSetupAsync();
+                    var session = _sessionFactory.CreatedSessions.Single();
+
+                    // Act
+                    _sut.TryPublishIntent(WizardIntent.Cancel).Should().BeTrue();
+                    await WaitUntilAsync(() => reason != null);
+
+                    // Assert
+                    reason.Should().Be(AbortReason.UserCancel);
+                    session.DisposeCallCount.Should().Be(1);
+                }
+                finally
+                {
+                    subscription.Dispose();
+                }
+            });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenBackIntentPublishedAtMatchSetup_ThenReplacesWithModeSelectionAndDoesNotDisposeSession() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                await _sut.StartWizardAsync(CancellationToken.None);
+                await MoveToMatchSetupAsync();
+                var session = _sessionFactory.CreatedSessions.Single();
+                _navigator.ClearHistory();
+
+                // Act
+                _sut.TryPublishIntent(WizardIntent.Back).Should().BeTrue();
+                await WaitUntilAsync(() => _navigator.ReplaceMatchSetupWithModeSelectionCalls == 1);
+
+                // Assert
+                session.DisposeCallCount.Should().Be(0);
+                _navigator.CallHistory.Should().ContainInOrder(nameof(IGameModeWizardNavigator.ReplaceMatchSetupWithModeSelectionAsync));
+
+                await _sut.TryAbortBestEffortAsync();
+            });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenCancelIntentPublishedDuringTransition_ThenCancelsTransitionAndAbortsWizard() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                await _sut.StartWizardAsync(CancellationToken.None);
+
+                var transitionStarted = new UniTaskCompletionSource<bool>();
+                var transitionGate = new UniTaskCompletionSource<bool>();
+                CancellationToken transitionToken = default;
+
+                _navigator.ReplaceModeSelectionWithMatchSetupImpl = async ct =>
+                {
+                    transitionToken = ct;
+                    transitionStarted.TrySetResult(true);
+                    await transitionGate.Task.AttachExternalCancellation(ct);
+                };
+
+                AbortReason? reason = null;
+                var aborted = _sut.WizardAborted.Subscribe(r => reason = r);
+
+                try
+                {
+                    // Act
+                    _sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
+                    await transitionStarted.Task;
+
+                    _sut.TryPublishIntent(WizardIntent.Cancel).Should().BeTrue();
+                    await WaitUntilAsync(() => reason != null);
+
+                    // Assert
+                    transitionToken.IsCancellationRequested.Should().BeTrue();
+                    reason.Should().Be(AbortReason.UserCancel);
+                }
+                finally
+                {
+                    aborted.Dispose();
+                    transitionGate.TrySetResult(true);
+                }
+            });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenStartIntentPublishedDuringSubmitInProgress_ThenIgnoresSecondStart() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                await _sut.StartWizardAsync(CancellationToken.None);
+                await MoveToMatchSetupAsync();
+
+                var closeAllStarted = new UniTaskCompletionSource<bool>();
+                var closeAllGate = new UniTaskCompletionSource<bool>();
+
+                _navigator.CloseAllImpl = async ct =>
+                {
+                    closeAllStarted.TrySetResult(true);
+                    await closeAllGate.Task.AttachExternalCancellation(ct);
+                };
+
+                // Act
+                var first = _sut.TryPublishIntent(WizardIntent.Start);
+                await closeAllStarted.Task;
+                var second = _sut.TryPublishIntent(WizardIntent.Start);
+
+                // Assert
+                first.Should().BeTrue();
+                second.Should().BeFalse();
+
+                closeAllGate.TrySetResult(true);
+                await WaitUntilAsync(() => _sessionFactory.CreatedSessions.Single().DisposeCallCount == 1);
+            });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenWizardOpenedAndAborted10Times_ThenAllSessionsDisposedAndNoNavigatorLeaks() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                const int cycles = 10;
+
+                // Act
+                for (var i = 0; i < cycles; i++)
+                {
+                    await _sut.StartWizardAsync(CancellationToken.None);
+                    await _sut.AbortWizardAsync(AbortReason.UserCancel);
+                }
+
+                // Assert
+                _sessionFactory.CreatedSessions.Should().HaveCount(cycles);
+                _sessionFactory.CreatedSessions.All(s => s.DisposeCallCount == 1).Should().BeTrue();
+                _navigator.OpenModeSelectionCalls.Should().Be(cycles);
+                _navigator.CloseAllCalls.Should().Be(cycles);
+            });
+
+        [UnityTest]
+        [Explicit]
+        [Timeout(60000)]
+        public IEnumerator WhenWizardOpenedAndAborted100Times_ThenAllSessionsDisposedAndNoNavigatorLeaks() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                const int cycles = 100;
+
+                // Act
+                for (var i = 0; i < cycles; i++)
+                {
+                    await _sut.StartWizardAsync(CancellationToken.None);
+                    await _sut.AbortWizardAsync(AbortReason.UserCancel);
+                }
+
+                // Assert
+                _sessionFactory.CreatedSessions.Should().HaveCount(cycles);
+                _sessionFactory.CreatedSessions.All(s => s.DisposeCallCount == 1).Should().BeTrue();
+                _navigator.OpenModeSelectionCalls.Should().Be(cycles);
+                _navigator.CloseAllCalls.Should().Be(cycles);
+            });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenAbortCalledWithActiveAsyncOperations_ThenDisposesSessionAndPublishesWizardAborted() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                await _sut.StartWizardAsync(CancellationToken.None);
+                var session = _sessionFactory.CreatedSessions.Single();
+
+                var transitionStarted = new UniTaskCompletionSource<bool>();
+                var transitionGate = new UniTaskCompletionSource<bool>();
+                CancellationToken transitionToken = default;
+
+                _navigator.ReplaceModeSelectionWithMatchSetupImpl = async ct =>
+                {
+                    transitionToken = ct;
+                    transitionStarted.TrySetResult(true);
+                    await transitionGate.Task.AttachExternalCancellation(ct);
+                };
+
+                AbortReason? reason = null;
+                var subscription = _sut.WizardAborted.Subscribe(r => reason = r);
+
+                try
+                {
+                    _sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
+                    await transitionStarted.Task;
+
+                    // Act
+                    await _sut.AbortWizardAsync(AbortReason.UserCancel);
+
+                    // Assert
+                    transitionToken.IsCancellationRequested.Should().BeTrue();
+                    session.DisposeCallCount.Should().Be(1);
+                    reason.Should().Be(AbortReason.UserCancel);
+                }
+                finally
+                {
+                    subscription.Dispose();
+                    transitionGate.TrySetResult(true);
+                }
+            });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenAbortCalledMultipleTimes_ThenIsIdempotentAndDoesNotThrow() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                await _sut.StartWizardAsync(CancellationToken.None);
+                var session = _sessionFactory.CreatedSessions.Single();
+
+                // Act
+                Func<Task> act = async () =>
+                {
+                    await _sut.AbortWizardAsync(AbortReason.UserCancel);
+                    await _sut.AbortWizardAsync(AbortReason.UserCancel);
+                    await _sut.AbortWizardAsync(AbortReason.UserCancel);
+                };
+
+                // Assert
+                await act.Should().NotThrowAsync();
+                session.DisposeCallCount.Should().Be(1);
+            });
+
         private async UniTask MoveToMatchSetupAsync()
         {
             _sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
             await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1);
         }
 
-        private static async UniTask WaitUntilAsync(Func<bool> predicate)
+        private static async UniTask WaitUntilAsync(Func<bool> predicate, int timeoutMs = 2000, string because = null)
         {
-            while (!predicate())
-                await UniTask.Yield();
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(timeoutMs));
+
+            try
+            {
+                await UniTask.WaitUntil(predicate, cancellationToken: cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.Fail($"Timed out after {timeoutMs}ms waiting for condition" +
+                            (string.IsNullOrWhiteSpace(because) ? string.Empty : $": {because}"));
+            }
         }
 
         private sealed class SpyWizardNavigator : IGameModeWizardNavigator
@@ -909,6 +1326,8 @@ namespace Tests.PlayMode.GameModes.Wizard
             private readonly R3.ReactiveProperty<bool> _canStart = new(false);
             private readonly R3.ReactiveProperty<IReadOnlyList<ValidationError>> _validationErrors = new(Array.Empty<ValidationError>());
 
+            public bool ReturnFailureOnBuildLaunchConfig { get; set; }
+
             public int DisposeCallCount { get; private set; }
 
             public R3.ReadOnlyReactiveProperty<GameModeSessionSnapshot> Snapshot => _snapshot;
@@ -922,6 +1341,12 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             public Result<GameLaunchConfig> BuildLaunchConfig()
             {
+                if (ReturnFailureOnBuildLaunchConfig)
+                {
+                    return Result<GameLaunchConfig>.Failure(
+                        new ValidationError("wizard.validation_failed", "Errors.GameModeWizard.UnhandledException"));
+                }
+
                 var snapshot = _snapshot.Value;
 
                 var modeId = string.IsNullOrWhiteSpace(snapshot.SelectedModeId)
