@@ -1,6 +1,7 @@
 using System;
 using FluentAssertions;
 using NUnit.Framework;
+using Runtime.Gameplay;
 using Runtime.GameModes.Wizard;
 using Runtime.UI.GameModes.Wizard;
 using UnityEngine.UIElements;
@@ -40,7 +41,8 @@ namespace Tests.EditMode.GameModes.Wizard
                 sortOrder: 0,
                 supportsBot: true,
                 supportsOnline: true,
-                supportsLocal: true);
+                supportsLocal: true,
+                fieldKind: FieldKind.Classic);
 
             // Act
             element.Bind(metadata, isSelected: true);

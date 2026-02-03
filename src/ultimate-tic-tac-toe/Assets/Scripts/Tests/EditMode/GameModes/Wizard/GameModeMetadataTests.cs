@@ -1,6 +1,7 @@
 using System;
 using FluentAssertions;
 using NUnit.Framework;
+using Runtime.Gameplay;
 using Runtime.GameModes.Wizard;
 
 namespace Tests.EditMode.GameModes.Wizard
@@ -21,7 +22,8 @@ namespace Tests.EditMode.GameModes.Wizard
                 sortOrder: 0,
                 supportsBot: true,
                 supportsOnline: true,
-                supportsLocal: true);
+                supportsLocal: true,
+                fieldKind: FieldKind.Classic);
 
             // Act / Assert
             act.Should().Throw<ArgumentException>();
@@ -39,7 +41,8 @@ namespace Tests.EditMode.GameModes.Wizard
                 sortOrder: 0,
                 supportsBot: true,
                 supportsOnline: true,
-                supportsLocal: true);
+                supportsLocal: true,
+                fieldKind: FieldKind.Classic);
 
             // Act / Assert
             act.Should().Throw<ArgumentException>();
@@ -57,7 +60,8 @@ namespace Tests.EditMode.GameModes.Wizard
                 sortOrder: 0,
                 supportsBot: true,
                 supportsOnline: true,
-                supportsLocal: true);
+                supportsLocal: true,
+                fieldKind: FieldKind.Classic);
 
             // Act / Assert
             act.Should().Throw<ArgumentException>();
@@ -75,7 +79,8 @@ namespace Tests.EditMode.GameModes.Wizard
                 sortOrder: 0,
                 supportsBot: true,
                 supportsOnline: true,
-                supportsLocal: true);
+                supportsLocal: true,
+                fieldKind: FieldKind.Classic);
 
             // Act / Assert
             act.Should().Throw<ArgumentException>();
@@ -93,7 +98,8 @@ namespace Tests.EditMode.GameModes.Wizard
                 sortOrder: 0,
                 supportsBot: true,
                 supportsOnline: true,
-                supportsLocal: true);
+                supportsLocal: true,
+                fieldKind: FieldKind.Classic);
 
             // Act / Assert
             act.Should().Throw<ArgumentException>();

@@ -24,6 +24,9 @@ namespace Runtime.UI.MainMenu
         private CompositeDisposable _disposables = new();
         private CompositeDisposable _wizardDisposables = new();
         private CancellationTokenSource _lifecycleCts = new();
+        // Transition token: intentionally not linked to lifecycle.
+        // MainMenuCoordinator.Dispose() is called during normal scene exit, so linking would cancel valid transitions.
+        private CancellationTokenSource _launchCts;
         private bool _isDisposed;
         private int _startInProgress;
         private int _wizardStartInProgress;
@@ -89,6 +92,9 @@ namespace Runtime.UI.MainMenu
             _wizardDisposables = new CompositeDisposable();
             _startInProgress = 0;
             _wizardStartInProgress = 0;
+            _launchCts?.Cancel();
+            _launchCts?.Dispose();
+            _launchCts = null;
         }
 
         private async UniTask OnStartGameAsync(CancellationToken cancellationToken = default)
@@ -186,6 +192,12 @@ namespace Runtime.UI.MainMenu
             _isDisposed = true;
             _lifecycleCts.Cancel();
             _lifecycleCts.Dispose();
+            if (_startInProgress == 0)
+            {
+                _launchCts?.Cancel();
+                _launchCts?.Dispose();
+                _launchCts = null;
+            }
             _disposables.Dispose();
             _wizardDisposables.Dispose();
             _wizardCoordinator.AbortWizardAsync(AbortReason.SceneChange).Forget(ex =>
@@ -224,8 +236,13 @@ namespace Runtime.UI.MainMenu
 
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 _viewModel.SetInteractable(false);
-                await _stateMachine.EnterAsync<LoadGameplayState, GameLaunchConfig>(config, cancellationToken);
+
+                _launchCts?.Dispose();
+                _launchCts = new CancellationTokenSource();
+
+                await _stateMachine.EnterAsync<LoadGameplayState, GameLaunchConfig>(config, _launchCts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -239,6 +256,8 @@ namespace Runtime.UI.MainMenu
             }
             finally
             {
+                _launchCts?.Dispose();
+                _launchCts = null;
                 Interlocked.Exchange(ref _startInProgress, 0);
             }
         }
@@ -254,6 +273,9 @@ namespace Runtime.UI.MainMenu
                 case AbortReason.Error:
                 case AbortReason.StartCancelled:
                 case AbortReason.Disconnect:
+                    if (_startInProgress != 0)
+                        _launchCts?.Cancel();
+
                     _uiService.Get<MainMenuView>()?.Show();
                     _viewModel.SetInteractable(true);
                     break;

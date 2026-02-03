@@ -7,6 +7,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
+using Runtime.Gameplay;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
 using Runtime.UI.Components;
@@ -1799,7 +1800,8 @@ namespace Tests.EditMode.GameModes.Wizard
                     sortOrder: 0,
                     supportsBot: true,
                     supportsOnline: true,
-                    supportsLocal: true);
+                    supportsLocal: true,
+                    fieldKind: FieldKind.Classic);
                 _viewModel = viewModel;
             }
 

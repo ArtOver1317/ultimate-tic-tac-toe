@@ -9,6 +9,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
+using Runtime.Gameplay;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
 using UnityEngine;
@@ -585,7 +586,8 @@ namespace Tests.EditMode.GameModes.Wizard
                     index,
                     supportsBot: true,
                     supportsOnline: true,
-                    supportsLocal: true))
+                    supportsLocal: true,
+                    fieldKind: FieldKind.Classic))
                 .ToList();
 
 

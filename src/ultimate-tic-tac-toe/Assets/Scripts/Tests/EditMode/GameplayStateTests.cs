@@ -5,8 +5,14 @@ using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using Runtime.Gameplay;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
+using Runtime.Services.Assets;
+using Runtime.Services.UI;
+using VContainer;
+using UnityEngine;
+using UnityEngine.AddressableAssets;
 
 namespace Tests.EditMode
 {
@@ -14,6 +20,13 @@ namespace Tests.EditMode
     public class GameplayStateTests
     {
         private IGameStateMachine _stateMachineMock;
+        private IGameplayScopeAccessor _scopeAccessorMock;
+        private IObjectResolver _objectResolverMock;
+        private IGameplayStartup _startupMock;
+        private IUIService _uiServiceMock;
+        private IAssetProvider _assetsMock;
+        private AssetLibrary _assetLibrary;
+        private GameObject _backgroundPrefab;
         private GameplayState _sut;
         private CancellationToken _cancellationToken;
 
@@ -21,8 +34,40 @@ namespace Tests.EditMode
         public void SetUp()
         {
             _stateMachineMock = Substitute.For<IGameStateMachine>();
-            _sut = new GameplayState(_stateMachineMock);
+            _scopeAccessorMock = Substitute.For<IGameplayScopeAccessor>();
+            _objectResolverMock = Substitute.For<IObjectResolver>();
+            _startupMock = Substitute.For<IGameplayStartup>();
+            _uiServiceMock = Substitute.For<IUIService>();
+            _assetsMock = Substitute.For<IAssetProvider>();
+            _assetLibrary = ScriptableObject.CreateInstance<AssetLibrary>();
+            _assetLibrary.BackgroundPrefab = new AssetReferenceGameObject("00000000000000000000000000000006");
+            _backgroundPrefab = new GameObject("BackgroundPrefab");
+
+            _assetsMock
+                .LoadAsync<GameObject>(_assetLibrary.BackgroundPrefab, Arg.Any<CancellationToken>())
+                .Returns(UniTask.FromResult(_backgroundPrefab));
+
+            _startupMock.StartAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
+            _objectResolverMock.Resolve<IGameplayStartup>().Returns(_startupMock);
+            _scopeAccessorMock.Current.Returns(_objectResolverMock);
+
+            _sut = new GameplayState(
+                _stateMachineMock,
+                _scopeAccessorMock,
+                _uiServiceMock,
+                _assetsMock,
+                _assetLibrary);
             _cancellationToken = CancellationToken.None;
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            if (_backgroundPrefab != null)
+                UnityEngine.Object.DestroyImmediate(_backgroundPrefab);
+
+            if (_assetLibrary != null)
+                UnityEngine.Object.DestroyImmediate(_assetLibrary);
         }
 
         [Test]
@@ -46,6 +91,7 @@ namespace Tests.EditMode
 
             // Assert
             await act.Should().NotThrowAsync();
+            await _startupMock.Received(1).StartAsync(Arg.Any<CancellationToken>());
         }
 
         [Test]

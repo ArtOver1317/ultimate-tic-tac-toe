@@ -1,0 +1,9 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="GameplayField.uss" />
+    <ui:VisualElement name="GameplayFieldRoot" class="gameplay-field-root">
+        <ui:VisualElement name="GameplayToolbar" class="gameplay-toolbar">
+            <ui:Button name="BackButton" text="Back" class="back-button" />
+        </ui:VisualElement>
+        <ui:VisualElement name="FieldContainer" class="field-container" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -45,7 +45,8 @@ namespace Runtime.GameModes.Wizard
                 sortOrder: 20,
                 supportsBot: true,
                 supportsOnline: true,
-                supportsLocal: true);
+                supportsLocal: true,
+                fieldKind: Runtime.Gameplay.FieldKind.Ultimate);
         }
 
         public ModeSettingsPresentation CreatePresentation()

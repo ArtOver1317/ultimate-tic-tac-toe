@@ -2,6 +2,7 @@ using System;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
+using Runtime.Gameplay;
 using Runtime.GameModes.Wizard;
 
 namespace Tests.EditMode.GameModes.Wizard
@@ -61,7 +62,8 @@ namespace Tests.EditMode.GameModes.Wizard
                 sortOrder: 10,
                 supportsBot: true,
                 supportsOnline: true,
-                supportsLocal: true));
+                supportsLocal: true,
+                fieldKind: FieldKind.Classic));
 
             // Act
             Action act = () => _ = new GameModeCatalog(new[] { strategy });
@@ -84,7 +86,8 @@ namespace Tests.EditMode.GameModes.Wizard
                 sortOrder: 10,
                 supportsBot: true,
                 supportsOnline: true,
-                supportsLocal: true));
+                supportsLocal: true,
+                fieldKind: FieldKind.Classic));
 
             // Act
             Action act = () => _ = new GameModeCatalog(new[] { strategy });
@@ -261,7 +264,8 @@ namespace Tests.EditMode.GameModes.Wizard
                 sortOrder: sortOrder,
                 supportsBot: true,
                 supportsOnline: true,
-                supportsLocal: true);
+                supportsLocal: true,
+                fieldKind: FieldKind.Classic);
 
             strategy.ModeId.Returns(modeId);
             strategy.Metadata.Returns(metadata);

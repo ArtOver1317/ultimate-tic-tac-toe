@@ -1,0 +1,133 @@
+.gameplay-field-root {
+    --cell-size-min: 24px;
+    --grid-gap: 5;
+    --grid-gap-half: 3;
+    --mini-board-gap: 12px;
+    --mini-board-gap-half: 6;
+    --mini-board-padding: 5;
+    --border-color: rgba(255, 255, 255, 0.22);
+    --cell-bg: rgba(255, 255, 255, 0.10);
+    --border-width: 1px;
+    --border-radius: 7px;
+    --cell-border-color: var(--border-color);
+    --cell-radius: var(--border-radius);
+    --mini-board-radius: 12px;
+    --mini-board-border-width: 2;
+    --mini-board-border-color: rgba(255, 255, 255, 0.40);
+    --mini-board-bg: rgba(255, 255, 255, 0.04);
+
+    --anim-fast-ms: 160ms;
+    --anim-ease: ease-out;
+
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.gameplay-toolbar {
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.back-button {
+    width: 160px;
+    height: 56px;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 24px;
+}
+
+.field-container {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-content: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.field-container--ultimate {
+}
+
+.field-row,
+.mini-row,
+.mini-row-inner {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: center;
+}
+
+.mini-board {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    padding: var(--mini-board-padding);
+    border-color: var(--mini-board-border-color);
+    border-width: var(--mini-board-border-width);
+    border-radius: var(--mini-board-radius);
+    background-color: var(--mini-board-bg);
+    margin: var(--mini-board-gap-half);
+    transition-property: background-color, border-color;
+    transition-duration: var(--anim-fast-ms);
+    transition-timing-function: var(--anim-ease);
+}
+
+.cell {
+    min-width: var(--cell-size-min);
+    min-height: var(--cell-size-min);
+    background-color: var(--cell-bg);
+    border-color: var(--cell-border-color);
+    border-width: var(--border-width);
+    border-radius: var(--cell-radius);
+    margin: var(--grid-gap-half);
+    transition-property: background-color, border-color;
+    transition-duration: var(--anim-fast-ms);
+    transition-timing-function: var(--anim-ease);
+}
+
+.cell:hover {
+    background-color: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.30);
+}
+
+.cell-mark {
+    width: 100%;
+    height: 100%;
+}
+
+/* States (prepared for gameplay rules) */
+.mini-board.miniBoard--active,
+.mini-board.mini-board--active {
+    border-color: rgba(255, 255, 255, 0.72);
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+.cell.cell--allowed {
+    background-color: rgba(255, 255, 255, 0.17);
+    border-color: rgba(255, 255, 255, 0.34);
+}
+
+.cell.cell--lastMove {
+    background-color: rgba(255, 255, 255, 0.23);
+    border-color: rgba(255, 255, 255, 0.52);
+}
+
+.mini-board.miniBoard--wonX,
+.mini-board.miniBoard--wonO,
+.mini-board.miniBoard--draw,
+.mini-board.mini-board--wonX,
+.mini-board.mini-board--wonO,
+.mini-board.mini-board--draw {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.55);
+}

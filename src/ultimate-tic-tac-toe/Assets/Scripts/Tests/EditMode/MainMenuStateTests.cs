@@ -5,6 +5,8 @@ using Cysharp.Threading.Tasks;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
+using Runtime.GameModes.Wizard;
+using Runtime.Infrastructure;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Localization;
 using Runtime.Services.Assets;
@@ -22,6 +24,8 @@ namespace Tests.EditMode
     {
         private IUIService _uiService;
         private IMainMenuCoordinator _coordinator;
+        private IGameModeWizardCoordinator _wizardCoordinator;
+        private IMainMenuEntryModeStore _entryModeStore;
         private IAssetProvider _assets;
         private ILocalizationService _localizationMock;
         private AssetLibrary _assetLibrary;
@@ -40,6 +44,8 @@ namespace Tests.EditMode
         {
             _uiService = Substitute.For<IUIService>();
             _coordinator = Substitute.For<IMainMenuCoordinator>();
+            _wizardCoordinator = Substitute.For<IGameModeWizardCoordinator>();
+            _entryModeStore = new MainMenuEntryModeStore();
             _assets = Substitute.For<IAssetProvider>();
             _localizationMock = Substitute.For<ILocalizationService>();
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
@@ -105,7 +111,14 @@ namespace Tests.EditMode
 
             _uiService.Open<MainMenuView, MainMenuViewModel>().Returns(_testView);
 
-            _state = new MainMenuState(_uiService, _coordinator, _assets, _assetLibrary, _localizationMock);
+            _state = new MainMenuState(
+                _uiService,
+                _coordinator,
+                _wizardCoordinator,
+                _entryModeStore,
+                _assets,
+                _assetLibrary,
+                _localizationMock);
         }
 
         [TearDown]
@@ -199,7 +212,6 @@ namespace Tests.EditMode
                 _uiService.Close<Runtime.UI.Settings.LanguageSelectionView>();
                 _uiService.Close<Runtime.UI.Settings.SettingsView>();
                 _uiService.Close<MainMenuView>();
-                _uiService.Close<Runtime.UI.Common.UIBackgroundView>();
             });
         }
 

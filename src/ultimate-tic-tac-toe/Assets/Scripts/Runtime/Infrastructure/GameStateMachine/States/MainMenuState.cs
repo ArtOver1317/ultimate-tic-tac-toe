@@ -1,6 +1,8 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.Logging;
+using Runtime.Infrastructure;
 using Runtime.Localization;
 using Runtime.Services.Assets;
 using Runtime.Services.UI;
@@ -15,20 +17,27 @@ namespace Runtime.Infrastructure.GameStateMachine.States
     {
         private readonly IUIService _uiService;
         private readonly IMainMenuCoordinator _coordinator;
+        private readonly IGameModeWizardCoordinator _wizardCoordinator;
+        private readonly IMainMenuEntryModeStore _entryModeStore;
         private readonly IAssetProvider _assets;
         private readonly AssetLibrary _assetLibrary;
         private readonly ILocalizationService _localization;
         private bool _isExited;
+        private MainMenuViewModel _headlessViewModel;
 
         public MainMenuState(
             IUIService uiService, 
             IMainMenuCoordinator coordinator,
+            IGameModeWizardCoordinator wizardCoordinator,
+            IMainMenuEntryModeStore entryModeStore,
             IAssetProvider assets,
             AssetLibrary assetLibrary,
             ILocalizationService localization)
         {
             _uiService = uiService;
             _coordinator = coordinator;
+            _wizardCoordinator = wizardCoordinator;
+            _entryModeStore = entryModeStore;
             _assets = assets;
             _assetLibrary = assetLibrary;
             _localization = localization;
@@ -105,6 +114,31 @@ namespace Runtime.Infrastructure.GameStateMachine.States
                 Log.Error(LogTags.Scenes, "[MainMenuState] MatchmakingPrefab is missing or invalid. Game mode wizard will be disabled.");
             }
 
+            if (_entryModeStore.TryConsume(out var entryMode) && entryMode == MainMenuEntryMode.OpenWizard)
+            {
+                var menuView = await _uiService.OpenWithLocalizationPreloadAsync<MainMenuView, MainMenuViewModel>(
+                    _localization,
+                    cancellationToken,
+                    TextTableId.MainMenu);
+
+                if (menuView != null)
+                {
+                    _uiService.Hide<MainMenuView>();
+                    _coordinator.Initialize(menuView.GetViewModel());
+                }
+                else
+                {
+                    Log.Error(LogTags.UI, "[MainMenuState] Failed to open MainMenuView for wizard entry.");
+                    _headlessViewModel?.Dispose();
+                    _headlessViewModel = new MainMenuViewModel(_localization);
+                    _headlessViewModel.Initialize();
+                    _coordinator.Initialize(_headlessViewModel);
+                }
+
+                await _wizardCoordinator.StartWizardAsync(cancellationToken);
+                return;
+            }
+
             var view = await _uiService.OpenWithLocalizationPreloadAsync<MainMenuView, MainMenuViewModel>(
                 _localization,
                 cancellationToken,
@@ -132,9 +166,10 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             _uiService.Close<Runtime.UI.Settings.LanguageSelectionView>();
             _uiService.Close<Runtime.UI.Settings.SettingsView>();
             _uiService.Close<MainMenuView>();
-            _uiService.Close<UIBackgroundView>();
             
             _coordinator.Dispose();
+            _headlessViewModel?.Dispose();
+            _headlessViewModel = null;
         }
     }
 }

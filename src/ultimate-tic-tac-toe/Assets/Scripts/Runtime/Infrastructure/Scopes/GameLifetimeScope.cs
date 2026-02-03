@@ -38,6 +38,7 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<ObjectPool<BaseViewModel>>(Lifetime.Singleton).As<IObjectPool<BaseViewModel>>();
             builder.Register<IViewAssetProvider, AddressablesViewAssetProvider>(Lifetime.Singleton);
             builder.Register<IUIService, UIService>(Lifetime.Singleton);
+            builder.Register<Runtime.Infrastructure.IMainMenuEntryModeStore, Runtime.Infrastructure.MainMenuEntryModeStore>(Lifetime.Singleton);
 
             // Game Mode Wizard (Phase 1-6)
             builder.Register<IGameLaunchConfigStore, GameLaunchConfigStore>(Lifetime.Singleton);
@@ -52,6 +53,8 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<IGameModeCatalog, GameModeCatalog>(Lifetime.Singleton);
             builder.Register<IBotDifficultyCatalog, BotDifficultyCatalog>(Lifetime.Singleton);
             builder.Register<IMatchmakingService, MatchmakingServiceStub>(Lifetime.Singleton);
+
+            builder.Register<Runtime.Gameplay.IGameplayScopeAccessor, Runtime.Gameplay.GameplayScopeAccessor>(Lifetime.Singleton);
 
             builder.Register<ModeSelectionViewModel>(Lifetime.Transient);
             builder.Register<MatchSetupViewModel>(Lifetime.Transient);
