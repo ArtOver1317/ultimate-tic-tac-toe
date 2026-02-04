@@ -57,6 +57,27 @@ namespace Tests.EditMode.Gameplay
         }
 
         [Test]
+        public void WhenFieldSpecMapperCatalogReturnsTrueButStrategyIsNull_ThenThrowsInvalidOperationException()
+        {
+            // Arrange
+            var sut = new FieldSpecMapper();
+            var catalog = Substitute.For<IGameModeCatalog>();
+            var config = new GameLaunchConfig("classic", new ClassicModeConfig(3), new LocalHumanConfig());
+
+            catalog.TryGetStrategy(Arg.Any<string>(), out Arg.Any<IGameModeStrategy>()).Returns(callInfo =>
+            {
+                callInfo[1] = null;
+                return true;
+            });
+
+            // Act
+            Action act = () => sut.Map(config, catalog);
+
+            // Assert
+            act.Should().Throw<InvalidOperationException>();
+        }
+
+        [Test]
         public void WhenFieldKindClassicAndConfigIsClassic_ThenMapsToClassicSpec()
         {
             // Arrange

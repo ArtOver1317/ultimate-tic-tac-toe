@@ -80,6 +80,8 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             // Arrange
             _service.EnqueueDelayedResult(new MatchmakingResult("match-1", "opponent-1"), TimeSpan.FromMilliseconds(500));
+            _viewModel.Initialize();
+            await UniTask.Yield();
 
             // Act
             _viewModel.BeginSearch(CreateValidRequest(), CancellationToken.None);
