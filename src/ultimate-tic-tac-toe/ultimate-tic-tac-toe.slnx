@@ -6,6 +6,7 @@
   <Project Path="Scellecs.Morpeh.WorldBrowser.csproj" />
   <Project Path="Unity.2D.Aseprite.Editor.csproj" />
   <Project Path="Unity.Localization.csproj" />
+  <Project Path="MCPForUnity.Runtime.csproj" />
   <Project Path="TriInspector.Editor.Extras.csproj" />
   <Project Path="Unity.ShaderGraph.Editor.csproj" />
   <Project Path="Unity.RenderPipelines.Core.Runtime.csproj" />
@@ -38,6 +39,7 @@
   <Project Path="Unity.InputSystem.csproj" />
   <Project Path="Unity.VisualStudio.Editor.csproj" />
   <Project Path="PPv2URPConverters.csproj" />
+  <Project Path="MCPForUnity.Editor.csproj" />
   <Project Path="Unity.2D.Animation.Editor.csproj" />
   <Project Path="UniTask.csproj" />
   <Project Path="Unity.Searcher.Editor.csproj" />
