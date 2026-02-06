@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.Gameplay.Moves;
 using Runtime.Infrastructure.Logging;
 using StripLog;
 using UnityEngine;
@@ -16,16 +17,18 @@ namespace Runtime.Gameplay
         private readonly IGameplayBackHandler _backHandler;
         private readonly List<VisualElement> _cells = new();
         private readonly List<VisualElement> _miniBoards = new();
+        private readonly Dictionary<CellId, VisualElement> _cellById = new();
         private VisualElement _root;
         private VisualElement _fieldRoot;
         private VisualElement _fieldContainer;
+        private VisualElement _customStyleCallbackElement;
         private Button _backButton;
         private FieldRenderSpec _spec;
         private bool _isBound;
         private bool _disposed;
         private bool _backInProgress;
         private int _lastCellSize;
-        private bool _customStyleRegistered;
+        private bool _isCellIdCacheValid;
         private CancellationTokenSource _bindCts;
 
         private float _gridGapHalf = 3f;
@@ -91,6 +94,8 @@ namespace Runtime.Gameplay
 
             _cells.Clear();
             _miniBoards.Clear();
+            _cellById.Clear();
+            _isCellIdCacheValid = false;
             _fieldContainer?.Clear();
             _backButton = null;
             _spec = null;
@@ -106,10 +111,10 @@ namespace Runtime.Gameplay
             if (_fieldContainer != null)
                 _fieldContainer.UnregisterCallback<GeometryChangedEvent>(OnGeometryChanged);
 
-            if (_fieldRoot != null && _customStyleRegistered)
+            if (_customStyleCallbackElement != null)
             {
-                _fieldRoot.UnregisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
-                _customStyleRegistered = false;
+                _customStyleCallbackElement.UnregisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
+                _customStyleCallbackElement = null;
             }
 
             if (_backButton != null)
@@ -140,11 +145,7 @@ namespace Runtime.Gameplay
             }
 
             _fieldRoot = fieldRoot;
-            if (!_customStyleRegistered)
-            {
-                _fieldRoot.RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
-                _customStyleRegistered = true;
-            }
+            EnsureCustomStyleCallbackRegistered(_fieldRoot);
 
             UpdateSpacingFromCustomStyle(_fieldRoot.customStyle);
 
@@ -166,6 +167,9 @@ namespace Runtime.Gameplay
             _fieldContainer.RemoveFromClassList("field-container--classic");
             _fieldContainer.RemoveFromClassList("field-container--ultimate");
 
+            _cellById.Clear();
+            _isCellIdCacheValid = true;
+
             if (_spec.Kind == FieldKind.Classic)
             {
                 _fieldContainer.AddToClassList("field-container--classic");
@@ -183,6 +187,32 @@ namespace Runtime.Gameplay
             Log.Info(LogTags.UI, $"[GameplayFieldPresenter] Field build: {_spec.Kind}, {stopwatch.ElapsedMilliseconds} ms");
         }
 
+        internal bool TryGetCell(CellId id, out VisualElement cellRoot)
+        {
+            if (!_isBound || _disposed || _spec == null || !_isCellIdCacheValid)
+            {
+                cellRoot = null;
+                return false;
+            }
+
+            return _cellById.TryGetValue(id, out cellRoot);
+        }
+
+        private void EnsureCustomStyleCallbackRegistered(VisualElement fieldRoot)
+        {
+            if (fieldRoot == null)
+                return;
+
+            if (ReferenceEquals(_customStyleCallbackElement, fieldRoot))
+                return;
+
+            if (_customStyleCallbackElement != null)
+                _customStyleCallbackElement.UnregisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
+
+            _customStyleCallbackElement = fieldRoot;
+            _customStyleCallbackElement.RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
+        }
+
         private void BuildClassic(FieldRenderSpec spec)
         {
             var size = spec.OuterSize;
@@ -193,7 +223,8 @@ namespace Runtime.Gameplay
 
                 for (var x = 0; x < size; x++)
                 {
-                    var cell = CreateCell(x, y);
+                    var cellId = new CellId(x, y);
+                    var cell = CreateCell(x, y, cellId);
                     row.Add(cell);
                     _cells.Add(cell);
                 }
@@ -217,6 +248,8 @@ namespace Runtime.Gameplay
                     var mini = new VisualElement { name = $"Mini_{miniX}_{miniY}" };
                     mini.AddToClassList("mini-board");
 
+                    var miniIndex = (miniY * outer) + miniX;
+
                     for (var y = 0; y < inner; y++)
                     {
                         var row = new VisualElement();
@@ -224,7 +257,9 @@ namespace Runtime.Gameplay
 
                         for (var x = 0; x < inner; x++)
                         {
-                            var cell = CreateCell(x, y);
+                            var minor = (y * inner) + x;
+                            var cellId = new CellId(miniIndex, minor);
+                            var cell = CreateCell(x, y, cellId);
                             row.Add(cell);
                             _cells.Add(cell);
                         }
@@ -240,10 +275,28 @@ namespace Runtime.Gameplay
             }
         }
 
-        private static VisualElement CreateCell(int x, int y)
+        private VisualElement CreateCell(int x, int y, CellId cellId)
         {
             var cell = new VisualElement { name = $"Cell_{x}_{y}" };
             cell.AddToClassList("cell");
+
+            cell.userData = new CellUserData(cellId);
+            try
+            {
+                _cellById.Add(cellId, cell);
+            }
+            catch (ArgumentException)
+            {
+                Log.Error(LogTags.UI, $"[GameplayFieldPresenter] Duplicate CellId detected: {cellId}");
+
+                // Don't keep partially broken cache state.
+                _cellById.Clear();
+                _isCellIdCacheValid = false;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                throw new InvalidOperationException($"Duplicate CellId detected while building field: {cellId}");
+#endif
+            }
 
             var mark = new VisualElement { name = "Mark" };
             mark.AddToClassList("cell-mark");
@@ -307,14 +360,15 @@ namespace Runtime.Gameplay
                 return;
 
             _backInProgress = true;
-            BackToModeSelectionAsync().Forget();
+            var ct = _bindCts?.Token ?? CancellationToken.None;
+            BackToModeSelectionAsync(ct).Forget();
         }
 
-        private async UniTask BackToModeSelectionAsync()
+        private async UniTask BackToModeSelectionAsync(CancellationToken ct)
         {
             try
             {
-                await _backHandler.HandleBackAsync(CancellationToken.None);
+                await _backHandler.HandleBackAsync(ct);
             }
             catch (OperationCanceledException)
             {

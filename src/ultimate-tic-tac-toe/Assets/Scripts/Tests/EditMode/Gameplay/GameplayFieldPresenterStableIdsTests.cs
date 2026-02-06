@@ -6,6 +6,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using Runtime.Gameplay;
+using Runtime.Gameplay.Moves;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
@@ -39,7 +40,14 @@ namespace Tests.EditMode.Gameplay
 
                 foreach (var cell in cells)
                 {
-                    TryParseCellId(cell.name, 3).Should().BeTrue();
+                    TrySplitId(cell.name, "Cell_", out var x, out var y).Should().BeTrue();
+                    x.Should().BeInRange(0, 2);
+                    y.Should().BeInRange(0, 2);
+
+                    cell.userData.Should().BeOfType<CellUserData>();
+                    var userData = (CellUserData)cell.userData;
+                    userData.CellId.Should().Be(new CellId(x, y));
+
                     cell.Q<VisualElement>("Mark").Should().NotBeNull();
                 }
             }
@@ -73,14 +81,25 @@ namespace Tests.EditMode.Gameplay
 
                 foreach (var mini in minis)
                 {
-                    TryParseMiniId(mini.name, 3).Should().BeTrue();
+                    TrySplitId(mini.name, "Mini_", out var miniX, out var miniY).Should().BeTrue();
+                    miniX.Should().BeInRange(0, 2);
+                    miniY.Should().BeInRange(0, 2);
+                    var expectedMajor = (miniY * 3) + miniX;
 
                     var cells = CollectByPrefix(mini, "Cell_");
                     cells.Count.Should().Be(9);
 
                     foreach (var cell in cells)
                     {
-                        TryParseCellId(cell.name, 3).Should().BeTrue();
+                        TrySplitId(cell.name, "Cell_", out var x, out var y).Should().BeTrue();
+                        x.Should().BeInRange(0, 2);
+                        y.Should().BeInRange(0, 2);
+                        var expectedMinor = (y * 3) + x;
+
+                        cell.userData.Should().BeOfType<CellUserData>();
+                        var userData = (CellUserData)cell.userData;
+                        userData.CellId.Should().Be(new CellId(expectedMajor, expectedMinor));
+
                         cell.Q<VisualElement>("Mark").Should().NotBeNull();
                     }
                 }
@@ -116,22 +135,6 @@ namespace Tests.EditMode.Gameplay
             }
 
             return results;
-        }
-
-        private static bool TryParseMiniId(string name, int size)
-        {
-            if (!TrySplitId(name, "Mini_", out var x, out var y))
-                return false;
-
-            return x >= 0 && x < size && y >= 0 && y < size;
-        }
-
-        private static bool TryParseCellId(string name, int size)
-        {
-            if (!TrySplitId(name, "Cell_", out var x, out var y))
-                return false;
-
-            return x >= 0 && x < size && y >= 0 && y < size;
         }
 
         private static bool TrySplitId(string name, string prefix, out int x, out int y)
