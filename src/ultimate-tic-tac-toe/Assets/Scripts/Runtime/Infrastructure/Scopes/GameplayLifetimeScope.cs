@@ -1,4 +1,5 @@
 using Runtime.Gameplay;
+using Runtime.Gameplay.Moves;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
@@ -18,7 +19,9 @@ namespace Runtime.Infrastructure.Scopes
             builder.RegisterInstance(_gameplayDocument);
             builder.Register<FieldSpecMapper>(Lifetime.Scoped);
             builder.Register<IGameService, LocalGameService>(Lifetime.Scoped);
-            builder.Register<IGameplayFieldPresenter, GameplayFieldPresenter>(Lifetime.Scoped);
+            builder.Register<GameplayFieldPresenter>(Lifetime.Scoped)
+                .As<IGameplayFieldPresenter>()
+                .As<IGameplayFieldUiAdapter>();
             builder.Register<IGameplayBackHandler, GameplayBackHandler>(Lifetime.Scoped);
             builder.Register<IGameplayStartup, GameplayStartup>(Lifetime.Scoped);
         }

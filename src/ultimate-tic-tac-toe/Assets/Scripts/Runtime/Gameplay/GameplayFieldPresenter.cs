@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using R3;
 using Runtime.Gameplay.Moves;
 using Runtime.Infrastructure.Logging;
 using StripLog;
@@ -11,13 +12,14 @@ using UnityEngine.UIElements;
 
 namespace Runtime.Gameplay
 {
-    public sealed class GameplayFieldPresenter : IGameplayFieldPresenter
+    public sealed class GameplayFieldPresenter : IGameplayFieldPresenter, IGameplayFieldUiAdapter
     {
         private readonly UIDocument _uiDocument;
         private readonly IGameplayBackHandler _backHandler;
         private readonly List<VisualElement> _cells = new();
         private readonly List<VisualElement> _miniBoards = new();
         private readonly Dictionary<CellId, VisualElement> _cellById = new();
+        private readonly Dictionary<CellId, VisualElement> _markById = new();
         private VisualElement _root;
         private VisualElement _fieldRoot;
         private VisualElement _fieldContainer;
@@ -31,10 +33,18 @@ namespace Runtime.Gameplay
         private bool _isCellIdCacheValid;
         private CancellationTokenSource _bindCts;
 
-        private float _gridGapHalf = 3f;
-        private float _miniBoardGapHalf = 6f;
-        private float _miniBoardBorder = 2f;
-        private float _miniBoardPadding = 5f;
+        private readonly Subject<CellId> _cellClicks = new();
+        private Label _currentPlayerLabel;
+
+        private float _gridGapHalf;
+        private float _miniBoardGapHalf;
+        private float _miniBoardBorder;
+        private float _miniBoardPadding;
+
+        private bool _hasGridGapHalf;
+        private bool _hasMiniBoardGapHalf;
+        private bool _hasMiniBoardBorder;
+        private bool _hasMiniBoardPadding;
 
         private static readonly CustomStyleProperty<float> GridGapHalfProperty = new("--grid-gap-half");
         private static readonly CustomStyleProperty<float> GridGapProperty = new("--grid-gap");
@@ -50,6 +60,32 @@ namespace Runtime.Gameplay
             _backHandler = backHandler ?? throw new ArgumentNullException(nameof(backHandler));
         }
 
+        Observable<CellId> IGameplayFieldUiAdapter.CellClicks => _cellClicks;
+
+        Label IGameplayFieldUiAdapter.CurrentPlayerLabel
+        {
+            get
+            {
+                if (_disposed)
+                    throw new ObjectDisposedException(nameof(GameplayFieldPresenter));
+
+                if (!_isBound)
+                    throw new InvalidOperationException("GameplayFieldPresenter is not bound (CurrentPlayerLabel is unavailable).");
+
+                if (_currentPlayerLabel != null)
+                    return _currentPlayerLabel;
+
+                EnsureCurrentPlayerLabelExists();
+                return _currentPlayerLabel;
+            }
+        }
+
+        bool IGameplayFieldUiAdapter.TryGetCell(CellId id, out VisualElement cellRoot) =>
+            TryGetCell(id, out cellRoot);
+
+        bool IGameplayFieldUiAdapter.TryGetMark(CellId id, out VisualElement mark) =>
+            TryGetMark(id, out mark);
+
         public UniTask BindAsync(FieldRenderSpec spec, CancellationToken ct)
         {
             if (_disposed)
@@ -63,6 +99,7 @@ namespace Runtime.Gameplay
                 Unbind();
 
             _spec = spec;
+            ResetStyleTokenState();
 
             try
             {
@@ -78,6 +115,7 @@ namespace Runtime.Gameplay
                 _bindCts?.Dispose();
                 _bindCts = null;
                 _spec = null;
+                _currentPlayerLabel = null;
                 _isBound = false;
                 throw;
             }
@@ -95,15 +133,31 @@ namespace Runtime.Gameplay
             _cells.Clear();
             _miniBoards.Clear();
             _cellById.Clear();
+            _markById.Clear();
             _isCellIdCacheValid = false;
             _fieldContainer?.Clear();
             _backButton = null;
             _spec = null;
+            _currentPlayerLabel = null;
+            ResetStyleTokenState();
             _bindCts?.Cancel();
             _bindCts?.Dispose();
             _bindCts = null;
             _isBound = false;
             _lastCellSize = 0;
+        }
+
+        private void ResetStyleTokenState()
+        {
+            _gridGapHalf = 0f;
+            _miniBoardGapHalf = 0f;
+            _miniBoardBorder = 0f;
+            _miniBoardPadding = 0f;
+
+            _hasGridGapHalf = false;
+            _hasMiniBoardGapHalf = false;
+            _hasMiniBoardBorder = false;
+            _hasMiniBoardPadding = false;
         }
 
         private void CleanupBindings()
@@ -128,6 +182,8 @@ namespace Runtime.Gameplay
 
             _disposed = true;
             Unbind();
+
+            _cellClicks?.Dispose();
         }
 
         private void BuildVisualTree()
@@ -144,10 +200,12 @@ namespace Runtime.Gameplay
                 _root.Add(fieldRoot);
             }
 
+            fieldRoot.AddToClassList("gameplay-field-root");
+
             _fieldRoot = fieldRoot;
             EnsureCustomStyleCallbackRegistered(_fieldRoot);
 
-            UpdateSpacingFromCustomStyle(_fieldRoot.customStyle);
+            UpdateSpacingFromCustomStyle(_fieldRoot.customStyle, validate: false);
 
             _fieldContainer = _fieldRoot.Q<VisualElement>("FieldContainer");
             if (_fieldContainer == null)
@@ -163,11 +221,14 @@ namespace Runtime.Gameplay
             else
                 Log.Error(LogTags.UI, "[GameplayFieldPresenter] BackButton not found.");
 
+            EnsureCurrentPlayerLabelExists();
+
             _fieldContainer.Clear();
             _fieldContainer.RemoveFromClassList("field-container--classic");
             _fieldContainer.RemoveFromClassList("field-container--ultimate");
 
             _cellById.Clear();
+            _markById.Clear();
             _isCellIdCacheValid = true;
 
             if (_spec.Kind == FieldKind.Classic)
@@ -187,6 +248,31 @@ namespace Runtime.Gameplay
             Log.Info(LogTags.UI, $"[GameplayFieldPresenter] Field build: {_spec.Kind}, {stopwatch.ElapsedMilliseconds} ms");
         }
 
+        private void EnsureCurrentPlayerLabelExists()
+        {
+            if (_fieldRoot == null)
+                return;
+
+            var existing = _fieldRoot.Q<Label>("CurrentPlayerLabel");
+            if (existing != null)
+            {
+                _currentPlayerLabel = existing;
+                return;
+            }
+
+            var toolbar = _fieldRoot.Q<VisualElement>("GameplayToolbar") ?? _fieldRoot;
+
+            var label = new Label
+            {
+                name = "CurrentPlayerLabel",
+                text = string.Empty
+            };
+            label.AddToClassList("current-player-label");
+
+            toolbar.Add(label);
+            _currentPlayerLabel = label;
+        }
+
         internal bool TryGetCell(CellId id, out VisualElement cellRoot)
         {
             if (!_isBound || _disposed || _spec == null || !_isCellIdCacheValid)
@@ -196,6 +282,17 @@ namespace Runtime.Gameplay
             }
 
             return _cellById.TryGetValue(id, out cellRoot);
+        }
+
+        internal bool TryGetMark(CellId id, out VisualElement mark)
+        {
+            if (!_isBound || _disposed || _spec == null || !_isCellIdCacheValid)
+            {
+                mark = null;
+                return false;
+            }
+
+            return _markById.TryGetValue(id, out mark);
         }
 
         private void EnsureCustomStyleCallbackRegistered(VisualElement fieldRoot)
@@ -281,6 +378,8 @@ namespace Runtime.Gameplay
             cell.AddToClassList("cell");
 
             cell.userData = new CellUserData(cellId);
+
+            cell.AddManipulator(new Clickable(() => EmitCellClick(cellId)));
             try
             {
                 _cellById.Add(cellId, cell);
@@ -291,6 +390,7 @@ namespace Runtime.Gameplay
 
                 // Don't keep partially broken cache state.
                 _cellById.Clear();
+                _markById.Clear();
                 _isCellIdCacheValid = false;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -302,7 +402,35 @@ namespace Runtime.Gameplay
             mark.AddToClassList("cell-mark");
             cell.Add(mark);
 
+            if (_isCellIdCacheValid)
+            {
+                try
+                {
+                    _markById.Add(cellId, mark);
+                }
+                catch (ArgumentException)
+                {
+                    Log.Error(LogTags.UI, $"[GameplayFieldPresenter] Duplicate CellId detected (mark cache): {cellId}");
+
+                    _cellById.Clear();
+                    _markById.Clear();
+                    _isCellIdCacheValid = false;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                    throw new InvalidOperationException($"Duplicate CellId detected while building field mark cache: {cellId}");
+#endif
+                }
+            }
+
             return cell;
+        }
+
+        private void EmitCellClick(CellId cellId)
+        {
+            if (!_isBound || _disposed)
+                return;
+
+            _cellClicks.OnNext(cellId);
         }
 
         private void OnGeometryChanged(GeometryChangedEvent evt) => UpdateCellSizes(evt.newRect);
@@ -423,9 +551,9 @@ namespace Runtime.Gameplay
         }
 
         private void OnCustomStyleResolved(CustomStyleResolvedEvent evt) =>
-            UpdateSpacingFromCustomStyle(evt.customStyle);
+            UpdateSpacingFromCustomStyle(evt.customStyle, validate: true);
 
-        private void UpdateSpacingFromCustomStyle(ICustomStyle customStyle)
+        private void UpdateSpacingFromCustomStyle(ICustomStyle customStyle, bool validate)
         {
             if (customStyle == null)
                 return;
@@ -437,6 +565,7 @@ namespace Runtime.Gameplay
             {
                 _gridGapHalf = gridGapHalf;
                 gridGapHalfSet = true;
+                _hasGridGapHalf = true;
                 changed = true;
             }
 
@@ -444,8 +573,8 @@ namespace Runtime.Gameplay
             {
                 if (!gridGapHalfSet)
                 {
-                    var normalized = gridGap / 2f;
-                    _gridGapHalf = normalized > 0f ? normalized : _gridGapHalf;
+                    _gridGapHalf = gridGap / 2f;
+                    _hasGridGapHalf = true;
                     changed = true;
                 }
             }
@@ -453,20 +582,26 @@ namespace Runtime.Gameplay
             if (customStyle.TryGetValue(MiniBoardGapHalfProperty, out var miniGapHalf))
             {
                 _miniBoardGapHalf = miniGapHalf;
+                _hasMiniBoardGapHalf = true;
                 changed = true;
             }
 
             if (customStyle.TryGetValue(MiniBoardBorderProperty, out var miniBorder))
             {
                 _miniBoardBorder = miniBorder;
+                _hasMiniBoardBorder = true;
                 changed = true;
             }
 
             if (customStyle.TryGetValue(MiniBoardPaddingProperty, out var miniPadding))
             {
                 _miniBoardPadding = miniPadding;
+                _hasMiniBoardPadding = true;
                 changed = true;
             }
+
+            if (validate)
+                ValidateRequiredStyleTokensIfPossible();
 
             if (changed)
             {
@@ -474,6 +609,43 @@ namespace Runtime.Gameplay
                 if (_fieldContainer != null)
                     UpdateCellSizes(_fieldContainer.contentRect);
             }
+        }
+
+        private void ValidateRequiredStyleTokensIfPossible()
+        {
+            if (_fieldRoot == null)
+                return;
+
+            // In EditMode tests (no panel) customStyle isn't reliably resolved.
+            if (_fieldRoot.panel == null)
+                return;
+
+            if (_spec == null)
+                return;
+
+            // Classic needs only grid spacing; Ultimate needs full set.
+            var requireUltimateTokens = _spec.Kind == FieldKind.Ultimate;
+
+            if (_hasGridGapHalf && (!requireUltimateTokens || (_hasMiniBoardGapHalf && _hasMiniBoardBorder && _hasMiniBoardPadding)))
+                return;
+
+            var missing = new List<string>(4);
+            if (!_hasGridGapHalf)
+                missing.Add(GridGapHalfProperty.name);
+            if (requireUltimateTokens && !_hasMiniBoardGapHalf)
+                missing.Add(MiniBoardGapHalfProperty.name);
+            if (requireUltimateTokens && !_hasMiniBoardBorder)
+                missing.Add(MiniBoardBorderProperty.name);
+            if (requireUltimateTokens && !_hasMiniBoardPadding)
+                missing.Add(MiniBoardPaddingProperty.name);
+
+            var message = $"[GameplayFieldPresenter] Missing required USS custom properties: {string.Join(", ", missing)}";
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            throw new InvalidOperationException(message);
+#else
+            Log.Error(LogTags.UI, message);
+#endif
         }
     }
 }

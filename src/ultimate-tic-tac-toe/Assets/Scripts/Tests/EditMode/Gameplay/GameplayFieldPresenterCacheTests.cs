@@ -107,6 +107,21 @@ namespace Tests.EditMode.Gameplay
         }
 
         [Test]
+        public void WhenBindClassic_ThenTryGetMarkReturnsCellMark()
+        {
+            _presenter.BindAsync(FieldRenderSpec.Classic(3), CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+
+            var id = new CellId(0, 0);
+            Assert.That(_presenter.TryGetCell(id, out var cell), Is.True);
+            Assert.That(((IGameplayFieldUiAdapter)_presenter).TryGetMark(id, out var mark), Is.True);
+            Assert.That(mark, Is.Not.Null);
+            Assert.That(mark.name, Is.EqualTo("Mark"));
+            Assert.That(mark.parent, Is.SameAs(cell));
+        }
+
+        [Test]
         public void WhenNotBoundAndTryGetCell_ThenReturnsFalse()
         {
             // Arrange
