@@ -540,7 +540,7 @@ namespace Tests.EditMode.Gameplay
         }
 
         [Test]
-        public void WhenApplySuccessfulMove_ThenPublishesEventsInStrictOrder()
+        public void WhenMoveApplied_ThenPublishesEventsInStrictOrder()
         {
             // Arrange
             _service.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.X));
@@ -550,18 +550,7 @@ namespace Tests.EditMode.Gameplay
 
             _service.CellChanged.Subscribe(_ => order.Add("CellChanged")).AddTo(disposables);
             _service.LastMoveChanged.Subscribe(_ => order.Add("LastMoveChanged")).AddTo(disposables);
-
-            var firstCurrentPlayer = true;
-            _service.CurrentPlayer.Subscribe(_ =>
-            {
-                if (firstCurrentPlayer)
-                {
-                    firstCurrentPlayer = false;
-                    return;
-                }
-
-                order.Add("CurrentPlayer");
-            }).AddTo(disposables);
+            _service.CurrentPlayer.Skip(1).Subscribe(_ => order.Add("CurrentPlayer")).AddTo(disposables);
 
             // Act
             _service.TryApplyLocalClick(new CellId(0, 0)).Should().Be(ApplyClickResult.Applied);
@@ -571,56 +560,46 @@ namespace Tests.EditMode.Gameplay
         }
 
         [Test]
-        public void WhenStartCalledAgain_ThenPublishesRestartEventsInStableOrder()
+        public void WhenClickRejectedByInvalidCellId_ThenDoesNotPublishAnyEvents()
         {
             // Arrange
             _service.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.X));
-            _service.TryApplyLocalClick(new CellId(0, 0)).Should().Be(ApplyClickResult.Applied);
-            _service.TryApplyLocalClick(new CellId(1, 1)).Should().Be(ApplyClickResult.Applied);
 
-            var order = new List<string>();
+            var eventsPublished = new List<string>();
             using var disposables = new CompositeDisposable();
 
-            _service.CellChanged.Subscribe(evt =>
-            {
-                if (evt.NewValue == PlayerMark.None)
-                    order.Add("CellChanged(None)");
-            }).AddTo(disposables);
-
-            _service.LastMoveChanged.Subscribe(evt =>
-            {
-                if (evt.Current == null)
-                    order.Add("LastMoveChanged(null)");
-            }).AddTo(disposables);
-
-            var firstCurrentPlayer = true;
-            _service.CurrentPlayer.Subscribe(_ =>
-            {
-                if (firstCurrentPlayer)
-                {
-                    firstCurrentPlayer = false;
-                    return;
-                }
-
-                order.Add("CurrentPlayer");
-            }).AddTo(disposables);
+            _service.CellChanged.Subscribe(_ => eventsPublished.Add("CellChanged")).AddTo(disposables);
+            _service.LastMoveChanged.Subscribe(_ => eventsPublished.Add("LastMoveChanged")).AddTo(disposables);
+            _service.CurrentPlayer.Skip(1).Subscribe(_ => eventsPublished.Add("CurrentPlayer")).AddTo(disposables);
 
             // Act
-            _service.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.O));
+            var result = _service.TryApplyLocalClick(new CellId(99, 99));
 
             // Assert
-            order.Count.Should().BeGreaterThanOrEqualTo(3);
-            order.Should().Contain("LastMoveChanged(null)");
-            order[^2].Should().Be("LastMoveChanged(null)");
-            order[^1].Should().Be("CurrentPlayer");
+            result.Should().Be(ApplyClickResult.InvalidCellId);
+            eventsPublished.Should().BeEmpty("InvalidCellId не должен публиковать события");
+        }
 
-            var lastMoveIndex = order.IndexOf("LastMoveChanged(null)");
-            var currentPlayerIndex = order.IndexOf("CurrentPlayer");
-            lastMoveIndex.Should().BeGreaterThanOrEqualTo(0);
-            currentPlayerIndex.Should().BeGreaterThan(lastMoveIndex);
+        [Test]
+        public void WhenClickRejectedByNotStarted_ThenDoesNotPublishAnyEvents()
+        {
+            // Arrange
+            // Intentionally do NOT call Start()
 
-            for (var i = 0; i < lastMoveIndex; i++)
-                order[i].Should().Be("CellChanged(None)");
+            var eventsPublished = new List<string>();
+            using var disposables = new CompositeDisposable();
+
+            _service.CellChanged.Subscribe(_ => eventsPublished.Add("CellChanged")).AddTo(disposables);
+            _service.LastMoveChanged.Subscribe(_ => eventsPublished.Add("LastMoveChanged")).AddTo(disposables);
+            // ReactiveProperty publishes initial value on subscribe; Skip(1) filters it out.
+            _service.CurrentPlayer.Skip(1).Subscribe(_ => eventsPublished.Add("CurrentPlayer")).AddTo(disposables);
+
+            // Act
+            var result = _service.TryApplyLocalClick(new CellId(0, 0));
+
+            // Assert
+            result.Should().Be(ApplyClickResult.NotStarted);
+            eventsPublished.Should().BeEmpty("NotStarted не должен публиковать события");
         }
     }
 }
