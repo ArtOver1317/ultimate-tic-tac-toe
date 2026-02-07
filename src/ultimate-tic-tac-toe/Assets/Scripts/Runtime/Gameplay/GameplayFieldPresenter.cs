@@ -379,7 +379,7 @@ namespace Runtime.Gameplay
 
             cell.userData = new CellUserData(cellId);
 
-            cell.AddManipulator(new Clickable(() => EmitCellClick(cellId)));
+            cell.AddManipulator(new Clickable(() => OnCellClicked(cell)));
             try
             {
                 _cellById.Add(cellId, cell);
@@ -425,12 +425,20 @@ namespace Runtime.Gameplay
             return cell;
         }
 
-        private void EmitCellClick(CellId cellId)
+        internal void EmitCellClick(CellId cellId)
         {
             if (!_isBound || _disposed)
                 return;
 
             _cellClicks.OnNext(cellId);
+        }
+
+        internal void OnCellClicked(VisualElement cell)
+        {
+            if (!_isBound || _disposed || cell?.userData is not CellUserData userData)
+                return;
+
+            EmitCellClick(userData.CellId);
         }
 
         private void OnGeometryChanged(GeometryChangedEvent evt) => UpdateCellSizes(evt.newRect);
