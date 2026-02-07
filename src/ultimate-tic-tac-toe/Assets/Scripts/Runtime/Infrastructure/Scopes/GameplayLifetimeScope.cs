@@ -19,9 +19,11 @@ namespace Runtime.Infrastructure.Scopes
             builder.RegisterInstance(_gameplayDocument);
             builder.Register<FieldSpecMapper>(Lifetime.Scoped);
             builder.Register<IGameService, LocalGameService>(Lifetime.Scoped);
+            builder.Register<ILocalMovesService, LocalMovesService>(Lifetime.Scoped);
             builder.Register<GameplayFieldPresenter>(Lifetime.Scoped)
                 .As<IGameplayFieldPresenter>()
                 .As<IGameplayFieldUiAdapter>();
+            builder.Register<GameplayMovesBinder>(Lifetime.Scoped);
             builder.Register<IGameplayBackHandler, GameplayBackHandler>(Lifetime.Scoped);
             builder.Register<IGameplayStartup, GameplayStartup>(Lifetime.Scoped);
         }

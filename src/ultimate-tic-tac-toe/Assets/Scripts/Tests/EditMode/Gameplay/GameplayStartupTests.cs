@@ -9,11 +9,14 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using Runtime.Gameplay;
+using Runtime.Gameplay.Moves;
 using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using UnityEngine;
 using UnityEngine.TestTools;
+using R3;
+using UnityEngine.UIElements;
 
 namespace Tests.EditMode.Gameplay
 {
@@ -25,6 +28,8 @@ namespace Tests.EditMode.Gameplay
         private IGameService _gameService;
         private IGameplayFieldPresenter _fieldPresenter;
         private IGameStateMachine _stateMachine;
+        private ILocalMovesService _localMoves;
+        private GameplayMovesBinder _movesBinder;
         private GameplayStartup _sut;
         private GameLaunchConfig _config;
         private IGameplaySession _session;
@@ -36,6 +41,42 @@ namespace Tests.EditMode.Gameplay
             _gameService = Substitute.For<IGameService>();
             _fieldPresenter = Substitute.For<IGameplayFieldPresenter>();
             _stateMachine = Substitute.For<IGameStateMachine>();
+
+            _localMoves = Substitute.For<ILocalMovesService>();
+
+            var isStarted = new ReactiveProperty<bool>(false);
+            var currentPlayer = new ReactiveProperty<PlayerMark>(PlayerMark.None);
+
+            _localMoves.IsStarted.Returns(isStarted);
+            _localMoves.CurrentPlayer.Returns(currentPlayer);
+            _localMoves.CellChanged.Returns(new Subject<CellChangedEvent>());
+            _localMoves.LastMoveChanged.Returns(new Subject<LastMoveChangedEvent>());
+            _localMoves.ClickRejected.Returns(new Subject<ClickRejectedEvent>());
+            _localMoves.GetAllCells().Returns(new List<CellValue>());
+
+            _localMoves
+                .When(x => x.Start(Arg.Any<LocalMovesConfig>()))
+                .Do(callInfo =>
+                {
+                    var cfg = callInfo.ArgAt<LocalMovesConfig>(0);
+                    isStarted.Value = true;
+                    currentPlayer.Value = cfg.StartingPlayer == PlayerMark.X || cfg.StartingPlayer == PlayerMark.O
+                        ? cfg.StartingPlayer
+                        : PlayerMark.X;
+                });
+
+            _localMoves
+                .When(x => x.Stop())
+                .Do(_ =>
+                {
+                    isStarted.Value = false;
+                    currentPlayer.Value = PlayerMark.None;
+                });
+
+            var ui = Substitute.For<IGameplayFieldUiAdapter>();
+            ui.CellClicks.Returns(new Subject<CellId>());
+            ui.CurrentPlayerLabel.Returns(new Label());
+            _movesBinder = new GameplayMovesBinder(ui, _localMoves);
 
             _config = new GameLaunchConfig("classic", new ClassicModeConfig(3), new LocalHumanConfig());
             _session = Substitute.For<IGameplaySession>();
@@ -56,7 +97,7 @@ namespace Tests.EditMode.Gameplay
             _stateMachine.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
 
-            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _stateMachine);
+            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _localMoves, _movesBinder, _stateMachine);
         }
 
         [TearDown]
@@ -69,7 +110,7 @@ namespace Tests.EditMode.Gameplay
             _configStore.TryConsume(out Arg.Any<GameLaunchConfig>()).Returns(false);
 
             // Act
-            Func<Task> act = () => _sut.StartAsync(CancellationToken.None).AsTask();
+            Func<Task> act = async () => await _sut.StartAsync(CancellationToken.None);
 
             // Assert
             await RunAllowingFailingLogsAsync(act,
@@ -77,7 +118,7 @@ namespace Tests.EditMode.Gameplay
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] INVALID_CONFIG: Launch config not found\.\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _gameService.Received(1).Dispose();
+            _localMoves.Received(1).Stop();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.DidNotReceive().StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
@@ -94,7 +135,7 @@ namespace Tests.EditMode.Gameplay
             });
 
             // Act
-            Func<Task> act = () => _sut.StartAsync(CancellationToken.None).AsTask();
+            Func<Task> act = async () => await _sut.StartAsync(CancellationToken.None);
 
             // Assert
             await RunAllowingFailingLogsAsync(act,
@@ -102,7 +143,7 @@ namespace Tests.EditMode.Gameplay
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] INVALID_CONFIG: Launch config not found\.\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _gameService.Received(1).Dispose();
+            _localMoves.Received(1).Stop();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.DidNotReceive().StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
@@ -115,15 +156,16 @@ namespace Tests.EditMode.Gameplay
             // SetUp already configures valid config, session and successful Bind.
 
             // Act
-            Func<Task> act = () => _sut.StartAsync(CancellationToken.None).AsTask();
+            Func<Task> act = async () => await _sut.StartAsync(CancellationToken.None);
 
             // Assert
             await act.Should().NotThrowAsync();
             await _gameService.Received(1).StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
             await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
+            _localMoves.Received(1).Start(Arg.Any<LocalMovesConfig>());
 
             _fieldPresenter.DidNotReceive().Unbind();
-            _gameService.DidNotReceive().Dispose();
+            _localMoves.DidNotReceive().Stop();
             await _stateMachine.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
         }
 
@@ -135,7 +177,7 @@ namespace Tests.EditMode.Gameplay
                 .Returns(UniTask.FromException<IGameplaySession>(new InvalidOperationException("invalid")));
 
             // Act
-            Func<Task> act = () => _sut.StartAsync(CancellationToken.None).AsTask();
+            Func<Task> act = async () => await _sut.StartAsync(CancellationToken.None);
 
             // Assert
             await RunAllowingFailingLogsAsync(act,
@@ -146,7 +188,7 @@ namespace Tests.EditMode.Gameplay
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] INVALID_CONFIG: invalid\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _gameService.Received(1).Dispose();
+            _localMoves.Received(1).Stop();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
         }
@@ -159,7 +201,7 @@ namespace Tests.EditMode.Gameplay
                 .Returns(UniTask.FromException<IGameplaySession>(new ArgumentOutOfRangeException("boardSize")));
 
             // Act
-            Func<Task> act = () => _sut.StartAsync(CancellationToken.None).AsTask();
+            Func<Task> act = async () => await _sut.StartAsync(CancellationToken.None);
 
             // Assert
             await RunAllowingFailingLogsAsync(act,
@@ -170,7 +212,7 @@ namespace Tests.EditMode.Gameplay
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] INVALID_CONFIG:[\s\S]*boardSize\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _gameService.Received(1).Dispose();
+            _localMoves.Received(1).Stop();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
         }
@@ -183,7 +225,7 @@ namespace Tests.EditMode.Gameplay
                 .Returns(UniTask.FromException<IGameplaySession>(new Exception("boom")));
 
             // Act
-            Func<Task> act = () => _sut.StartAsync(CancellationToken.None).AsTask();
+            Func<Task> act = async () => await _sut.StartAsync(CancellationToken.None);
 
             // Assert
             await RunAllowingFailingLogsAsync(act,
@@ -194,7 +236,7 @@ namespace Tests.EditMode.Gameplay
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] BUILD_FAILED: boom\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _gameService.Received(1).Dispose();
+            _localMoves.Received(1).Stop();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
         }
@@ -207,7 +249,7 @@ namespace Tests.EditMode.Gameplay
                 .Returns(UniTask.FromException(new Exception("bind failed")));
 
             // Act
-            Func<Task> act = () => _sut.StartAsync(CancellationToken.None).AsTask();
+            Func<Task> act = async () => await _sut.StartAsync(CancellationToken.None);
 
             // Assert
             await RunAllowingFailingLogsAsync(act,
@@ -218,7 +260,7 @@ namespace Tests.EditMode.Gameplay
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] BUILD_FAILED: bind failed\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _gameService.Received(1).Dispose();
+            _localMoves.Received(1).Stop();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.Received(1).StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
             await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
@@ -233,12 +275,12 @@ namespace Tests.EditMode.Gameplay
                 .Returns(UniTask.FromException<IGameplaySession>(new OperationCanceledException(cts.Token)));
 
             // Act
-            Func<Task> act = () => _sut.StartAsync(cts.Token).AsTask();
+            Func<Task> act = async () => await _sut.StartAsync(cts.Token);
 
             // Assert
             await act.Should().ThrowAsync<OperationCanceledException>();
             _fieldPresenter.Received(1).Unbind();
-            _gameService.Received(1).Dispose();
+            _localMoves.Received(1).Stop();
             await _stateMachine.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
         }
@@ -252,12 +294,12 @@ namespace Tests.EditMode.Gameplay
                 .Returns(UniTask.FromException(new OperationCanceledException(cts.Token)));
 
             // Act
-            Func<Task> act = () => _sut.StartAsync(cts.Token).AsTask();
+            Func<Task> act = async () => await _sut.StartAsync(cts.Token);
 
             // Assert
             await act.Should().ThrowAsync<OperationCanceledException>();
             _fieldPresenter.Received(1).Unbind();
-            _gameService.Received(1).Dispose();
+            _localMoves.Received(1).Stop();
             await _stateMachine.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.Received(1).StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
             await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());

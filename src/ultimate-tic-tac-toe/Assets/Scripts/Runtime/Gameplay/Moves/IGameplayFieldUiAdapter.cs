@@ -7,6 +7,8 @@ namespace Runtime.Gameplay.Moves
     {
         Observable<CellId> CellClicks { get; }
 
+        bool TryGetCellView(CellId id, out VisualElement cellRoot, out Label markLabel);
+
         bool TryGetCell(CellId id, out VisualElement cellRoot);
 
         bool TryGetMark(CellId id, out VisualElement mark);

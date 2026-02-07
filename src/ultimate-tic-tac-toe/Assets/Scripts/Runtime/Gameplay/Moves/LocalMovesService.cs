@@ -51,6 +51,20 @@ namespace Runtime.Gameplay.Moves
             if (config.Field == null)
                 throw new ArgumentException("Config field spec is required.", nameof(config));
 
+            var oldSpec = _fieldSpec;
+            var oldCells = _cells;
+            var oldMajorCount = _majorCount;
+            var oldMinorCount = _minorCount;
+
+            // Restart (Start called while already started) publishes events in this order:
+            // 1) CellChanged(..., None) for previously occupied cells (cold path delta)
+            // 2) LastMoveChanged(previous, null)
+            // 3) CurrentPlayer (and IsStarted stays true)
+            // This order is intentionally different from a successful move, which is:
+            // CellChanged -> LastMoveChanged -> CurrentPlayer.
+            if (_isStarted.Value && oldSpec != null && oldCells != null)
+                PublishClearedCellsIfNeeded(oldSpec, oldCells, oldMajorCount, oldMinorCount);
+
             _fieldSpec = config.Field;
 
             var startingPlayer = NormalizeStartingPlayer(config.StartingPlayer);
@@ -64,6 +78,53 @@ namespace Runtime.Gameplay.Moves
 
             _currentPlayer.Value = startingPlayer;
             _isStarted.Value = true;
+        }
+
+        private void PublishClearedCellsIfNeeded(FieldRenderSpec spec, PlayerMark[] cells, int majorCount, int minorCount)
+        {
+            if (spec == null)
+                return;
+            if (cells == null)
+                return;
+            if (majorCount <= 0 || minorCount <= 0)
+                return;
+
+            // Cold path: publish delta events for cells that become empty after restart.
+            if (spec.Kind == FieldKind.Classic)
+            {
+                var size = spec.OuterSize;
+                for (var x = 0; x < size; x++)
+                {
+                    for (var y = 0; y < size; y++)
+                    {
+                        var id = new CellId(x, y);
+                        var index = ToIndex(id, minorCount);
+                        if ((uint)index >= (uint)cells.Length)
+                            continue;
+
+                        if (cells[index] != PlayerMark.None)
+                            _cellChanged.OnNext(new CellChangedEvent(id, PlayerMark.None));
+                    }
+                }
+
+                return;
+            }
+
+            for (var major = 0; major < majorCount; major++)
+            {
+                for (var minor = 0; minor < minorCount; minor++)
+                {
+                    var index = checked(major * minorCount + minor);
+                    if ((uint)index >= (uint)cells.Length)
+                        continue;
+
+                    if (cells[index] == PlayerMark.None)
+                        continue;
+
+                    var id = new CellId(major, minor);
+                    _cellChanged.OnNext(new CellChangedEvent(id, PlayerMark.None));
+                }
+            }
         }
 
         public void Stop()
@@ -223,7 +284,9 @@ namespace Runtime.Gameplay.Moves
                 _cells = new PlayerMark[cellCount];
         }
 
-        private int ToIndex(CellId id) => checked(id.Major * _minorCount + id.Minor);
+        private static int ToIndex(CellId id, int minorCount) => checked(id.Major * minorCount + id.Minor);
+
+        private int ToIndex(CellId id) => ToIndex(id, _minorCount);
 
         private PlayerMark NormalizeStartingPlayer(PlayerMark startingPlayer)
         {

@@ -569,5 +569,58 @@ namespace Tests.EditMode.Gameplay
             // Assert
             order.Should().Equal("CellChanged", "LastMoveChanged", "CurrentPlayer");
         }
+
+        [Test]
+        public void WhenStartCalledAgain_ThenPublishesRestartEventsInStableOrder()
+        {
+            // Arrange
+            _service.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.X));
+            _service.TryApplyLocalClick(new CellId(0, 0)).Should().Be(ApplyClickResult.Applied);
+            _service.TryApplyLocalClick(new CellId(1, 1)).Should().Be(ApplyClickResult.Applied);
+
+            var order = new List<string>();
+            using var disposables = new CompositeDisposable();
+
+            _service.CellChanged.Subscribe(evt =>
+            {
+                if (evt.NewValue == PlayerMark.None)
+                    order.Add("CellChanged(None)");
+            }).AddTo(disposables);
+
+            _service.LastMoveChanged.Subscribe(evt =>
+            {
+                if (evt.Current == null)
+                    order.Add("LastMoveChanged(null)");
+            }).AddTo(disposables);
+
+            var firstCurrentPlayer = true;
+            _service.CurrentPlayer.Subscribe(_ =>
+            {
+                if (firstCurrentPlayer)
+                {
+                    firstCurrentPlayer = false;
+                    return;
+                }
+
+                order.Add("CurrentPlayer");
+            }).AddTo(disposables);
+
+            // Act
+            _service.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.O));
+
+            // Assert
+            order.Count.Should().BeGreaterThanOrEqualTo(3);
+            order.Should().Contain("LastMoveChanged(null)");
+            order[^2].Should().Be("LastMoveChanged(null)");
+            order[^1].Should().Be("CurrentPlayer");
+
+            var lastMoveIndex = order.IndexOf("LastMoveChanged(null)");
+            var currentPlayerIndex = order.IndexOf("CurrentPlayer");
+            lastMoveIndex.Should().BeGreaterThanOrEqualTo(0);
+            currentPlayerIndex.Should().BeGreaterThan(lastMoveIndex);
+
+            for (var i = 0; i < lastMoveIndex; i++)
+                order[i].Should().Be("CellChanged(None)");
+        }
     }
 }

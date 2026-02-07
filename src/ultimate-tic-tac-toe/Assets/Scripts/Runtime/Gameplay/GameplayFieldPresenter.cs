@@ -20,6 +20,7 @@ namespace Runtime.Gameplay
         private readonly List<VisualElement> _miniBoards = new();
         private readonly Dictionary<CellId, VisualElement> _cellById = new();
         private readonly Dictionary<CellId, VisualElement> _markById = new();
+        private readonly Dictionary<CellId, Label> _markLabelById = new();
         private VisualElement _root;
         private VisualElement _fieldRoot;
         private VisualElement _fieldContainer;
@@ -61,6 +62,20 @@ namespace Runtime.Gameplay
         }
 
         Observable<CellId> IGameplayFieldUiAdapter.CellClicks => _cellClicks;
+
+        bool IGameplayFieldUiAdapter.TryGetCellView(CellId id, out VisualElement cellRoot, out Label markLabel)
+        {
+            cellRoot = null;
+            markLabel = null;
+
+            if (!TryGetCell(id, out cellRoot) || cellRoot == null)
+                return false;
+
+            if (!_markLabelById.TryGetValue(id, out markLabel) || markLabel == null)
+                return false;
+
+            return true;
+        }
 
         Label IGameplayFieldUiAdapter.CurrentPlayerLabel
         {
@@ -134,6 +149,7 @@ namespace Runtime.Gameplay
             _miniBoards.Clear();
             _cellById.Clear();
             _markById.Clear();
+            _markLabelById.Clear();
             _isCellIdCacheValid = false;
             _fieldContainer?.Clear();
             _backButton = null;
@@ -183,7 +199,8 @@ namespace Runtime.Gameplay
             _disposed = true;
             Unbind();
 
-            _cellClicks?.Dispose();
+            _cellClicks.OnCompleted();
+            _cellClicks.Dispose();
         }
 
         private void BuildVisualTree()
@@ -229,6 +246,7 @@ namespace Runtime.Gameplay
 
             _cellById.Clear();
             _markById.Clear();
+            _markLabelById.Clear();
             _isCellIdCacheValid = true;
 
             if (_spec.Kind == FieldKind.Classic)
@@ -391,6 +409,7 @@ namespace Runtime.Gameplay
                 // Don't keep partially broken cache state.
                 _cellById.Clear();
                 _markById.Clear();
+                _markLabelById.Clear();
                 _isCellIdCacheValid = false;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -400,6 +419,9 @@ namespace Runtime.Gameplay
 
             var mark = new VisualElement { name = "Mark" };
             mark.AddToClassList("cell-mark");
+
+            var markLabel = new Label { name = "MarkLabel" };
+            mark.Add(markLabel);
             cell.Add(mark);
 
             if (_isCellIdCacheValid)
@@ -407,6 +429,7 @@ namespace Runtime.Gameplay
                 try
                 {
                     _markById.Add(cellId, mark);
+                    _markLabelById.Add(cellId, markLabel);
                 }
                 catch (ArgumentException)
                 {
@@ -414,6 +437,7 @@ namespace Runtime.Gameplay
 
                     _cellById.Clear();
                     _markById.Clear();
+                    _markLabelById.Clear();
                     _isCellIdCacheValid = false;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
