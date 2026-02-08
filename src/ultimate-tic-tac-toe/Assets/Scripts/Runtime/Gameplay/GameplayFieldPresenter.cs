@@ -41,17 +41,21 @@ namespace Runtime.Gameplay
         private float _miniBoardGapHalf;
         private float _miniBoardBorder;
         private float _miniBoardPadding;
+        private float _markFontScale;
 
         private bool _hasGridGapHalf;
         private bool _hasMiniBoardGapHalf;
         private bool _hasMiniBoardBorder;
         private bool _hasMiniBoardPadding;
 
+        private bool _hasMarkFontScale;
+
         private static readonly CustomStyleProperty<float> GridGapHalfProperty = new("--grid-gap-half");
         private static readonly CustomStyleProperty<float> GridGapProperty = new("--grid-gap");
         private static readonly CustomStyleProperty<float> MiniBoardGapHalfProperty = new("--mini-board-gap-half");
         private static readonly CustomStyleProperty<float> MiniBoardBorderProperty = new("--mini-board-border-width");
         private static readonly CustomStyleProperty<float> MiniBoardPaddingProperty = new("--mini-board-padding");
+        private static readonly CustomStyleProperty<float> MarkFontScaleProperty = new("--mark-font-scale");
 
         public GameplayFieldPresenter(
             UIDocument uiDocument,
@@ -169,11 +173,13 @@ namespace Runtime.Gameplay
             _miniBoardGapHalf = 0f;
             _miniBoardBorder = 0f;
             _miniBoardPadding = 0f;
+            _markFontScale = 0.62f;
 
             _hasGridGapHalf = false;
             _hasMiniBoardGapHalf = false;
             _hasMiniBoardBorder = false;
             _hasMiniBoardPadding = false;
+            _hasMarkFontScale = false;
         }
 
         private void CleanupBindings()
@@ -500,6 +506,8 @@ namespace Runtime.Gameplay
                 cell.style.height = cellSize;
             }
 
+            UpdateMarkFontSizes(cellSize);
+
             if (_spec.Kind == FieldKind.Ultimate)
             {
                 foreach (var mini in _miniBoards)
@@ -514,14 +522,35 @@ namespace Runtime.Gameplay
             }
         }
 
+        private void UpdateMarkFontSizes(int cellSize)
+        {
+            if (cellSize <= 0)
+                return;
+
+            var scale = _markFontScale;
+            if (scale <= 0f)
+                scale = 0.62f;
+
+            var fontSize = Mathf.Max(1f, cellSize * scale);
+
+            foreach (var label in _markLabelById.Values)
+            {
+                if (label == null)
+                    continue;
+
+                label.style.fontSize = fontSize;
+            }
+        }
+
         private void OnBackClicked()
         {
             if (_backInProgress)
                 return;
 
             _backInProgress = true;
-            var ct = _bindCts?.Token ?? CancellationToken.None;
-            BackToModeSelectionAsync(ct).Forget();
+            // Important: do NOT tie back navigation to the presenter's bind CTS.
+            // Scene transitions and MainMenu UI initialization can outlive this presenter and must not be cancelled.
+            BackToModeSelectionAsync(CancellationToken.None).Forget();
         }
 
         private async UniTask BackToModeSelectionAsync(CancellationToken ct)
@@ -632,6 +661,13 @@ namespace Runtime.Gameplay
                 changed = true;
             }
 
+            if (customStyle.TryGetValue(MarkFontScaleProperty, out var markFontScale))
+            {
+                _markFontScale = markFontScale;
+                _hasMarkFontScale = true;
+                changed = true;
+            }
+
             if (validate)
                 ValidateRequiredStyleTokensIfPossible();
 
@@ -658,12 +694,16 @@ namespace Runtime.Gameplay
             // Classic needs only grid spacing; Ultimate needs full set.
             var requireUltimateTokens = _spec.Kind == FieldKind.Ultimate;
 
-            if (_hasGridGapHalf && (!requireUltimateTokens || (_hasMiniBoardGapHalf && _hasMiniBoardBorder && _hasMiniBoardPadding)))
+            if (_hasGridGapHalf
+                && _hasMarkFontScale
+                && (!requireUltimateTokens || (_hasMiniBoardGapHalf && _hasMiniBoardBorder && _hasMiniBoardPadding)))
                 return;
 
             var missing = new List<string>(4);
             if (!_hasGridGapHalf)
                 missing.Add(GridGapHalfProperty.name);
+            if (!_hasMarkFontScale)
+                missing.Add(MarkFontScaleProperty.name);
             if (requireUltimateTokens && !_hasMiniBoardGapHalf)
                 missing.Add(MiniBoardGapHalfProperty.name);
             if (requireUltimateTokens && !_hasMiniBoardBorder)

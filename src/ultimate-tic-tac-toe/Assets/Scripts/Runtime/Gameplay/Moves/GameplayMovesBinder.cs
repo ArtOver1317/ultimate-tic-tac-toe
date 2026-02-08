@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using R3;
 using Runtime.Infrastructure.Logging;
@@ -10,9 +11,16 @@ namespace Runtime.Gameplay.Moves
     {
         private const string LastMoveClass = "cell--lastMove";
         private const string DisabledClass = "cell--disabled";
+        private const string MarkAppearFromClass = "cell-mark--appearFrom";
+        private const string MarkLabelXClass = "mark-label--x";
+        private const string MarkLabelOClass = "mark-label--o";
 
         private readonly IGameplayFieldUiAdapter _ui;
         private readonly ILocalMovesService _moves;
+        private readonly MovesVfxSettings _vfxSettings;
+
+        // Binder owns VFX state storage (do not use VisualElement.userData).
+        private readonly Dictionary<CellId, MarkAppearVfxState> _markAppearVfxByCellId = new();
 
         private CompositeDisposable _subscriptions;
         private Label _currentPlayerLabel;
@@ -25,6 +33,19 @@ namespace Runtime.Gameplay.Moves
         {
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
             _moves = moves ?? throw new ArgumentNullException(nameof(moves));
+
+            _vfxSettings = NormalizeVfxSettings(MovesVfxSettings.Default);
+        }
+
+        public GameplayMovesBinder(
+            IGameplayFieldUiAdapter ui,
+            ILocalMovesService moves,
+            MovesVfxSettings vfxSettings)
+        {
+            _ui = ui ?? throw new ArgumentNullException(nameof(ui));
+            _moves = moves ?? throw new ArgumentNullException(nameof(moves));
+
+            _vfxSettings = NormalizeVfxSettings(vfxSettings);
         }
 
         public void Bind()
@@ -86,6 +107,7 @@ namespace Runtime.Gameplay.Moves
                     .AddTo(_subscriptions);
 
                 _moves.CurrentPlayer
+                    .Skip(1)
                     .Subscribe(UpdateCurrentPlayerLabel)
                     .AddTo(_subscriptions);
             }
@@ -99,7 +121,10 @@ namespace Runtime.Gameplay.Moves
 
             _isBound = true;
 
-            RenderColdPathSnapshot();
+            var coldPathSnapshot = _moves.GetAllCells();
+
+            SetupMarkAppearVfx(coldPathSnapshot);
+            RenderColdPathSnapshot(coldPathSnapshot);
             UpdateCurrentPlayerLabel(_moves.CurrentPlayer.CurrentValue);
         }
 
@@ -111,6 +136,10 @@ namespace Runtime.Gameplay.Moves
             _subscriptions?.Dispose();
             _subscriptions = null;
             _currentPlayerLabel = null;
+
+            foreach (var vfxState in _markAppearVfxByCellId.Values)
+                vfxState.CancelPending();
+            _markAppearVfxByCellId.Clear();
             _isBound = false;
         }
 
@@ -123,11 +152,39 @@ namespace Runtime.Gameplay.Moves
             Unbind();
         }
 
-        private void RenderColdPathSnapshot()
+        private void RenderColdPathSnapshot(IReadOnlyList<CellValue> cells)
         {
-            var cells = _moves.GetAllCells();
             for (var i = 0; i < cells.Count; i++)
-                UpdateMark(cells[i].CellId, cells[i].Value);
+                UpdateMark(cells[i].CellId, cells[i].Value, animate: false);
+        }
+
+        private void SetupMarkAppearVfx(IReadOnlyList<CellValue> cells)
+        {
+            _markAppearVfxByCellId.Clear();
+
+            if (!_vfxSettings.EnableMarkAppearAnimation)
+                return;
+
+            var durationSeconds = _vfxSettings.MarkAppearDurationSeconds;
+            if (durationSeconds <= 0f)
+                return;
+
+            var duration = new TimeValue(durationSeconds, TimeUnit.Second);
+
+            for (var i = 0; i < cells.Count; i++)
+            {
+                var cellId = cells[i].CellId;
+
+                if (!_ui.TryGetMark(cellId, out var markRoot) || markRoot == null)
+                    continue;
+
+                // Make settings "alive": override transition duration once (hot path stays allocation-free).
+                // Avoid sharing mutable collections between elements.
+                markRoot.style.transitionDuration = new List<TimeValue>(capacity: 1) { duration };
+
+                // Pre-create scheduled item and cached delegate once per cell to avoid per-move GC alloc.
+                _markAppearVfxByCellId[cellId] = new MarkAppearVfxState(markRoot);
+            }
         }
 
         private void OnCellClicked(CellId cellId)
@@ -150,7 +207,7 @@ namespace Runtime.Gameplay.Moves
             if (!_isBound || _disposed)
                 return;
 
-            UpdateMark(evt.CellId, evt.NewValue);
+            UpdateMark(evt.CellId, evt.NewValue, animate: true);
         }
 
         private void OnLastMoveChanged(LastMoveChangedEvent evt)
@@ -176,14 +233,102 @@ namespace Runtime.Gameplay.Moves
                 cellRoot.RemoveFromClassList(LastMoveClass);
         }
 
-        private void UpdateMark(CellId cellId, PlayerMark value)
+        private void UpdateMark(CellId cellId, PlayerMark value, bool animate)
         {
             if (!_ui.TryGetCellView(cellId, out var cellRoot, out var markLabel) || cellRoot == null || markLabel == null)
                 return;
 
+            var wasEmpty = string.IsNullOrEmpty(markLabel.text);
+
             ApplyCellInteractivity(cellRoot, value);
 
             markLabel.text = value.ToUiText();
+            ApplyMarkLabelClass(markLabel, value);
+
+            if (!_ui.TryGetMark(cellId, out var markRoot) || markRoot == null)
+                return;
+
+            // Ensure no leftover animation state when clearing.
+            if (value == PlayerMark.None)
+            {
+                markRoot.RemoveFromClassList(MarkAppearFromClass);
+
+                if (_markAppearVfxByCellId.TryGetValue(cellId, out var state))
+                    state.CancelPending();
+                return;
+            }
+
+            if (!animate)
+                return;
+
+            if (!_vfxSettings.EnableMarkAppearAnimation)
+                return;
+
+            // Animate only on a new mark appearing (not on cold-path render).
+            if (!wasEmpty)
+                return;
+
+            if (_markAppearVfxByCellId.TryGetValue(cellId, out var vfxState))
+                vfxState.Trigger();
+        }
+
+        private static void ApplyMarkLabelClass(Label markLabel, PlayerMark value)
+        {
+            // Reset first to avoid class build-up on reuse.
+            markLabel.RemoveFromClassList(MarkLabelXClass);
+            markLabel.RemoveFromClassList(MarkLabelOClass);
+
+            if (value == PlayerMark.X)
+                markLabel.AddToClassList(MarkLabelXClass);
+            else if (value == PlayerMark.O)
+                markLabel.AddToClassList(MarkLabelOClass);
+        }
+
+        private static MovesVfxSettings NormalizeVfxSettings(MovesVfxSettings settings)
+        {
+            if (!settings.EnableMarkAppearAnimation)
+                return new MovesVfxSettings(enableMarkAppearAnimation: false, markAppearDurationSeconds: 0f);
+
+            if (settings.MarkAppearDurationSeconds <= 0f)
+                return new MovesVfxSettings(enableMarkAppearAnimation: false, markAppearDurationSeconds: 0f);
+
+            return settings;
+        }
+
+        private sealed class MarkAppearVfxState
+        {
+            private readonly VisualElement _markRoot;
+            private readonly IVisualElementScheduledItem _removeAppearFromItem;
+
+            public MarkAppearVfxState(VisualElement markRoot)
+            {
+                _markRoot = markRoot;
+
+                // Cache scheduled item + delegate once. We keep it paused and re-arm on demand.
+                _removeAppearFromItem = _markRoot.schedule.Execute(RemoveAppearFromClass);
+                _removeAppearFromItem.Pause();
+            }
+
+            public void Trigger()
+            {
+                _markRoot.RemoveFromClassList(MarkAppearFromClass);
+                _markRoot.AddToClassList(MarkAppearFromClass);
+
+                // Remove on next update so transition reliably animates to the base state.
+                _removeAppearFromItem.Pause();
+                _removeAppearFromItem.StartingIn(1);
+                _removeAppearFromItem.Resume();
+            }
+
+            public void CancelPending()
+            {
+                _removeAppearFromItem.Pause();
+            }
+
+            private void RemoveAppearFromClass()
+            {
+                _markRoot.RemoveFromClassList(MarkAppearFromClass);
+            }
         }
 
         private static void ApplyCellInteractivity(VisualElement cellRoot, PlayerMark value)

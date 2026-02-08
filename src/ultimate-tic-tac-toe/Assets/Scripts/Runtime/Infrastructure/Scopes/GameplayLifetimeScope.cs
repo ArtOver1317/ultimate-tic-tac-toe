@@ -20,6 +20,10 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<FieldSpecMapper>(Lifetime.Scoped);
             builder.Register<IGameService, LocalGameService>(Lifetime.Scoped);
             builder.Register<ILocalMovesService, LocalMovesService>(Lifetime.Scoped);
+
+            // Phase 4: default VFX settings for local moves.
+            builder.RegisterInstance(MovesVfxSettings.Default);
+
             builder.Register<GameplayFieldPresenter>(Lifetime.Scoped)
                 .As<IGameplayFieldPresenter>()
                 .As<IGameplayFieldUiAdapter>();

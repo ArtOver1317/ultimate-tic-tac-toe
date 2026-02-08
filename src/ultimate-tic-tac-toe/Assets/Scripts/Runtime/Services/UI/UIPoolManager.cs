@@ -82,7 +82,7 @@ namespace Runtime.Services.UI
             {
                 w.ResetForPool();
                 
-                if (w is MonoBehaviour mb) 
+                if (w is MonoBehaviour mb && mb)
                     mb.gameObject.SetActive(false);
             });
         }
@@ -104,9 +104,17 @@ namespace Runtime.Services.UI
             _windowPool.ClearAll(w =>
             {
                 RemoveInjectedId(w);
-                w.Close();
-                
-                if (w is MonoBehaviour mb) 
+
+                try
+                {
+                    w.Close();
+                }
+                catch (MissingReferenceException)
+                {
+                    // View is already destroyed; ignore.
+                }
+
+                if (w is MonoBehaviour mb && mb)
                     UnityEngine.Object.Destroy(mb.gameObject);
             });
             
@@ -120,9 +128,17 @@ namespace Runtime.Services.UI
             _windowPool.Clear(windowType, w =>
             {
                 RemoveInjectedId(w);
-                w.Close();
-                
-                if (w is MonoBehaviour mb) 
+
+                try
+                {
+                    w.Close();
+                }
+                catch (MissingReferenceException)
+                {
+                    // View is already destroyed; ignore.
+                }
+
+                if (w is MonoBehaviour mb && mb)
                     UnityEngine.Object.Destroy(mb.gameObject);
             });
             

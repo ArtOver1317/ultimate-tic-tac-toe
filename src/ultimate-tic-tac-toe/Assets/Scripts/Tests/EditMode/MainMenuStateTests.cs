@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using NSubstitute;
@@ -267,6 +269,28 @@ namespace Tests.EditMode
 
             _uiService.Received(1).Close<MainMenuView>();
             _coordinator.Received(1).Dispose();
+        }
+
+        [Test]
+        public void WhenEnterWithWizardEntryAndCancelledDuringWizardStart_ThenDoesNotFallbackToShowingMainMenu()
+        {
+            // Arrange
+            _entryModeStore.Set(MainMenuEntryMode.OpenWizard);
+
+            using var cts = new CancellationTokenSource();
+            _wizardCoordinator
+                .StartWizardAsync(Arg.Any<CancellationToken>())
+                .Returns(_ =>
+                {
+                    cts.Cancel();
+                    return UniTask.FromCanceled(cts.Token);
+                });
+
+            // Act
+            Assert.ThrowsAsync<OperationCanceledException>(async () => await _state.EnterAsync(cts.Token));
+
+            // Assert
+            _uiService.DidNotReceive().Get<MainMenuView>();
         }
     }
 

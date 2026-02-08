@@ -19,6 +19,14 @@
     --anim-fast-ms: 160ms;
     --anim-ease: ease-out;
 
+     /* Phase 4: mark font size derives from runtime cell size.
+         Scale is a design token read by presenter: fontSizePx = cellSizePx * --mark-font-scale */
+     --mark-font-scale: 0.62;
+
+     /* Monochrome differentiation: same hue, different alpha. */
+     --mark-color-x: rgba(20, 20, 20, 0.78);
+     --mark-color-o: rgba(20, 20, 20, 0.58);
+
     flex-grow: 1;
     width: 100%;
     height: 100%;
@@ -95,14 +103,46 @@
     transition-timing-function: var(--anim-ease);
 }
 
+.cell.cell--disabled {
+    /* Visual hint only; interactivity is enforced from C# (SetEnabled + pickingMode). */
+    opacity: 0.92;
+}
+
 .cell:hover {
     background-color: rgba(255, 255, 255, 0.13);
     border-color: rgba(255, 255, 255, 0.30);
 }
 
 .cell-mark {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 100%;
     height: 100%;
+
+    /* Phase 4: mark appear VFX (scale + fade) via design-token transitions. */
+    transition-property: opacity, scale;
+    transition-duration: var(--anim-fast-ms);
+    transition-timing-function: var(--anim-ease);
+}
+
+.cell-mark #MarkLabel {
+    width: 100%;
+    height: 100%;
+    -unity-text-align: middle-center;
+}
+
+.cell-mark #MarkLabel.mark-label--x {
+    color: var(--mark-color-x);
+}
+
+.cell-mark #MarkLabel.mark-label--o {
+    color: var(--mark-color-o);
+}
+
+.cell-mark.cell-mark--appearFrom {
+    opacity: 0;
+    scale: 0.85;
 }
 
 /* States (prepared for gameplay rules) */

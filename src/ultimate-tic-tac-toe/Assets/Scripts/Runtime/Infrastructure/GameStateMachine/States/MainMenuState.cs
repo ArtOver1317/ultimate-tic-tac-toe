@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.GameModes.Wizard;
@@ -135,7 +136,19 @@ namespace Runtime.Infrastructure.GameStateMachine.States
                     _coordinator.Initialize(_headlessViewModel);
                 }
 
-                await _wizardCoordinator.StartWizardAsync(cancellationToken);
+                try
+                {
+                    await _wizardCoordinator.StartWizardAsync(cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(LogTags.UI, $"[MainMenuState] Wizard entry failed. Falling back to MainMenuView. {ex}");
+                    _uiService.Get<MainMenuView>()?.Show();
+                }
                 return;
             }
 

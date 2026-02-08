@@ -60,6 +60,8 @@ namespace Runtime.Gameplay.Moves
         public bool EnableMarkAppearAnimation { get; }
         public float MarkAppearDurationSeconds { get; }
 
+        public static MovesVfxSettings Default => new(enableMarkAppearAnimation: true, markAppearDurationSeconds: 0.16f);
+
         public MovesVfxSettings(bool enableMarkAppearAnimation, float markAppearDurationSeconds)
         {
             EnableMarkAppearAnimation = enableMarkAppearAnimation;

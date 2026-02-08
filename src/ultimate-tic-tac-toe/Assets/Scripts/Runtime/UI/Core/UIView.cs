@@ -51,8 +51,12 @@ namespace Runtime.UI.Core
 
         public virtual void Close()
         {
-            if (gameObject != null) 
-                Destroy(gameObject);
+            // In pooled/scene transitions a view might already be destroyed but still referenced.
+            // Accessing `gameObject` on a destroyed component throws MissingReferenceException.
+            if (!this)
+                return;
+
+            Destroy(gameObject);
         }
 
         protected virtual void OnShow() { }
