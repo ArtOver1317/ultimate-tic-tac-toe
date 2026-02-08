@@ -111,65 +111,17 @@ namespace Runtime.GameModes.Wizard
                     throw new InvalidOperationException("Matchmaking service returned null result.");
 
                 await UniTask.SwitchToMainThread();
-
-                lock (_lock)
-                {
-                    if (!ReferenceEquals(_searchCts, localCts))
-                        return true;
-
-                    _result.Value = result;
-                    _failure.Value = null;
-                    _state.Value = MatchmakingState.Found;
-                    _searchCts = null;
-                }
+                ApplySearchSuccess(localCts, result);
             }
-            catch (OperationCanceledException ex)
+            catch (OperationCanceledException)
             {
                 await UniTask.SwitchToMainThread();
-
-                lock (_lock)
-                {
-                    if (!ReferenceEquals(_searchCts, localCts))
-                        return true;
-
-                    var timeoutRequested = timeoutCts?.IsCancellationRequested ?? false;
-                    var externalCancelled = ct.IsCancellationRequested || localCts.IsCancellationRequested;
-                    var isTimeout = timeoutRequested && !externalCancelled;
-
-                    if (isTimeout)
-                    {
-                        _failure.Value = MatchmakingFailure.Timeout();
-                        _state.Value = MatchmakingState.Failed;
-                    }
-                    else if (externalCancelled)
-                    {
-                        _failure.Value = null;
-                        _state.Value = MatchmakingState.Cancelled;
-                    }
-                    else
-                    {
-                        _failure.Value = MatchmakingFailure.FromException(new Exception("Unexpected matchmaking cancellation.", ex));
-                        _state.Value = MatchmakingState.Failed;
-                    }
-
-                    _result.Value = null;
-                    _searchCts = null;
-                }
+                ApplySearchCancellation(localCts, ct, timeoutCts);
             }
             catch (Exception ex)
             {
                 await UniTask.SwitchToMainThread();
-
-                lock (_lock)
-                {
-                    if (!ReferenceEquals(_searchCts, localCts))
-                        return true;
-
-                    _failure.Value = MatchmakingFailure.FromException(ex);
-                    _result.Value = null;
-                    _state.Value = MatchmakingState.Failed;
-                    _searchCts = null;
-                }
+                ApplySearchError(localCts, ex);
             }
             finally
             {
@@ -179,6 +131,69 @@ namespace Runtime.GameModes.Wizard
             }
 
             return true;
+        }
+
+        private void ApplySearchSuccess(CancellationTokenSource localCts, MatchmakingResult result)
+        {
+            lock (_lock)
+            {
+                if (!ReferenceEquals(_searchCts, localCts))
+                    return;
+
+                _result.Value = result;
+                _failure.Value = null;
+                _state.Value = MatchmakingState.Found;
+                _searchCts = null;
+            }
+        }
+
+        private void ApplySearchCancellation(
+            CancellationTokenSource localCts,
+            CancellationToken externalCt,
+            CancellationTokenSource? timeoutCts)
+        {
+            lock (_lock)
+            {
+                if (!ReferenceEquals(_searchCts, localCts))
+                    return;
+
+                var timeoutRequested = timeoutCts?.IsCancellationRequested ?? false;
+                var externalCancelled = externalCt.IsCancellationRequested || localCts.IsCancellationRequested;
+                var isTimeout = timeoutRequested && !externalCancelled;
+
+                if (isTimeout)
+                {
+                    _failure.Value = MatchmakingFailure.Timeout();
+                    _state.Value = MatchmakingState.Failed;
+                }
+                else if (externalCancelled)
+                {
+                    _failure.Value = null;
+                    _state.Value = MatchmakingState.Cancelled;
+                }
+                else
+                {
+                    _failure.Value = MatchmakingFailure.FromException(new Exception("Unexpected matchmaking cancellation."));
+                    _state.Value = MatchmakingState.Failed;
+                }
+
+                _result.Value = null;
+                _searchCts = null;
+            }
+        }
+
+        private void ApplySearchError(CancellationTokenSource localCts, Exception ex)
+        {
+            lock (_lock)
+            {
+                if (!ReferenceEquals(_searchCts, localCts))
+                    return;
+
+                _failure.Value = MatchmakingFailure.FromException(ex);
+                _result.Value = null;
+                _state.Value = MatchmakingState.Failed;
+                _searchCts = null;
+            }
         }
 
         /// <summary>

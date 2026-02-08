@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,7 +14,7 @@ namespace Runtime.GameModes.Wizard
     /// Phase 3: coordinator owning intent queue, busy state and session lifecycle.
     /// UI specifics are delegated to <see cref="IGameModeWizardNavigator"/>.
     /// </summary>
-    public sealed class GameModeWizardCoordinator : IGameModeWizardCoordinator, IDisposable
+    public sealed partial class GameModeWizardCoordinator : IGameModeWizardCoordinator, IDisposable
     {
         private static readonly TimeSpan _abortSwitchToMainThreadTimeout = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan _matchmakingFoundAutoCloseDelay = TimeSpan.FromMilliseconds(450);
@@ -127,14 +126,27 @@ namespace Runtime.GameModes.Wizard
             // Wizard is a UI flow; enforce main thread for state mutations.
             await UniTask.SwitchToMainThread(ct);
 
-            CancellationToken wizardToken;
+            if (!TryInitializeWizardSession(ct, out var wizardToken))
+                return;
 
+            await OpenFirstStepAsync(wizardToken);
+        }
+
+        /// <summary>
+        /// Creates session, CTS, intent queue and starts the processing loop.
+        /// Must be called under main thread after <see cref="UniTask.SwitchToMainThread"/>.
+        /// </summary>
+        private bool TryInitializeWizardSession(CancellationToken ct, out CancellationToken wizardToken)
+        {
             lock (_lifecycleLock)
             {
                 EnsureNotDisposed();
 
                 if (_wizardCts != null)
-                    return;
+                {
+                    wizardToken = default;
+                    return false;
+                }
 
                 var wizardCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token);
 
@@ -157,25 +169,26 @@ namespace Runtime.GameModes.Wizard
                 }
 
                 _wizardCts = wizardCts;
-                wizardToken = wizardCts.Token;
                 _session = session;
                 Volatile.Write(ref _isActiveFlag, 1);
 
                 _currentError.Value = null;
                 _step = WizardStep.None;
 
-                SetIsTransitioning(false);
-                SetIsSubmitting(false);
+                ResetBusyState();
                 Volatile.Write(ref _hasPendingOrInFlightIntentFlag, 0);
                 Volatile.Write(ref _isReadyForIntentsFlag, 0);
-                FlushPendingErrorOnMainThread();
 
                 _intentQueue = new WizardIntentQueue();
 
-                _processingTask = ProcessIntentsAsync(wizardToken).AsTask();
+                _processingTask = ProcessIntentsAsync(wizardCts.Token).AsTask();
+                wizardToken = wizardCts.Token;
+                return true;
             }
+        }
 
-            // Open the first step (Mode Selection)
+        private async UniTask OpenFirstStepAsync(CancellationToken wizardToken)
+        {
             try
             {
                 await _navigator.OpenModeSelectionAsync(wizardToken);
@@ -191,13 +204,11 @@ namespace Runtime.GameModes.Wizard
             }
             catch (OperationCanceledException)
             {
-                // Start was cancelled - ensure we cleanup internal state.
                 await AbortWizardCoreAsync(AbortReason.StartCancelled, awaitProcessingTask: false);
                 throw;
             }
             catch
             {
-                // If opening the very first window failed, do not leak a live session/queue.
                 await AbortWizardCoreAsync(AbortReason.Error, awaitProcessingTask: false);
                 throw;
             }
@@ -252,170 +263,6 @@ namespace Runtime.GameModes.Wizard
             }
 
             return true;
-        }
-
-        public async UniTask AbortWizardAsync(AbortReason reason)
-        {
-            EnsureNotDisposed();
-
-            // If Abort is triggered from inside the processing loop, awaiting that loop would self-await.
-            var awaitProcessingTask = !_isInProcessingLoop.Value;
-            await AbortWizardCoreAsync(reason, awaitProcessingTask: awaitProcessingTask);
-        }
-
-        public void Dispose()
-        {
-            if (_isDisposed)
-                return;
-
-            _isDisposed = true;
-
-            _lifetimeCts.Cancel();
-            _lifetimeCts.Dispose();
-
-            DisposeAfterAbortAsync().Forget(ex => GameLog.Exception(ex));
-        }
-
-        private async UniTask DisposeAfterAbortAsync()
-        {
-            try
-            {
-                // Best-effort cleanup (must not throw due to disposal ordering)
-                await AbortWizardCoreAsync(AbortReason.SceneChange, awaitProcessingTask: true);
-            }
-            catch (Exception ex)
-            {
-                GameLog.Exception(ex);
-            }
-            finally
-            {
-                _isTransitioning.Dispose();
-                _isSubmitting.Dispose();
-                _currentError.Dispose();
-                _gameLaunchRequested.OnCompleted();
-                _gameLaunchRequested.Dispose();
-                _wizardAborted.OnCompleted();
-                _wizardAborted.Dispose();
-            }
-        }
-
-        private async UniTask AbortWizardCoreAsync(AbortReason reason, bool awaitProcessingTask)
-        {
-            if (Interlocked.Exchange(ref _abortInProgress, 1) != 0)
-                return;
-
-            CancellationTokenSource? wizardCts;
-            Task? processingTask;
-            IGameModeSession? session;
-            bool shouldPublishAbort;
-
-            lock (_lifecycleLock)
-            {
-                wizardCts = _wizardCts;
-                processingTask = _processingTask;
-                session = _session;
-
-                _wizardCts = null;
-                _processingTask = null;
-                _intentQueue = null;
-                _session = null;
-                _step = WizardStep.None;
-                CleanupMatchmakingBindings();
-                Volatile.Write(ref _isActiveFlag, 0);
-
-                shouldPublishAbort = wizardCts != null || processingTask != null || session != null;
-            }
-
-            if (wizardCts == null && processingTask == null && session == null)
-            {
-                try
-                {
-                    SetIsTransitioning(false);
-                    SetIsSubmitting(false);
-                    FlushPendingErrorOnMainThread();
-                }
-                finally
-                {
-                    Interlocked.Exchange(ref _abortInProgress, 0);
-                }
-
-                return;
-            }
-
-            Volatile.Write(ref _isReadyForIntentsFlag, 0);
-            Volatile.Write(ref _hasPendingOrInFlightIntentFlag, 0);
-
-            try
-            {
-                GameLog.Debug($"[GameModeWizardCoordinator] Abort wizard. Reason={reason}");
-
-                wizardCts?.Cancel();
-
-                // Best-effort close:
-                // - We must attempt to close even when abort is triggered off-main-thread.
-                // - We also must avoid hanging forever during shutdown.
-                if (!PlayerLoopHelper.IsMainThread)
-                {
-                    var switched = await TrySwitchToMainThreadWithTimeoutAsync(_abortSwitchToMainThreadTimeout);
-                    
-                    if (!switched)
-                        GameLog.Warning("[GameModeWizardCoordinator] Failed to switch to main thread to close wizard windows (timeout/shutdown). Windows may remain open.");
-                }
-
-                if (PlayerLoopHelper.IsMainThread)
-                {
-                    using var closeCts = new CancellationTokenSource(_abortCloseWindowsTimeout);
-                    
-                    try
-                    {
-                        await _navigator.CloseAllWizardWindowsAsync(closeCts.Token);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // Expected on timeout/shutdown.
-                    }
-                }
-
-                if (awaitProcessingTask && processingTask != null)
-                {
-                    try
-                    {
-                        await processingTask;
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // Expected due to wizard cancellation.
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                TrySetCurrentError(WizardError.FromException(ex));
-                GameLog.Exception(ex);
-            }
-            finally
-            {
-                try
-                {
-                    session?.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    GameLog.Exception(ex);
-                }
-
-                wizardCts?.Dispose();
-
-                // Must never hang in finally.
-                SetIsTransitioning(false);
-                SetIsSubmitting(false);
-                FlushPendingErrorOnMainThread();
-                
-                if (shouldPublishAbort)
-                    PublishWizardAborted(reason);
-                
-                Interlocked.Exchange(ref _abortInProgress, 0);
-            }
         }
 
         private async UniTask ProcessIntentsAsync(CancellationToken ct)
@@ -529,508 +376,13 @@ namespace Runtime.GameModes.Wizard
                 case WizardIntent.Start:
                     if (_step != WizardStep.MatchSetup)
                         return;
-                    
-                    if (TryGetSessionSnapshot(out var snapshot) && 
-                        snapshot is { OpponentType: OpponentType.Human, HumanOpponentKind: HumanOpponentKind.Matchmaking })
-                    {
-                        await OpenMatchmakingAsync(snapshot, ct);
-                        return;
-                    }
 
-                    if (!TryBuildLaunchConfig(out var launchConfig, out var error))
-                    {
-                        if (error != null)
-                            TrySetCurrentError(error);
-
-                        return;
-                    }
-
-                    if (launchConfig != null) 
-                        PublishGameLaunchRequested(launchConfig);
-
-                    SetIsSubmitting(true);
-                    
-                    try
-                    {
-                        await AbortWizardCoreAsync(AbortReason.GameStarted, awaitProcessingTask: false);
-                    }
-                    finally
-                    {
-                        SetIsSubmitting(false);
-                    }
-                    
+                    await HandleStartIntentAsync(ct);
                     return;
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(intent), intent, null);
             }
-        }
-
-        private async UniTask OpenMatchmakingAsync(GameModeSessionSnapshot snapshot, CancellationToken ct)
-        {
-            if (snapshot == null)
-                throw new ArgumentNullException(nameof(snapshot));
-
-            if (string.IsNullOrWhiteSpace(snapshot.SelectedModeId) || snapshot.ModeConfig == null)
-            {
-                TrySetCurrentError(new WizardError(
-                    code: "wizard.mode_config_required",
-                    messageKey: "Errors.GameModeWizard.ModeConfigRequired",
-                    isBlocking: true,
-                    displayType: ErrorDisplayType.Modal));
-                
-                return;
-            }
-
-            await TransitionAsync(
-                transition: async token =>
-                {
-                    var viewModel = await _navigator.ReplaceMatchSetupWithMatchmakingAsync(token);
-                    
-                    if (viewModel == null)
-                        throw new InvalidOperationException("Matchmaking ViewModel is not available.");
-
-                    BindMatchmakingViewModel(viewModel, snapshot, token);
-                },
-                ct: ct);
-
-            _step = WizardStep.Matchmaking;
-        }
-
-        private void BindMatchmakingViewModel(MatchmakingViewModel viewModel, GameModeSessionSnapshot snapshot, CancellationToken ct)
-        {
-            CleanupMatchmakingBindings();
-
-            _matchmakingViewModel = viewModel;
-            _matchmakingSubscriptions = new CompositeDisposable();
-
-            viewModel.CancelRequested
-                .Subscribe(_ => CloseMatchmakingToSetupAsync(ct).Forget(LogForgetException))
-                .AddTo(_matchmakingSubscriptions);
-
-            viewModel.BackRequested
-                .Subscribe(_ => CloseMatchmakingToSetupAsync(ct).Forget(LogForgetException))
-                .AddTo(_matchmakingSubscriptions);
-
-            viewModel.RetryRequested
-                .Subscribe(_ => TryRestartMatchmaking(snapshot, ct))
-                .AddTo(_matchmakingSubscriptions);
-
-            viewModel.State
-                .Subscribe(state => HandleMatchmakingStateChanged(state, ct).Forget(LogForgetException))
-                .AddTo(_matchmakingSubscriptions);
-
-            viewModel.Result
-                .Subscribe(UpdateMatchmakingResult)
-                .AddTo(_matchmakingSubscriptions);
-
-            UpdateMatchmakingResult(null);
-
-            if (snapshot is { SelectedModeId: not null, ModeConfig: not null }) 
-                viewModel.BeginSearch(new MatchmakingRequest(snapshot.SelectedModeId, snapshot.ModeConfig), ct);
-        }
-
-        private void TryRestartMatchmaking(GameModeSessionSnapshot snapshot, CancellationToken ct)
-        {
-            if (_matchmakingViewModel == null)
-                return;
-
-            if (string.IsNullOrWhiteSpace(snapshot.SelectedModeId) || snapshot.ModeConfig == null)
-            {
-                TrySetCurrentError(new WizardError(
-                    code: "wizard.mode_config_required",
-                    messageKey: "Errors.GameModeWizard.ModeConfigRequired",
-                    isBlocking: true,
-                    displayType: ErrorDisplayType.Modal));
-
-                CloseMatchmakingToSetupAsync(ct).Forget(LogForgetException);
-                return;
-            }
-
-            var request = new MatchmakingRequest(snapshot.SelectedModeId, snapshot.ModeConfig);
-            UpdateMatchmakingResult(null);
-            _matchmakingViewModel.BeginSearch(request, ct);
-        }
-
-        private async UniTask HandleMatchmakingStateChanged(MatchmakingState state, CancellationToken ct)
-        {
-            if (_step != WizardStep.Matchmaking)
-                return;
-
-            switch (state)
-            {
-                case MatchmakingState.Found:
-                    await UniTask.Delay(_matchmakingFoundAutoCloseDelay, cancellationToken: ct);
-                    await CloseMatchmakingAndStartAsync(ct);
-                    break;
-
-                case MatchmakingState.Cancelled:
-                    await CloseMatchmakingToSetupAsync(ct);
-                    break;
-            }
-        }
-
-        private static void LogForgetException(Exception ex)
-        {
-            if (ex is OperationCanceledException)
-                return;
-
-            GameLog.Exception(ex);
-        }
-
-        private async UniTask CloseMatchmakingToSetupAsync(CancellationToken ct)
-        {
-            if (_step != WizardStep.Matchmaking)
-                return;
-
-            if (Interlocked.Exchange(ref _matchmakingCloseInProgress, 1) != 0)
-                return;
-
-            try
-            {
-                await TransitionAsync(
-                    transition: _navigator.ReplaceMatchmakingWithMatchSetupAsync,
-                    ct: ct);
-
-                CleanupMatchmakingBindings();
-                _step = WizardStep.MatchSetup;
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _matchmakingCloseInProgress, 0);
-            }
-        }
-
-        private async UniTask CloseMatchmakingAndStartAsync(CancellationToken ct)
-        {
-            if (_step != WizardStep.Matchmaking)
-                return;
-
-            if (Interlocked.Exchange(ref _matchmakingCloseInProgress, 1) != 0)
-                return;
-
-            try
-            {
-                if (!TryBuildLaunchConfig(out var launchConfig, out var error))
-                {
-                    if (error != null)
-                        TrySetCurrentError(error);
-
-                    await TransitionAsync(
-                        transition: _navigator.ReplaceMatchmakingWithMatchSetupAsync,
-                        ct: ct);
-
-                    CleanupMatchmakingBindings();
-                    _step = WizardStep.MatchSetup;
-                    return;
-                }
-
-                await TransitionAsync(
-                    transition: _navigator.CloseMatchmakingAsync,
-                    ct: ct);
-
-                CleanupMatchmakingBindings();
-
-                if (launchConfig != null) 
-                    PublishGameLaunchRequested(launchConfig);
-
-                SetIsSubmitting(true);
-                
-                try
-                {
-                    await AbortWizardCoreAsync(AbortReason.GameStarted, awaitProcessingTask: false);
-                }
-                finally
-                {
-                    SetIsSubmitting(false);
-                }
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _matchmakingCloseInProgress, 0);
-            }
-        }
-
-        private bool TryBuildLaunchConfig(out GameLaunchConfig? launchConfig, out WizardError? error)
-        {
-            launchConfig = null;
-            error = null;
-
-            var session = _session;
-            
-            if (session == null)
-            {
-                error = new WizardError(
-                    code: "wizard.session_missing",
-                    messageKey: "Errors.GameModeWizard.UnhandledException",
-                    isBlocking: true,
-                    displayType: ErrorDisplayType.Modal);
-                
-                return false;
-            }
-
-            Result<GameLaunchConfig> result;
-
-            try
-            {
-                result = session.BuildLaunchConfig();
-            }
-            catch (Exception ex)
-            {
-                error = WizardError.FromException(ex);
-                return false;
-            }
-
-            if (result.IsFailure)
-            {
-                error = CreateWizardErrorFromValidation(result.Errors);
-                return false;
-            }
-
-            launchConfig = result.Value;
-            return true;
-        }
-
-        private static WizardError CreateWizardErrorFromValidation(IReadOnlyList<ValidationError>? errors)
-        {
-            if (errors == null || errors.Count == 0)
-            {
-                return new WizardError(
-                    code: "wizard.validation_failed",
-                    messageKey: "Errors.GameModeWizard.UnhandledException",
-                    isBlocking: true,
-                    displayType: ErrorDisplayType.Modal);
-            }
-
-            return CreateWizardErrorFromValidation(errors[0]);
-        }
-
-        private static WizardError CreateWizardErrorFromValidation(ValidationError error)
-        {
-            if (error == null)
-                throw new ArgumentNullException(nameof(error));
-
-            var displayType = error.Field switch
-            {
-                WizardFieldNames.Matchmaking => ErrorDisplayType.Modal,
-                WizardFieldNames.ModeCatalog => ErrorDisplayType.Modal,
-                _ => ErrorDisplayType.Inline,
-            };
-
-            var isBlocking = displayType == ErrorDisplayType.Modal;
-
-            return new WizardError(
-                code: error.Field,
-                messageKey: error.MessageKey,
-                isBlocking: isBlocking,
-                displayType: displayType);
-        }
-
-        private void PublishGameLaunchRequested(GameLaunchConfig config)
-        {
-            if (config == null)
-                throw new ArgumentNullException(nameof(config));
-
-            if (_isDisposed)
-                return;
-
-            if (PlayerLoopHelper.IsMainThread)
-            {
-                _gameLaunchRequested.OnNext(config);
-                return;
-            }
-
-            PublishGameLaunchRequestedOnMainThreadAsync(config).Forget();
-        }
-
-        private void PublishWizardAborted(AbortReason reason)
-        {
-            if (_isDisposed)
-                return;
-
-            if (PlayerLoopHelper.IsMainThread)
-            {
-                _wizardAborted.OnNext(reason);
-                return;
-            }
-
-            PublishWizardAbortedOnMainThreadAsync(reason).Forget();
-        }
-
-        private async UniTaskVoid PublishGameLaunchRequestedOnMainThreadAsync(GameLaunchConfig config)
-        {
-            try
-            {
-                await UniTask.SwitchToMainThread(CancellationToken.None);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-
-            if (_isDisposed)
-                return;
-
-            _gameLaunchRequested.OnNext(config);
-        }
-
-        private async UniTaskVoid PublishWizardAbortedOnMainThreadAsync(AbortReason reason)
-        {
-            try
-            {
-                await UniTask.SwitchToMainThread(CancellationToken.None);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-
-            if (_isDisposed)
-                return;
-
-            _wizardAborted.OnNext(reason);
-        }
-
-        private void CleanupMatchmakingBindings()
-        {
-            _matchmakingSubscriptions?.Dispose();
-            _matchmakingSubscriptions = null;
-            _matchmakingViewModel = null;
-            UpdateMatchmakingResult(null);
-            Interlocked.Exchange(ref _matchmakingCloseInProgress, 0);
-        }
-
-        private void UpdateMatchmakingResult(MatchmakingResult? result) =>
-            _session?.Update(s =>
-                s.WithMatchmakingResult(result?.MatchId, result?.OpponentId));
-
-        private bool TryGetSessionSnapshot(out GameModeSessionSnapshot snapshot)
-        {
-            snapshot = null!;
-
-            if (_session == null)
-                return false;
-
-            try
-            {
-                snapshot = _session.Snapshot.CurrentValue;
-                return snapshot != null;
-            }
-            catch (ObjectDisposedException)
-            {
-                return false;
-            }
-        }
-
-        private async UniTask TransitionAsync(
-            Func<CancellationToken, UniTask> transition,
-            CancellationToken ct)
-        {
-            if (transition == null)
-                throw new ArgumentNullException(nameof(transition));
-
-            if (Volatile.Read(ref _isTransitioningFlag) != 0)
-                return;
-
-            await UniTask.SwitchToMainThread(ct);
-            FlushPendingErrorOnMainThread();
-            SetIsTransitioning(true);
-
-            try
-            {
-                await transition(ct);
-            }
-            finally
-            {
-                SetIsTransitioning(false);
-            }
-        }
-
-        private void SetIsTransitioning(bool value)
-        {
-            Volatile.Write(ref _isTransitioningFlag, value ? 1 : 0);
-
-            if (PlayerLoopHelper.IsMainThread && !_isDisposed)
-                _isTransitioning.Value = value;
-        }
-
-        private void SetIsSubmitting(bool value)
-        {
-            Volatile.Write(ref _isSubmittingFlag, value ? 1 : 0);
-
-            if (PlayerLoopHelper.IsMainThread && !_isDisposed)
-                _isSubmitting.Value = value;
-        }
-
-        private void TrySetCurrentError(WizardError error)
-        {
-            if (error == null)
-                throw new ArgumentNullException(nameof(error));
-
-            if (_isDisposed)
-                return;
-
-            if (PlayerLoopHelper.IsMainThread)
-            {
-                _currentError.Value = error;
-                return;
-            }
-
-            Interlocked.Exchange(ref _pendingError, error);
-        }
-
-        private void FlushPendingErrorOnMainThread()
-        {
-            if (!PlayerLoopHelper.IsMainThread || _isDisposed)
-                return;
-
-            var pending = Interlocked.Exchange(ref _pendingError, null);
-            
-            if (pending != null)
-                _currentError.Value = pending;
-        }
-
-        private async UniTaskVoid ClearCurrentErrorOnMainThreadAsync()
-        {
-            try
-            {
-                await UniTask.SwitchToMainThread(_lifetimeCts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-
-            if (_isDisposed)
-                return;
-
-            Interlocked.Exchange(ref _pendingError, null);
-
-            _currentError.Value = null;
-        }
-
-        private static async UniTask<bool> TrySwitchToMainThreadWithTimeoutAsync(TimeSpan timeout)
-        {
-            if (PlayerLoopHelper.IsMainThread)
-                return true;
-
-            using var timeoutCts = new CancellationTokenSource(timeout);
-
-            try
-            {
-                await UniTask.SwitchToMainThread(timeoutCts.Token);
-                return PlayerLoopHelper.IsMainThread;
-            }
-            catch (OperationCanceledException)
-            {
-                return false;
-            }
-        }
-
-        private void EnsureNotDisposed()
-        {
-            if (_isDisposed)
-                throw new ObjectDisposedException(nameof(GameModeWizardCoordinator));
         }
 
         private sealed class WizardIntentQueue

@@ -106,56 +106,63 @@ namespace Runtime.GameModes.Wizard
             if (errors.Count > 0)
                 return Result<GameLaunchConfig>.Failure(errors);
 
-            IOpponentConfig opponentConfig;
-
-            switch (snapshot.OpponentType)
+            var opponentConfig = BuildOpponentConfig(snapshot);
+            
+            if (opponentConfig == null)
             {
-                case OpponentType.Bot:
-                    if (string.IsNullOrWhiteSpace(snapshot.BotDifficultyId))
-                        throw new InvalidOperationException("Bot difficulty is missing after validation.");
-
-                    opponentConfig = new BotOpponentConfig(snapshot.BotDifficultyId);
-                    break;
-
-                case OpponentType.Human:
-                    switch (snapshot.HumanOpponentKind)
-                    {
-                        case HumanOpponentKind.Local:
-                            opponentConfig = new LocalHumanConfig();
-                            break;
-
-                        case HumanOpponentKind.DirectInvite:
-                            if (string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
-                                throw new InvalidOperationException("DirectInvite requires TargetPlayerId after validation.");
-
-                            opponentConfig = new DirectInviteConfig(snapshot.TargetPlayerId);
-                            break;
-
-                        case HumanOpponentKind.Matchmaking:
-                            if (string.IsNullOrWhiteSpace(snapshot.MatchmakingMatchId) ||
-                                string.IsNullOrWhiteSpace(snapshot.MatchmakingOpponentId))
-                            {
-                                return Result<GameLaunchConfig>.Failure(
-                                    new ValidationError(WizardFieldNames.Matchmaking, "Errors.GameModeWizard.MatchmakingConfigMissing"));
-                            }
-
-                            opponentConfig = new MatchmakingConfig(snapshot.MatchmakingMatchId, snapshot.MatchmakingOpponentId);
-                            break;
-
-                        default:
-                            throw new ArgumentOutOfRangeException(nameof(snapshot.HumanOpponentKind), snapshot.HumanOpponentKind, null);
-                    }
-
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(snapshot.OpponentType), snapshot.OpponentType, null);
+                return Result<GameLaunchConfig>.Failure(
+                    new ValidationError(WizardFieldNames.Matchmaking, "Errors.GameModeWizard.MatchmakingConfigMissing"));
             }
 
             return Result<GameLaunchConfig>.Success(new GameLaunchConfig(
                 gameModeId: snapshot.SelectedModeId ?? throw new InvalidOperationException("Selected mode is missing after validation."),
                 modeConfig: snapshot.ModeConfig ?? throw new InvalidOperationException("Mode config is missing after validation."),
                 opponentConfig: opponentConfig));
+        }
+
+        private static IOpponentConfig? BuildOpponentConfig(GameModeSessionSnapshot snapshot)
+        {
+            switch (snapshot.OpponentType)
+            {
+                case OpponentType.Bot:
+                    if (string.IsNullOrWhiteSpace(snapshot.BotDifficultyId))
+                        throw new InvalidOperationException("Bot difficulty is missing after validation.");
+
+                    return new BotOpponentConfig(snapshot.BotDifficultyId);
+
+                case OpponentType.Human:
+                    return BuildHumanOpponentConfig(snapshot);
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(snapshot.OpponentType), snapshot.OpponentType, null);
+            }
+        }
+
+        private static IOpponentConfig? BuildHumanOpponentConfig(GameModeSessionSnapshot snapshot)
+        {
+            switch (snapshot.HumanOpponentKind)
+            {
+                case HumanOpponentKind.Local:
+                    return new LocalHumanConfig();
+
+                case HumanOpponentKind.DirectInvite:
+                    if (string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
+                        throw new InvalidOperationException("DirectInvite requires TargetPlayerId after validation.");
+
+                    return new DirectInviteConfig(snapshot.TargetPlayerId);
+
+                case HumanOpponentKind.Matchmaking:
+                    if (string.IsNullOrWhiteSpace(snapshot.MatchmakingMatchId) ||
+                        string.IsNullOrWhiteSpace(snapshot.MatchmakingOpponentId))
+                    {
+                        return null;
+                    }
+
+                    return new MatchmakingConfig(snapshot.MatchmakingMatchId, snapshot.MatchmakingOpponentId);
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(snapshot.HumanOpponentKind), snapshot.HumanOpponentKind, null);
+            }
         }
 
         public void Reset()
@@ -247,66 +254,73 @@ namespace Runtime.GameModes.Wizard
             if (snapshot == null)
                 throw new ArgumentNullException(nameof(snapshot));
 
-            List<ValidationError> errors = null;
+            List<ValidationError>? errors = null;
 
+            ValidateMode(snapshot, ref errors);
+            ValidateOpponent(snapshot, ref errors);
+
+            return errors ?? _noErrors;
+        }
+
+        private void ValidateMode(GameModeSessionSnapshot snapshot, ref List<ValidationError>? errors)
+        {
             if (string.IsNullOrWhiteSpace(snapshot.SelectedModeId))
-                (errors = new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.SelectedModeId, "Errors.GameModeWizard.ModeRequired"));
+                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.SelectedModeId, "Errors.GameModeWizard.ModeRequired"));
 
             if (snapshot.ModeConfig == null)
                 (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ModeConfigRequired"));
 
-            if (!string.IsNullOrWhiteSpace(snapshot.SelectedModeId))
+            if (string.IsNullOrWhiteSpace(snapshot.SelectedModeId))
+                return;
+
+            if (_catalog == null)
             {
-                if (_catalog == null)
-                {
-                    (errors ??= new List<ValidationError>(capacity: 4))
-                        .Add(new ValidationError(WizardFieldNames.ModeCatalog, "Errors.GameModeWizard.ModeCatalogMissing"));
-                }
-                else
-                {
-                    if (_catalog.TryGetStrategy(snapshot.SelectedModeId, out var strategy) && strategy != null)
-                    {
-                        if (snapshot.ModeConfig != null)
-                        {
-                            var modeErrors = strategy.ValidateConfig(snapshot.ModeConfig);
-                            
-                            if (modeErrors.Count > 0)
-                            {
-                                errors ??= new List<ValidationError>(capacity: 4);
-                                errors.AddRange(modeErrors);
-                            }
-                        }
-                    }
-                    else
-                        (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.SelectedModeId, "Errors.GameModeWizard.ModeUnknown"));
-                }
+                (errors ??= new List<ValidationError>(capacity: 4))
+                    .Add(new ValidationError(WizardFieldNames.ModeCatalog, "Errors.GameModeWizard.ModeCatalogMissing"));
+                return;
             }
 
+            if (!_catalog.TryGetStrategy(snapshot.SelectedModeId, out var strategy) || strategy == null)
+            {
+                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.SelectedModeId, "Errors.GameModeWizard.ModeUnknown"));
+                return;
+            }
+
+            if (snapshot.ModeConfig == null)
+                return;
+
+            var modeErrors = strategy.ValidateConfig(snapshot.ModeConfig);
+            
+            if (modeErrors.Count > 0)
+            {
+                errors ??= new List<ValidationError>(capacity: 4);
+                errors.AddRange(modeErrors);
+            }
+        }
+
+        private static void ValidateOpponent(GameModeSessionSnapshot snapshot, ref List<ValidationError>? errors)
+        {
             if (snapshot.OpponentType == OpponentType.Bot)
             {
                 if (string.IsNullOrWhiteSpace(snapshot.BotDifficultyId))
                     (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.BotDifficultyId, "Errors.GameModeWizard.DifficultyRequired"));
+                
+                return;
             }
-            else
+
+            if (snapshot.HumanOpponentKind != HumanOpponentKind.DirectInvite)
+                return;
+
+            if (string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
             {
-                if (snapshot.HumanOpponentKind == HumanOpponentKind.DirectInvite)
-                {
-                    if (string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
-                    {
-                        (errors ??= new List<ValidationError>(capacity: 4))
-                            .Add(new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired"));
-                    }
-                    else if (!PlayerId.TryCreate(snapshot.TargetPlayerId, out _))
-                    {
-                        (errors ??= new List<ValidationError>(capacity: 4))
-                            .Add(new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdInvalid"));
-                    }
-                }
-
-                // Matchmaking is handled by the wizard flow and does not block Start.
+                (errors ??= new List<ValidationError>(capacity: 4))
+                    .Add(new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired"));
             }
-
-            return errors ?? _noErrors;
+            else if (!PlayerId.TryCreate(snapshot.TargetPlayerId, out _))
+            {
+                (errors ??= new List<ValidationError>(capacity: 4))
+                    .Add(new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdInvalid"));
+            }
         }
     }
 }

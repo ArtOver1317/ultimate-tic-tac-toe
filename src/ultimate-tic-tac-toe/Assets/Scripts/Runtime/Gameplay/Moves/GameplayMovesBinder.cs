@@ -65,52 +65,13 @@ namespace Runtime.Gameplay.Moves
             if (!_moves.IsStarted.CurrentValue)
                 GameLog.Warning("[GameplayMovesBinder] Bind called while moves service is not started. Clicks may be rejected.");
 
-            try
-            {
-                _currentPlayerLabel = _ui.CurrentPlayerLabel;
-            }
-            catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
-            {
-                GameLog.Error($"[GameplayMovesBinder] Bind failed: UI is not ready ({ex.GetType().Name}). {ex.Message}");
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                Debug.Assert(false, "GameplayMovesBinder.Bind() failed: UI is not ready.");
-#endif
-
-                throw new InvalidOperationException("GameplayMovesBinder.Bind() failed: UI is not ready.", ex);
-            }
-
-            if (_currentPlayerLabel == null)
-            {
-                GameLog.Error("[GameplayMovesBinder] Bind failed: CurrentPlayerLabel is null.");
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                Debug.Assert(false, "GameplayMovesBinder.Bind() failed: CurrentPlayerLabel is null.");
-#endif
-
-                throw new InvalidOperationException("GameplayMovesBinder.Bind() failed: CurrentPlayerLabel is null.");
-            }
+            _currentPlayerLabel = AcquireCurrentPlayerLabel();
 
             _subscriptions = new CompositeDisposable();
             
             try
             {
-                _ui.CellClicks
-                    .Subscribe(OnCellClicked)
-                    .AddTo(_subscriptions);
-
-                _moves.CellChanged
-                    .Subscribe(OnCellChanged)
-                    .AddTo(_subscriptions);
-
-                _moves.LastMoveChanged
-                    .Subscribe(OnLastMoveChanged)
-                    .AddTo(_subscriptions);
-
-                _moves.CurrentPlayer
-                    .Skip(1)
-                    .Subscribe(UpdateCurrentPlayerLabel)
-                    .AddTo(_subscriptions);
+                SubscribeToEvents();
             }
             catch
             {
@@ -127,6 +88,59 @@ namespace Runtime.Gameplay.Moves
             SetupMarkAppearVfx(coldPathSnapshot);
             RenderColdPathSnapshot(coldPathSnapshot);
             UpdateCurrentPlayerLabel(_moves.CurrentPlayer.CurrentValue);
+        }
+
+        private Label AcquireCurrentPlayerLabel()
+        {
+            Label? label;
+            
+            try
+            {
+                label = _ui.CurrentPlayerLabel;
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
+            {
+                GameLog.Error($"[GameplayMovesBinder] Bind failed: UI is not ready ({ex.GetType().Name}). {ex.Message}");
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.Assert(false, "GameplayMovesBinder.Bind() failed: UI is not ready.");
+#endif
+
+                throw new InvalidOperationException("GameplayMovesBinder.Bind() failed: UI is not ready.", ex);
+            }
+
+            if (label == null)
+            {
+                GameLog.Error("[GameplayMovesBinder] Bind failed: CurrentPlayerLabel is null.");
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.Assert(false, "GameplayMovesBinder.Bind() failed: CurrentPlayerLabel is null.");
+#endif
+
+                throw new InvalidOperationException("GameplayMovesBinder.Bind() failed: CurrentPlayerLabel is null.");
+            }
+
+            return label;
+        }
+
+        private void SubscribeToEvents()
+        {
+            _ui.CellClicks
+                .Subscribe(OnCellClicked)
+                .AddTo(_subscriptions!);
+
+            _moves.CellChanged
+                .Subscribe(OnCellChanged)
+                .AddTo(_subscriptions!);
+
+            _moves.LastMoveChanged
+                .Subscribe(OnLastMoveChanged)
+                .AddTo(_subscriptions!);
+
+            _moves.CurrentPlayer
+                .Skip(1)
+                .Subscribe(UpdateCurrentPlayerLabel)
+                .AddTo(_subscriptions!);
         }
 
         public void Unbind()

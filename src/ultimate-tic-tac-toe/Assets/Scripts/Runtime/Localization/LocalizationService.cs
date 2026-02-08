@@ -6,7 +6,7 @@ using R3;
 
 namespace Runtime.Localization
 {
-    public sealed class LocalizationService : ILocalizationService, IDisposable
+    public sealed partial class LocalizationService : ILocalizationService, IDisposable
     {
         private const int _maxReportedMissingKeys = 4096;
 
@@ -78,30 +78,7 @@ namespace Runtime.Localization
                 enteredBusy = true;
 
                 var supported = _catalog.GetSupportedLocales();
-
-                var locale = _policy.DefaultLocale;
-                
-                try
-                {
-                    var saved = await _localeStorage.LoadAsync();
-                    
-                    if (saved.HasValue)
-                    {
-                        if (IsSupported(supported, saved.Value))
-                            locale = saved.Value;
-                        else
-                        {
-                            _errors.OnNext(new LocalizationError(
-                                LocalizationErrorCode.UnsupportedLocale,
-                                $"Unsupported saved locale '{saved.Value.Code}'.",
-                                locale: saved.Value));
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _errors.OnNext(new LocalizationError(LocalizationErrorCode.Unknown, "Failed to load saved locale.", ex));
-                }
+                var locale = await ResolveStartupLocaleAsync(supported);
 
                 var startupTables = _catalog.GetStartupTables();
                 var requiredTables = _catalog.GetRequiredTables();
@@ -120,6 +97,35 @@ namespace Runtime.Localization
                 
                 _initializeGate.Release();
             }
+        }
+
+        private async UniTask<LocaleId> ResolveStartupLocaleAsync(IReadOnlyList<LocaleId> supported)
+        {
+            var locale = _policy.DefaultLocale;
+            
+            try
+            {
+                var saved = await _localeStorage.LoadAsync();
+                
+                if (saved.HasValue)
+                {
+                    if (IsSupported(supported, saved.Value))
+                        locale = saved.Value;
+                    else
+                    {
+                        _errors.OnNext(new LocalizationError(
+                            LocalizationErrorCode.UnsupportedLocale,
+                            $"Unsupported saved locale '{saved.Value.Code}'.",
+                            locale: saved.Value));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _errors.OnNext(new LocalizationError(LocalizationErrorCode.Unknown, "Failed to load saved locale.", ex));
+            }
+
+            return locale;
         }
 
         public async UniTask SetLocaleAsync(LocaleId locale, CancellationToken cancellationToken)
@@ -170,39 +176,43 @@ namespace Runtime.Localization
                 _currentLocale.Value = locale;
                 _reportedMissingKeys.Clear();
 
-                try
-                {
-                    await _saveGate.WaitAsync(cancellationToken);
-                    
-                    try
-                    {
-                        lock (_switchLock)
-                        {
-                            if (myVersion != _switchVersion)
-                                return;
-                        }
-
-                        await _localeStorage.SaveAsync(locale);
-                    }
-                    finally
-                    {
-                        _saveGate.Release();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _errors.OnNext(new LocalizationError(LocalizationErrorCode.Unknown, "Failed to save locale.", ex, locale: locale));
-                }
+                await TrySaveLocaleAsync(locale, myVersion, cancellationToken);
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 // Expected during rapid switching: the previous request is canceled by a newer SetLocaleAsync.
-                // No state change should be applied in this case.
             }
             finally
             {
                 linkedCts.Dispose();
                 ExitBusy();
+            }
+        }
+
+        private async UniTask TrySaveLocaleAsync(LocaleId locale, int myVersion, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _saveGate.WaitAsync(cancellationToken);
+                
+                try
+                {
+                    lock (_switchLock)
+                    {
+                        if (myVersion != _switchVersion)
+                            return;
+                    }
+
+                    await _localeStorage.SaveAsync(locale);
+                }
+                finally
+                {
+                    _saveGate.Release();
+                }
+            }
+            catch (Exception ex)
+            {
+                _errors.OnNext(new LocalizationError(LocalizationErrorCode.Unknown, "Failed to save locale.", ex, locale: locale));
             }
         }
 
@@ -347,154 +357,6 @@ namespace Runtime.Localization
             }
 
             return _policy.UseMissingKeyPlaceholders ? $"⟦Missing: {table.Name}.{key.Value}⟧" : string.Empty;
-        }
-
-        public Observable<string> Observe(TextTableId table, TextKey key, Observable<IReadOnlyDictionary<string, object>> args)
-        {
-            if (args == null)
-                throw new ArgumentNullException(nameof(args));
-
-            EnsureInitialized();
-
-            TrackTable(table);
-
-            return Observable.Create<string>(observer =>
-            {
-                IReadOnlyDictionary<string, object> latestArgs = null;
-
-                string lastEmitted = null;
-                var isDisposed = 0;
-
-                void Emit()
-                {
-                    if (Volatile.Read(ref isDisposed) != 0)
-                        return;
-
-                    var text = Resolve(table, key, latestArgs);
-                    
-                    if (string.Equals(text, lastEmitted, StringComparison.Ordinal))
-                        return;
-
-                    lastEmitted = text;
-                    observer.OnNext(text);
-                }
-
-                bool ShouldRefreshOnStoreEvent(LocalizationStoreEvent e)
-                {
-                    if (e.TableId != table)
-                        return false;
-
-                    var activeLocale = _store.GetActiveLocale();
-                    var chain = _policy.GetFallbackChain(activeLocale);
-
-                    for (var i = 0; i < chain.Count; i++)
-                    {
-                        if (chain[i] == e.Locale)
-                            return true;
-                    }
-
-                    return false;
-                }
-
-                var argsSub = args.Subscribe(a =>
-                {
-                    latestArgs = a;
-                    Emit();
-                });
-
-                var localeSub = CurrentLocale.Subscribe(_ =>
-                {
-                    Emit();
-                });
-
-                // Important for lazy-loading: when a table is loaded/unloaded after subscription,
-                // re-emit so UI updates without requiring a locale change.
-                var storeEvents = _store.Events;
-                
-                var storeSub = storeEvents == null
-                    ? Disposable.Empty
-                    : storeEvents.Subscribe(e =>
-                    {
-                        if (e.Type != LocalizationStoreEventType.TableLoaded && e.Type != LocalizationStoreEventType.TableUnloaded)
-                            return;
-
-                        if (!ShouldRefreshOnStoreEvent(e))
-                            return;
-
-                        Emit();
-                    });
-
-                Emit();
-
-                return Disposable.Create(() =>
-                {
-                    Interlocked.Exchange(ref isDisposed, 1);
-                    argsSub.Dispose();
-                    localeSub.Dispose();
-                    storeSub.Dispose();
-                });
-            });
-        }
-
-        public Observable<string> Observe(TextTableId table, TextKey key, IReadOnlyDictionary<string, object> args = null)
-        {
-            EnsureInitialized();
-
-            TrackTable(table);
-
-            return Observable.Create<string>(observer =>
-            {
-                observer.OnNext(Resolve(table, key, args));
-
-                var lastLocale = CurrentLocale.CurrentValue;
-                
-                var localeSub = CurrentLocale.Subscribe(newLocale =>
-                {
-                    if (newLocale == lastLocale)
-                        return;
-
-                    lastLocale = newLocale;
-                    observer.OnNext(Resolve(table, key, args));
-                });
-
-                var storeEvents = _store.Events;
-                
-                var storeSub = storeEvents == null
-                    ? Disposable.Empty
-                    : storeEvents.Subscribe(e =>
-                    {
-                        if (e.Type != LocalizationStoreEventType.TableLoaded && e.Type != LocalizationStoreEventType.TableUnloaded)
-                            return;
-
-                        if (e.TableId != table)
-                            return;
-
-                        var activeLocale = _store.GetActiveLocale();
-                        var chain = _policy.GetFallbackChain(activeLocale);
-
-                        var isRelevantLocale = false;
-                        
-                        for (var i = 0; i < chain.Count; i++)
-                        {
-                            if (chain[i] == e.Locale)
-                            {
-                                isRelevantLocale = true;
-                                break;
-                            }
-                        }
-
-                        if (!isRelevantLocale)
-                            return;
-
-                        observer.OnNext(Resolve(table, key, args));
-                    });
-
-                return Disposable.Create(() =>
-                {
-                    localeSub.Dispose();
-                    storeSub.Dispose();
-                });
-            });
         }
 
         public void Dispose()
