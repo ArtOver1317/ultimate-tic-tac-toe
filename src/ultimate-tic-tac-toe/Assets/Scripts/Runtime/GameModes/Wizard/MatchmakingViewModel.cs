@@ -76,7 +76,6 @@ namespace Runtime.GameModes.Wizard
                 .Select(count => new Dictionary<string, object> { { "count", count } } as IReadOnlyDictionary<string, object>);
 
             HintText = _localization.Observe(table, new TextKey("GameModeWizard.Matchmaking.Hint"), hintArgs);
-
         }
 
         public override void Initialize()
@@ -184,9 +183,7 @@ namespace Runtime.GameModes.Wizard
             {
                 await _fsm.TryStartSearchAsync(request, cts.Token);
             }
-            catch (OperationCanceledException)
-            {
-            }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 GameLog.Exception(ex);
@@ -215,6 +212,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             var cts = Interlocked.Exchange(ref _searchCts, null);
+            
             if (cts == null)
                 return;
 
@@ -255,6 +253,7 @@ namespace Runtime.GameModes.Wizard
             {
                 if (_stateFallback.Value != MatchmakingState.Failed)
                     _errorMessageKey.Value = null;
+                
                 return;
             }
 
@@ -280,6 +279,7 @@ namespace Runtime.GameModes.Wizard
                 _elapsedTime.Value = TimeSpan.Zero;
 
             var cts = Interlocked.Exchange(ref _timerCts, null);
+            
             if (cts == null)
                 return;
 
@@ -305,9 +305,7 @@ namespace Runtime.GameModes.Wizard
                     await UniTask.Delay(TimeSpan.FromSeconds(1), cancellationToken: ct);
                 }
             }
-            catch (OperationCanceledException)
-            {
-            }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 GameLog.Exception(ex);
@@ -329,6 +327,7 @@ namespace Runtime.GameModes.Wizard
                 return string.Empty;
 
             var dotIndex = messageKey.IndexOf('.', StringComparison.Ordinal);
+            
             if (dotIndex <= 0)
                 return messageKey;
 
@@ -337,5 +336,3 @@ namespace Runtime.GameModes.Wizard
         }
     }
 }
-
-#nullable restore

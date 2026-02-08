@@ -262,6 +262,7 @@ namespace Editor.Localization
                 return path;
 
             var normalized = path.Replace("\\", "/");
+            
             if (Path.IsPathRooted(normalized))
                 return normalized;
 

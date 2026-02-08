@@ -16,7 +16,6 @@ namespace Runtime.GameModes.Wizard
     public sealed class ModeSelectionViewModel : BaseViewModel
     {
         private readonly IGameModeWizardCoordinator _coordinator;
-        private readonly ILocalizationService _localization;
 
         private readonly ReactiveProperty<IReadOnlyList<GameModeMetadata>> _availableModes;
         private readonly ReactiveProperty<string?> _selectedModeId = new(null);
@@ -46,16 +45,17 @@ namespace Runtime.GameModes.Wizard
         {
             if (catalog == null)
                 throw new ArgumentNullException(nameof(catalog));
+            
             _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
-            _localization = localization ?? throw new ArgumentNullException(nameof(localization));
+            var localization1 = localization ?? throw new ArgumentNullException(nameof(localization));
 
             _availableModes = new ReactiveProperty<IReadOnlyList<GameModeMetadata>>(
                 catalog.Metadata ?? throw new ArgumentException("Catalog returned null Metadata.", nameof(catalog)));
 
             var table = new TextTableId("GameModeWizard");
-            TitleText = _localization.Observe(table, new TextKey("GameModeWizard.ModeSelection.Title"));
-            CancelButtonText = _localization.Observe(table, new TextKey("GameModeWizard.ModeSelection.Cancel"));
-            ContinueButtonText = _localization.Observe(table, new TextKey("GameModeWizard.ModeSelection.Continue"));
+            TitleText = localization1.Observe(table, new TextKey("GameModeWizard.ModeSelection.Title"));
+            CancelButtonText = localization1.Observe(table, new TextKey("GameModeWizard.ModeSelection.Cancel"));
+            ContinueButtonText = localization1.Observe(table, new TextKey("GameModeWizard.ModeSelection.Continue"));
 
             UpdateCanContinue(_selectedModeId.Value);
         }
@@ -92,10 +92,7 @@ namespace Runtime.GameModes.Wizard
                 GameLog.Debug("[ModeSelectionViewModel] Cancel intent rejected.");
         }
 
-        public void AcknowledgeError()
-        {
-            _coordinator.ClearCurrentError();
-        }
+        public void AcknowledgeError() => _coordinator.ClearCurrentError();
 
         protected override void OnReset()
         {
@@ -128,9 +125,7 @@ namespace Runtime.GameModes.Wizard
             if (System.Threading.Interlocked.Exchange(ref _isWired, 1) != 0)
                 return;
 
-            AddDisposable(Observable.CombineLatest(
-                    _coordinator.IsTransitioning,
-                    _coordinator.IsSubmitting,
+            AddDisposable(_coordinator.IsTransitioning.CombineLatest(_coordinator.IsSubmitting,
                     static (isTransitioning, isSubmitting) => isTransitioning || isSubmitting)
                 .Subscribe(isBusy => _isBusy.Value = isBusy));
 
@@ -145,14 +140,15 @@ namespace Runtime.GameModes.Wizard
                     .Subscribe(id => OnSelectedModeChanged(id, session)));
 
                 AddDisposable(_availableModes
-                    .Subscribe(modes => NormalizeSelectionAgainstAvailableModes(modes)));
+                    .Subscribe(NormalizeSelectionAgainstAvailableModes));
             }
             else
             {
                 // Coordinator not ready: keep UI disabled.
                 AddDisposable(_selectedModeId.Subscribe(UpdateCanContinue));
+                
                 AddDisposable(_availableModes
-                    .Subscribe(modes => NormalizeSelectionAgainstAvailableModes(modes)));
+                    .Subscribe(NormalizeSelectionAgainstAvailableModes));
             }
         }
 
@@ -183,6 +179,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             string? currentId;
+            
             try
             {
                 currentId = session.Snapshot.CurrentValue?.SelectedModeId;
@@ -191,6 +188,7 @@ namespace Runtime.GameModes.Wizard
             {
                 return;
             }
+            
             if (string.Equals(currentId, selectedModeId, StringComparison.Ordinal))
                 return;
 
@@ -203,17 +201,18 @@ namespace Runtime.GameModes.Wizard
         private void UpdateCanContinue(string? selectedModeId) =>
             _canContinue.Value = !string.IsNullOrWhiteSpace(selectedModeId);
 
-        private void NormalizeSelectionAgainstAvailableModes(IReadOnlyList<GameModeMetadata> modes)
+        private void NormalizeSelectionAgainstAvailableModes(IReadOnlyList<GameModeMetadata>? modes)
         {
             if (_selectedModeId.Value == null)
                 return;
 
             var hasMatch = false;
+            
             if (modes != null)
             {
-                for (var i = 0; i < modes.Count; i++)
+                foreach (var mode in modes)
                 {
-                    if (string.Equals(modes[i].Id, _selectedModeId.Value, StringComparison.Ordinal))
+                    if (string.Equals(mode.Id, _selectedModeId.Value, StringComparison.Ordinal))
                     {
                         hasMatch = true;
                         break;
@@ -234,12 +233,13 @@ namespace Runtime.GameModes.Wizard
             public SessionSelectionObserver(Action<string?> onNext) =>
                 _onNext = onNext ?? throw new ArgumentNullException(nameof(onNext));
 
-            protected override void OnNextCore(GameModeSessionSnapshot value)
+            protected override void OnNextCore(GameModeSessionSnapshot? value)
             {
                 if (value == null)
                     return;
 
                 string? selected;
+                
                 try
                 {
                     selected = value.SelectedModeId;
@@ -265,11 +265,7 @@ namespace Runtime.GameModes.Wizard
                 GameLog.Error($"[ModeSelectionViewModel] Session snapshot error: {error}");
             }
 
-            protected override void OnCompletedCore(Result result)
-            {
-            }
+            protected override void OnCompletedCore(Result result) { }
         }
     }
 }
-
-#nullable restore

@@ -13,5 +13,3 @@ namespace Runtime.GameModes.Wizard
         IReadOnlyList<BotDifficulty> Difficulties { get; }
     }
 }
-
-#nullable restore

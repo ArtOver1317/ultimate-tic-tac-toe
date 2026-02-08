@@ -11,6 +11,7 @@ namespace Runtime.GameModes.Wizard
         {
             if (string.IsNullOrWhiteSpace(matchId))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(matchId));
+            
             if (string.IsNullOrWhiteSpace(opponentId))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(opponentId));
 

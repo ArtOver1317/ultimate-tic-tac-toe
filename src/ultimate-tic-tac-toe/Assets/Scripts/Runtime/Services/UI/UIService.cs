@@ -87,6 +87,7 @@ namespace Runtime.Services.UI
                     keepFromVisibleUntilToShown: true,
                     disableFromInputImmediately: true,
                     closeFromAfterToOpened: true);
+                
                 var from = Get<TFrom>();
 
                 if (from is IInputBlockableView inputBlockable && effective.DisableFromInputImmediately)
@@ -103,6 +104,7 @@ namespace Runtime.Services.UI
                 {
                     if (from is IInputBlockableView rollback)
                         rollback.SetInputEnabled(true);
+                    
                     throw new InvalidOperationException("Failed to open target view.");
                 }
 

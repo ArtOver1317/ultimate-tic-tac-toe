@@ -16,7 +16,7 @@ namespace Runtime.GameModes.Wizard
         public bool SupportsBot { get; }
         public bool SupportsOnline { get; }
         public bool SupportsLocal { get; }
-        public Runtime.Gameplay.FieldKind FieldKind { get; }
+        public Gameplay.FieldKind FieldKind { get; }
 
         public GameModeMetadata(
             string id,
@@ -27,14 +27,17 @@ namespace Runtime.GameModes.Wizard
             bool supportsBot,
             bool supportsOnline,
             bool supportsLocal,
-            Runtime.Gameplay.FieldKind fieldKind)
+            Gameplay.FieldKind fieldKind)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(id));
+            
             if (string.IsNullOrWhiteSpace(displayNameKey))
                 throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(displayNameKey));
+            
             if (string.IsNullOrWhiteSpace(descriptionKey))
                 throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(descriptionKey));
+            
             if (string.IsNullOrWhiteSpace(iconAssetKey))
                 throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(iconAssetKey));
 
@@ -50,5 +53,3 @@ namespace Runtime.GameModes.Wizard
         }
     }
 }
-
-#nullable restore

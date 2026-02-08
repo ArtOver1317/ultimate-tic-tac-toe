@@ -1,5 +1,3 @@
-using System;
-
 namespace Runtime.GameModes.Wizard
 {
     /// <summary>

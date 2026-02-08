@@ -11,7 +11,7 @@ namespace Runtime.UI.Components
         public string Id { get; }
         public string Label { get; }
 
-        public DifficultyChipItem(string id, string label)
+        public DifficultyChipItem(string id, string? label)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(id));
@@ -24,24 +24,23 @@ namespace Runtime.UI.Components
     [UxmlElement]
     public sealed partial class DifficultyChips : VisualElement
     {
-        private const string ItemClass = "difficulty-chips__item";
-        private const string SelectedClass = "difficulty-chips__item--selected";
-        private const string LastItemClass = "difficulty-chips__item--last";
+        private const string _itemClass = "difficulty-chips__item";
+        private const string _selectedClass = "difficulty-chips__item--selected";
+        private const string _lastItemClass = "difficulty-chips__item--last";
 
         private readonly List<Button> _orderedButtons = new();
         private readonly Dictionary<string, Button> _buttonsById = new(StringComparer.Ordinal);
-        private string? _selectedId;
 
         public event Action<string>? SelectedIdChanged;
 
-        public string? SelectedId => _selectedId;
+        public string? SelectedId { get; private set; }
 
         public DifficultyChips()
         {
             AddToClassList("difficulty-chips");
         }
 
-        public void SetItems(IReadOnlyList<DifficultyChipItem> items)
+        public void SetItems(IReadOnlyList<DifficultyChipItem>? items)
         {
             Clear();
             _orderedButtons.Clear();
@@ -49,7 +48,7 @@ namespace Runtime.UI.Components
 
             if (items == null || items.Count == 0)
             {
-                _selectedId = null;
+                SelectedId = null;
                 UpdateVisualState();
                 return;
             }
@@ -57,6 +56,7 @@ namespace Runtime.UI.Components
             for (var i = 0; i < items.Count; i++)
             {
                 var item = items[i];
+                
                 if (item == null)
                     throw new ArgumentException("Items collection contains null entry.", nameof(items));
 
@@ -64,7 +64,7 @@ namespace Runtime.UI.Components
                     throw new InvalidOperationException($"Duplicate difficulty id detected: '{item.Id}'.");
 
                 var button = new Button { text = item.Label ?? string.Empty, name = item.Id };
-                button.AddToClassList(ItemClass);
+                button.AddToClassList(_itemClass);
 
                 var id = item.Id;
                 button.clicked += () => SetSelectedIdInternal(id, notify: true);
@@ -76,8 +76,8 @@ namespace Runtime.UI.Components
 
             UpdateLastItemClass();
 
-            if (!string.IsNullOrWhiteSpace(_selectedId) && !_buttonsById.ContainsKey(_selectedId))
-                _selectedId = null;
+            if (!string.IsNullOrWhiteSpace(SelectedId) && !_buttonsById.ContainsKey(SelectedId))
+                SelectedId = null;
 
             UpdateVisualState();
         }
@@ -86,7 +86,7 @@ namespace Runtime.UI.Components
 
         public void SetSelectedIdWithoutNotify(string? id) => SetSelectedIdInternal(id, notify: false);
 
-        public void SetLabel(string id, string label)
+        public void SetLabel(string id, string? label)
         {
             if (string.IsNullOrWhiteSpace(id))
                 return;
@@ -97,42 +97,43 @@ namespace Runtime.UI.Components
 
         private void SetSelectedIdInternal(string? id, bool notify)
         {
-            if (string.Equals(_selectedId, id, StringComparison.Ordinal))
+            if (string.Equals(SelectedId, id, StringComparison.Ordinal))
                 return;
 
             if (!string.IsNullOrWhiteSpace(id) && !_buttonsById.ContainsKey(id))
                 id = null;
 
-            _selectedId = id;
+            SelectedId = id;
             UpdateVisualState();
 
-            if (notify && !string.IsNullOrWhiteSpace(_selectedId))
-                SelectedIdChanged?.Invoke(_selectedId);
+            if (notify && !string.IsNullOrWhiteSpace(SelectedId))
+                SelectedIdChanged?.Invoke(SelectedId);
         }
 
         private void UpdateVisualState()
         {
             foreach (var pair in _buttonsById)
             {
-                var isSelected = string.Equals(pair.Key, _selectedId, StringComparison.Ordinal);
+                var isSelected = string.Equals(pair.Key, SelectedId, StringComparison.Ordinal);
+                
                 if (isSelected)
-                    pair.Value.AddToClassList(SelectedClass);
+                    pair.Value.AddToClassList(_selectedClass);
                 else
-                    pair.Value.RemoveFromClassList(SelectedClass);
+                    pair.Value.RemoveFromClassList(_selectedClass);
             }
         }
 
         private void UpdateLastItemClass()
         {
             for (var i = 0; i < _orderedButtons.Count; i++)
-                _orderedButtons[i].RemoveFromClassList(LastItemClass);
+            {
+                _orderedButtons[i].RemoveFromClassList(_lastItemClass);
+            }
 
             if (_orderedButtons.Count == 0)
                 return;
 
-            _orderedButtons[^1].AddToClassList(LastItemClass);
+            _orderedButtons[^1].AddToClassList(_lastItemClass);
         }
     }
 }
-
-#nullable restore

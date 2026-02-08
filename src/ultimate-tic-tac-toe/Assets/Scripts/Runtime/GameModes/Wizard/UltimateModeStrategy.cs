@@ -10,9 +10,10 @@ namespace Runtime.GameModes.Wizard
     {
         public const string DefaultModeId = "ultimate";
 
-        private const string SettingsUxmlKey = "ui/mode-settings/ultimate";
+        private const string _settingsUxmlKey = "ui/mode-settings/ultimate";
 
         private static readonly IReadOnlyList<ValidationError> _noErrors = Array.Empty<ValidationError>();
+        
         private static readonly ReadOnlyCollection<ValidationError> _modeConfigRequiredError =
             Array.AsReadOnly(new[] { new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ModeConfigRequired") });
 
@@ -25,14 +26,13 @@ namespace Runtime.GameModes.Wizard
         public GameModeMetadata Metadata { get; }
 
         public UltimateModeStrategy(Func<UltimateSettingsViewModel> createSettingsViewModel)
-            : this(DefaultModeId, createSettingsViewModel)
-        {
-        }
+            : this(DefaultModeId, createSettingsViewModel) { }
 
         public UltimateModeStrategy(string modeId, Func<UltimateSettingsViewModel> createSettingsViewModel)
         {
             if (string.IsNullOrWhiteSpace(modeId))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(modeId));
+            
             _createSettingsViewModel = createSettingsViewModel ?? throw new ArgumentNullException(nameof(createSettingsViewModel));
 
             ModeId = modeId;
@@ -46,16 +46,16 @@ namespace Runtime.GameModes.Wizard
                 supportsBot: true,
                 supportsOnline: true,
                 supportsLocal: true,
-                fieldKind: Runtime.Gameplay.FieldKind.Ultimate);
+                fieldKind: Gameplay.FieldKind.Ultimate);
         }
 
         public ModeSettingsPresentation CreatePresentation()
         {
             var vm = _createSettingsViewModel();
-            if (vm == null)
-                throw new InvalidOperationException("Ultimate settings VM factory returned null.");
-
-            return new ModeSettingsPresentation(SettingsUxmlKey, vm);
+            
+            return vm == null 
+                ? throw new InvalidOperationException("Ultimate settings VM factory returned null.") 
+                : new ModeSettingsPresentation(_settingsUxmlKey, vm);
         }
 
         public IReadOnlyList<ValidationError> ValidateConfig(IGameModeConfig? config)
@@ -69,5 +69,3 @@ namespace Runtime.GameModes.Wizard
         }
     }
 }
-
-#nullable restore

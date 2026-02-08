@@ -44,10 +44,9 @@ namespace Runtime.GameModes.Wizard
             if (errors == null)
                 throw new ArgumentNullException(nameof(errors));
 
-            if (errors.Count == 0)
-                throw new ArgumentException("Failure must contain at least one error.", nameof(errors));
-
-            return new Result<T>(errors);
+            return errors.Count == 0 
+                ? throw new ArgumentException("Failure must contain at least one error.", nameof(errors)) 
+                : new Result<T>(errors);
         }
 
         public static Result<T> Failure(params ValidationError[] errors)
@@ -55,10 +54,9 @@ namespace Runtime.GameModes.Wizard
             if (errors == null)
                 throw new ArgumentNullException(nameof(errors));
 
-            if (errors.Length == 0)
-                throw new ArgumentException("Failure must contain at least one error.", nameof(errors));
-
-            return new Result<T>(errors);
+            return errors.Length == 0 
+                ? throw new ArgumentException("Failure must contain at least one error.", nameof(errors)) 
+                : new Result<T>(errors);
         }
     }
 }

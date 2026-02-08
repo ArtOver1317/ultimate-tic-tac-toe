@@ -21,10 +21,8 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<IGameModeConfig> Config => _config;
         public ReadOnlyReactiveProperty<bool> IsValid => _isValid;
 
-        public ClassicSettingsViewModel()
-        {
+        public ClassicSettingsViewModel() =>
             _config = new ReactiveProperty<IGameModeConfig>(new ClassicModeConfig(_boardSize.Value));
-        }
 
         public override void Initialize()
         {
@@ -36,8 +34,10 @@ namespace Runtime.GameModes.Wizard
         {
             if (minBoardSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(minBoardSize), minBoardSize, "MinBoardSize must be positive.");
+            
             if (maxBoardSize < minBoardSize)
                 throw new ArgumentOutOfRangeException(nameof(maxBoardSize), maxBoardSize, "MaxBoardSize must be >= MinBoardSize.");
+            
             if (defaultBoardSize < minBoardSize || defaultBoardSize > maxBoardSize)
                 throw new ArgumentOutOfRangeException(nameof(defaultBoardSize), defaultBoardSize, "DefaultBoardSize must be within bounds.");
 
@@ -121,11 +121,10 @@ namespace Runtime.GameModes.Wizard
 
         private static int Clamp(int value, int min, int max)
         {
-            if (value < min) return min;
-            if (value > max) return max;
-            return value;
+            if (value < min) 
+                return min;
+            
+            return value > max ? max : value;
         }
     }
 }
-
-#nullable restore

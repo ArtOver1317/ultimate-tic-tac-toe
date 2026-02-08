@@ -20,5 +20,3 @@ namespace Runtime.GameModes.Wizard
         IReadOnlyList<ValidationError> ValidateConfig(IGameModeConfig? config);
     }
 }
-
-#nullable restore

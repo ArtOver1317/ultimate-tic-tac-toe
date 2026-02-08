@@ -1,6 +1,4 @@
 namespace Runtime.GameModes.Wizard
 {
-    public sealed class UltimateModeConfig : IGameModeConfig
-    {
-    }
+    public sealed class UltimateModeConfig : IGameModeConfig { }
 }

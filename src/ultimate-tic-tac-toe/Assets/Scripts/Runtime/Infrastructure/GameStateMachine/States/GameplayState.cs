@@ -30,7 +30,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             _scopeAccessor = scopeAccessor ?? throw new ArgumentNullException(nameof(scopeAccessor));
             _uiService = uiService ?? throw new ArgumentNullException(nameof(uiService));
             _assets = assets ?? throw new ArgumentNullException(nameof(assets));
-            _assetLibrary = assetLibrary ?? throw new ArgumentNullException(nameof(assetLibrary));
+            _assetLibrary = assetLibrary ? assetLibrary : throw new ArgumentNullException(nameof(assetLibrary));
         }
 
         public async UniTask EnterAsync(CancellationToken cancellationToken = default)
@@ -45,11 +45,10 @@ namespace Runtime.Infrastructure.GameStateMachine.States
                 _uiService.Open<UIBackgroundView, UIBackgroundViewModel>();
             }
             else
-            {
                 Log.Error(LogTags.Scenes, "[GameplayState] BackgroundPrefab is missing or invalid. UI background will be disabled.");
-            }
 
             var scope = _scopeAccessor.Current;
+            
             if (scope == null)
             {
                 Log.Error(LogTags.Infrastructure, "[GameplayState] Gameplay scope is not available.");
@@ -58,6 +57,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             }
 
             IGameplayStartup startup;
+            
             try
             {
                 startup = scope.Resolve<IGameplayStartup>();
@@ -84,10 +84,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             }
         }
 
-        public void Exit()
-        {
-            Log.Debug(LogTags.Infrastructure, "[GameplayState] Game ended");
-        }
+        public void Exit() => Log.Debug(LogTags.Infrastructure, "[GameplayState] Game ended");
 
         public UniTask ReturnToMainMenuAsync(CancellationToken cancellationToken = default) =>
             _stateMachine.EnterAsync<LoadMainMenuState>(cancellationToken);

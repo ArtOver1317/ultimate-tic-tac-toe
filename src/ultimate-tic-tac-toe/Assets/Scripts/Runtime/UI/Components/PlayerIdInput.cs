@@ -8,9 +8,9 @@ namespace Runtime.UI.Components
     [UxmlElement]
     public sealed partial class PlayerIdInput : VisualElement
     {
-        private const string LabelClass = "player-id-input__label";
-        private const string FieldClass = "player-id-input__field";
-        private const string ErrorClass = "player-id-input__error";
+        private const string _labelClass = "player-id-input__label";
+        private const string _fieldClass = "player-id-input__field";
+        private const string _errorClass = "player-id-input__error";
 
         private readonly Label _label;
         private readonly TextField _textField;
@@ -27,17 +27,17 @@ namespace Runtime.UI.Components
             AddToClassList("player-id-input");
 
             _label = new Label { name = "TitleLabel" };
-            _label.AddToClassList(LabelClass);
+            _label.AddToClassList(_labelClass);
             Add(_label);
 
             _textField = new TextField { name = "InputField" };
-            _textField.AddToClassList(FieldClass);
+            _textField.AddToClassList(_fieldClass);
             _textField.isDelayed = true;
             _textField.RegisterValueChangedCallback(OnValueChanged);
             Add(_textField);
 
             _errorLabel = new Label { name = "ErrorLabel" };
-            _errorLabel.AddToClassList(ErrorClass);
+            _errorLabel.AddToClassList(_errorClass);
             _errorLabel.style.display = DisplayStyle.None;
             Add(_errorLabel);
         }
@@ -47,6 +47,7 @@ namespace Runtime.UI.Components
         public void SetValueWithoutNotify(string? value)
         {
             _suppressNotify = true;
+            
             try
             {
                 _textField.SetValueWithoutNotify(value ?? string.Empty);
@@ -60,12 +61,13 @@ namespace Runtime.UI.Components
         public void SetError(string? error)
         {
             _errorLabel.text = error ?? string.Empty;
+            
             _errorLabel.style.display = string.IsNullOrWhiteSpace(error)
                 ? DisplayStyle.None
                 : DisplayStyle.Flex;
         }
 
-        internal void NotifyValueChangedForTests(string value)
+        internal void NotifyValueChangedForTests(string? value)
         {
             _textField.SetValueWithoutNotify(value ?? string.Empty);
 
@@ -82,5 +84,3 @@ namespace Runtime.UI.Components
         }
     }
 }
-
-#nullable restore

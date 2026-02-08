@@ -7,7 +7,7 @@ namespace Runtime.UI.Components
     [UxmlElement]
     public sealed partial class MatchmakingSpinner : VisualElement
     {
-        private const float RotationStep = 18f;
+        private const float _rotationStep = 18f;
 
         private IVisualElementScheduledItem? _schedule;
         private float _angle;
@@ -26,14 +26,11 @@ namespace Runtime.UI.Components
                 return;
 
             _isRunning = true;
+            
             if (_schedule == null)
-            {
                 _schedule = schedule.Execute(AdvanceFrame).Every(60);
-            }
             else
-            {
                 _schedule.Resume();
-            }
         }
 
         public void Stop()
@@ -49,7 +46,8 @@ namespace Runtime.UI.Components
             if (!_isRunning)
                 return;
 
-            _angle += RotationStep;
+            _angle += _rotationStep;
+            
             if (_angle >= 360f)
                 _angle -= 360f;
 
@@ -57,5 +55,3 @@ namespace Runtime.UI.Components
         }
     }
 }
-
-#nullable restore

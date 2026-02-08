@@ -17,9 +17,9 @@ namespace Runtime.GameModes.Wizard
     /// </summary>
     public sealed class GameModeWizardCoordinator : IGameModeWizardCoordinator, IDisposable
     {
-        private static readonly TimeSpan AbortSwitchToMainThreadTimeout = TimeSpan.FromSeconds(1);
-        private static readonly TimeSpan MatchmakingFoundAutoCloseDelay = TimeSpan.FromMilliseconds(450);
-        private static readonly TimeSpan AbortCloseWindowsTimeout = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan _abortSwitchToMainThreadTimeout = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan _matchmakingFoundAutoCloseDelay = TimeSpan.FromMilliseconds(450);
+        private static readonly TimeSpan _abortCloseWindowsTimeout = TimeSpan.FromSeconds(2);
 
         // Invariant: processing loop is started via .AsTask() and does not use ConfigureAwait(false).
         // This marker is used to avoid self-await when abort is triggered from inside the processing loop.
@@ -56,7 +56,7 @@ namespace Runtime.GameModes.Wizard
         private WizardError? _pendingError;
 
         private readonly object _lifecycleLock = new();
-        private CancellationTokenSource _lifetimeCts = new();
+        private readonly CancellationTokenSource _lifetimeCts = new();
         private CancellationTokenSource? _wizardCts;
 
         private WizardIntentQueue? _intentQueue;
@@ -139,6 +139,7 @@ namespace Runtime.GameModes.Wizard
                 var wizardCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token);
 
                 IGameModeSession session;
+                
                 try
                 {
                     session = _sessionFactory();
@@ -228,6 +229,7 @@ namespace Runtime.GameModes.Wizard
             }
 
             var queue = _intentQueue;
+            
             if (queue == null)
                 return false;
 
@@ -354,14 +356,16 @@ namespace Runtime.GameModes.Wizard
                 // - We also must avoid hanging forever during shutdown.
                 if (!PlayerLoopHelper.IsMainThread)
                 {
-                    var switched = await TrySwitchToMainThreadWithTimeoutAsync(AbortSwitchToMainThreadTimeout);
+                    var switched = await TrySwitchToMainThreadWithTimeoutAsync(_abortSwitchToMainThreadTimeout);
+                    
                     if (!switched)
                         GameLog.Warning("[GameModeWizardCoordinator] Failed to switch to main thread to close wizard windows (timeout/shutdown). Windows may remain open.");
                 }
 
                 if (PlayerLoopHelper.IsMainThread)
                 {
-                    using var closeCts = new CancellationTokenSource(AbortCloseWindowsTimeout);
+                    using var closeCts = new CancellationTokenSource(_abortCloseWindowsTimeout);
+                    
                     try
                     {
                         await _navigator.CloseAllWizardWindowsAsync(closeCts.Token);
@@ -406,8 +410,10 @@ namespace Runtime.GameModes.Wizard
                 SetIsTransitioning(false);
                 SetIsSubmitting(false);
                 FlushPendingErrorOnMainThread();
+                
                 if (shouldPublishAbort)
                     PublishWizardAborted(reason);
+                
                 Interlocked.Exchange(ref _abortInProgress, 0);
             }
         }
@@ -415,6 +421,7 @@ namespace Runtime.GameModes.Wizard
         private async UniTask ProcessIntentsAsync(CancellationToken ct)
         {
             var queue = _intentQueue;
+            
             if (queue == null)
                 return;
 
@@ -522,7 +529,9 @@ namespace Runtime.GameModes.Wizard
                 case WizardIntent.Start:
                     if (_step != WizardStep.MatchSetup)
                         return;
-                    if (TryGetSessionSnapshot(out var snapshot) && snapshot.OpponentType == OpponentType.Human && snapshot.HumanOpponentKind == HumanOpponentKind.Matchmaking)
+                    
+                    if (TryGetSessionSnapshot(out var snapshot) && 
+                        snapshot is { OpponentType: OpponentType.Human, HumanOpponentKind: HumanOpponentKind.Matchmaking })
                     {
                         await OpenMatchmakingAsync(snapshot, ct);
                         return;
@@ -532,12 +541,15 @@ namespace Runtime.GameModes.Wizard
                     {
                         if (error != null)
                             TrySetCurrentError(error);
+
                         return;
                     }
 
-                    PublishGameLaunchRequested(launchConfig);
+                    if (launchConfig != null) 
+                        PublishGameLaunchRequested(launchConfig);
 
                     SetIsSubmitting(true);
+                    
                     try
                     {
                         await AbortWizardCoreAsync(AbortReason.GameStarted, awaitProcessingTask: false);
@@ -546,6 +558,7 @@ namespace Runtime.GameModes.Wizard
                     {
                         SetIsSubmitting(false);
                     }
+                    
                     return;
 
                 default:
@@ -565,6 +578,7 @@ namespace Runtime.GameModes.Wizard
                     messageKey: "Errors.GameModeWizard.ModeConfigRequired",
                     isBlocking: true,
                     displayType: ErrorDisplayType.Modal));
+                
                 return;
             }
 
@@ -572,6 +586,7 @@ namespace Runtime.GameModes.Wizard
                 transition: async token =>
                 {
                     var viewModel = await _navigator.ReplaceMatchSetupWithMatchmakingAsync(token);
+                    
                     if (viewModel == null)
                         throw new InvalidOperationException("Matchmaking ViewModel is not available.");
 
@@ -610,7 +625,9 @@ namespace Runtime.GameModes.Wizard
                 .AddTo(_matchmakingSubscriptions);
 
             UpdateMatchmakingResult(null);
-            viewModel.BeginSearch(new MatchmakingRequest(snapshot.SelectedModeId, snapshot.ModeConfig), ct);
+
+            if (snapshot is { SelectedModeId: not null, ModeConfig: not null }) 
+                viewModel.BeginSearch(new MatchmakingRequest(snapshot.SelectedModeId, snapshot.ModeConfig), ct);
         }
 
         private void TryRestartMatchmaking(GameModeSessionSnapshot snapshot, CancellationToken ct)
@@ -643,7 +660,7 @@ namespace Runtime.GameModes.Wizard
             switch (state)
             {
                 case MatchmakingState.Found:
-                    await UniTask.Delay(MatchmakingFoundAutoCloseDelay, cancellationToken: ct);
+                    await UniTask.Delay(_matchmakingFoundAutoCloseDelay, cancellationToken: ct);
                     await CloseMatchmakingAndStartAsync(ct);
                     break;
 
@@ -714,9 +731,11 @@ namespace Runtime.GameModes.Wizard
 
                 CleanupMatchmakingBindings();
 
-                PublishGameLaunchRequested(launchConfig);
+                if (launchConfig != null) 
+                    PublishGameLaunchRequested(launchConfig);
 
                 SetIsSubmitting(true);
+                
                 try
                 {
                     await AbortWizardCoreAsync(AbortReason.GameStarted, awaitProcessingTask: false);
@@ -732,12 +751,13 @@ namespace Runtime.GameModes.Wizard
             }
         }
 
-        private bool TryBuildLaunchConfig(out GameLaunchConfig launchConfig, out WizardError? error)
+        private bool TryBuildLaunchConfig(out GameLaunchConfig? launchConfig, out WizardError? error)
         {
             launchConfig = null;
             error = null;
 
             var session = _session;
+            
             if (session == null)
             {
                 error = new WizardError(
@@ -745,6 +765,7 @@ namespace Runtime.GameModes.Wizard
                     messageKey: "Errors.GameModeWizard.UnhandledException",
                     isBlocking: true,
                     displayType: ErrorDisplayType.Modal);
+                
                 return false;
             }
 
@@ -770,7 +791,7 @@ namespace Runtime.GameModes.Wizard
             return true;
         }
 
-        private static WizardError CreateWizardErrorFromValidation(IReadOnlyList<ValidationError> errors)
+        private static WizardError CreateWizardErrorFromValidation(IReadOnlyList<ValidationError>? errors)
         {
             if (errors == null || errors.Count == 0)
             {
@@ -793,7 +814,7 @@ namespace Runtime.GameModes.Wizard
             {
                 WizardFieldNames.Matchmaking => ErrorDisplayType.Modal,
                 WizardFieldNames.ModeCatalog => ErrorDisplayType.Modal,
-                _ => ErrorDisplayType.Inline
+                _ => ErrorDisplayType.Inline,
             };
 
             var isBlocking = displayType == ErrorDisplayType.Modal;
@@ -879,18 +900,13 @@ namespace Runtime.GameModes.Wizard
             Interlocked.Exchange(ref _matchmakingCloseInProgress, 0);
         }
 
-        private void UpdateMatchmakingResult(MatchmakingResult? result)
-        {
-            if (_session == null)
-                return;
-
-            _session.Update(s =>
+        private void UpdateMatchmakingResult(MatchmakingResult? result) =>
+            _session?.Update(s =>
                 s.WithMatchmakingResult(result?.MatchId, result?.OpponentId));
-        }
 
         private bool TryGetSessionSnapshot(out GameModeSessionSnapshot snapshot)
         {
-            snapshot = default!;
+            snapshot = null!;
 
             if (_session == null)
                 return false;
@@ -969,6 +985,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             var pending = Interlocked.Exchange(ref _pendingError, null);
+            
             if (pending != null)
                 _currentError.Value = pending;
         }

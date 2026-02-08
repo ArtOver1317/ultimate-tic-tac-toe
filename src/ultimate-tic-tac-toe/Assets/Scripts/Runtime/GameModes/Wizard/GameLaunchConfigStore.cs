@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 
 namespace Runtime.GameModes.Wizard
@@ -21,7 +23,7 @@ namespace Runtime.GameModes.Wizard
             }
         }
 
-        public bool TryPeek(out GameLaunchConfig config)
+        public bool TryPeek(out GameLaunchConfig? config)
         {
             lock (_lock)
             {
@@ -30,11 +32,12 @@ namespace Runtime.GameModes.Wizard
             }
         }
 
-        public bool TryConsume(out GameLaunchConfig config)
+        public bool TryConsume(out GameLaunchConfig? config)
         {
             lock (_lock)
             {
                 config = _config;
+                
                 if (config == null)
                     return false;
 

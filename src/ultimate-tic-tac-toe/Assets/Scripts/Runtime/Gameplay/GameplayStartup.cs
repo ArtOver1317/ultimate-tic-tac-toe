@@ -79,12 +79,9 @@ namespace Runtime.Gameplay
             await _stateMachine.EnterAsync<LoadMainMenuState>(ct);
         }
 
-        private static GameplayError MapError(Exception ex)
-        {
-            if (ex is ArgumentException or InvalidOperationException)
-                return GameplayError.InvalidConfig(ex.Message);
-
-            return GameplayError.BuildFailed(ex.Message);
-        }
+        private static GameplayError MapError(Exception ex) => 
+            ex is ArgumentException or InvalidOperationException 
+                ? GameplayError.InvalidConfig(ex.Message) 
+                : GameplayError.BuildFailed(ex.Message);
     }
 }

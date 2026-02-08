@@ -26,7 +26,7 @@ namespace Runtime.Infrastructure.Scopes
             builder.RegisterEntryPoint<GameEntryPoint>();
 
             if (_assetLibrary == null)
-                throw new System.InvalidOperationException("AssetLibrary is not assigned in GameLifetimeScope.");
+                throw new InvalidOperationException("AssetLibrary is not assigned in GameLifetimeScope.");
             
             // Services
             builder.RegisterInstance(_assetLibrary);
@@ -38,23 +38,26 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<ObjectPool<BaseViewModel>>(Lifetime.Singleton).As<IObjectPool<BaseViewModel>>();
             builder.Register<IViewAssetProvider, AddressablesViewAssetProvider>(Lifetime.Singleton);
             builder.Register<IUIService, UIService>(Lifetime.Singleton);
-            builder.Register<Runtime.Infrastructure.IMainMenuEntryModeStore, Runtime.Infrastructure.MainMenuEntryModeStore>(Lifetime.Singleton);
+            builder.Register<IMainMenuEntryModeStore, MainMenuEntryModeStore>(Lifetime.Singleton);
 
-            // Game Mode Wizard (Phase 1-6)
+            // Game Mode Wizard
             builder.Register<IGameLaunchConfigStore, GameLaunchConfigStore>(Lifetime.Singleton);
+            
             builder.Register<IGameModeSession>(resolver =>
                     new GameModeSession(resolver.Resolve<IGameModeCatalog>()),
                 Lifetime.Transient);
+            
             builder.Register<Func<IGameModeSession>>(
                 resolver => () => resolver.Resolve<IGameModeSession>(),
                 Lifetime.Singleton);
+            
             builder.Register<IGameModeWizardCoordinator, GameModeWizardCoordinator>(Lifetime.Singleton);
             builder.Register<IGameModeWizardNavigator, GameModeWizardNavigator>(Lifetime.Singleton);
             builder.Register<IGameModeCatalog, GameModeCatalog>(Lifetime.Singleton);
             builder.Register<IBotDifficultyCatalog, BotDifficultyCatalog>(Lifetime.Singleton);
             builder.Register<IMatchmakingService, MatchmakingServiceStub>(Lifetime.Singleton);
 
-            builder.Register<Runtime.Gameplay.IGameplayScopeAccessor, Runtime.Gameplay.GameplayScopeAccessor>(Lifetime.Singleton);
+            builder.Register<Gameplay.IGameplayScopeAccessor, Gameplay.GameplayScopeAccessor>(Lifetime.Singleton);
 
             builder.Register<ModeSelectionViewModel>(Lifetime.Transient);
             builder.Register<MatchSetupViewModel>(Lifetime.Transient);
@@ -65,18 +68,19 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<Func<ClassicSettingsViewModel>>(
                 resolver => () => resolver.Resolve<ClassicSettingsViewModel>(),
                 Lifetime.Singleton);
+            
             builder.Register<Func<UltimateSettingsViewModel>>(
                 resolver => () => resolver.Resolve<UltimateSettingsViewModel>(),
                 Lifetime.Singleton);
 
-            builder.Register<ClassicModeStrategy>(resolver =>
-                    new ClassicModeStrategy(resolver.Resolve<Func<ClassicSettingsViewModel>>()),
-                Lifetime.Singleton)
+            builder.Register(resolver =>
+                        new ClassicModeStrategy(resolver.Resolve<Func<ClassicSettingsViewModel>>()),
+                    Lifetime.Singleton)
                 .As<IGameModeStrategy>();
 
-            builder.Register<UltimateModeStrategy>(resolver =>
-                    new UltimateModeStrategy(resolver.Resolve<Func<UltimateSettingsViewModel>>()),
-                Lifetime.Singleton)
+            builder.Register(resolver =>
+                        new UltimateModeStrategy(resolver.Resolve<Func<UltimateSettingsViewModel>>()),
+                    Lifetime.Singleton)
                 .As<IGameModeStrategy>();
 
             builder.Register<IModeSettingsBinder, ClassicModeSettingsBinder>(Lifetime.Singleton);

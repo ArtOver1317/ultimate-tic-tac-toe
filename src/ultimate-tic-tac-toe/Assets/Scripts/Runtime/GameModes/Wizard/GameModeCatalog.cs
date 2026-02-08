@@ -8,9 +8,6 @@ namespace Runtime.GameModes.Wizard
 {
     public sealed class GameModeCatalog : IGameModeCatalog
     {
-        private readonly IGameModeStrategy[] _strategiesArray;
-        private readonly GameModeMetadata[] _metadataArray;
-
         private readonly ReadOnlyCollection<IGameModeStrategy> _strategies;
         private readonly ReadOnlyCollection<GameModeMetadata> _metadata;
         private readonly Dictionary<string, IGameModeStrategy> _byId;
@@ -30,14 +27,19 @@ namespace Runtime.GameModes.Wizard
             {
                 if (strategy == null)
                     throw new ArgumentException("Strategy collection contains null.", nameof(strategies));
+                
                 if (string.IsNullOrWhiteSpace(strategy.ModeId))
                     throw new ArgumentException("Strategy has empty ModeId.", nameof(strategies));
+                
                 if (strategy.Metadata == null)
                     throw new ArgumentException($"Strategy '{strategy.ModeId}' has null Metadata.", nameof(strategies));
+                
                 if (!string.Equals(strategy.Metadata.Id, strategy.ModeId, StringComparison.Ordinal))
+                {
                     throw new ArgumentException(
                         $"Strategy '{strategy.ModeId}' has mismatched Metadata.Id: '{strategy.Metadata.Id}'.",
                         nameof(strategies));
+                }
 
                 if (!dict.TryAdd(strategy.ModeId, strategy))
                     throw new ArgumentException($"Duplicate mode id in catalog: '{strategy.ModeId}'.", nameof(strategies));
@@ -48,20 +50,24 @@ namespace Runtime.GameModes.Wizard
             list.Sort((a, b) =>
             {
                 var byOrder = a.Metadata.SortOrder.CompareTo(b.Metadata.SortOrder);
+                
                 return byOrder != 0
                     ? byOrder
                     : string.CompareOrdinal(a.Metadata.Id, b.Metadata.Id);
             });
 
             var meta = new List<GameModeMetadata>(capacity: list.Count);
+            
             foreach (var s in list)
+            {
                 meta.Add(s.Metadata);
+            }
 
-            _strategiesArray = list.ToArray();
-            _metadataArray = meta.ToArray();
+            var strategiesArray = list.ToArray();
+            var metadataArray = meta.ToArray();
 
-            _strategies = Array.AsReadOnly(_strategiesArray);
-            _metadata = Array.AsReadOnly(_metadataArray);
+            _strategies = Array.AsReadOnly(strategiesArray);
+            _metadata = Array.AsReadOnly(metadataArray);
             _byId = dict;
         }
 
@@ -77,5 +83,3 @@ namespace Runtime.GameModes.Wizard
         }
     }
 }
-
-#nullable restore

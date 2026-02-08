@@ -23,5 +23,3 @@ namespace Runtime.GameModes.Wizard
         }
     }
 }
-
-#nullable restore

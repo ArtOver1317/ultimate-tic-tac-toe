@@ -13,6 +13,7 @@ namespace Runtime.GameModes.Wizard
         {
             if (string.IsNullOrWhiteSpace(field))
                 throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(field));
+            
             if (string.IsNullOrWhiteSpace(messageKey))
                 throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(messageKey));
 

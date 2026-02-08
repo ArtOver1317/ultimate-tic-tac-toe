@@ -172,7 +172,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var id = new PlayerId("12345");
 
             // Act
-            var result = id.ToNGOClientId();
+            var result = id.ToNgoClientId();
 
             // Assert
             result.Should().Be(12345UL);
@@ -182,7 +182,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenFromNGOCalled_ThenCreatesPlayerId()
         {
             // Arrange / Act
-            var id = PlayerId.FromNGO(12345UL);
+            var id = PlayerId.FromNgo(12345UL);
 
             // Assert
             id.Should().NotBeNull();

@@ -18,13 +18,13 @@ namespace Runtime.GameModes.Wizard
     /// </summary>
     public sealed partial class MatchSetupViewModel : BaseViewModel
     {
-        private static readonly string[] InlineErrorPriority =
+        private static readonly string[] _inlineErrorPriority =
         {
             WizardFieldNames.SelectedModeId,
             WizardFieldNames.ModeConfig,
             WizardFieldNames.BotDifficultyId,
             WizardFieldNames.Matchmaking,
-            WizardFieldNames.ModeCatalog
+            WizardFieldNames.ModeCatalog,
         };
 
         private readonly IGameModeCatalog _catalog;
@@ -65,14 +65,15 @@ namespace Runtime.GameModes.Wizard
         private int _difficultyItemsRebuildScheduled;
         private int _difficultyItemsRebuildVersion;
 
-    #if UNITY_INCLUDE_TESTS || UNITY_EDITOR
+#if UNITY_INCLUDE_TESTS || UNITY_EDITOR
         private bool _disablePlayerLoopForTests;
-    #endif
+#endif
 
         private ISpecificModeSettingsViewModel? _activeSettingsViewModel;
         private IDisposable? _activeConfigSubscription;
 
         private int _isWired;
+        
         // Protects against feedback loop: session -> subVM -> session
         private int _isSyncingModeConfigFromSession;
         private int _disposedExceptionLogged;
@@ -166,10 +167,7 @@ namespace Runtime.GameModes.Wizard
                 GameLog.Debug("[MatchSetupViewModel] Cancel intent rejected.");
         }
 
-        public void AcknowledgeError()
-        {
-            _coordinator.ClearCurrentError();
-        }
+        public void AcknowledgeError() => _coordinator.ClearCurrentError();
 
         public void SetOpponentType(OpponentType opponentType)
         {
@@ -180,6 +178,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             var session = _session;
+            
             if (session == null)
             {
                 GameLog.Warning("[MatchSetupViewModel] SetOpponentType ignored: session not available.");
@@ -205,6 +204,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             var session = _session;
+            
             if (session == null)
             {
                 GameLog.Warning("[MatchSetupViewModel] SetHumanOpponentKind ignored: session not available.");
@@ -227,6 +227,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             var normalized = string.IsNullOrWhiteSpace(difficultyId) ? null : difficultyId;
+            
             if (!string.IsNullOrWhiteSpace(normalized) && !IsDifficultyAvailable(normalized))
                 normalized = null;
 
@@ -234,6 +235,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             var session = _session;
+            
             if (session == null)
             {
                 GameLog.Warning("[MatchSetupViewModel] SetBotDifficultyId ignored: session not available.");
@@ -253,12 +255,11 @@ namespace Runtime.GameModes.Wizard
             }
         }
 
-
 #if UNITY_INCLUDE_TESTS || UNITY_EDITOR
-        internal void SetDifficultyItemsForTests(IReadOnlyList<DifficultyChipItem> items) =>
+        internal void SetDifficultyItemsForTests(IReadOnlyList<DifficultyChipItem>? items) =>
             _difficultyItems.Value = items ?? Array.Empty<DifficultyChipItem>();
 
-    internal void DisablePlayerLoopForTests() => _disablePlayerLoopForTests = true;
+        internal void DisablePlayerLoopForTests() => _disablePlayerLoopForTests = true;
 #endif
 
         protected override void OnReset()
@@ -389,7 +390,7 @@ namespace Runtime.GameModes.Wizard
             UpdateCanStart();
         }
 
-        private void ApplySnapshot(GameModeSessionSnapshot snapshot)
+        private void ApplySnapshot(GameModeSessionSnapshot? snapshot)
         {
             if (snapshot == null)
                 return;
@@ -411,7 +412,7 @@ namespace Runtime.GameModes.Wizard
             ApplySnapshotCore(snapshot);
         }
 
-        private void ApplySnapshotCore(GameModeSessionSnapshot snapshot)
+        private void ApplySnapshotCore(GameModeSessionSnapshot? snapshot)
         {
             if (snapshot == null)
                 return;
@@ -445,18 +446,9 @@ namespace Runtime.GameModes.Wizard
         {
             ReleaseActiveSettings();
 
-            if (string.IsNullOrWhiteSpace(modeId))
-            {
-                _modeTitleSubscription?.Dispose();
-                _modeTitleSubscription = null;
-                _modeTitleText.Value = string.Empty;
-                _modeIconKey.Value = string.Empty;
-                _activeSettings.Value = null;
-                UpdateCanStart();
-                return;
-            }
-
-            if (!_catalog.TryGetStrategy(modeId, out var strategy) || strategy == null)
+            if (string.IsNullOrWhiteSpace(modeId) 
+                || !_catalog.TryGetStrategy(modeId, out var strategy) 
+                || strategy == null)
             {
                 _modeTitleSubscription?.Dispose();
                 _modeTitleSubscription = null;
@@ -470,6 +462,7 @@ namespace Runtime.GameModes.Wizard
             _modeIconKey.Value = strategy.Metadata.IconAssetKey;
 
             _modeTitleSubscription?.Dispose();
+            
             _modeTitleSubscription = _localization
                 .Observe(new TextTableId("Mode"), new TextKey(strategy.Metadata.DisplayNameKey))
                 .Subscribe(SetModeTitleTextSafe);
@@ -478,6 +471,7 @@ namespace Runtime.GameModes.Wizard
             _activeSettings.Value = presentation;
 
             _activeSettingsViewModel = presentation.ViewModel;
+            
             if (_activeSettingsViewModel is BaseViewModel baseViewModel)
                 baseViewModel.Initialize();
 
@@ -485,6 +479,7 @@ namespace Runtime.GameModes.Wizard
 
             _activeConfigSubscription = presentation.ViewModel.Config
                 .Subscribe(ApplyModeConfig);
+            
             ApplyModeConfig(presentation.ViewModel.Config.CurrentValue);
         }
 
@@ -530,6 +525,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             var session = _session;
+            
             if (session == null)
                 return;
 
@@ -565,16 +561,18 @@ namespace Runtime.GameModes.Wizard
             OnAvailableDifficultiesChangedCore(difficulties);
         }
 
-        private void OnAvailableDifficultiesChangedCore(IReadOnlyList<BotDifficulty> difficulties)
+        private void OnAvailableDifficultiesChangedCore(IReadOnlyList<BotDifficulty>? difficulties)
         {
             _difficultyLocalizationSubscriptions?.Dispose();
             _difficultyLocalizationSubscriptions = null;
             _difficultyLabels.Clear();
 
             var selectedId = _selectedDifficultyId.Value;
+            
             if (!string.IsNullOrWhiteSpace(selectedId) && !ContainsDifficultyId(difficulties, selectedId))
             {
                 var session = _session;
+                
                 if (session != null)
                 {
                     try
@@ -607,17 +605,18 @@ namespace Runtime.GameModes.Wizard
             var disposables = new CompositeDisposable();
             var table = new TextTableId("GameModeWizard");
 
-            for (var i = 0; i < difficulties.Count; i++)
+            foreach (var difficulty in difficulties)
             {
-                var difficulty = difficulties[i];
                 if (difficulty == null)
                     throw new InvalidOperationException("Difficulty catalog returned null item.");
+
+                var difficulty1 = difficulty;
 
                 _localization
                     .Observe(table, new TextKey(difficulty.NameKey))
                     .Subscribe(text =>
                     {
-                        SetDifficultyLabelSafe(difficulty.Id, text);
+                        SetDifficultyLabelSafe(difficulty1.Id, text);
                     })
                     .AddTo(disposables);
             }
@@ -705,7 +704,7 @@ namespace Runtime.GameModes.Wizard
                 RequestDifficultyItemsRebuild();
         }
 
-        private void UpdateDifficultyItems(IReadOnlyList<BotDifficulty> difficulties)
+        private void UpdateDifficultyItems(IReadOnlyList<BotDifficulty>? difficulties)
         {
             if (difficulties == null || difficulties.Count == 0)
             {
@@ -714,9 +713,11 @@ namespace Runtime.GameModes.Wizard
             }
 
             var items = new DifficultyChipItem[difficulties.Count];
+            
             for (var i = 0; i < difficulties.Count; i++)
             {
                 var difficulty = difficulties[i];
+                
                 if (difficulty == null)
                     throw new InvalidOperationException("Difficulty catalog returned null item.");
 
@@ -928,7 +929,7 @@ namespace Runtime.GameModes.Wizard
             UpdateInlineError();
         }
 
-        private string? BuildInlineErrorText(IReadOnlyList<ValidationError> errors)
+        private string? BuildInlineErrorText(IReadOnlyList<ValidationError>? errors)
         {
             if (errors == null || errors.Count == 0)
                 return null;
@@ -940,6 +941,7 @@ namespace Runtime.GameModes.Wizard
             {
                 var candidate = errors[i];
                 var candidatePriority = GetInlineErrorPriority(candidate.Field);
+                
                 if (candidatePriority < bestPriority)
                 {
                     bestPriority = candidatePriority;
@@ -949,9 +951,8 @@ namespace Runtime.GameModes.Wizard
 
             if (bestPriority == int.MaxValue)
             {
-                for (var i = 0; i < errors.Count; i++)
+                foreach (var candidate in errors)
                 {
-                    var candidate = errors[i];
                     if (!string.Equals(candidate.Field, WizardFieldNames.TargetPlayerId, StringComparison.Ordinal))
                         return ResolveMessageKey(candidate.MessageKey);
                 }
@@ -967,9 +968,9 @@ namespace Runtime.GameModes.Wizard
             if (string.IsNullOrWhiteSpace(field))
                 return int.MaxValue;
 
-            for (var i = 0; i < InlineErrorPriority.Length; i++)
+            for (var i = 0; i < _inlineErrorPriority.Length; i++)
             {
-                if (string.Equals(InlineErrorPriority[i], field, StringComparison.Ordinal))
+                if (string.Equals(_inlineErrorPriority[i], field, StringComparison.Ordinal))
                     return i;
             }
 
@@ -982,6 +983,7 @@ namespace Runtime.GameModes.Wizard
                 return string.Empty;
 
             var dotIndex = messageKey.IndexOf('.', StringComparison.Ordinal);
+            
             if (dotIndex <= 0)
                 return messageKey;
 
@@ -995,7 +997,7 @@ namespace Runtime.GameModes.Wizard
         private void UpdateCanStart() =>
             _canStart.Value = _sessionCanStart;
 
-        private void ApplyModeConfig(IGameModeConfig config)
+        private void ApplyModeConfig(IGameModeConfig? config)
         {
             if (config == null)
                 return;
@@ -1004,6 +1006,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             var session = _session;
+            
             if (session == null)
                 return;
 
@@ -1023,6 +1026,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             var viewModel = _activeSettingsViewModel;
+            
             if (viewModel == null)
                 return;
 
@@ -1067,16 +1071,17 @@ namespace Runtime.GameModes.Wizard
         private bool IsDifficultyAvailable(string difficultyId)
         {
             var difficulties = _availableDifficulties.Value;
-            for (var i = 0; i < difficulties.Count; i++)
+            
+            foreach (var t in difficulties)
             {
-                if (string.Equals(difficulties[i].Id, difficultyId, StringComparison.Ordinal))
+                if (string.Equals(t.Id, difficultyId, StringComparison.Ordinal))
                     return true;
             }
 
             return false;
         }
 
-        private static bool ContainsDifficultyId(IReadOnlyList<BotDifficulty> difficulties, string difficultyId)
+        private static bool ContainsDifficultyId(IReadOnlyList<BotDifficulty>? difficulties, string difficultyId)
         {
             if (difficulties == null || difficulties.Count == 0)
                 return false;
@@ -1105,7 +1110,7 @@ namespace Runtime.GameModes.Wizard
             public SessionSnapshotObserver(Action<GameModeSessionSnapshot> onNext) =>
                 _onNext = onNext ?? throw new ArgumentNullException(nameof(onNext));
 
-            protected override void OnNextCore(GameModeSessionSnapshot value)
+            protected override void OnNextCore(GameModeSessionSnapshot? value)
             {
                 if (value == null)
                     return;
@@ -1121,11 +1126,7 @@ namespace Runtime.GameModes.Wizard
                 GameLog.Error($"[MatchSetupViewModel] Session snapshot error: {error}");
             }
 
-            protected override void OnCompletedCore(Result result)
-            {
-            }
+            protected override void OnCompletedCore(Result result) { }
         }
     }
 }
-
-#nullable restore

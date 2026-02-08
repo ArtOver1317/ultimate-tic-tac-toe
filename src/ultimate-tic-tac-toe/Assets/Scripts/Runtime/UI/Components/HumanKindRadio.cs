@@ -14,7 +14,7 @@ namespace Runtime.UI.Components
         public string Label { get; }
         public bool IsEnabled { get; }
 
-        public HumanKindRadioItem(HumanOpponentKind kind, string label, bool isEnabled = true)
+        public HumanKindRadioItem(HumanOpponentKind kind, string? label, bool isEnabled = true)
         {
             Kind = kind;
             Label = label ?? string.Empty;
@@ -25,10 +25,10 @@ namespace Runtime.UI.Components
     [UxmlElement]
     public sealed partial class HumanKindRadio : VisualElement
     {
-        private const string ItemClass = "human-kind-radio__item";
-        private const string SelectedClass = "human-kind-radio__item--selected";
-        private const string LastItemClass = "human-kind-radio__item--last";
-        private const string DisabledClass = "human-kind-radio__item--disabled";
+        private const string _itemClass = "human-kind-radio__item";
+        private const string _selectedClass = "human-kind-radio__item--selected";
+        private const string _lastItemClass = "human-kind-radio__item--last";
+        private const string _disabledClass = "human-kind-radio__item--disabled";
 
         private readonly List<Button> _orderedButtons = new();
         private readonly Dictionary<HumanOpponentKind, Button> _buttonsByKind = new();
@@ -38,12 +38,9 @@ namespace Runtime.UI.Components
 
         public HumanOpponentKind? SelectedKind => _selectedKind;
 
-        public HumanKindRadio()
-        {
-            AddToClassList("human-kind-radio");
-        }
+        public HumanKindRadio() => AddToClassList("human-kind-radio");
 
-        public void SetItems(IReadOnlyList<HumanKindRadioItem> items)
+        public void SetItems(IReadOnlyList<HumanKindRadioItem>? items)
         {
             Clear();
             _orderedButtons.Clear();
@@ -58,6 +55,7 @@ namespace Runtime.UI.Components
             for (var i = 0; i < items.Count; i++)
             {
                 var item = items[i];
+                
                 if (item == null)
                 {
                     GameLog.Warning("[HumanKindRadio] Null item ignored.");
@@ -71,15 +69,16 @@ namespace Runtime.UI.Components
                 }
 
                 var button = new Button { text = item.Label ?? string.Empty, name = item.Kind.ToString() };
-                button.AddToClassList(ItemClass);
+                button.AddToClassList(_itemClass);
 
                 if (!item.IsEnabled)
                 {
                     button.SetEnabled(false);
-                    button.AddToClassList(DisabledClass);
+                    button.AddToClassList(_disabledClass);
                 }
 
                 var kind = item.Kind;
+                
                 button.clicked += () =>
                 {
                     if (item.IsEnabled)
@@ -126,24 +125,25 @@ namespace Runtime.UI.Components
             foreach (var pair in _buttonsByKind)
             {
                 var isSelected = _selectedKind.HasValue && pair.Key.Equals(_selectedKind.Value);
+                
                 if (isSelected)
-                    pair.Value.AddToClassList(SelectedClass);
+                    pair.Value.AddToClassList(_selectedClass);
                 else
-                    pair.Value.RemoveFromClassList(SelectedClass);
+                    pair.Value.RemoveFromClassList(_selectedClass);
             }
         }
 
         private void UpdateLastItemClass()
         {
             for (var i = 0; i < _orderedButtons.Count; i++)
-                _orderedButtons[i].RemoveFromClassList(LastItemClass);
+            {
+                _orderedButtons[i].RemoveFromClassList(_lastItemClass);
+            }
 
             if (_orderedButtons.Count == 0)
                 return;
 
-            _orderedButtons[^1].AddToClassList(LastItemClass);
+            _orderedButtons[^1].AddToClassList(_lastItemClass);
         }
     }
 }
-
-#nullable restore

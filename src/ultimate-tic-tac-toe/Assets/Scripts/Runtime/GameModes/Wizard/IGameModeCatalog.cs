@@ -18,5 +18,3 @@ namespace Runtime.GameModes.Wizard
         bool TryGetStrategy(string modeId, out IGameModeStrategy? strategy);
     }
 }
-
-#nullable restore

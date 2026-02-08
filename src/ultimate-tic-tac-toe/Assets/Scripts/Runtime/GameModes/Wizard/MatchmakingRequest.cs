@@ -16,11 +16,10 @@ namespace Runtime.GameModes.Wizard
         {
             if (string.IsNullOrWhiteSpace(gameModeId))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(gameModeId));
+            
             ModeConfig = modeConfig ?? throw new ArgumentNullException(nameof(modeConfig));
 
             GameModeId = gameModeId;
         }
     }
 }
-
-#nullable restore

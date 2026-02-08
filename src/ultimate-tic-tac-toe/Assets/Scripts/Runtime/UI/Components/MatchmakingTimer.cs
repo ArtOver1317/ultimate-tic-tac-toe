@@ -51,12 +51,7 @@ namespace Runtime.UI.Components
 
             _lastPrefix = _prefix;
 
-            if (string.IsNullOrWhiteSpace(_prefix))
-                _label.text = timeText;
-            else
-                _label.text = $"{_prefix} {timeText}...";
+            _label.text = string.IsNullOrWhiteSpace(_prefix) ? timeText : $"{_prefix} {timeText}...";
         }
     }
 }
-
-#nullable restore

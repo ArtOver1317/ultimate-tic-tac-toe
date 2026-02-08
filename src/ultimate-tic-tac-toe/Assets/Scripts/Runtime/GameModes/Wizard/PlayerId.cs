@@ -33,15 +33,11 @@ namespace Runtime.GameModes.Wizard
             return true;
         }
 
-        public ulong ToNGOClientId()
-        {
-            if (!ulong.TryParse(Value, out var parsed))
-                throw new FormatException("PlayerId does not fit into ulong.");
+        public ulong ToNgoClientId() => !ulong.TryParse(Value, out var parsed) 
+            ? throw new FormatException("PlayerId does not fit into ulong.") 
+            : parsed;
 
-            return parsed;
-        }
-
-        public static PlayerId FromNGO(ulong clientId) => new(clientId.ToString());
+        public static PlayerId FromNgo(ulong clientId) => new(clientId.ToString());
 
         public override string ToString() => Value;
 
@@ -60,6 +56,7 @@ namespace Runtime.GameModes.Wizard
                 return false;
 
             var trimmed = value.Trim();
+            
             if (!ulong.TryParse(trimmed, out var parsed))
                 return false;
 
@@ -68,5 +65,3 @@ namespace Runtime.GameModes.Wizard
         }
     }
 }
-
-#nullable restore

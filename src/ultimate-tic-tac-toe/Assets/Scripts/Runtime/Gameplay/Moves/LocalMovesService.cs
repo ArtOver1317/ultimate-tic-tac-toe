@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using R3;
 using Runtime.Infrastructure.Logging;
 
@@ -18,7 +17,7 @@ namespace Runtime.Gameplay.Moves
             InvalidStartingPlayer = 5,
         }
 
-        private const double ReleaseLogIntervalSeconds = 5.0;
+        private const double _releaseLogIntervalSeconds = 5.0;
 
         private readonly ReactiveProperty<bool> _isStarted = new(false);
         private readonly ReactiveProperty<PlayerMark> _currentPlayer = new(PlayerMark.None);
@@ -73,6 +72,7 @@ namespace Runtime.Gameplay.Moves
 
             var previousLastMove = _lastMove;
             _lastMove = null;
+            
             if (previousLastMove != null)
                 _lastMoveChanged.OnNext(new LastMoveChangedEvent(previousLastMove, null));
 
@@ -84,8 +84,10 @@ namespace Runtime.Gameplay.Moves
         {
             if (spec == null)
                 return;
+            
             if (cells == null)
                 return;
+            
             if (majorCount <= 0 || minorCount <= 0)
                 return;
 
@@ -93,12 +95,14 @@ namespace Runtime.Gameplay.Moves
             if (spec.Kind == FieldKind.Classic)
             {
                 var size = spec.OuterSize;
+                
                 for (var x = 0; x < size; x++)
                 {
                     for (var y = 0; y < size; y++)
                     {
                         var id = new CellId(x, y);
                         var index = ToIndex(id, minorCount);
+                        
                         if ((uint)index >= (uint)cells.Length)
                             continue;
 
@@ -115,6 +119,7 @@ namespace Runtime.Gameplay.Moves
                 for (var minor = 0; minor < minorCount; minor++)
                 {
                     var index = checked(major * minorCount + minor);
+                    
                     if ((uint)index >= (uint)cells.Length)
                         continue;
 
@@ -133,6 +138,7 @@ namespace Runtime.Gameplay.Moves
 
             var previousLastMove = _lastMove;
             _lastMove = null;
+            
             if (previousLastMove != null)
                 _lastMoveChanged.OnNext(new LastMoveChangedEvent(previousLastMove, null));
 
@@ -157,10 +163,12 @@ namespace Runtime.Gameplay.Moves
             }
 
             var index = ToIndex(cellId);
+            
             if (_cells[index] != PlayerMark.None)
                 return Reject(cellId, ApplyClickResult.CellOccupied);
 
             var mark = _currentPlayer.Value;
+            
             if (mark != PlayerMark.X && mark != PlayerMark.O)
                 mark = PlayerMark.X;
 
@@ -214,6 +222,7 @@ namespace Runtime.Gameplay.Moves
             if (_fieldSpec.Kind == FieldKind.Classic)
             {
                 var size = _fieldSpec.OuterSize;
+                
                 for (var x = 0; x < size; x++)
                 {
                     for (var y = 0; y < size; y++)
@@ -269,17 +278,18 @@ namespace Runtime.Gameplay.Moves
             {
                 FieldKind.Classic => spec.OuterSize,
                 FieldKind.Ultimate => checked(spec.OuterSize * spec.OuterSize),
-                _ => 0
+                _ => 0,
             };
 
             _minorCount = spec.Kind switch
             {
                 FieldKind.Classic => spec.OuterSize,
                 FieldKind.Ultimate => checked(spec.InnerSize * spec.InnerSize),
-                _ => 0
+                _ => 0,
             };
 
             var cellCount = checked(_majorCount * _minorCount);
+            
             if (_cells == null || _cells.Length != cellCount)
                 _cells = new PlayerMark[cellCount];
         }
@@ -341,7 +351,7 @@ namespace Runtime.Gameplay.Moves
                 FailSafeLogCode.GetCellValueInvalidCellId => $"[LocalMovesService] GetCellValue ignored: invalid cell id. CellId={cellId}",
                 FailSafeLogCode.GetAllCellsNotStarted => "[LocalMovesService] GetAllCells ignored: not started.",
                 FailSafeLogCode.InvalidStartingPlayer => $"[LocalMovesService] Invalid StartingPlayer '{playerMark}', defaulting to X.",
-                _ => "[LocalMovesService] Fail-safe warning."
+                _ => "[LocalMovesService] Fail-safe warning.",
             };
 
             return suppressed > 0
@@ -358,7 +368,7 @@ namespace Runtime.Gameplay.Moves
 #else
             var nowTicks = Stopwatch.GetTimestamp();
             var elapsedSeconds = (nowTicks - _lastReleaseWarnTicks) / (double)Stopwatch.Frequency;
-            if (_lastReleaseWarnTicks != 0 && elapsedSeconds < ReleaseLogIntervalSeconds)
+            if (_lastReleaseWarnTicks != 0 && elapsedSeconds < _releaseLogIntervalSeconds)
                 return false;
 
             suppressed = _releaseWarnSuppressed;

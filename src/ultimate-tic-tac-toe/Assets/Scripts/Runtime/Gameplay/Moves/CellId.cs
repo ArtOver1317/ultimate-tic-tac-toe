@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 
 namespace Runtime.Gameplay.Moves
@@ -27,7 +29,7 @@ namespace Runtime.Gameplay.Moves
 
     public static class FieldRenderSpecExtensions
     {
-        public static bool IsValidCellId(this FieldRenderSpec spec, CellId cellId)
+        public static bool IsValidCellId(this FieldRenderSpec? spec, CellId cellId)
         {
             if (spec == null)
                 return false;
@@ -40,7 +42,7 @@ namespace Runtime.Gameplay.Moves
                 FieldKind.Classic => cellId.Major < spec.OuterSize && cellId.Minor < spec.OuterSize,
                 FieldKind.Ultimate => cellId.Major < (long)spec.OuterSize * spec.OuterSize
                                       && cellId.Minor < (long)spec.InnerSize * spec.InnerSize,
-                _ => false
+                _ => false,
             };
         }
     }

@@ -12,25 +12,17 @@ namespace Runtime.Gameplay
 
     public sealed class GameplayScopeAccessor : IGameplayScopeAccessor
     {
-        private IObjectResolver _current;
+        public IObjectResolver Current { get; private set; }
 
-        public IObjectResolver Current => _current;
-
-        public void SetCurrent(IObjectResolver resolver)
-        {
-            if (resolver == null)
-                throw new ArgumentNullException(nameof(resolver));
-
-            _current = resolver;
-        }
+        public void SetCurrent(IObjectResolver resolver) => Current = resolver ?? throw new ArgumentNullException(nameof(resolver));
 
         public void Clear(IObjectResolver resolver)
         {
             if (resolver == null)
                 throw new ArgumentNullException(nameof(resolver));
 
-            if (_current == resolver)
-                _current = null;
+            if (Current == resolver)
+                Current = null;
         }
     }
 }

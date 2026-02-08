@@ -18,7 +18,7 @@ namespace Runtime.Services.UI
 
         Cysharp.Threading.Tasks.UniTask<TTo> ReplaceAsync<TFrom, TTo, TToViewModel>(
             System.Threading.CancellationToken ct,
-            System.Action<TToViewModel> configureViewModel = null,
+            Action<TToViewModel> configureViewModel = null,
             ReplaceOptions? options = null)
             where TFrom : class, IUIView
             where TTo : class, IUIView<TToViewModel>

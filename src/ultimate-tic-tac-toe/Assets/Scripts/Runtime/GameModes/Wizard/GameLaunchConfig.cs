@@ -14,6 +14,7 @@ namespace Runtime.GameModes.Wizard
         {
             if (string.IsNullOrWhiteSpace(gameModeId))
                 throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(gameModeId));
+            
             ModeConfig = modeConfig ?? throw new System.ArgumentNullException(nameof(modeConfig));
             OpponentConfig = opponentConfig ?? throw new System.ArgumentNullException(nameof(opponentConfig));
 

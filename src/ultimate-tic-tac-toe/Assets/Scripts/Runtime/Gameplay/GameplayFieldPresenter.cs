@@ -50,18 +50,18 @@ namespace Runtime.Gameplay
 
         private bool _hasMarkFontScale;
 
-        private static readonly CustomStyleProperty<float> GridGapHalfProperty = new("--grid-gap-half");
-        private static readonly CustomStyleProperty<float> GridGapProperty = new("--grid-gap");
-        private static readonly CustomStyleProperty<float> MiniBoardGapHalfProperty = new("--mini-board-gap-half");
-        private static readonly CustomStyleProperty<float> MiniBoardBorderProperty = new("--mini-board-border-width");
-        private static readonly CustomStyleProperty<float> MiniBoardPaddingProperty = new("--mini-board-padding");
-        private static readonly CustomStyleProperty<float> MarkFontScaleProperty = new("--mark-font-scale");
+        private static readonly CustomStyleProperty<float> _gridGapHalfProperty = new("--grid-gap-half");
+        private static readonly CustomStyleProperty<float> _gridGapProperty = new("--grid-gap");
+        private static readonly CustomStyleProperty<float> _miniBoardGapHalfProperty = new("--mini-board-gap-half");
+        private static readonly CustomStyleProperty<float> _miniBoardBorderProperty = new("--mini-board-border-width");
+        private static readonly CustomStyleProperty<float> _miniBoardPaddingProperty = new("--mini-board-padding");
+        private static readonly CustomStyleProperty<float> _markFontScaleProperty = new("--mark-font-scale");
 
         public GameplayFieldPresenter(
             UIDocument uiDocument,
             IGameplayBackHandler backHandler)
         {
-            _uiDocument = uiDocument ?? throw new ArgumentNullException(nameof(uiDocument));
+            _uiDocument = uiDocument ? uiDocument : throw new ArgumentNullException(nameof(uiDocument));
             _backHandler = backHandler ?? throw new ArgumentNullException(nameof(backHandler));
         }
 
@@ -75,10 +75,7 @@ namespace Runtime.Gameplay
             if (!TryGetCell(id, out cellRoot) || cellRoot == null)
                 return false;
 
-            if (!_markLabelById.TryGetValue(id, out markLabel) || markLabel == null)
-                return false;
-
-            return true;
+            return _markLabelById.TryGetValue(id, out markLabel) && markLabel != null;
         }
 
         Label IGameplayFieldUiAdapter.CurrentPlayerLabel
@@ -109,6 +106,7 @@ namespace Runtime.Gameplay
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(GameplayFieldPresenter));
+            
             if (spec == null)
                 throw new ArgumentNullException(nameof(spec));
 
@@ -184,8 +182,7 @@ namespace Runtime.Gameplay
 
         private void CleanupBindings()
         {
-            if (_fieldContainer != null)
-                _fieldContainer.UnregisterCallback<GeometryChangedEvent>(OnGeometryChanged);
+            _fieldContainer?.UnregisterCallback<GeometryChangedEvent>(OnGeometryChanged);
 
             if (_customStyleCallbackElement != null)
             {
@@ -231,6 +228,7 @@ namespace Runtime.Gameplay
             UpdateSpacingFromCustomStyle(_fieldRoot.customStyle, validate: false);
 
             _fieldContainer = _fieldRoot.Q<VisualElement>("FieldContainer");
+            
             if (_fieldContainer == null)
             {
                 _fieldContainer = new VisualElement { name = "FieldContainer" };
@@ -239,6 +237,7 @@ namespace Runtime.Gameplay
             }
 
             _backButton = _fieldRoot.Q<Button>("BackButton");
+            
             if (_backButton != null)
                 _backButton.clicked += OnBackClicked;
             else
@@ -278,6 +277,7 @@ namespace Runtime.Gameplay
                 return;
 
             var existing = _fieldRoot.Q<Label>("CurrentPlayerLabel");
+            
             if (existing != null)
             {
                 _currentPlayerLabel = existing;
@@ -289,8 +289,9 @@ namespace Runtime.Gameplay
             var label = new Label
             {
                 name = "CurrentPlayerLabel",
-                text = string.Empty
+                text = string.Empty,
             };
+            
             label.AddToClassList("current-player-label");
 
             toolbar.Add(label);
@@ -327,8 +328,7 @@ namespace Runtime.Gameplay
             if (ReferenceEquals(_customStyleCallbackElement, fieldRoot))
                 return;
 
-            if (_customStyleCallbackElement != null)
-                _customStyleCallbackElement.UnregisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
+            _customStyleCallbackElement?.UnregisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
 
             _customStyleCallbackElement = fieldRoot;
             _customStyleCallbackElement.RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
@@ -337,6 +337,7 @@ namespace Runtime.Gameplay
         private void BuildClassic(FieldRenderSpec spec)
         {
             var size = spec.OuterSize;
+            
             for (var y = 0; y < size; y++)
             {
                 var row = new VisualElement();
@@ -369,7 +370,7 @@ namespace Runtime.Gameplay
                     var mini = new VisualElement { name = $"Mini_{miniX}_{miniY}" };
                     mini.AddToClassList("mini-board");
 
-                    var miniIndex = (miniY * outer) + miniX;
+                    var miniIndex = miniY * outer + miniX;
 
                     for (var y = 0; y < inner; y++)
                     {
@@ -378,7 +379,7 @@ namespace Runtime.Gameplay
 
                         for (var x = 0; x < inner; x++)
                         {
-                            var minor = (y * inner) + x;
+                            var minor = y * inner + x;
                             var cellId = new CellId(miniIndex, minor);
                             var cell = CreateCell(x, y, cellId);
                             row.Add(cell);
@@ -404,6 +405,7 @@ namespace Runtime.Gameplay
             cell.userData = new CellUserData(cellId);
 
             cell.AddManipulator(new Clickable(() => OnCellClicked(cell)));
+            
             try
             {
                 _cellById.Add(cellId, cell);
@@ -484,14 +486,14 @@ namespace Runtime.Gameplay
             var columns = _spec.Kind == FieldKind.Classic
                 ? _spec.OuterSize
                 : _spec.OuterSize * _spec.InnerSize;
-            var rows = columns;
 
-            if (columns <= 0 || rows <= 0)
+            if (columns <= 0)
                 return;
 
             var cellSize = _spec.Kind == FieldKind.Classic
                 ? CalculateClassicCellSize(rect, _spec.OuterSize)
                 : CalculateUltimateCellSize(rect, _spec.OuterSize, _spec.InnerSize);
+            
             if (cellSize <= 0)
                 return;
 
@@ -513,9 +515,10 @@ namespace Runtime.Gameplay
                 foreach (var mini in _miniBoards)
                 {
                     var miniSize = cellSize * _spec.InnerSize
-                                   + (_spec.InnerSize * (_gridGapHalf * 2f))
-                                   + (_miniBoardPadding * 2f)
-                                   + (_miniBoardBorder * 2f);
+                                   + _spec.InnerSize * (_gridGapHalf * 2f)
+                                   + _miniBoardPadding * 2f
+                                   + _miniBoardBorder * 2f;
+                    
                     mini.style.width = miniSize;
                     mini.style.height = miniSize;
                 }
@@ -528,6 +531,7 @@ namespace Runtime.Gameplay
                 return;
 
             var scale = _markFontScale;
+            
             if (scale <= 0f)
                 scale = 0.62f;
 
@@ -600,7 +604,7 @@ namespace Runtime.Gameplay
             var miniAvailableHeight = availableHeight / outer;
 
             var innerMargins = inner * (_gridGapHalf * 2f);
-            var fixedExtras = (_miniBoardPadding * 2f) + (_miniBoardBorder * 2f) + innerMargins;
+            var fixedExtras = _miniBoardPadding * 2f + _miniBoardBorder * 2f + innerMargins;
 
             var cellAvailableWidth = miniAvailableWidth - fixedExtras;
             var cellAvailableHeight = miniAvailableHeight - fixedExtras;
@@ -622,7 +626,8 @@ namespace Runtime.Gameplay
             var changed = false;
 
             var gridGapHalfSet = false;
-            if (customStyle.TryGetValue(GridGapHalfProperty, out var gridGapHalf))
+            
+            if (customStyle.TryGetValue(_gridGapHalfProperty, out var gridGapHalf))
             {
                 _gridGapHalf = gridGapHalf;
                 gridGapHalfSet = true;
@@ -630,7 +635,7 @@ namespace Runtime.Gameplay
                 changed = true;
             }
 
-            if (customStyle.TryGetValue(GridGapProperty, out var gridGap))
+            if (customStyle.TryGetValue(_gridGapProperty, out var gridGap))
             {
                 if (!gridGapHalfSet)
                 {
@@ -640,28 +645,28 @@ namespace Runtime.Gameplay
                 }
             }
 
-            if (customStyle.TryGetValue(MiniBoardGapHalfProperty, out var miniGapHalf))
+            if (customStyle.TryGetValue(_miniBoardGapHalfProperty, out var miniGapHalf))
             {
                 _miniBoardGapHalf = miniGapHalf;
                 _hasMiniBoardGapHalf = true;
                 changed = true;
             }
 
-            if (customStyle.TryGetValue(MiniBoardBorderProperty, out var miniBorder))
+            if (customStyle.TryGetValue(_miniBoardBorderProperty, out var miniBorder))
             {
                 _miniBoardBorder = miniBorder;
                 _hasMiniBoardBorder = true;
                 changed = true;
             }
 
-            if (customStyle.TryGetValue(MiniBoardPaddingProperty, out var miniPadding))
+            if (customStyle.TryGetValue(_miniBoardPaddingProperty, out var miniPadding))
             {
                 _miniBoardPadding = miniPadding;
                 _hasMiniBoardPadding = true;
                 changed = true;
             }
 
-            if (customStyle.TryGetValue(MarkFontScaleProperty, out var markFontScale))
+            if (customStyle.TryGetValue(_markFontScaleProperty, out var markFontScale))
             {
                 _markFontScale = markFontScale;
                 _hasMarkFontScale = true;
@@ -674,6 +679,7 @@ namespace Runtime.Gameplay
             if (changed)
             {
                 _lastCellSize = 0;
+                
                 if (_fieldContainer != null)
                     UpdateCellSizes(_fieldContainer.contentRect);
             }
@@ -681,11 +687,8 @@ namespace Runtime.Gameplay
 
         private void ValidateRequiredStyleTokensIfPossible()
         {
-            if (_fieldRoot == null)
-                return;
-
             // In EditMode tests (no panel) customStyle isn't reliably resolved.
-            if (_fieldRoot.panel == null)
+            if (_fieldRoot?.panel == null)
                 return;
 
             if (_spec == null)
@@ -700,16 +703,21 @@ namespace Runtime.Gameplay
                 return;
 
             var missing = new List<string>(4);
+            
             if (!_hasGridGapHalf)
-                missing.Add(GridGapHalfProperty.name);
+                missing.Add(_gridGapHalfProperty.name);
+            
             if (!_hasMarkFontScale)
-                missing.Add(MarkFontScaleProperty.name);
+                missing.Add(_markFontScaleProperty.name);
+            
             if (requireUltimateTokens && !_hasMiniBoardGapHalf)
-                missing.Add(MiniBoardGapHalfProperty.name);
+                missing.Add(_miniBoardGapHalfProperty.name);
+            
             if (requireUltimateTokens && !_hasMiniBoardBorder)
-                missing.Add(MiniBoardBorderProperty.name);
+                missing.Add(_miniBoardBorderProperty.name);
+            
             if (requireUltimateTokens && !_hasMiniBoardPadding)
-                missing.Add(MiniBoardPaddingProperty.name);
+                missing.Add(_miniBoardPaddingProperty.name);
 
             var message = $"[GameplayFieldPresenter] Missing required USS custom properties: {string.Join(", ", missing)}";
 

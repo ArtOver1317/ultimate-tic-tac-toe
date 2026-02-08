@@ -10,11 +10,12 @@ namespace Runtime.Gameplay
         {
             if (launchConfig == null)
                 throw new ArgumentNullException(nameof(launchConfig));
-            if (fieldSpec == null)
-                throw new ArgumentNullException(nameof(fieldSpec));
-
-            // MVP: стартовый игрок пока не задаётся в Wizard.
-            return new LocalMovesConfig(fieldSpec, PlayerMark.X);
+            
+            return fieldSpec == null
+                ? throw new ArgumentNullException(nameof(fieldSpec)) 
+                :
+                // MVP: стартовый игрок пока не задаётся в Wizard.
+                new LocalMovesConfig(fieldSpec, PlayerMark.X);
         }
     }
 }

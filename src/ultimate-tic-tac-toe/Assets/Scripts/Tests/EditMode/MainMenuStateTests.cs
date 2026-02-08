@@ -287,7 +287,9 @@ namespace Tests.EditMode
                 });
 
             // Act
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await _state.EnterAsync(cts.Token));
+                Assert.That(
+                    async () => await _state.EnterAsync(cts.Token),
+                    Throws.InstanceOf<OperationCanceledException>());
 
             // Assert
             _uiService.DidNotReceive().Get<MainMenuView>();

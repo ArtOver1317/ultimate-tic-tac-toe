@@ -22,8 +22,10 @@ namespace Runtime.Gameplay
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(LocalGameService));
+            
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
+            
             if (_activeSession != null)
                 throw new InvalidOperationException("Match is already started.");
 
@@ -52,10 +54,7 @@ namespace Runtime.Gameplay
 
             public FieldRenderSpec FieldRenderSpec { get; }
 
-            public LocalGameplaySession(FieldRenderSpec spec)
-            {
-                FieldRenderSpec = spec ?? throw new ArgumentNullException(nameof(spec));
-            }
+            public LocalGameplaySession(FieldRenderSpec spec) => FieldRenderSpec = spec ?? throw new ArgumentNullException(nameof(spec));
 
             public void Dispose()
             {

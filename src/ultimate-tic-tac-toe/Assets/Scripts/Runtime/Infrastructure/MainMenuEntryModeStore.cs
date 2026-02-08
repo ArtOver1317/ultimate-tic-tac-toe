@@ -1,11 +1,9 @@
-using System;
-
 namespace Runtime.Infrastructure
 {
     public enum MainMenuEntryMode
     {
         Default,
-        OpenWizard
+        OpenWizard,
     }
 
     public interface IMainMenuEntryModeStore

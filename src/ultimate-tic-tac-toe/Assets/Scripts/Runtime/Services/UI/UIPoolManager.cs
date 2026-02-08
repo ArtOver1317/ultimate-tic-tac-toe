@@ -12,7 +12,9 @@ namespace Runtime.Services.UI
     {
         private readonly IObjectResolver _container;
         private readonly IObjectPool<IUIView> _windowPool;
+        
         private readonly IObjectPool<BaseViewModel> _viewModelPool;
+        
         // Inject is intentionally one-time per instance lifetime (pool-safe contract).
         private readonly HashSet<int> _injectedInstanceIds = new();
 
@@ -42,9 +44,7 @@ namespace Runtime.Services.UI
                     EnsureInjected(pooledMb);
                 }
                 else
-                {
                     EnsureInjected(pooledWindow);
-                }
 
                 Log.Debug(LogTags.Services, $"[UIPoolManager] Retrieved window from pool: {windowType.Name}");
                 return pooledWindow;
@@ -150,6 +150,7 @@ namespace Runtime.Services.UI
             if (target is UnityEngine.Object unityObject)
             {
                 var id = unityObject.GetInstanceID();
+                
                 if (!_injectedInstanceIds.Add(id))
                     return;
             }
@@ -166,6 +167,7 @@ namespace Runtime.Services.UI
                 return;
 
             var go = mb.gameObject;
+            
             if (!go)
                 return;
 

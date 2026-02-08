@@ -26,6 +26,7 @@ namespace Runtime.GameModes.Wizard
         {
             if (string.IsNullOrWhiteSpace(code))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(code));
+            
             if (string.IsNullOrWhiteSpace(messageKey))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(messageKey));
 

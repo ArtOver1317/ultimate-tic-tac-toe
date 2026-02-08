@@ -3,7 +3,6 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.Logging;
-using Runtime.Infrastructure;
 using Runtime.Localization;
 using Runtime.Services.Assets;
 using Runtime.Services.UI;
@@ -11,6 +10,7 @@ using Runtime.UI.Common;
 using Runtime.UI.MainMenu;
 using Runtime.UI.GameModes.Wizard;
 using StripLog;
+using UnityEngine.AddressableAssets;
 
 namespace Runtime.Infrastructure.GameStateMachine.States
 {
@@ -50,70 +50,8 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             _isExited = false;
             Log.Debug(LogTags.Scenes, "[MainMenuState] Entered MainMenu");
             
-            // Load and register UI prefabs
-            if (_assetLibrary.BackgroundPrefab != null && _assetLibrary.BackgroundPrefab.RuntimeKeyIsValid())
-            {
-                var backgroundPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.BackgroundPrefab, cancellationToken);
-                _uiService.RegisterWindowPrefab<UIBackgroundView>(backgroundPrefab);
-                _uiService.Open<UIBackgroundView, UIBackgroundViewModel>();
-            }
-            else
-            {
-                Log.Error(LogTags.Scenes, "[MainMenuState] BackgroundPrefab is missing or invalid. UI background will be disabled.");
-            }
-
-            var mainMenuPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.MainMenuPrefab, cancellationToken);
-            _uiService.RegisterWindowPrefab<MainMenuView>(mainMenuPrefab);
-
-            if (_assetLibrary.SettingsPrefab != null && _assetLibrary.SettingsPrefab.RuntimeKeyIsValid())
-            {
-                var settingsPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.SettingsPrefab, cancellationToken);
-                _uiService.RegisterWindowPrefab<Runtime.UI.Settings.SettingsView>(settingsPrefab);
-            }
-            else
-            {
-                 Log.Error(LogTags.Scenes, "[MainMenuState] SettingsPrefab is missing or invalid in AssetLibrary. Settings feature will be disabled.");
-            }
-
-            if (_assetLibrary.LanguageSelectionPrefab != null && _assetLibrary.LanguageSelectionPrefab.RuntimeKeyIsValid())
-            {
-                var languagePrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.LanguageSelectionPrefab, cancellationToken);
-                _uiService.RegisterWindowPrefab<Runtime.UI.Settings.LanguageSelectionView>(languagePrefab);
-            }
-            else
-            {
-                 Log.Error(LogTags.Scenes, "[MainMenuState] LanguageSelectionPrefab is missing or invalid. Language selection will be disabled.");
-            }
-
-            if (_assetLibrary.ModeSelectionPrefab != null && _assetLibrary.ModeSelectionPrefab.RuntimeKeyIsValid())
-            {
-                var modeSelectionPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.ModeSelectionPrefab, cancellationToken);
-                _uiService.RegisterWindowPrefab<ModeSelectionView>(modeSelectionPrefab);
-            }
-            else
-            {
-                Log.Error(LogTags.Scenes, "[MainMenuState] ModeSelectionPrefab is missing or invalid. Game mode wizard will be disabled.");
-            }
-
-            if (_assetLibrary.MatchSetupPrefab != null && _assetLibrary.MatchSetupPrefab.RuntimeKeyIsValid())
-            {
-                var matchSetupPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.MatchSetupPrefab, cancellationToken);
-                _uiService.RegisterWindowPrefab<MatchSetupView>(matchSetupPrefab);
-            }
-            else
-            {
-                Log.Error(LogTags.Scenes, "[MainMenuState] MatchSetupPrefab is missing or invalid. Game mode wizard will be disabled.");
-            }
-
-            if (_assetLibrary.MatchmakingPrefab != null && _assetLibrary.MatchmakingPrefab.RuntimeKeyIsValid())
-            {
-                var matchmakingPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.MatchmakingPrefab, cancellationToken);
-                _uiService.RegisterWindowPrefab<MatchmakingView>(matchmakingPrefab);
-            }
-            else
-            {
-                Log.Error(LogTags.Scenes, "[MainMenuState] MatchmakingPrefab is missing or invalid. Game mode wizard will be disabled.");
-            }
+            await TryRegisterAndOpenBackgroundAsync(cancellationToken);
+            await RegisterMainMenuUiPrefabsAsync(cancellationToken);
 
             if (_entryModeStore.TryConsume(out var entryMode) && entryMode == MainMenuEntryMode.OpenWizard)
             {
@@ -140,15 +78,17 @@ namespace Runtime.Infrastructure.GameStateMachine.States
                 {
                     await _wizardCoordinator.StartWizardAsync(cancellationToken);
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
                 {
-                    throw;
+                    throw new OperationCanceledException(ex.Message, ex, cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     Log.Error(LogTags.UI, $"[MainMenuState] Wizard entry failed. Falling back to MainMenuView. {ex}");
+
                     _uiService.Get<MainMenuView>()?.Show();
                 }
+                
                 return;
             }
 
@@ -167,6 +107,65 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             _coordinator.Initialize(viewModel);
         }
 
+        private async UniTask TryRegisterAndOpenBackgroundAsync(CancellationToken cancellationToken)
+        {
+            if (!await TryRegisterWindowPrefabAsync<UIBackgroundView>(
+                    _assetLibrary.BackgroundPrefab,
+                    "[MainMenuState] BackgroundPrefab is missing or invalid. UI background will be disabled.",
+                    cancellationToken))
+                return;
+
+            _uiService.Open<UIBackgroundView, UIBackgroundViewModel>();
+        }
+
+        private async UniTask RegisterMainMenuUiPrefabsAsync(CancellationToken cancellationToken)
+        {
+            var mainMenuPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.MainMenuPrefab, cancellationToken);
+            _uiService.RegisterWindowPrefab<MainMenuView>(mainMenuPrefab);
+
+            await TryRegisterWindowPrefabAsync<UI.Settings.SettingsView>(
+                _assetLibrary.SettingsPrefab,
+                "[MainMenuState] SettingsPrefab is missing or invalid in AssetLibrary. Settings feature will be disabled.",
+                cancellationToken);
+
+            await TryRegisterWindowPrefabAsync<UI.Settings.LanguageSelectionView>(
+                _assetLibrary.LanguageSelectionPrefab,
+                "[MainMenuState] LanguageSelectionPrefab is missing or invalid. Language selection will be disabled.",
+                cancellationToken);
+
+            await TryRegisterWindowPrefabAsync<ModeSelectionView>(
+                _assetLibrary.ModeSelectionPrefab,
+                "[MainMenuState] ModeSelectionPrefab is missing or invalid. Game mode wizard will be disabled.",
+                cancellationToken);
+
+            await TryRegisterWindowPrefabAsync<MatchSetupView>(
+                _assetLibrary.MatchSetupPrefab,
+                "[MainMenuState] MatchSetupPrefab is missing or invalid. Game mode wizard will be disabled.",
+                cancellationToken);
+
+            await TryRegisterWindowPrefabAsync<MatchmakingView>(
+                _assetLibrary.MatchmakingPrefab,
+                "[MainMenuState] MatchmakingPrefab is missing or invalid. Game mode wizard will be disabled.",
+                cancellationToken);
+        }
+
+        private async UniTask<bool> TryRegisterWindowPrefabAsync<TView>(
+            AssetReferenceGameObject prefabReference,
+            string invalidReferenceLogMessage,
+            CancellationToken cancellationToken)
+            where TView : class, Runtime.UI.Core.IUIView
+        {
+            if (prefabReference == null || !prefabReference.RuntimeKeyIsValid())
+            {
+                Log.Error(LogTags.Scenes, invalidReferenceLogMessage);
+                return false;
+            }
+
+            var prefab = await _assets.LoadAsync<UnityEngine.GameObject>(prefabReference, cancellationToken);
+            _uiService.RegisterWindowPrefab<TView>(prefab);
+            return true;
+        }
+
         public void Exit()
         {
             if (_isExited)
@@ -176,8 +175,8 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             Log.Debug(LogTags.Scenes, "[MainMenuState] Exiting MainMenu");
             
             // Close all potential sub-windows to prevent UI leaks
-            _uiService.Close<Runtime.UI.Settings.LanguageSelectionView>();
-            _uiService.Close<Runtime.UI.Settings.SettingsView>();
+            _uiService.Close<UI.Settings.LanguageSelectionView>();
+            _uiService.Close<UI.Settings.SettingsView>();
             _uiService.Close<MainMenuView>();
             
             _coordinator.Dispose();

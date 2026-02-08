@@ -16,5 +16,3 @@ namespace Runtime.GameModes.Wizard
         UniTask<MatchmakingResult> FindMatchAsync(MatchmakingRequest request, CancellationToken ct);
     }
 }
-
-#nullable restore

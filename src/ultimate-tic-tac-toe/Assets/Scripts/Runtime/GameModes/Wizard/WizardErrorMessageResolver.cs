@@ -18,6 +18,7 @@ namespace Runtime.GameModes.Wizard
                 return string.Empty;
 
             var dotIndex = messageKey.IndexOf('.', StringComparison.Ordinal);
+            
             if (dotIndex <= 0 || localization == null)
                 return messageKey;
 
@@ -35,6 +36,7 @@ namespace Runtime.GameModes.Wizard
                 return string.Empty;
 
             var dotIndex = messageKey.IndexOf('.', StringComparison.Ordinal);
+            
             if (dotIndex <= 0 || localization == null)
                 return messageKey;
 

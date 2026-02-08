@@ -10,13 +10,14 @@ namespace Runtime.GameModes.Wizard
     {
         public const string DefaultModeId = "classic";
 
-        private const int DefaultMinBoardSize = 3;
-        private const int DefaultMaxBoardSize = 10;
-        private const int DefaultBoardSize = 3;
+        private const int _defaultMinBoardSize = 3;
+        private const int _defaultMaxBoardSize = 10;
+        private const int _defaultBoardSizeValue = 3;
 
-        private const string SettingsUxmlKey = "ui/mode-settings/classic";
+        private const string _settingsUxmlKey = "ui/mode-settings/classic";
 
         private static readonly IReadOnlyList<ValidationError> _noErrors = Array.Empty<ValidationError>();
+        
         private static readonly ReadOnlyCollection<ValidationError> _modeConfigRequiredError =
             Array.AsReadOnly(new[] { new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ModeConfigRequired") });
 
@@ -38,11 +39,9 @@ namespace Runtime.GameModes.Wizard
             : this(
                 modeId: DefaultModeId,
                 createSettingsViewModel: createSettingsViewModel,
-                minBoardSize: DefaultMinBoardSize,
-                maxBoardSize: DefaultMaxBoardSize,
-                defaultBoardSize: DefaultBoardSize)
-        {
-        }
+                minBoardSize: _defaultMinBoardSize,
+                maxBoardSize: _defaultMaxBoardSize,
+                defaultBoardSize: _defaultBoardSizeValue) { }
 
         public ClassicModeStrategy(
             string modeId,
@@ -53,11 +52,15 @@ namespace Runtime.GameModes.Wizard
         {
             if (string.IsNullOrWhiteSpace(modeId))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(modeId));
+            
             _createSettingsViewModel = createSettingsViewModel ?? throw new ArgumentNullException(nameof(createSettingsViewModel));
+            
             if (minBoardSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(minBoardSize), minBoardSize, "MinBoardSize must be positive.");
+            
             if (maxBoardSize < minBoardSize)
                 throw new ArgumentOutOfRangeException(nameof(maxBoardSize), maxBoardSize, "MaxBoardSize must be >= MinBoardSize.");
+            
             if (defaultBoardSize < minBoardSize || defaultBoardSize > maxBoardSize)
                 throw new ArgumentOutOfRangeException(nameof(defaultBoardSize), defaultBoardSize, "DefaultBoardSize must be within bounds.");
 
@@ -75,17 +78,18 @@ namespace Runtime.GameModes.Wizard
                 supportsBot: true,
                 supportsOnline: true,
                 supportsLocal: true,
-                fieldKind: Runtime.Gameplay.FieldKind.Classic);
+                fieldKind: Gameplay.FieldKind.Classic);
         }
 
         public ModeSettingsPresentation CreatePresentation()
         {
             var vm = _createSettingsViewModel();
+            
             if (vm == null)
                 throw new InvalidOperationException("Classic settings VM factory returned null.");
 
             vm.Configure(_minBoardSize, _maxBoardSize, _defaultBoardSize);
-            return new ModeSettingsPresentation(SettingsUxmlKey, vm);
+            return new ModeSettingsPresentation(_settingsUxmlKey, vm);
         }
 
         public IReadOnlyList<ValidationError> ValidateConfig(IGameModeConfig? config)
@@ -103,5 +107,3 @@ namespace Runtime.GameModes.Wizard
         }
     }
 }
-
-#nullable restore

@@ -10,11 +10,10 @@ namespace Runtime.UI.Components
     {
         private readonly Button _leftButton;
         private readonly Button _rightButton;
-        private int _selectedIndex;
 
         public event Action<int>? SelectedIndexChanged;
 
-        public int SelectedIndex => _selectedIndex;
+        public int SelectedIndex { get; private set; }
 
         public SegmentedToggle()
         {
@@ -50,10 +49,10 @@ namespace Runtime.UI.Components
             if (index is < 0 or > 1)
                 throw new ArgumentOutOfRangeException(nameof(index), index, "SegmentedToggle supports only indices 0 or 1.");
 
-            if (_selectedIndex == index)
+            if (SelectedIndex == index)
                 return;
 
-            _selectedIndex = index;
+            SelectedIndex = index;
             UpdateVisualState();
 
             if (notify)
@@ -62,20 +61,18 @@ namespace Runtime.UI.Components
 
         private void UpdateVisualState()
         {
-            SetSelected(_leftButton, _selectedIndex == 0);
-            SetSelected(_rightButton, _selectedIndex == 1);
+            SetSelected(_leftButton, SelectedIndex == 0);
+            SetSelected(_rightButton, SelectedIndex == 1);
         }
 
         private static void SetSelected(VisualElement element, bool selected)
         {
-            const string SelectedClass = "segmented-toggle__button--selected";
+            const string selectedClass = "segmented-toggle__button--selected";
 
             if (selected)
-                element.AddToClassList(SelectedClass);
+                element.AddToClassList(selectedClass);
             else
-                element.RemoveFromClassList(SelectedClass);
+                element.RemoveFromClassList(selectedClass);
         }
     }
 }
-
-#nullable restore

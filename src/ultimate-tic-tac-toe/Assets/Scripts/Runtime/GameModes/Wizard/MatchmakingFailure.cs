@@ -17,6 +17,7 @@ namespace Runtime.GameModes.Wizard
         {
             if (string.IsNullOrWhiteSpace(code))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(code));
+
             if (string.IsNullOrWhiteSpace(messageKey))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(messageKey));
 
@@ -26,19 +27,16 @@ namespace Runtime.GameModes.Wizard
         }
 
         public static MatchmakingFailure Timeout() =>
-            new MatchmakingFailure("matchmaking.timeout", "Errors.GameModeWizard.MatchmakingTimeout", isTimeout: true);
+            new("matchmaking.timeout", "Errors.GameModeWizard.MatchmakingTimeout", isTimeout: true);
 
         public static MatchmakingFailure FromException(Exception ex)
         {
             if (ex == null)
                 throw new ArgumentNullException(nameof(ex));
 
-            if (ex is OperationCanceledException)
-                return new MatchmakingFailure("matchmaking.cancelled", "Errors.GameModeWizard.MatchmakingCancelled", isTimeout: false);
-
-            return new MatchmakingFailure("matchmaking.failed", "Errors.GameModeWizard.MatchmakingFailed", isTimeout: false);
+            return ex is OperationCanceledException 
+                ? new MatchmakingFailure("matchmaking.cancelled", "Errors.GameModeWizard.MatchmakingCancelled", isTimeout: false) 
+                : new MatchmakingFailure("matchmaking.failed", "Errors.GameModeWizard.MatchmakingFailed", isTimeout: false);
         }
     }
 }
-
-#nullable restore

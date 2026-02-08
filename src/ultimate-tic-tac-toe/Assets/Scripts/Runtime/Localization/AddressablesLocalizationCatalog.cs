@@ -14,13 +14,13 @@ namespace Runtime.Localization
 
         private static readonly TextTableId[] _startupTables =
         {
-            new TextTableId("Common"),
+            new("Common"),
             TextTableId.Errors,
         };
 
         private static readonly TextTableId[] _requiredTables =
         {
-            new TextTableId("Common"),
+            new("Common"),
             TextTableId.Errors,
         };
 

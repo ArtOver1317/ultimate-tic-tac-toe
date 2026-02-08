@@ -15,7 +15,7 @@ namespace Runtime.GameModes.Wizard
     /// </summary>
     public sealed class MatchmakingFsm : IDisposable
     {
-        private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan _defaultTimeoutValue = TimeSpan.FromSeconds(30);
 
         private readonly IMatchmakingService _service;
         private readonly TimeSpan _defaultTimeout;
@@ -35,13 +35,12 @@ namespace Runtime.GameModes.Wizard
         public bool IsSearching => _state.CurrentValue == MatchmakingState.Searching;
 
         public MatchmakingFsm(IMatchmakingService service)
-            : this(service, DefaultTimeout)
-        {
-        }
+            : this(service, _defaultTimeoutValue) { }
 
         public MatchmakingFsm(IMatchmakingService service, TimeSpan defaultTimeout)
         {
             _service = service ?? throw new ArgumentNullException(nameof(service));
+            
             if (defaultTimeout <= TimeSpan.Zero)
                 throw new ArgumentOutOfRangeException(nameof(defaultTimeout), "Timeout must be positive.");
 
@@ -66,6 +65,7 @@ namespace Runtime.GameModes.Wizard
         public async UniTask StartSearchAsync(MatchmakingRequest request, TimeSpan timeout, CancellationToken ct)
         {
             var started = await TryStartSearchAsync(request, timeout, ct);
+            
             if (!started)
                 return;
         }
@@ -74,6 +74,7 @@ namespace Runtime.GameModes.Wizard
         {
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
+            
             if (timeout <= TimeSpan.Zero)
                 throw new ArgumentOutOfRangeException(nameof(timeout), "Timeout must be positive.");
 
@@ -105,6 +106,7 @@ namespace Runtime.GameModes.Wizard
                 linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, localCts.Token, timeoutCts.Token);
 
                 var result = await _service.FindMatchAsync(request, linkedCts.Token);
+                
                 if (result == null)
                     throw new InvalidOperationException("Matchmaking service returned null result.");
 
@@ -202,6 +204,7 @@ namespace Runtime.GameModes.Wizard
                 EnsureNotDisposed();
 
                 cts = _searchCts;
+                
                 if (cts == null)
                     return;
 
@@ -234,6 +237,7 @@ namespace Runtime.GameModes.Wizard
                 EnsureNotDisposed();
 
                 cts = _searchCts;
+                
                 if (cts == null)
                     return;
 
@@ -297,5 +301,3 @@ namespace Runtime.GameModes.Wizard
         }
     }
 }
-
-#nullable restore

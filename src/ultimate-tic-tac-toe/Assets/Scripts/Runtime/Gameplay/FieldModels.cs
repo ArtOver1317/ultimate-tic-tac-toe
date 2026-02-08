@@ -5,7 +5,7 @@ namespace Runtime.Gameplay
     public enum FieldKind
     {
         Classic,
-        Ultimate
+        Ultimate,
     }
 
     public sealed class FieldRenderSpec
@@ -18,6 +18,7 @@ namespace Runtime.Gameplay
         {
             if (outerSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(outerSize), outerSize, "OuterSize must be positive.");
+            
             if (innerSize < 0)
                 throw new ArgumentOutOfRangeException(nameof(innerSize), innerSize, "InnerSize must be non-negative.");
 
@@ -40,6 +41,7 @@ namespace Runtime.Gameplay
         {
             if (string.IsNullOrWhiteSpace(code))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(code));
+            
             if (string.IsNullOrWhiteSpace(messageKey))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(messageKey));
 

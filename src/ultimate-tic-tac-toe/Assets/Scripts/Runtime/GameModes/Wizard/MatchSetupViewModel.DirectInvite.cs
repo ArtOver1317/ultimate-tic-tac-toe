@@ -14,6 +14,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             var normalized = string.IsNullOrWhiteSpace(playerId) ? null : playerId.Trim();
+            
             if (!string.IsNullOrWhiteSpace(normalized) && PlayerId.TryCreate(normalized, out var parsed))
                 normalized = parsed!.Value;
 
@@ -22,10 +23,12 @@ namespace Runtime.GameModes.Wizard
                 normalized = null;
 
             var current = string.IsNullOrWhiteSpace(_targetPlayerId.Value) ? null : _targetPlayerId.Value;
+            
             if (string.Equals(current, normalized, StringComparison.Ordinal))
                 return;
 
             var session = _session;
+            
             if (session == null)
             {
                 GameLog.Warning("[MatchSetupViewModel] SetTargetPlayerId ignored: session not available.");
@@ -66,7 +69,7 @@ namespace Runtime.GameModes.Wizard
             _targetPlayerId.Value = normalized;
         }
 
-        private string? BuildPlayerIdErrorText(IReadOnlyList<ValidationError> errors)
+        private string? BuildPlayerIdErrorText(IReadOnlyList<ValidationError>? errors)
         {
             if (_opponentType.Value != global::Runtime.GameModes.Wizard.OpponentType.Human ||
                 _humanOpponentKind.Value != global::Runtime.GameModes.Wizard.HumanOpponentKind.DirectInvite)
@@ -75,9 +78,8 @@ namespace Runtime.GameModes.Wizard
             if (errors == null || errors.Count == 0)
                 return null;
 
-            for (var i = 0; i < errors.Count; i++)
+            foreach (var error in errors)
             {
-                var error = errors[i];
                 if (string.Equals(error.Field, WizardFieldNames.TargetPlayerId, StringComparison.Ordinal))
                     return ResolveMessageKey(error.MessageKey);
             }
@@ -86,5 +88,3 @@ namespace Runtime.GameModes.Wizard
         }
     }
 }
-
-#nullable restore

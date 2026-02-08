@@ -192,14 +192,17 @@ namespace Runtime.UI.MainMenu
             _isDisposed = true;
             _lifecycleCts.Cancel();
             _lifecycleCts.Dispose();
+            
             if (_startInProgress == 0)
             {
                 _launchCts?.Cancel();
                 _launchCts?.Dispose();
                 _launchCts = null;
             }
+            
             _disposables.Dispose();
             _wizardDisposables.Dispose();
+            
             _wizardCoordinator.AbortWizardAsync(AbortReason.SceneChange).Forget(ex =>
             {
                 if (ex is OperationCanceledException || ex is ObjectDisposedException)

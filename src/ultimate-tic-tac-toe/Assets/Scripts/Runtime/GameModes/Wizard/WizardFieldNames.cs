@@ -15,5 +15,3 @@ namespace Runtime.GameModes.Wizard
         public const string ModeCatalog = "ModeCatalog";
     }
 }
-
-#nullable restore

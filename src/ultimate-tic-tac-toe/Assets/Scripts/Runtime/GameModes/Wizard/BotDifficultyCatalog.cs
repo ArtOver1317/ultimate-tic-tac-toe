@@ -10,15 +10,13 @@ namespace Runtime.GameModes.Wizard
     /// </summary>
     public sealed class BotDifficultyCatalog : IBotDifficultyCatalog
     {
-        private static readonly IReadOnlyList<BotDifficulty> DefaultDifficulties = Array.AsReadOnly(new[]
+        private static readonly IReadOnlyList<BotDifficulty> _defaultDifficulties = Array.AsReadOnly(new[]
         {
             new BotDifficulty("Easy", "GameModeWizard.MatchSetup.BotDifficulty.Easy", 0),
             new BotDifficulty("Normal", "GameModeWizard.MatchSetup.BotDifficulty.Normal", 1),
             new BotDifficulty("Hard", "GameModeWizard.MatchSetup.BotDifficulty.Hard", 2),
         });
 
-        public IReadOnlyList<BotDifficulty> Difficulties => DefaultDifficulties;
+        public IReadOnlyList<BotDifficulty> Difficulties => _defaultDifficulties;
     }
 }
-
-#nullable restore

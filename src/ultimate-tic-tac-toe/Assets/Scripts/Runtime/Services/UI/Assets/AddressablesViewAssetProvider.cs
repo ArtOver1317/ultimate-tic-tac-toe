@@ -17,13 +17,10 @@ namespace Runtime.Services.UI.Assets
         /// Policy: no caching/deduplication in current implementation.
         /// Each call creates a new Addressables load handle and must be paired with <see cref="IDisposable.Dispose"/> on the lease.
         /// </remarks>
-        public UniTask<IAssetLease<VisualTreeAsset>> LoadVisualTreeAsync(string key, CancellationToken ct)
-        {
-            if (string.IsNullOrWhiteSpace(key))
-                throw new ArgumentException("Addressables key is null or empty.", nameof(key));
-
-            return LoadVisualTreeInternalAsync(key, ct);
-        }
+        public UniTask<IAssetLease<VisualTreeAsset>> LoadVisualTreeAsync(string key, CancellationToken ct) =>
+            string.IsNullOrWhiteSpace(key) 
+                ? throw new ArgumentException("Addressables key is null or empty.", nameof(key)) 
+                : LoadVisualTreeInternalAsync(key, ct);
 
         private static async UniTask<IAssetLease<VisualTreeAsset>> LoadVisualTreeInternalAsync(
             string key,
@@ -40,11 +37,14 @@ namespace Runtime.Services.UI.Assets
                 await handle.ToUniTask(cancellationToken: ct);
 
                 if (handle.Status != AsyncOperationStatus.Succeeded)
+                {
                     throw new InvalidOperationException(
                         $"[ViewAssetProvider] VisualTreeAsset '{key}' load failed: {handle.Status}.",
                         handle.OperationException);
+                }
 
                 var asset = handle.Result;
+                
                 if (asset == null)
                 {
                     throw new InvalidOperationException(
@@ -77,22 +77,17 @@ namespace Runtime.Services.UI.Assets
                 _asset = asset ?? throw new ArgumentNullException(nameof(asset));
             }
 
-            public T Asset
-            {
-                get
-                {
-                    if (Volatile.Read(ref _isDisposed) != 0)
-                        throw new ObjectDisposedException(GetType().Name);
-
-                    return _asset;
-                }
-            }
+            public T Asset => Volatile.Read(ref _isDisposed) != 0 
+                ? throw new ObjectDisposedException(GetType().Name) 
+                : _asset;
 
             public void Dispose()
             {
                 if (!PlayerLoopHelper.IsMainThread)
+                {
                     throw new InvalidOperationException(
                         "[ViewAssetProvider] IAssetLease.Dispose must be called on Unity main thread.");
+                }
 
                 if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
                     return;

@@ -14,8 +14,10 @@ namespace Runtime.GameModes.Wizard
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(id));
+            
             if (string.IsNullOrWhiteSpace(nameKey))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(nameKey));
+            
             if (sortOrder < 0)
                 throw new ArgumentOutOfRangeException(nameof(sortOrder), sortOrder, "SortOrder must be non-negative.");
 
@@ -25,5 +27,3 @@ namespace Runtime.GameModes.Wizard
         }
     }
 }
-
-#nullable restore

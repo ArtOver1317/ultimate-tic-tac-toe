@@ -5,9 +5,6 @@ namespace Runtime.UI.Common
 {
     public sealed class UIBackgroundView : UIView<UIBackgroundViewModel>
     {
-        protected override void BindViewModel()
-        {
-            Root.pickingMode = PickingMode.Ignore;
-        }
+        protected override void BindViewModel() => Root.pickingMode = PickingMode.Ignore;
     }
 }

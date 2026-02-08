@@ -9,7 +9,8 @@ namespace Runtime.GameModes.Wizard
             if (!global::Runtime.GameModes.Wizard.PlayerId.TryCreate(playerId, out var parsed))
                 throw new System.ArgumentException("PlayerId must be a numeric ulong.", nameof(playerId));
 
-            PlayerId = parsed.Value;
+            if (parsed != null) 
+                PlayerId = parsed.Value;
         }
     }
 }

@@ -30,10 +30,9 @@ namespace Runtime.Localization
 
                     var existingAsset = existingHandle.Result;
                     
-                    if (existingAsset == null)
-                        throw new InvalidOperationException($"Addressables returned null TextAsset for '{key}'.");
-
-                    return new ReadOnlyMemory<byte>(existingAsset.bytes);
+                    return existingAsset == null 
+                        ? throw new InvalidOperationException($"Addressables returned null TextAsset for '{key}'.") 
+                        : new ReadOnlyMemory<byte>(existingAsset.bytes);
                 }
             }
 
@@ -46,9 +45,7 @@ namespace Runtime.Localization
                 if (locationsHandle.Status != AsyncOperationStatus.Succeeded ||
                     locationsHandle.Result == null ||
                     locationsHandle.Result.Count == 0)
-                {
                     throw new KeyNotFoundException($"No Addressables location found for key '{key}'.");
-                }
             }
             finally
             {
@@ -64,10 +61,9 @@ namespace Runtime.Localization
 
                 var asset = handle.Result;
                 
-                if (asset == null)
-                    throw new InvalidOperationException($"Addressables returned null TextAsset for '{key}'.");
-
-                return new ReadOnlyMemory<byte>(asset.bytes);
+                return asset == null 
+                    ? throw new InvalidOperationException($"Addressables returned null TextAsset for '{key}'.") 
+                    : new ReadOnlyMemory<byte>(asset.bytes);
             }
             catch
             {

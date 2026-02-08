@@ -24,24 +24,16 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<bool> CanStart => _canStart;
         public ReadOnlyReactiveProperty<IReadOnlyList<ValidationError>> ValidationErrors => _validationErrors;
 
-        public GameModeSession() : this(catalog: null, initialSnapshot: GameModeSessionSnapshot.Default, isInternalCall: true)
-        {
-        }
+        public GameModeSession() : this(catalog: null, initialSnapshot: GameModeSessionSnapshot.Default, isInternalCall: true) { }
 
         public GameModeSession(GameModeSessionSnapshot initialSnapshot)
-            : this(catalog: null, initialSnapshot: initialSnapshot, isInternalCall: true)
-        {
-        }
+            : this(catalog: null, initialSnapshot: initialSnapshot, isInternalCall: true) { }
 
         public GameModeSession(IGameModeCatalog catalog)
-            : this(catalog ?? throw new ArgumentNullException(nameof(catalog)), GameModeSessionSnapshot.Default, isInternalCall: true)
-        {
-        }
+            : this(catalog ?? throw new ArgumentNullException(nameof(catalog)), GameModeSessionSnapshot.Default, isInternalCall: true) { }
 
         public GameModeSession(IGameModeCatalog catalog, GameModeSessionSnapshot initialSnapshot)
-            : this(catalog ?? throw new ArgumentNullException(nameof(catalog)), initialSnapshot, isInternalCall: true)
-        {
-        }
+            : this(catalog ?? throw new ArgumentNullException(nameof(catalog)), initialSnapshot, isInternalCall: true) { }
 
         private GameModeSession(IGameModeCatalog catalog, GameModeSessionSnapshot initialSnapshot, bool isInternalCall)
         {
@@ -183,9 +175,9 @@ namespace Runtime.GameModes.Wizard
 
         public void Dispose()
         {
-            IDisposable snapshotToDispose = null;
-            IDisposable canStartToDispose = null;
-            IDisposable errorsToDispose = null;
+            IDisposable snapshotToDispose;
+            IDisposable canStartToDispose;
+            IDisposable errorsToDispose;
 
             lock (_lock)
             {
@@ -241,8 +233,10 @@ namespace Runtime.GameModes.Wizard
                     s = s.WithTargetPlayerId(null);
 
                 if (s.HumanOpponentKind != HumanOpponentKind.Matchmaking)
+                {
                     s = s.WithMatchmakingState(MatchmakingState.Idle)
                         .WithMatchmakingResult(null, null);
+                }
             }
 
             return s;
@@ -256,7 +250,7 @@ namespace Runtime.GameModes.Wizard
             List<ValidationError> errors = null;
 
             if (string.IsNullOrWhiteSpace(snapshot.SelectedModeId))
-                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.SelectedModeId, "Errors.GameModeWizard.ModeRequired"));
+                (errors = new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.SelectedModeId, "Errors.GameModeWizard.ModeRequired"));
 
             if (snapshot.ModeConfig == null)
                 (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ModeConfigRequired"));
@@ -275,7 +269,8 @@ namespace Runtime.GameModes.Wizard
                         if (snapshot.ModeConfig != null)
                         {
                             var modeErrors = strategy.ValidateConfig(snapshot.ModeConfig);
-                            if (modeErrors != null && modeErrors.Count > 0)
+                            
+                            if (modeErrors.Count > 0)
                             {
                                 errors ??= new List<ValidationError>(capacity: 4);
                                 errors.AddRange(modeErrors);
@@ -283,9 +278,7 @@ namespace Runtime.GameModes.Wizard
                         }
                     }
                     else
-                    {
                         (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.SelectedModeId, "Errors.GameModeWizard.ModeUnknown"));
-                    }
                 }
             }
 

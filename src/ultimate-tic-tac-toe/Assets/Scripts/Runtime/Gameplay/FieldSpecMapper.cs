@@ -9,6 +9,7 @@ namespace Runtime.Gameplay
         {
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
+            
             if (catalog == null)
                 throw new ArgumentNullException(nameof(catalog));
 
@@ -25,7 +26,7 @@ namespace Runtime.Gameplay
                     ? FieldRenderSpec.Ultimate()
                     : throw new InvalidOperationException("Ultimate mode config is missing or invalid."),
 
-                _ => throw new InvalidOperationException($"Unsupported field kind: '{strategy.Metadata.FieldKind}'.")
+                _ => throw new InvalidOperationException($"Unsupported field kind: '{strategy.Metadata.FieldKind}'."),
             };
         }
     }

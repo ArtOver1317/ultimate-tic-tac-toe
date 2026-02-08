@@ -275,8 +275,10 @@ namespace Runtime.Localization
                     }
 
                     if (isRequired)
+                    {
                         throw new InvalidOperationException(
                             $"Required localization table '{table.Name}' could not be loaded for locale '{locale.Code}'.");
+                    }
                 }
             }
         }
@@ -290,13 +292,17 @@ namespace Runtime.Localization
                 return a;
 
             var merged = new List<TextTableId>(a.Count + b.Count);
+            
             for (var i = 0; i < a.Count; i++)
+            {
                 merged.Add(a[i]);
+            }
 
             for (var i = 0; i < b.Count; i++)
             {
                 var table = b[i];
                 var alreadyAdded = false;
+                
                 for (var j = 0; j < merged.Count; j++)
                 {
                     if (merged[j] == table)
@@ -404,6 +410,7 @@ namespace Runtime.Localization
                 // Important for lazy-loading: when a table is loaded/unloaded after subscription,
                 // re-emit so UI updates without requiring a locale change.
                 var storeEvents = _store.Events;
+                
                 var storeSub = storeEvents == null
                     ? Disposable.Empty
                     : storeEvents.Subscribe(e =>
@@ -451,6 +458,7 @@ namespace Runtime.Localization
                 });
 
                 var storeEvents = _store.Events;
+                
                 var storeSub = storeEvents == null
                     ? Disposable.Empty
                     : storeEvents.Subscribe(e =>
@@ -465,6 +473,7 @@ namespace Runtime.Localization
                         var chain = _policy.GetFallbackChain(activeLocale);
 
                         var isRelevantLocale = false;
+                        
                         for (var i = 0; i < chain.Count; i++)
                         {
                             if (chain[i] == e.Locale)
@@ -587,6 +596,7 @@ namespace Runtime.Localization
             var requiredTables = _catalog.GetRequiredTables();
 
             TextTableId[] trackedSnapshot;
+            
             lock (_trackedTablesLock)
             {
                 if (_trackedTables.Count == 0)
@@ -599,14 +609,18 @@ namespace Runtime.Localization
             // Merge startup + tracked (deduplicated).
             var merged = new List<TextTableId>();
             var requiredAndStartup = MergeTables(requiredTables, startupTables);
+            
             for (var i = 0; i < requiredAndStartup.Count; i++)
+            {
                 merged.Add(requiredAndStartup[i]);
+            }
 
             for (var i = 0; i < trackedSnapshot.Length; i++)
             {
                 var table = trackedSnapshot[i];
 
                 var alreadyAdded = false;
+                
                 for (var j = 0; j < merged.Count; j++)
                 {
                     if (merged[j] == table)
