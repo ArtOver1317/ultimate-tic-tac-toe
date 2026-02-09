@@ -192,26 +192,37 @@ namespace Tests.EditMode.Games.TicTacToe
 
         [Test]
         [Category("Unit")]
-        public void WhenBoundAndCurrentPlayerLabelAlreadyExists_ThenDoesNotCreateDuplicate()
+        public void WhenBoundAndScoreboardAlreadyExists_ThenDoesNotCreateDuplicate()
         {
-            // Arrange
+            // Arrange — pre-create a Scoreboard element with CurrentPlayerLabel inside.
             var fieldRoot = _document.rootVisualElement.Q<VisualElement>("GameplayFieldRoot");
             fieldRoot.Should().NotBeNull();
 
+            var scoreboard = new VisualElement { name = "Scoreboard" };
             var existing = new Label { name = "CurrentPlayerLabel" };
-            fieldRoot.Add(existing);
+            var p1Panel = new VisualElement { name = "Player1Panel" };
+            var p2Panel = new VisualElement { name = "Player2Panel" };
+            var p1Score = new Label { name = "Player1Score" };
+            var p2Score = new Label { name = "Player2Score" };
+            p1Panel.Add(new Label { name = "Player1Name" });
+            p1Panel.Add(p1Score);
+            p2Panel.Add(new Label { name = "Player2Name" });
+            p2Panel.Add(p2Score);
+            scoreboard.Add(p1Panel);
+            scoreboard.Add(existing);
+            scoreboard.Add(p2Panel);
+            fieldRoot.Add(scoreboard);
 
             BindSync(FieldRenderSpec.Classic(3));
 
             // Act
             var label = ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel;
 
-            // Assert
+            // Assert — should reuse the existing Scoreboard, not create a second one.
             label.Should().BeSameAs(existing);
 
-            var labels = _document.rootVisualElement.Query<Label>("CurrentPlayerLabel").ToList();
-            labels.Should().HaveCount(1);
-            labels[0].Should().BeSameAs(existing);
+            var scoreboards = _document.rootVisualElement.Query<VisualElement>("Scoreboard").ToList();
+            scoreboards.Should().HaveCount(1);
         }
 
         [Test]

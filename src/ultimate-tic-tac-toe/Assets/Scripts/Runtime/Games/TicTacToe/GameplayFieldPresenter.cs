@@ -38,6 +38,12 @@ namespace Runtime.Games.TicTacToe
         private readonly Subject<CellId> _cellClicks = new();
         private Label _currentPlayerLabel;
 
+        // Scoreboard elements
+        private VisualElement _player1Panel;
+        private VisualElement _player2Panel;
+        private Label _player1ScoreLabel;
+        private Label _player2ScoreLabel;
+
         private float _gridGapHalf;
         private float _miniBoardGapHalf;
         private float _miniBoardBorder;
@@ -103,6 +109,13 @@ namespace Runtime.Games.TicTacToe
         bool IGameplayFieldUiAdapter.TryGetMark(CellId id, out VisualElement mark) =>
             TryGetMark(id, out mark);
 
+        VisualElement IGameplayFieldUiAdapter.FieldContainer => _isBound ? _fieldContainer : null;
+
+        VisualElement IGameplayFieldUiAdapter.Player1Panel => _isBound ? _player1Panel : null;
+        VisualElement IGameplayFieldUiAdapter.Player2Panel => _isBound ? _player2Panel : null;
+        Label IGameplayFieldUiAdapter.Player1ScoreLabel => _isBound ? _player1ScoreLabel : null;
+        Label IGameplayFieldUiAdapter.Player2ScoreLabel => _isBound ? _player2ScoreLabel : null;
+
         public UniTask BindAsync(FieldRenderSpec spec, CancellationToken ct)
         {
             if (_disposed)
@@ -158,6 +171,10 @@ namespace Runtime.Games.TicTacToe
             _backButton = null;
             _spec = null;
             _currentPlayerLabel = null;
+            _player1Panel = null;
+            _player2Panel = null;
+            _player1ScoreLabel = null;
+            _player2ScoreLabel = null;
             ResetStyleTokenState();
             _bindCts?.Cancel();
             _bindCts?.Dispose();

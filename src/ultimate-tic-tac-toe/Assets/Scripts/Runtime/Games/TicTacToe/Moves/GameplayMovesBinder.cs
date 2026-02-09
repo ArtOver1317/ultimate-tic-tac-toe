@@ -24,6 +24,7 @@ namespace Runtime.Games.TicTacToe.Moves
 
         private CompositeDisposable _subscriptions;
         private Label _currentPlayerLabel;
+        private CellId? _lastMoveHighlightCell;
         private bool _isBound;
         private bool _disposed;
 
@@ -152,6 +153,13 @@ namespace Runtime.Games.TicTacToe.Moves
             _subscriptions = null;
             _currentPlayerLabel = null;
 
+            // Bug fix: remove stale cell--lastMove highlight so it doesn't persist across rounds.
+            if (_lastMoveHighlightCell != null)
+            {
+                SetLastMoveClass(_lastMoveHighlightCell.Value, enabled: false);
+                _lastMoveHighlightCell = null;
+            }
+
             foreach (var vfxState in _markAppearVfxByCellId.Values)
             {
                 vfxState.CancelPending();
@@ -241,6 +249,8 @@ namespace Runtime.Games.TicTacToe.Moves
 
             if (evt.Current != null)
                 SetLastMoveClass(evt.Current.Value, enabled: true);
+
+            _lastMoveHighlightCell = evt.Current;
         }
 
         private void SetLastMoveClass(CellId cellId, bool enabled)
@@ -339,7 +349,13 @@ namespace Runtime.Games.TicTacToe.Moves
                 _removeAppearFromItem.Resume();
             }
 
-            public void CancelPending() => _removeAppearFromItem.Pause();
+            public void CancelPending()
+            {
+                _removeAppearFromItem.Pause();
+                // Bug fix: remove animation class so the mark doesn't stay at opacity:0
+                // when Unbind() cancels a pending appear animation (e.g. on winning move).
+                _markRoot.RemoveFromClassList(_markAppearFromClass);
+            }
 
             private void RemoveAppearFromClass() => _markRoot.RemoveFromClassList(_markAppearFromClass);
         }
@@ -363,7 +379,34 @@ namespace Runtime.Games.TicTacToe.Moves
             if (_currentPlayerLabel == null)
                 return;
 
-            _currentPlayerLabel.text = mark.ToUiText();
+            _currentPlayerLabel.text = mark.ToTurnIndicatorText();
+
+            UpdateActivePlayerPanel(mark);
+        }
+
+        private void UpdateActivePlayerPanel(PlayerMark mark)
+        {
+            const string activeClass = "player-panel--active";
+
+            var p1 = _ui.Player1Panel;
+            var p2 = _ui.Player2Panel;
+            if (p1 == null || p2 == null) return;
+
+            if (mark == PlayerMark.X)
+            {
+                p1.AddToClassList(activeClass);
+                p2.RemoveFromClassList(activeClass);
+            }
+            else if (mark == PlayerMark.O)
+            {
+                p1.RemoveFromClassList(activeClass);
+                p2.AddToClassList(activeClass);
+            }
+            else
+            {
+                p1.RemoveFromClassList(activeClass);
+                p2.RemoveFromClassList(activeClass);
+            }
         }
 
         private void ThrowIfDisposed()

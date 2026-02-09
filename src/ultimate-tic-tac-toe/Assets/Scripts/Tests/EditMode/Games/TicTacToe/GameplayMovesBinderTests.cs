@@ -71,7 +71,7 @@ namespace Tests.EditMode.Games.TicTacToe
             (markRoot[0] as Label).Should().NotBeNull();
             ((Label)markRoot[0]).text.Should().Be("X");
 
-            ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("O");
+            ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("Player 2 (O)");
         }
 
         [Test]
@@ -189,7 +189,7 @@ namespace Tests.EditMode.Games.TicTacToe
             cell11.pickingMode.Should().Be(PickingMode.Ignore);
             cell11.ClassListContains("cell--disabled").Should().BeTrue();
 
-            ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("X");
+            ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("Player 1 (X)");
 
             _presenter.EmitCellClick(new CellId(2, 2));
             ((IGameplayFieldUiAdapter)_presenter).TryGetCell(new CellId(2, 2), out var cell22).Should().BeTrue();
@@ -234,7 +234,7 @@ namespace Tests.EditMode.Games.TicTacToe
             cell11.pickingMode.Should().Be(PickingMode.Position);
             cell11.ClassListContains("cell--lastMove").Should().BeFalse();
 
-            ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("O");
+            ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("Player 2 (O)");
         }
 
         [Test]
@@ -249,7 +249,7 @@ namespace Tests.EditMode.Games.TicTacToe
             _binder.Bind();
 
             var currentPlayerLabelBefore = ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text;
-            currentPlayerLabelBefore.Should().Be("X", "initial state");
+            currentPlayerLabelBefore.Should().Be("Player 1 (X)", "initial state");
 
             ((IGameplayFieldUiAdapter)_presenter).TryGetCellView(new CellId(0, 0), out _, out var mark00Before).Should().BeTrue();
             mark00Before.text.Should().BeEmpty("клетка пустая до хода");
@@ -269,7 +269,7 @@ namespace Tests.EditMode.Games.TicTacToe
             mark00After.text.Should().BeEmpty("UI не обновился после Dispose");
 
             var currentPlayerLabelAfter = ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text;
-            currentPlayerLabelAfter.Should().Be("X", "UI CurrentPlayer не обновился после Dispose");
+            currentPlayerLabelAfter.Should().Be("Player 1 (X)", "UI CurrentPlayer не обновился после Dispose");
         }
 
         [Test]
@@ -301,7 +301,7 @@ namespace Tests.EditMode.Games.TicTacToe
             // Assert
             clickRejected.Should().BeEmpty("один клик не должен приводить к двойной обработке и ClickRejected");
             _moves.GetCellValue(new CellId(0, 0)).Should().Be(PlayerMark.X);
-            ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("O");
+            ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("Player 2 (O)");
         }
 
         private void BindSync(FieldRenderSpec spec)

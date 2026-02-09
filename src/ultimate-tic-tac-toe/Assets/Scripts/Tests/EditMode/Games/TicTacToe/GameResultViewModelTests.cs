@@ -1,0 +1,146 @@
+using System;
+using System.Collections.Generic;
+using FluentAssertions;
+using NUnit.Framework;
+using Runtime.Games.TicTacToe;
+using Runtime.Games.TicTacToe.Moves;
+using Runtime.Games.TicTacToe.Rules;
+using Runtime.Games.TicTacToe.Series;
+using R3;
+using UnityEngine.UIElements;
+
+namespace Tests.EditMode.Games.TicTacToe
+{
+    [TestFixture]
+    [Category("Unit")]
+    public class GameResultViewModelTests
+    {
+        private VisualElement _parent;
+        private GameResultViewModel _vm;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _parent = new VisualElement { name = "TestParent" };
+            _vm = new GameResultViewModel(_parent);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _vm?.Dispose();
+        }
+
+        // ── Visibility ──
+
+        [Test]
+        public void WhenCreated_ThenOverlayIsHidden()
+        {
+            // Assert
+            var overlay = _parent.Q<VisualElement>("ResultOverlay");
+            overlay.Should().NotBeNull();
+            overlay.style.display.value.Should().Be(DisplayStyle.None);
+        }
+
+        [Test]
+        public void WhenShowCalled_ThenOverlayIsVisible()
+        {
+            // Act
+            _vm.Show(GameResult.Win(PlayerMark.X, new WinLine(default, default, WinLineDirection.Horizontal, 3)),
+                default(SeriesScore));
+
+            // Assert
+            var overlay = _parent.Q<VisualElement>("ResultOverlay");
+            overlay.style.display.value.Should().Be(DisplayStyle.Flex);
+        }
+
+        [Test]
+        public void WhenHideCalled_ThenOverlayIsHidden()
+        {
+            // Arrange
+            _vm.Show(GameResult.Draw(), default);
+
+            // Act
+            _vm.Hide();
+
+            // Assert
+            var overlay = _parent.Q<VisualElement>("ResultOverlay");
+            overlay.style.display.value.Should().Be(DisplayStyle.None);
+        }
+
+        // ── Label content ──
+
+        [Test]
+        public void WhenShowWithWin_ThenResultLabelShowsWinnerText()
+        {
+            // Act
+            _vm.Show(GameResult.Win(PlayerMark.X, new WinLine(default, default, WinLineDirection.Horizontal, 3)),
+                default);
+
+            // Assert
+            var label = _parent.Q<Label>("ResultLabel");
+            label.text.Should().Contain("Player 1 (X) Wins!");
+        }
+
+        [Test]
+        public void WhenShowWithDraw_ThenResultLabelShowsDraw()
+        {
+            // Act
+            _vm.Show(GameResult.Draw(), default);
+
+            // Assert
+            var label = _parent.Q<Label>("ResultLabel");
+            label.text.Should().Contain("Draw!");
+        }
+
+        [Test]
+        public void WhenShowWithScore_ThenScoreLabelShowsScoreAndLeadLabelShowsLead()
+        {
+            // Act
+            var score = new SeriesScore(3, 1, 2, 6);
+            _vm.Show(GameResult.Draw(), score);
+
+            // Assert
+            var scoreLabel = _parent.Q<Label>("ScoreLabel");
+            scoreLabel.text.Should().Contain("3 - 1");
+            scoreLabel.text.Should().Contain("Draws: 2");
+
+            var leadLabel = _parent.Q<Label>("LeadLabel");
+            leadLabel.Should().NotBeNull();
+            leadLabel.text.Should().Contain("Player 1 leads");
+        }
+
+        // ── Actions / Buttons structure ──
+
+        [Test]
+        public void WhenCreated_ThenRestartButtonExists()
+        {
+            // Assert
+            var btn = _parent.Q<Button>("RestartButton");
+            btn.Should().NotBeNull();
+            btn.text.Should().Be("Restart");
+        }
+
+        [Test]
+        public void WhenCreated_ThenExitButtonExists()
+        {
+            // Assert
+            var btn = _parent.Q<Button>("ExitButton");
+            btn.Should().NotBeNull();
+            btn.text.Should().Be("Exit");
+        }
+
+        // ── Dispose ──
+
+        [Test]
+        public void WhenDisposed_ThenOverlayRemovedFromParent()
+        {
+            // Act
+            _vm.Dispose();
+            _vm = null;
+
+            // Assert
+            _parent.Q<VisualElement>("ResultOverlay").Should().BeNull();
+        }
+    }
+}

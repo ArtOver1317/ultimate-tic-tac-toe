@@ -11,6 +11,8 @@ using NUnit.Framework;
 using Runtime.Gameplay;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Moves;
+using Runtime.Games.TicTacToe.Rules;
+using Runtime.Games.TicTacToe.Series;
 using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
@@ -28,9 +30,14 @@ namespace Tests.EditMode.Games.TicTacToe
         private IGameLaunchConfigStore _configStore;
         private IGameService _gameService;
         private IGameplayFieldPresenter _fieldPresenter;
+        private IGameplayFieldUiAdapter _fieldUiAdapter;
         private IGameStateMachine _stateMachine;
         private ILocalMovesService _localMoves;
         private GameplayMovesBinder _movesBinder;
+        private GameplayRulesHandler _rulesHandler;
+        private WinLineRenderer _winLineRenderer;
+        private ISeriesService _seriesService;
+        private IGameplayBackHandler _backHandler;
         private GameplayStartup _sut;
         private GameLaunchConfig _config;
         private IGameplaySession _session;
@@ -74,10 +81,24 @@ namespace Tests.EditMode.Games.TicTacToe
                     currentPlayer.Value = PlayerMark.None;
                 });
 
-            var ui = Substitute.For<IGameplayFieldUiAdapter>();
-            ui.CellClicks.Returns(new Subject<CellId>());
-            ui.CurrentPlayerLabel.Returns(new Label());
-            _movesBinder = new GameplayMovesBinder(ui, _localMoves);
+            _fieldUiAdapter = Substitute.For<IGameplayFieldUiAdapter>();
+            _fieldUiAdapter.CellClicks.Returns(new Subject<CellId>());
+            _fieldUiAdapter.CurrentPlayerLabel.Returns(new Label());
+            _fieldUiAdapter.FieldContainer.Returns(new VisualElement());
+            _fieldUiAdapter.Player1Panel.Returns(new VisualElement());
+            _fieldUiAdapter.Player2Panel.Returns(new VisualElement());
+            _fieldUiAdapter.Player1ScoreLabel.Returns(new Label());
+            _fieldUiAdapter.Player2ScoreLabel.Returns(new Label());
+            _movesBinder = new GameplayMovesBinder(_fieldUiAdapter, _localMoves);
+
+            var rulesEngine = new ClassicRulesEngine();
+            _rulesHandler = new GameplayRulesHandler(rulesEngine, _localMoves);
+            _rulesHandler.DeferToNextFrame = false;
+            _winLineRenderer = new WinLineRenderer(_fieldUiAdapter);
+            _seriesService = Substitute.For<ISeriesService>();
+            _seriesService.Score.Returns(new ReactiveProperty<SeriesScore>(default));
+            _backHandler = Substitute.For<IGameplayBackHandler>();
+            _backHandler.HandleBackAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
 
             _config = new GameLaunchConfig("classic", new TicTacToeConfig(3), new LocalHumanConfig());
             _session = Substitute.For<IGameplaySession>();
@@ -98,7 +119,7 @@ namespace Tests.EditMode.Games.TicTacToe
             _stateMachine.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
 
-            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _localMoves, _movesBinder, _stateMachine);
+            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _fieldUiAdapter, _localMoves, _movesBinder, _rulesHandler, _winLineRenderer, _seriesService, _backHandler, _stateMachine);
         }
 
         [TearDown]
@@ -332,7 +353,7 @@ namespace Tests.EditMode.Games.TicTacToe
 
             var messages = captured.Select(x => x.condition).ToList();
             messages.Count.Should().Be(expectedFailingLogs.Length,
-                "любой лишний Error/Exception/Assert лог должен валить тест");
+                "пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ Error/Exception/Assert пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ");
 
             for (var i = 0; i < expectedFailingLogs.Length; i++)
             {

@@ -84,26 +84,84 @@ namespace Runtime.Games.TicTacToe
             if (_fieldRoot == null)
                 return;
 
-            var existing = _fieldRoot.Q<Label>("CurrentPlayerLabel");
-            
+            // Build full scoreboard (replaces the old single-label turn indicator).
+            BuildScoreboard();
+        }
+
+        /// <summary>
+        /// Builds a centered scoreboard above the field:
+        ///   [Player 1 (X) | score] — vs — [Player 2 (O) | score]
+        /// Active player's panel gets "player-panel--active" class.
+        /// </summary>
+        private void BuildScoreboard()
+        {
+            var existing = _fieldRoot.Q<VisualElement>("Scoreboard");
             if (existing != null)
             {
-                _currentPlayerLabel = existing;
+                // Reuse existing DOM — just re-acquire references.
+                AcquireScoreboardReferences(existing);
                 return;
             }
 
-            var toolbar = _fieldRoot.Q<VisualElement>("GameplayToolbar") ?? _fieldRoot;
+            var scoreboard = new VisualElement { name = "Scoreboard" };
+            scoreboard.AddToClassList("scoreboard");
 
-            var label = new Label
+            // Player 1 panel
+            var p1Panel = new VisualElement { name = "Player1Panel" };
+            p1Panel.AddToClassList("player-panel");
+
+            var p1Name = new Label { name = "Player1Name", text = "Player 1 (X)" };
+            p1Name.AddToClassList("player-name");
+            p1Panel.Add(p1Name);
+
+            var p1Score = new Label { name = "Player1Score", text = "0" };
+            p1Score.AddToClassList("player-score");
+            p1Panel.Add(p1Score);
+
+            scoreboard.Add(p1Panel);
+
+            // Center divider / turn label
+            var centerLabel = new Label { name = "CurrentPlayerLabel", text = string.Empty };
+            centerLabel.AddToClassList("current-player-label");
+            scoreboard.Add(centerLabel);
+
+            // Player 2 panel
+            var p2Panel = new VisualElement { name = "Player2Panel" };
+            p2Panel.AddToClassList("player-panel");
+
+            var p2Name = new Label { name = "Player2Name", text = "Player 2 (O)" };
+            p2Name.AddToClassList("player-name");
+            p2Panel.Add(p2Name);
+
+            var p2Score = new Label { name = "Player2Score", text = "0" };
+            p2Score.AddToClassList("player-score");
+            p2Panel.Add(p2Score);
+
+            scoreboard.Add(p2Panel);
+
+            // Insert scoreboard between toolbar and field container.
+            var toolbar = _fieldRoot.Q<VisualElement>("GameplayToolbar");
+            if (toolbar != null)
             {
-                name = "CurrentPlayerLabel",
-                text = string.Empty,
-            };
-            
-            label.AddToClassList("current-player-label");
+                var idx = _fieldRoot.IndexOf(toolbar);
+                _fieldRoot.Insert(idx + 1, scoreboard);
+            }
+            else
+            {
+                _fieldRoot.Insert(0, scoreboard);
+            }
 
-            toolbar.Add(label);
-            _currentPlayerLabel = label;
+            AcquireScoreboardReferences(scoreboard);
+        }
+
+        private void AcquireScoreboardReferences(VisualElement scoreboard)
+        {
+            _player1Panel = scoreboard.Q<VisualElement>("Player1Panel");
+            _player2Panel = scoreboard.Q<VisualElement>("Player2Panel");
+            _player1ScoreLabel = scoreboard.Q<Label>("Player1Score");
+            _player2ScoreLabel = scoreboard.Q<Label>("Player2Score");
+
+            _currentPlayerLabel = scoreboard.Q<Label>("CurrentPlayerLabel");
         }
 
         internal bool TryGetCell(CellId id, out VisualElement cellRoot)

@@ -1,6 +1,9 @@
+using System;
 using Runtime.Gameplay;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Moves;
+using Runtime.Games.TicTacToe.Rules;
+using Runtime.Games.TicTacToe.Series;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
@@ -29,8 +32,16 @@ namespace Runtime.Infrastructure.Scopes
                 .As<IGameplayFieldPresenter>()
                 .As<IGameplayFieldUiAdapter>();
             builder.Register<GameplayMovesBinder>(Lifetime.Scoped);
+            builder.Register<IRulesEngine, ClassicRulesEngine>(Lifetime.Scoped);
+            builder.Register<GameplayRulesHandler>(Lifetime.Scoped);
+            builder.Register<WinLineRenderer>(Lifetime.Scoped)
+                .AsSelf()
+                .As<IDisposable>();
+            builder.Register<ISeriesService, SeriesService>(Lifetime.Scoped);
             builder.Register<IGameplayBackHandler, GameplayBackHandler>(Lifetime.Scoped);
-            builder.Register<IGameplayStartup, GameplayStartup>(Lifetime.Scoped);
+            builder.Register<GameplayStartup>(Lifetime.Scoped)
+                .As<IGameplayStartup>()
+                .As<IDisposable>();
         }
 
         protected override void Awake()
