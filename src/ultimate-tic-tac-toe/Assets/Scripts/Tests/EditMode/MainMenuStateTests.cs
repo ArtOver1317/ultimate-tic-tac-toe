@@ -26,7 +26,7 @@ namespace Tests.EditMode
     {
         private IUIService _uiService;
         private IMainMenuCoordinator _coordinator;
-        private IGameModeWizardCoordinator _wizardCoordinator;
+        private IGameWizardCoordinator _wizardCoordinator;
         private IMainMenuEntryModeStore _entryModeStore;
         private IAssetProvider _assets;
         private ILocalizationService _localizationMock;
@@ -46,7 +46,7 @@ namespace Tests.EditMode
         {
             _uiService = Substitute.For<IUIService>();
             _coordinator = Substitute.For<IMainMenuCoordinator>();
-            _wizardCoordinator = Substitute.For<IGameModeWizardCoordinator>();
+            _wizardCoordinator = Substitute.For<IGameWizardCoordinator>();
             _entryModeStore = new MainMenuEntryModeStore();
             _assets = Substitute.For<IAssetProvider>();
             _localizationMock = Substitute.For<ILocalizationService>();

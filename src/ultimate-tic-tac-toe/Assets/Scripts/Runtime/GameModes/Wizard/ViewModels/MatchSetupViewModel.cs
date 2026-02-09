@@ -20,21 +20,21 @@ namespace Runtime.GameModes.Wizard
     {
         private static readonly string[] _inlineErrorPriority =
         {
-            WizardFieldNames.SelectedModeId,
-            WizardFieldNames.ModeConfig,
+            WizardFieldNames.SelectedGameId,
+            WizardFieldNames.GameConfig,
             WizardFieldNames.BotDifficultyId,
             WizardFieldNames.Matchmaking,
-            WizardFieldNames.ModeCatalog,
+            WizardFieldNames.GameCatalog,
         };
 
-        private readonly IGameModeCatalog _catalog;
-        private readonly IGameModeWizardCoordinator _coordinator;
+        private readonly IGameCatalog _catalog;
+        private readonly IGameWizardCoordinator _coordinator;
         private readonly ILocalizationService _localization;
         private readonly IBotDifficultyCatalog _difficultyCatalog;
 
         private readonly ReactiveProperty<string> _modeTitleText = new(string.Empty);
         private readonly ReactiveProperty<string> _modeIconKey = new(string.Empty);
-        private readonly ReactiveProperty<ModeSettingsPresentation?> _activeSettings = new(null);
+        private readonly ReactiveProperty<GameSettingsPresentation?> _activeSettings = new(null);
         private readonly ReactiveProperty<OpponentType> _opponentType = new(global::Runtime.GameModes.Wizard.OpponentType.Bot);
         private readonly ReactiveProperty<HumanOpponentKind> _humanOpponentKind = new(global::Runtime.GameModes.Wizard.HumanOpponentKind.Local);
         private readonly ReactiveProperty<IReadOnlyList<BotDifficulty>> _availableDifficulties;
@@ -49,12 +49,12 @@ namespace Runtime.GameModes.Wizard
         private readonly ReactiveProperty<bool> _isBusy = new(false);
         private readonly ReactiveProperty<string?> _inlineErrorText = new(null);
 
-        private IGameModeSession? _session;
+        private IGameSession? _session;
         private string? _activeModeId;
 
         private bool _sessionCanStart;
         private int _lastAppliedVersion;
-        private IGameModeConfig? _lastAppliedModeConfig;
+        private IGameConfig? _lastAppliedModeConfig;
 
         private IDisposable? _modeTitleSubscription;
         private CompositeDisposable? _difficultyLocalizationSubscriptions;
@@ -69,7 +69,7 @@ namespace Runtime.GameModes.Wizard
         private bool _disablePlayerLoopForTests;
 #endif
 
-        private ISpecificModeSettingsViewModel? _activeSettingsViewModel;
+        private IGameSettingsViewModel? _activeSettingsViewModel;
         private IDisposable? _activeConfigSubscription;
 
         private int _isWired;
@@ -80,7 +80,7 @@ namespace Runtime.GameModes.Wizard
 
         public ReadOnlyReactiveProperty<string> ModeTitleText => _modeTitleText;
         public ReadOnlyReactiveProperty<string> ModeIconKey => _modeIconKey;
-        public ReadOnlyReactiveProperty<ModeSettingsPresentation?> ActiveSettings => _activeSettings;
+        public ReadOnlyReactiveProperty<GameSettingsPresentation?> ActiveSettings => _activeSettings;
         public ReadOnlyReactiveProperty<OpponentType> OpponentType => _opponentType;
         public ReadOnlyReactiveProperty<HumanOpponentKind> HumanOpponentKind => _humanOpponentKind;
         public ReadOnlyReactiveProperty<IReadOnlyList<BotDifficulty>> AvailableDifficulties => _availableDifficulties;
@@ -111,8 +111,8 @@ namespace Runtime.GameModes.Wizard
         public Observable<string> PlayerIdLabelText { get; }
 
         public MatchSetupViewModel(
-            IGameModeCatalog catalog,
-            IGameModeWizardCoordinator coordinator,
+            IGameCatalog catalog,
+            IGameWizardCoordinator coordinator,
             ILocalizationService localization,
             IBotDifficultyCatalog difficultyCatalog)
         {
@@ -124,20 +124,20 @@ namespace Runtime.GameModes.Wizard
             _availableDifficulties = new ReactiveProperty<IReadOnlyList<BotDifficulty>>(
                 _difficultyCatalog.Difficulties ?? throw new ArgumentException("Difficulty catalog returned null list.", nameof(difficultyCatalog)));
 
-            var table = new TextTableId("GameModeWizard");
-            BackButtonText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.Back"));
-            CancelButtonText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.Cancel"));
-            StartButtonText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.Start"));
-            OpponentBotText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.Opponent.Bot"));
-            OpponentHumanText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.Opponent.Human"));
-            OpponentSectionTitle = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.Opponent.Title"));
-            ModeOptionsTitle = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.ModeOptions.Title"));
-            BotDifficultyTitle = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.BotDifficulty.Title"));
-            HumanSettingsTitle = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.HumanSettings.Title"));
-            HumanLocalText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.HumanSettings.Local"));
-            HumanDirectInviteText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.HumanSettings.DirectInvite"));
-            HumanMatchmakingText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.HumanSettings.Matchmaking"));
-            PlayerIdLabelText = _localization.Observe(table, new TextKey("GameModeWizard.MatchSetup.PlayerId.Label"));
+            var table = new TextTableId("GameWizard");
+            BackButtonText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.Back"));
+            CancelButtonText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.Cancel"));
+            StartButtonText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.Start"));
+            OpponentBotText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.Opponent.Bot"));
+            OpponentHumanText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.Opponent.Human"));
+            OpponentSectionTitle = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.Opponent.Title"));
+            ModeOptionsTitle = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.ModeOptions.Title"));
+            BotDifficultyTitle = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.BotDifficulty.Title"));
+            HumanSettingsTitle = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.HumanSettings.Title"));
+            HumanLocalText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.HumanSettings.Local"));
+            HumanDirectInviteText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.HumanSettings.DirectInvite"));
+            HumanMatchmakingText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.HumanSettings.Matchmaking"));
+            PlayerIdLabelText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.PlayerId.Label"));
         }
 
         public override void Initialize()
@@ -376,7 +376,7 @@ namespace Runtime.GameModes.Wizard
             }
             else
             {
-                _validationErrorText = ResolveMessageKey("Errors.GameModeWizard.SessionNotReady");
+                _validationErrorText = ResolveMessageKey("Errors.GameWizard.SessionNotReady");
                 UpdateInlineError();
             }
         }

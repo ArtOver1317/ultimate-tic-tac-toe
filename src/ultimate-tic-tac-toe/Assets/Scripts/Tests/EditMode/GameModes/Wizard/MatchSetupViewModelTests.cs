@@ -23,8 +23,8 @@ namespace Tests.EditMode.GameModes.Wizard
     {
         private const int WaitUntilTimeoutMs = 3000;
 
-        private IGameModeCatalog _catalog;
-        private IGameModeWizardCoordinator _coordinator;
+        private IGameCatalog _catalog;
+        private IGameWizardCoordinator _coordinator;
         private ILocalizationService _localization;
         private IBotDifficultyCatalog _difficultyCatalog;
         private ReactiveProperty<bool> _isTransitioning;
@@ -34,8 +34,8 @@ namespace Tests.EditMode.GameModes.Wizard
         [SetUp]
         public void SetUp()
         {
-            _catalog = Substitute.For<IGameModeCatalog>();
-            _coordinator = Substitute.For<IGameModeWizardCoordinator>();
+            _catalog = Substitute.For<IGameCatalog>();
+            _coordinator = Substitute.For<IGameWizardCoordinator>();
             _localization = Substitute.For<ILocalizationService>();
 
             _isTransitioning = new ReactiveProperty<bool>(false);
@@ -69,7 +69,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenInitializeCalledMultipleTimes_ThenDoesNotDuplicateCoordinatorErrorSubscription()
         {
             // Arrange
-            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(false);
 
             using var sut = CreateSut();
 
@@ -79,14 +79,14 @@ namespace Tests.EditMode.GameModes.Wizard
 
             _currentError.Value = new WizardError(
                 code: "code",
-                messageKey: "Errors.GameModeWizard.Coordinator",
+                messageKey: "Errors.GameWizard.Coordinator",
                 isBlocking: true,
                 displayType: ErrorDisplayType.Inline);
 
             // Assert
             _localization.Received(1).Resolve(
                 Arg.Is<TextTableId>(t => t.Name == "Errors"),
-                Arg.Is<TextKey>(k => k.Value == "Errors.GameModeWizard.Coordinator"),
+                Arg.Is<TextKey>(k => k.Value == "Errors.GameWizard.Coordinator"),
                 Arg.Any<IReadOnlyDictionary<string, object>>());
         }
 
@@ -94,7 +94,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenInitializeCalledMultipleTimes_ThenDoesNotDuplicateSessionWiring()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             var subVm = new TestSettingsViewModel(new TestGameModeConfig("initial"));
@@ -112,12 +112,12 @@ namespace Tests.EditMode.GameModes.Wizard
 
             sut.Initialize();
 
-            session.EmitSnapshot(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("classic")
+            session.EmitSnapshot(GameSessionSnapshot.Default
+                .WithSelectedGameId("classic")
                 .WithVersion(1));
 
             // Assert
-            _coordinator.Received(1).TryGetSession(out Arg.Any<IGameModeSession>());
+            _coordinator.Received(1).TryGetSession(out Arg.Any<IGameSession>());
             session.SnapshotGetCount.Should().Be(snapshotGetsAfterFirstInit);
             session.CanStartGetCount.Should().Be(canStartGetsAfterFirstInit);
             session.ValidationErrorsGetCount.Should().Be(validationGetsAfterFirstInit);
@@ -128,12 +128,12 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenResetCalled_ThenClearsStateAndReleasesActiveSettings()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             var subVm = new TestSettingsViewModel(new TestGameModeConfig("initial"));
             var strategy = new TestStrategy("classic", "icons/classic", "Mode.Classic", subVm);
-            _catalog.TryGetStrategy("classic", out Arg.Any<IGameModeStrategy>())
+            _catalog.TryGetStrategy("classic", out Arg.Any<IGameStrategy>())
                 .Returns(callInfo =>
                 {
                     callInfo[1] = strategy;
@@ -143,8 +143,8 @@ namespace Tests.EditMode.GameModes.Wizard
             using var sut = CreateSut();
             sut.Initialize();
 
-            session.EmitSnapshot(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("classic")
+            session.EmitSnapshot(GameSessionSnapshot.Default
+                .WithSelectedGameId("classic")
                 .WithVersion(1));
 
             // Act
@@ -162,11 +162,11 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenResetCalledAndInitializeCalledAgain_ThenRewiresToNewSessionAndStopsReactingToOldSession()
         {
             // Arrange
-            var sessionA = new FakeGameModeSession(GameModeSessionSnapshot.Default);
-            var sessionB = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var sessionA = new FakeGameSession(GameSessionSnapshot.Default);
+            var sessionB = new FakeGameSession(GameSessionSnapshot.Default);
             var currentSession = sessionA;
 
-            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>())
+            _coordinator.TryGetSession(out Arg.Any<IGameSession>())
                 .Returns(callInfo =>
                 {
                     callInfo[0] = currentSession;
@@ -177,7 +177,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Act
             sut.Initialize();
-            sessionA.EmitSnapshot(GameModeSessionSnapshot.Default
+            sessionA.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithVersion(1));
 
@@ -188,14 +188,14 @@ namespace Tests.EditMode.GameModes.Wizard
             currentSession = sessionB;
             sut.Initialize();
 
-            sessionB.EmitSnapshot(GameModeSessionSnapshot.Default
+            sessionB.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Bot)
                 .WithVersion(1));
 
             // Assert
             sut.OpponentType.CurrentValue.Should().Be(OpponentType.Bot);
 
-            sessionA.EmitSnapshot(GameModeSessionSnapshot.Default
+            sessionA.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithVersion(2));
 
@@ -206,7 +206,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSnapshotAppliesSelectedModeId_ThenCreatesPresentationAndInitializesSubViewModel()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             var subVm = new TestSettingsViewModel(new TestGameModeConfig("initial"));
@@ -217,8 +217,8 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.Initialize();
 
             // Act
-            session.EmitSnapshot(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("classic")
+            session.EmitSnapshot(GameSessionSnapshot.Default
+                .WithSelectedGameId("classic")
                 .WithVersion(1));
 
             // Assert
@@ -233,7 +233,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSnapshotAppliesSameSelectedModeId_ThenDoesNotRecreatePresentation()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             var subVm = new TestSettingsViewModel(new TestGameModeConfig("initial"));
@@ -244,8 +244,8 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.Initialize();
 
             // Act
-            session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(1));
-            session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(2));
+            session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
+            session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(2));
 
             // Assert
             strategy.CreatePresentationCallCount.Should().Be(1);
@@ -256,9 +256,9 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSnapshotAppliesUnknownModeId_ThenClearsPresentationAndCanStartUpdates()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
-            _catalog.TryGetStrategy(Arg.Any<string>(), out Arg.Any<IGameModeStrategy>()).Returns(false);
+            _catalog.TryGetStrategy(Arg.Any<string>(), out Arg.Any<IGameStrategy>()).Returns(false);
 
             using var sut = CreateSut();
             sut.Initialize();
@@ -266,8 +266,8 @@ namespace Tests.EditMode.GameModes.Wizard
             session.EmitCanStart(false);
 
             // Act
-            session.EmitSnapshot(GameModeSessionSnapshot.Default
-                .WithSelectedModeId("unknown")
+            session.EmitSnapshot(GameSessionSnapshot.Default
+                .WithSelectedGameId("unknown")
                 .WithVersion(1));
 
             // Assert
@@ -281,7 +281,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSnapshotAppliedWithOlderVersion_ThenIsIgnored()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             var classicVm = new TestSettingsViewModel(new TestGameModeConfig("classic"));
@@ -294,8 +294,8 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.Initialize();
 
             // Act
-            session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(10));
-            session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("ultimate").WithVersion(9));
+            session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(10));
+            session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("ultimate").WithVersion(9));
 
             // Assert
             sut.ActiveSettings.CurrentValue.Should().NotBeNull();
@@ -306,7 +306,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenValidationErrorsChange_ThenInlineErrorTextShowsHighestPriorityError()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -314,22 +314,22 @@ namespace Tests.EditMode.GameModes.Wizard
 
             var errors = new List<ValidationError>
             {
-                new("TargetPlayerId", "Errors.GameModeWizard.PlayerIdRequired"),
-                new("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired"),
+                new("TargetPlayerId", "Errors.GameWizard.PlayerIdRequired"),
+                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
             };
 
             // Act
             session.EmitValidationErrors(errors);
 
             // Assert
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameModeWizard.ModeConfigRequired");
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.GameConfigRequired");
         }
 
         [Test]
         public void WhenCoordinatorCurrentErrorIsInline_ThenInlineErrorPrefersCoordinatorOverValidation()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -337,21 +337,21 @@ namespace Tests.EditMode.GameModes.Wizard
 
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
             });
 
             // Act
-            _currentError.Value = new WizardError("code", "Errors.GameModeWizard.Coordinator", true, ErrorDisplayType.Inline);
+            _currentError.Value = new WizardError("code", "Errors.GameWizard.Coordinator", true, ErrorDisplayType.Inline);
 
             // Assert
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameModeWizard.Coordinator");
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.Coordinator");
         }
 
         [Test]
         public void WhenCoordinatorCurrentErrorIsNotInline_ThenInlineErrorFallsBackToValidation()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -359,21 +359,21 @@ namespace Tests.EditMode.GameModes.Wizard
 
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
             });
 
             // Act
-            _currentError.Value = new WizardError("code", "Errors.GameModeWizard.Coordinator", true, ErrorDisplayType.Modal);
+            _currentError.Value = new WizardError("code", "Errors.GameWizard.Coordinator", true, ErrorDisplayType.Modal);
 
             // Assert
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameModeWizard.ModeConfigRequired");
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.GameConfigRequired");
         }
 
         [Test]
         public void WhenCoordinatorInlineErrorClears_ThenInlineErrorFallsBackToValidationAgain()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -381,24 +381,24 @@ namespace Tests.EditMode.GameModes.Wizard
 
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
             });
 
-            _currentError.Value = new WizardError("code", "Errors.GameModeWizard.Coordinator", true, ErrorDisplayType.Inline);
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameModeWizard.Coordinator");
+            _currentError.Value = new WizardError("code", "Errors.GameWizard.Coordinator", true, ErrorDisplayType.Inline);
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.Coordinator");
 
             // Act
             _currentError.Value = null;
 
             // Assert
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameModeWizard.ModeConfigRequired");
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.GameConfigRequired");
         }
 
         [Test]
         public void WhenValidationErrorsContainUnknownField_ThenInlineErrorShowsResolvedUnknownMessage()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -406,25 +406,25 @@ namespace Tests.EditMode.GameModes.Wizard
 
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
             });
 
             // Act
             Action act = () => session.EmitValidationErrors(new List<ValidationError>
             {
-                new("UnknownField", "Errors.GameModeWizard.Unknown"),
+                new("UnknownField", "Errors.GameWizard.Unknown"),
             });
 
             // Assert
             act.Should().NotThrow();
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameModeWizard.Unknown");
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.Unknown");
         }
 
         [Test]
         public void WhenMessageKeyHasNoDot_ThenResolveMessageKeyReturnsRawKey()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -433,7 +433,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Act
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("ModeConfig", "SomeKey"),
+                new("GameConfig", "SomeKey"),
             });
 
             // Assert
@@ -444,7 +444,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentTypeChangedFromUI_ThenWritesThroughToSession()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -462,14 +462,14 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentTypeChangedFromSession_ThenDoesNotWriteBackToSession()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
             sut.Initialize();
 
             // Act
-            session.EmitSnapshot(GameModeSessionSnapshot.Default.WithOpponentType(OpponentType.Human).WithVersion(1));
+            session.EmitSnapshot(GameSessionSnapshot.Default.WithOpponentType(OpponentType.Human).WithVersion(1));
 
             // Assert
             sut.OpponentType.CurrentValue.Should().Be(OpponentType.Human);
@@ -480,7 +480,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetHumanOpponentKindCalled_ThenWritesThroughToSession()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -498,7 +498,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetHumanOpponentKindCalledWithSameValue_ThenDoesNotCallSessionUpdate()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithVersion(1));
@@ -519,14 +519,14 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSessionHumanOpponentKindChanges_ThenHumanOpponentKindUpdatesWithoutWriteBack()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
             sut.Initialize();
 
             // Act
-            session.EmitSnapshot(GameModeSessionSnapshot.Default
+            session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithVersion(1));
@@ -540,7 +540,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetHumanOpponentKindCalledAndSessionIsNull_ThenDoesNotThrowAndDoesNotChangeState()
         {
             // Arrange
-            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(false);
             using var sut = CreateSut();
             sut.Initialize();
 
@@ -556,7 +556,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetOpponentTypeCalledAndSessionIsNull_ThenDoesNotThrowAndDoesNotChangeState()
         {
             // Arrange
-            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(false);
             using var sut = CreateSut();
             sut.Initialize();
 
@@ -572,7 +572,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentTypeChangesToHuman_ThenIsHumanSettingsVisibleBecomesTrue()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -589,7 +589,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentTypeChangesToBot_ThenIsHumanSettingsVisibleBecomesFalse()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -607,13 +607,13 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentTypeTogglesHumanToBotToHuman_ThenHumanOpponentKindIsPreserved()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
             sut.Initialize();
 
-            session.EmitSnapshot(GameModeSessionSnapshot.Default
+            session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithVersion(1));
@@ -630,7 +630,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenResetCalled_ThenHumanOpponentKindIsSetToDefault()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -648,7 +648,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetBotDifficultyIdCalled_ThenWritesThroughToSession()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -667,7 +667,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetBotDifficultyIdCalledWithSameValue_ThenDoesNotCallSessionUpdate()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -686,7 +686,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetBotDifficultyIdCalledWithUnknownId_ThenNormalizesToNull()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -705,14 +705,14 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSessionBotDifficultyIdChanges_ThenSelectedDifficultyIdUpdatesWithoutWriteBack()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
             sut.Initialize();
 
             // Act
-            session.EmitSnapshot(GameModeSessionSnapshot.Default
+            session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithBotDifficultyId("Hard")
                 .WithOpponentType(OpponentType.Bot)
                 .WithVersion(1));
@@ -726,14 +726,14 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSessionBotDifficultyIdIsUnknownAndOpponentIsBot_ThenVMSanitizesSessionByWritingBackNull()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
             sut.Initialize();
 
             // Act
-            session.EmitSnapshot(GameModeSessionSnapshot.Default
+            session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithBotDifficultyId("UnknownDifficulty")
                 .WithOpponentType(OpponentType.Bot)
                 .WithVersion(1));
@@ -748,7 +748,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public async Task WhenAvailableDifficultiesChangeAndSelectedIdIsNoLongerAvailable_ThenSelectionClearsAndWritesThroughToSession()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -760,8 +760,8 @@ namespace Tests.EditMode.GameModes.Wizard
             // Act
             SetAvailableDifficulties(sut, Array.AsReadOnly(new[]
             {
-                new BotDifficulty("Easy", "GameModeWizard.MatchSetup.BotDifficulty.Easy", 0),
-                new BotDifficulty("Normal", "GameModeWizard.MatchSetup.BotDifficulty.Normal", 1)
+                new BotDifficulty("Easy", "GameWizard.MatchSetup.BotDifficulty.Easy", 0),
+                new BotDifficulty("Normal", "GameWizard.MatchSetup.BotDifficulty.Normal", 1)
             }));
 
             await WaitForSelectedDifficultyAsync(sut, value => value == null);
@@ -776,7 +776,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentTypeTogglesBotToHumanToBot_ThenSelectedDifficultyIdIsPreservedAndUIRestoresSelection()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -795,7 +795,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentTypeChangesToHuman_ThenIsBotSettingsVisibleBecomesFalse()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -812,7 +812,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentTypeChangesToBot_ThenIsBotSettingsVisibleBecomesTrue()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -830,7 +830,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenResetCalled_ThenSelectedDifficultyIdIsCleared()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default.WithVersion(1));
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -848,7 +848,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public async Task WhenResetCalled_ThenDifficultyLocalizationSubscriptionsAreDisposed()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             var localization = Substitute.For<ILocalizationService>();
@@ -861,15 +861,15 @@ namespace Tests.EditMode.GameModes.Wizard
 
             using var easySubject = new Subject<string>();
             localization
-                .Observe(Arg.Is<TextTableId>(t => t.Name == "GameModeWizard"),
-                    Arg.Is<TextKey>(k => k.Value == "GameModeWizard.MatchSetup.BotDifficulty.Easy"),
+                .Observe(Arg.Is<TextTableId>(t => t.Name == "GameWizard"),
+                    Arg.Is<TextKey>(k => k.Value == "GameWizard.MatchSetup.BotDifficulty.Easy"),
                     Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(easySubject);
 
             var difficultyCatalog = Substitute.For<IBotDifficultyCatalog>();
             difficultyCatalog.Difficulties.Returns(Array.AsReadOnly(new[]
             {
-                new BotDifficulty("Easy", "GameModeWizard.MatchSetup.BotDifficulty.Easy", 0)
+                new BotDifficulty("Easy", "GameWizard.MatchSetup.BotDifficulty.Easy", 0)
             }));
 
             using var sut = new MatchSetupViewModel(_catalog, _coordinator, localization, difficultyCatalog);
@@ -900,7 +900,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public async Task WhenAvailableDifficultiesChanges_ThenDifficultyItemsAreRebuilt()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -925,7 +925,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public async Task WhenLocalizationEmitsNewLabel_ThenDifficultyItemsAreUpdated()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             var localization = Substitute.For<ILocalizationService>();
@@ -938,15 +938,15 @@ namespace Tests.EditMode.GameModes.Wizard
 
             using var easySubject = new Subject<string>();
             localization
-                .Observe(Arg.Is<TextTableId>(t => t.Name == "GameModeWizard"),
-                    Arg.Is<TextKey>(k => k.Value == "GameModeWizard.MatchSetup.BotDifficulty.Easy"),
+                .Observe(Arg.Is<TextTableId>(t => t.Name == "GameWizard"),
+                    Arg.Is<TextKey>(k => k.Value == "GameWizard.MatchSetup.BotDifficulty.Easy"),
                     Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(easySubject);
 
             var difficultyCatalog = Substitute.For<IBotDifficultyCatalog>();
             difficultyCatalog.Difficulties.Returns(Array.AsReadOnly(new[]
             {
-                new BotDifficulty("Easy", "GameModeWizard.MatchSetup.BotDifficulty.Easy", 0)
+                new BotDifficulty("Easy", "GameWizard.MatchSetup.BotDifficulty.Easy", 0)
             }));
 
             using var sut = new MatchSetupViewModel(_catalog, _coordinator, localization, difficultyCatalog);
@@ -962,21 +962,21 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.DifficultyItems.CurrentValue.Should().ContainSingle(item => item.Id == "Easy" && item.Label == "Easy");
 
             // Act
-            easySubject.OnNext("Лёгкий");
+            easySubject.OnNext("˸����");
 
             await WaitForDifficultyItemsAsync(sut, items =>
                 items.Count == 1
-                && items[0].Label == "Лёгкий");
+                && items[0].Label == "˸����");
 
             // Assert
-            sut.DifficultyItems.CurrentValue.Should().ContainSingle(item => item.Id == "Easy" && item.Label == "Лёгкий");
+            sut.DifficultyItems.CurrentValue.Should().ContainSingle(item => item.Id == "Easy" && item.Label == "˸����");
         }
 
         [Test]
         public void WhenValidationErrorsContainBotDifficultyId_ThenInlineErrorShowsIt()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -985,18 +985,18 @@ namespace Tests.EditMode.GameModes.Wizard
             // Act
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("BotDifficultyId", "Errors.GameModeWizard.DifficultyRequired"),
+                new("BotDifficultyId", "Errors.GameWizard.DifficultyRequired"),
             });
 
             // Assert
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameModeWizard.DifficultyRequired");
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.DifficultyRequired");
         }
 
         [Test]
         public void WhenBotDifficultyIdErrorHasLowerPriorityThanModeConfig_ThenModeConfigErrorShown()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -1005,19 +1005,19 @@ namespace Tests.EditMode.GameModes.Wizard
             // Act
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired"),
-                new("BotDifficultyId", "Errors.GameModeWizard.DifficultyRequired"),
+                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
+                new("BotDifficultyId", "Errors.GameWizard.DifficultyRequired"),
             });
 
             // Assert
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameModeWizard.ModeConfigRequired");
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.GameConfigRequired");
         }
 
         [Test]
         public void WhenSubViewModelConfigChanges_ThenSessionModeConfigIsSet()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             var subVm = new TestSettingsViewModel(new TestGameModeConfig("initial"));
@@ -1025,7 +1025,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             using var sut = CreateSut();
             sut.Initialize();
-            session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(1));
+            session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
 
             // Act
             var updatedConfig = new TestGameModeConfig("updated");
@@ -1040,7 +1040,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSessionIsNotAvailable_ThenVMStillWorksLocallyWithoutThrowing()
         {
             // Arrange
-            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(false);
 
             using var sut = CreateSut();
 
@@ -1060,7 +1060,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSessionIsDisposedWhileViewModelIsAlive_ThenDoesNotThrowAndStopsWritingThrough()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             var subVm = new TestSettingsViewModel(new TestGameModeConfig("initial"));
@@ -1068,7 +1068,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             using var sut = CreateSut();
             sut.Initialize();
-            session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(1));
+            session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
 
             session.Dispose();
 
@@ -1092,7 +1092,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenRequestBackCalled_ThenPublishesBackIntent()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -1109,7 +1109,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenRequestCancelCalled_ThenPublishesCancelIntent()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -1126,7 +1126,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenRequestStartCalledAndCanStartIsFalse_ThenDoesNotPublishStartIntent()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -1144,7 +1144,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenRequestStartCalledAndCanStartIsTrue_ThenPublishesStartIntent()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
 
             using var sut = CreateSut();
@@ -1162,7 +1162,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenCoordinatorRejectsIntent_ThenDoesNotThrow()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
             SetupCoordinatorWithSession(session);
             _coordinator.TryPublishIntent(Arg.Any<WizardIntent>()).Returns(false);
 
@@ -1186,7 +1186,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetTargetPlayerIdCalled_ThenWritesThroughToSessionSnapshot()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
             SetupCoordinatorWithSession(session);
@@ -1205,7 +1205,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetTargetPlayerIdCalledWithSameValue_ThenDoesNotUpdateSession()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithTargetPlayerId("12345"));
@@ -1227,7 +1227,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetTargetPlayerIdCalledWithWhitespace_ThenNormalizesInSnapshot()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
             SetupCoordinatorWithSession(session);
@@ -1246,7 +1246,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetTargetPlayerIdCalledWithInvalidString_ThenWritesTrimmedRawValueToSession()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
             SetupCoordinatorWithSession(session);
@@ -1265,7 +1265,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetTargetPlayerIdCalledWithInvalidStringWithWhitespace_ThenWritesTrimmedRawValueToSession()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
             SetupCoordinatorWithSession(session);
@@ -1284,7 +1284,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetTargetPlayerIdCalledAndSessionIsNull_ThenDoesNotThrowAndDoesNotChangeState()
         {
             // Arrange
-            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(false);
+            _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(false);
 
             using var sut = CreateSut();
             sut.Initialize();
@@ -1312,7 +1312,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetTargetPlayerIdCalledAndOpponentTypeIsBot_ThenNormalizesToNullInSnapshot()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Bot));
             SetupCoordinatorWithSession(session);
 
@@ -1330,7 +1330,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSetTargetPlayerIdCalledAndHumanKindIsLocal_ThenNormalizesToNullInSnapshot()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Local));
             SetupCoordinatorWithSession(session);
@@ -1349,7 +1349,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenLatePlayerIdChangeArrivesAfterSwitchToLocal_ThenDoesNotReintroduceTargetPlayerId()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
             SetupCoordinatorWithSession(session);
@@ -1369,7 +1369,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSessionTargetPlayerIdChanges_ThenVMUpdatesWithoutWriteBack()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
             SetupCoordinatorWithSession(session);
@@ -1380,7 +1380,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var updatesBefore = session.UpdateCallCount;
 
             // Act
-            session.EmitSnapshot(GameModeSessionSnapshot.Default
+            session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithTargetPlayerId("456")
@@ -1395,7 +1395,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSessionTargetPlayerIdIsNull_ThenVMTargetPlayerIdIsEmptyString()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithTargetPlayerId(null));
@@ -1414,7 +1414,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenValidationErrorTargetsPlayerId_ThenPlayerIdErrorTextShowsError()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
             SetupCoordinatorWithSession(session);
@@ -1422,11 +1422,11 @@ namespace Tests.EditMode.GameModes.Wizard
             using var sut = CreateSut();
             sut.Initialize();
 
-            const string expected = "resolved:Errors.GameModeWizard.PlayerIdRequired";
+            const string expected = "resolved:Errors.GameWizard.PlayerIdRequired";
 
             var errors = new[]
             {
-                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired")
+                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdRequired")
             };
 
             // Act
@@ -1440,7 +1440,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenValidationErrorsContainPlayerIdAndOtherFields_ThenPlayerIdErrorTextPicksTargetPlayerIdOnly()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
             SetupCoordinatorWithSession(session);
@@ -1448,13 +1448,13 @@ namespace Tests.EditMode.GameModes.Wizard
             using var sut = CreateSut();
             sut.Initialize();
 
-            const string expected = "resolved:Errors.GameModeWizard.PlayerIdRequired";
+            const string expected = "resolved:Errors.GameWizard.PlayerIdRequired";
 
             var errors = new[]
             {
-                new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ModeConfigInvalid"),
-                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired"),
-                new ValidationError(WizardFieldNames.BotDifficultyId, "Errors.GameModeWizard.DifficultyRequired")
+                new ValidationError(WizardFieldNames.GameConfig, "Errors.GameWizard.ModeConfigInvalid"),
+                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdRequired"),
+                new ValidationError(WizardFieldNames.BotDifficultyId, "Errors.GameWizard.DifficultyRequired")
             };
 
             // Act
@@ -1468,7 +1468,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenValidationErrorsContainPlayerIdAndOtherFieldsAndTargetPlayerIdErrorIsNotFirst_ThenPlayerIdErrorTextStillPicksTargetPlayerId()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
             SetupCoordinatorWithSession(session);
@@ -1476,13 +1476,13 @@ namespace Tests.EditMode.GameModes.Wizard
             using var sut = CreateSut();
             sut.Initialize();
 
-            const string expected = "resolved:Errors.GameModeWizard.PlayerIdRequired";
+            const string expected = "resolved:Errors.GameWizard.PlayerIdRequired";
 
             var errors = new[]
             {
-                new ValidationError(WizardFieldNames.ModeConfig, "Errors.GameModeWizard.ModeConfigInvalid"),
-                new ValidationError(WizardFieldNames.BotDifficultyId, "Errors.GameModeWizard.DifficultyRequired"),
-                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired")
+                new ValidationError(WizardFieldNames.GameConfig, "Errors.GameWizard.ModeConfigInvalid"),
+                new ValidationError(WizardFieldNames.BotDifficultyId, "Errors.GameWizard.DifficultyRequired"),
+                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdRequired")
             };
 
             // Act
@@ -1496,7 +1496,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenValidationErrorTargetsPlayerIdButNotInDirectInviteMode_ThenPlayerIdErrorTextIsNull()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Local));
             SetupCoordinatorWithSession(session);
@@ -1506,7 +1506,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             var errors = new[]
             {
-                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired")
+                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdRequired")
             };
 
             // Act
@@ -1520,7 +1520,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenHumanOpponentKindChangesFromDirectInvite_ThenPlayerIdErrorTextClears()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
             SetupCoordinatorWithSession(session);
@@ -1530,12 +1530,12 @@ namespace Tests.EditMode.GameModes.Wizard
 
             var errors = new[]
             {
-                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdRequired")
+                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdRequired")
             };
             session.EmitValidationErrors(errors);
 
             // Act
-            session.EmitSnapshot(GameModeSessionSnapshot.Default
+            session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Local)
                 .WithVersion(1));
@@ -1548,7 +1548,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentTypeIsHumanAndKindIsDirectInvite_ThenIsPlayerIdInputVisibleIsTrue()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
             SetupCoordinatorWithSession(session);
@@ -1566,7 +1566,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenOpponentTypeIsBot_ThenIsPlayerIdInputVisibleIsFalse()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Bot));
             SetupCoordinatorWithSession(session);
 
@@ -1583,7 +1583,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenHumanKindIsLocal_ThenIsPlayerIdInputVisibleIsFalse()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Local));
             SetupCoordinatorWithSession(session);
@@ -1601,7 +1601,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenResetCalled_ThenTargetPlayerIdIsCleared()
         {
             // Arrange
-            var session = new FakeGameModeSession(GameModeSessionSnapshot.Default
+            var session = new FakeGameSession(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithTargetPlayerId("12345"));
@@ -1617,15 +1617,15 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.TargetPlayerId.CurrentValue.Should().Be("");
         }
 
-        private void SetupCoordinatorWithSession(FakeGameModeSession session) =>
-            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(callInfo =>
+        private void SetupCoordinatorWithSession(FakeGameSession session) =>
+            _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(callInfo =>
             {
                 callInfo[0] = session;
                 return true;
             });
 
-        private void SetupStrategy(string modeId, IGameModeStrategy strategy) =>
-            _catalog.TryGetStrategy(modeId, out Arg.Any<IGameModeStrategy>()).Returns(callInfo =>
+        private void SetupStrategy(string gameId, IGameStrategy strategy) =>
+            _catalog.TryGetStrategy(gameId, out Arg.Any<IGameStrategy>()).Returns(callInfo =>
             {
                 callInfo[1] = strategy;
                 return true;
@@ -1692,16 +1692,16 @@ namespace Tests.EditMode.GameModes.Wizard
             return sut;
         }
 
-        private sealed class FakeGameModeSession : IGameModeSession
+        private sealed class FakeGameSession : IGameSession
         {
-            private readonly ReactiveProperty<GameModeSessionSnapshot> _snapshot;
+            private readonly ReactiveProperty<GameSessionSnapshot> _snapshot;
             private readonly ReactiveProperty<bool> _canStart;
             private readonly ReactiveProperty<IReadOnlyList<ValidationError>> _validationErrors;
             private bool _isDisposed;
 
-            public FakeGameModeSession(GameModeSessionSnapshot initial)
+            public FakeGameSession(GameSessionSnapshot initial)
             {
-                _snapshot = new ReactiveProperty<GameModeSessionSnapshot>(initial);
+                _snapshot = new ReactiveProperty<GameSessionSnapshot>(initial);
                 _canStart = new ReactiveProperty<bool>(false);
                 _validationErrors = new ReactiveProperty<IReadOnlyList<ValidationError>>(Array.Empty<ValidationError>());
             }
@@ -1710,7 +1710,7 @@ namespace Tests.EditMode.GameModes.Wizard
             public int CanStartGetCount { get; private set; }
             public int ValidationErrorsGetCount { get; private set; }
 
-            public ReadOnlyReactiveProperty<GameModeSessionSnapshot> Snapshot
+            public ReadOnlyReactiveProperty<GameSessionSnapshot> Snapshot
             {
                 get
                 {
@@ -1739,27 +1739,27 @@ namespace Tests.EditMode.GameModes.Wizard
 
             public int UpdateCallCount { get; private set; }
             public int SetModeConfigCallCount { get; private set; }
-            public IGameModeConfig LastModeConfig { get; private set; }
+            public IGameConfig LastModeConfig { get; private set; }
 
-            public void EmitSnapshot(GameModeSessionSnapshot snapshot) => _snapshot.Value = snapshot;
+            public void EmitSnapshot(GameSessionSnapshot snapshot) => _snapshot.Value = snapshot;
 
             public void EmitCanStart(bool value) => _canStart.Value = value;
 
             public void EmitValidationErrors(IReadOnlyList<ValidationError> errors) => _validationErrors.Value = errors;
 
-            public void Update(Func<GameModeSessionSnapshot, GameModeSessionSnapshot> reducer)
+            public void Update(Func<GameSessionSnapshot, GameSessionSnapshot> reducer)
             {
                 EnsureNotDisposed();
                 UpdateCallCount++;
-                var current = _snapshot.Value ?? GameModeSessionSnapshot.Default;
-                var updated = reducer(current) ?? GameModeSessionSnapshot.Default;
+                var current = _snapshot.Value ?? GameSessionSnapshot.Default;
+                var updated = reducer(current) ?? GameSessionSnapshot.Default;
                 var nextVersion = current.Version + 1;
                 if (updated.Version < nextVersion)
                     updated = updated.WithVersion(nextVersion);
                 _snapshot.Value = updated;
             }
 
-            public void SetModeConfig(IGameModeConfig config)
+            public void SetModeConfig(IGameConfig config)
             {
                 EnsureNotDisposed();
                 SetModeConfigCallCount++;
@@ -1768,7 +1768,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             public Result<GameLaunchConfig> BuildLaunchConfig() => throw new NotSupportedException();
 
-            public void Reset() => _snapshot.Value = GameModeSessionSnapshot.Default;
+            public void Reset() => _snapshot.Value = GameSessionSnapshot.Default;
 
             public void Dispose()
             {
@@ -1781,55 +1781,54 @@ namespace Tests.EditMode.GameModes.Wizard
             private void EnsureNotDisposed()
             {
                 if (_isDisposed)
-                    throw new ObjectDisposedException(nameof(FakeGameModeSession));
+                    throw new ObjectDisposedException(nameof(FakeGameSession));
             }
         }
 
-        private sealed class TestStrategy : IGameModeStrategy
+        private sealed class TestStrategy : IGameStrategy
         {
             private readonly TestSettingsViewModel _viewModel;
 
-            public TestStrategy(string modeId, string iconKey, string displayNameKey, TestSettingsViewModel viewModel)
+            public TestStrategy(string gameId, string iconKey, string displayNameKey, TestSettingsViewModel viewModel)
             {
-                ModeId = modeId;
-                Metadata = new GameModeMetadata(
-                    id: modeId,
+                GameId = gameId;
+                Metadata = new GameMetadata(
+                    id: gameId,
                     displayNameKey: displayNameKey,
                     descriptionKey: "desc",
                     iconAssetKey: iconKey,
                     sortOrder: 0,
                     supportsBot: true,
                     supportsOnline: true,
-                    supportsLocal: true,
-                    fieldKind: FieldKind.Classic);
+                    supportsLocal: true);
                 _viewModel = viewModel;
             }
 
-            public string ModeId { get; }
-            public GameModeMetadata Metadata { get; }
+            public string GameId { get; }
+            public GameMetadata Metadata { get; }
             public int CreatePresentationCallCount { get; private set; }
 
-            public ModeSettingsPresentation CreatePresentation()
+            public GameSettingsPresentation CreatePresentation()
             {
                 CreatePresentationCallCount++;
-                return new ModeSettingsPresentation($"ui/mode-settings/{ModeId}", _viewModel);
+                return new GameSettingsPresentation($"ui/mode-settings/{GameId}", _viewModel);
             }
 
-            public IReadOnlyList<ValidationError> ValidateConfig(IGameModeConfig? config) => Array.Empty<ValidationError>();
+            public IReadOnlyList<ValidationError> ValidateConfig(IGameConfig? config) => Array.Empty<ValidationError>();
         }
 
-        private sealed class TestSettingsViewModel : BaseViewModel, ISpecificModeSettingsViewModel
+        private sealed class TestSettingsViewModel : BaseViewModel, IGameSettingsViewModel
         {
-            private readonly ReactiveProperty<IGameModeConfig> _config;
+            private readonly ReactiveProperty<IGameConfig> _config;
             private readonly ReactiveProperty<bool> _isValid = new(true);
 
-            public TestSettingsViewModel(IGameModeConfig config) =>
-                _config = new ReactiveProperty<IGameModeConfig>(config);
+            public TestSettingsViewModel(IGameConfig config) =>
+                _config = new ReactiveProperty<IGameConfig>(config);
 
-            public ReadOnlyReactiveProperty<IGameModeConfig> Config => _config;
+            public ReadOnlyReactiveProperty<IGameConfig> Config => _config;
             public ReadOnlyReactiveProperty<bool> IsValid => _isValid;
 
-            public bool TryApplyConfig(IGameModeConfig config)
+            public bool TryApplyConfig(IGameConfig config)
             {
                 if (config == null)
                     return false;
@@ -1841,7 +1840,7 @@ namespace Tests.EditMode.GameModes.Wizard
             public int InitializeCallCount { get; private set; }
             public int DisposeCallCount { get; private set; }
 
-            public void EmitConfig(IGameModeConfig config) => _config.Value = config;
+            public void EmitConfig(IGameConfig config) => _config.Value = config;
 
             public override void Initialize()
             {
@@ -1858,7 +1857,7 @@ namespace Tests.EditMode.GameModes.Wizard
             }
         }
 
-        private sealed class TestGameModeConfig : IGameModeConfig
+        private sealed class TestGameModeConfig : IGameConfig
         {
             public TestGameModeConfig(string value) => Value = value;
             public string Value { get; }

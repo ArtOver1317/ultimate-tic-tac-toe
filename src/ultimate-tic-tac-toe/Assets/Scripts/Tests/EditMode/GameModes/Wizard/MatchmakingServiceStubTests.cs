@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -18,7 +18,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void SetUp()
         {
             _sut = new MatchmakingServiceStub();
-            _request = new MatchmakingRequest("classic", new ClassicModeConfig(3));
+            _request = new MatchmakingRequest("classic", new TicTacToeConfig(3));
         }
 
         [TearDown]

@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 namespace Runtime.GameModes.Wizard
 {
@@ -7,11 +7,11 @@ namespace Runtime.GameModes.Wizard
     /// </summary>
     public static class WizardFieldNames
     {
-        public const string SelectedModeId = "SelectedModeId";
-        public const string ModeConfig = "ModeConfig";
+        public const string SelectedGameId = "SelectedGameId";
+        public const string GameConfig = "GameConfig";
         public const string BotDifficultyId = "BotDifficultyId";
         public const string TargetPlayerId = "TargetPlayerId";
         public const string Matchmaking = "Matchmaking";
-        public const string ModeCatalog = "ModeCatalog";
+        public const string GameCatalog = "GameCatalog";
     }
 }

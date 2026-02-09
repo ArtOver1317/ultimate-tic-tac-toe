@@ -37,7 +37,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         private MatchmakingViewModel _viewModel = null!;
         private FakeMatchmakingService _service = null!;
         private TestLocalizationService _localization = null!;
-        private IGameModeWizardCoordinator _coordinator = null!;
+        private IGameWizardCoordinator _coordinator = null!;
         private ReactiveProperty<WizardError?> _currentError = null!;
 
         private VisualElement Root => _view.RootForTests;
@@ -57,12 +57,12 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             _service = new FakeMatchmakingService();
             _localization = new TestLocalizationService();
-            _localization.SetText("GameModeWizard.Matchmaking.Cancel", "Cancel");
-            _localization.SetText("GameModeWizard.Matchmaking.Back", "Back");
-            _localization.SetText("GameModeWizard.Matchmaking.Retry", "Retry");
+            _localization.SetText("GameWizard.Matchmaking.Cancel", "Cancel");
+            _localization.SetText("GameWizard.Matchmaking.Back", "Back");
+            _localization.SetText("GameWizard.Matchmaking.Retry", "Retry");
 
             _currentError = new ReactiveProperty<WizardError?>(null);
-            _coordinator = Substitute.For<IGameModeWizardCoordinator>();
+            _coordinator = Substitute.For<IGameWizardCoordinator>();
             _coordinator.CurrentError.Returns(_currentError);
             _coordinator.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
             _coordinator.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
@@ -184,7 +184,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             await WaitUntilAsync(() => _viewModel.State.CurrentValue == MatchmakingState.Searching, 1000);
 
             // Act
-            _localization.SetText("GameModeWizard.Matchmaking.Cancel", "Cancel-Updated");
+            _localization.SetText("GameWizard.Matchmaking.Cancel", "Cancel-Updated");
             await UniTask.Yield();
 
             // Assert
@@ -244,9 +244,9 @@ namespace Tests.PlayMode.GameModes.Wizard
             _view.ResetForPool();
             var service = new FakeMatchmakingService();
             var localization = new TestLocalizationService();
-            localization.SetText("GameModeWizard.Matchmaking.Cancel", "Cancel");
-            localization.SetText("GameModeWizard.Matchmaking.Back", "Back");
-            localization.SetText("GameModeWizard.Matchmaking.Retry", "Retry");
+            localization.SetText("GameWizard.Matchmaking.Cancel", "Cancel");
+            localization.SetText("GameWizard.Matchmaking.Back", "Back");
+            localization.SetText("GameWizard.Matchmaking.Retry", "Retry");
             var newViewModel = new MatchmakingViewModel(localization, service);
 
             // Act
@@ -364,7 +364,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         }
 
         private static MatchmakingRequest CreateValidRequest() =>
-            new MatchmakingRequest("classic", new ClassicModeConfig(3));
+            new MatchmakingRequest("classic", new TicTacToeConfig(3));
 
         private static async UniTask WaitUntilAsync(Func<bool> predicate, int timeoutMs)
         {

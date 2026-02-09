@@ -23,7 +23,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenResolveCalledWithValidKeyAndLocalizationService_ThenReturnsLocalizedMessage()
         {
             // Arrange
-            const string messageKey = "Errors.GameModeWizard.Test";
+            const string messageKey = "Errors.GameWizard.Test";
             _localization
                 .Resolve(new TextTableId("Errors"), new TextKey(messageKey), null)
                 .Returns("Localized message");
@@ -56,10 +56,10 @@ namespace Tests.EditMode.GameModes.Wizard
             // Arrange
 
             // Act
-            var result = WizardErrorMessageResolver.Resolve(null, "Errors.GameModeWizard.Test");
+            var result = WizardErrorMessageResolver.Resolve(null, "Errors.GameWizard.Test");
 
             // Assert
-            result.Should().Be("Errors.GameModeWizard.Test");
+            result.Should().Be("Errors.GameWizard.Test");
         }
 
         [Test]
@@ -80,7 +80,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenResolveWithArgsCalledAndServiceReturnsEmpty_ThenReturnsFallbackKey()
         {
             // Arrange
-            const string messageKey = "Errors.GameModeWizard.Test";
+            const string messageKey = "Errors.GameWizard.Test";
             var args = new Dictionary<string, object> { ["name"] = "Alex" };
             _localization
                 .Resolve(new TextTableId("Errors"), new TextKey(messageKey), args)
@@ -98,7 +98,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenResolveWithArgsCalledWithValidKey_ThenReturnsFormattedMessage()
         {
             // Arrange
-            const string messageKey = "Errors.GameModeWizard.Test";
+            const string messageKey = "Errors.GameWizard.Test";
             var args = new Dictionary<string, object> { ["name"] = "Alex" };
             _localization
                 .Resolve(new TextTableId("Errors"), new TextKey(messageKey), args)
@@ -133,7 +133,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenResolverReturnsWhitespace_ThenReturnsFallbackKey()
         {
             // Arrange
-            const string messageKey = "Errors.GameModeWizard.Test";
+            const string messageKey = "Errors.GameWizard.Test";
             _localization
                 .Resolve(new TextTableId("Errors"), new TextKey(messageKey), null)
                 .Returns("   ");

@@ -262,7 +262,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenServiceThrowsException_ThenStateChangesToFailedAndErrorMessageIsSet() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
-            _localization.SetText(LocaleId.EnglishUs, "Errors.GameModeWizard.MatchmakingFailed", "Failed EN");
+            _localization.SetText(LocaleId.EnglishUs, "Errors.GameWizard.MatchmakingFailed", "Failed EN");
             _service.EnqueueException(new InvalidOperationException("boom"));
 
             // Act
@@ -297,8 +297,8 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenLocaleChangesWhileErrorMessageKeyIsSet_ThenErrorMessageReResolves() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
-            _localization.SetText(LocaleId.EnglishUs, "Errors.GameModeWizard.MatchmakingFailed", "Failed EN");
-            _localization.SetText(LocaleId.Russian, "Errors.GameModeWizard.MatchmakingFailed", "Failed RU");
+            _localization.SetText(LocaleId.EnglishUs, "Errors.GameWizard.MatchmakingFailed", "Failed EN");
+            _localization.SetText(LocaleId.Russian, "Errors.GameWizard.MatchmakingFailed", "Failed RU");
             _service.EnqueueException(new InvalidOperationException("boom"));
 
             // Act
@@ -579,7 +579,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         });
 
         private static MatchmakingRequest CreateValidRequest() =>
-            new MatchmakingRequest("classic", new ClassicModeConfig(3));
+            new MatchmakingRequest("classic", new TicTacToeConfig(3));
 
         private static async UniTask WaitUntilAsync(Func<bool> predicate, int timeoutMs)
         {

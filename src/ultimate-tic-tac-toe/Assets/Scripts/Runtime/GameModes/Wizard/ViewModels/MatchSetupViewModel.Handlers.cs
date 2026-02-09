@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -16,7 +16,7 @@ namespace Runtime.GameModes.Wizard
     /// </summary>
     public sealed partial class MatchSetupViewModel
     {
-        private void ApplySnapshot(GameModeSessionSnapshot? snapshot)
+        private void ApplySnapshot(GameSessionSnapshot? snapshot)
         {
             if (snapshot == null)
                 return;
@@ -38,7 +38,7 @@ namespace Runtime.GameModes.Wizard
             ApplySnapshotCore(snapshot);
         }
 
-        private void ApplySnapshotCore(GameModeSessionSnapshot? snapshot)
+        private void ApplySnapshotCore(GameSessionSnapshot? snapshot)
         {
             if (snapshot == null)
                 return;
@@ -47,19 +47,19 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             _lastAppliedVersion = snapshot.Version;
-            _lastAppliedModeConfig = snapshot.ModeConfig;
+            _lastAppliedModeConfig = snapshot.GameConfig;
 
-            ApplySelectedMode(snapshot.SelectedModeId);
+            ApplySelectedMode(snapshot.SelectedGameId);
             ApplyOpponentTypeFromSession(snapshot.OpponentType);
             ApplyHumanOpponentKindFromSession(snapshot.HumanOpponentKind);
             ApplyBotDifficultyFromSession(snapshot.BotDifficultyId);
             ApplyTargetPlayerIdFromSession(snapshot.TargetPlayerId);
-            ApplyModeConfigFromSession(snapshot.ModeConfig);
+            ApplyModeConfigFromSession(snapshot.GameConfig);
         }
 
-        private void ApplySelectedMode(string? selectedModeId)
+        private void ApplySelectedMode(string? selectedGameId)
         {
-            var normalized = string.IsNullOrWhiteSpace(selectedModeId) ? null : selectedModeId;
+            var normalized = string.IsNullOrWhiteSpace(selectedGameId) ? null : selectedGameId;
 
             if (string.Equals(_activeModeId, normalized, StringComparison.Ordinal))
                 return;
@@ -68,12 +68,12 @@ namespace Runtime.GameModes.Wizard
             UpdateModePresentation(normalized);
         }
 
-        private void UpdateModePresentation(string? modeId)
+        private void UpdateModePresentation(string? gameId)
         {
             ReleaseActiveSettings();
 
-            if (string.IsNullOrWhiteSpace(modeId) 
-                || !_catalog.TryGetStrategy(modeId, out var strategy) 
+            if (string.IsNullOrWhiteSpace(gameId) 
+                || !_catalog.TryGetStrategy(gameId, out var strategy) 
                 || strategy == null)
             {
                 _modeTitleSubscription?.Dispose();
@@ -90,7 +90,7 @@ namespace Runtime.GameModes.Wizard
             _modeTitleSubscription?.Dispose();
             
             _modeTitleSubscription = _localization
-                .Observe(new TextTableId("Mode"), new TextKey(strategy.Metadata.DisplayNameKey))
+                .Observe(GetTableIdFromQualifiedKey(strategy.Metadata.DisplayNameKey), new TextKey(strategy.Metadata.DisplayNameKey))
                 .Subscribe(SetModeTitleTextSafe);
 
             var presentation = strategy.CreatePresentation();
@@ -155,6 +155,18 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             _modeTitleText.Value = text ?? string.Empty;
+        }
+
+        private static TextTableId GetTableIdFromQualifiedKey(string qualifiedKey)
+        {
+            if (string.IsNullOrWhiteSpace(qualifiedKey))
+                return new TextTableId("GameWizard");
+
+            var dotIndex = qualifiedKey.IndexOf('.');
+            if (dotIndex <= 0)
+                return new TextTableId("GameWizard");
+
+            return new TextTableId(qualifiedKey.Substring(0, dotIndex));
         }
 
         private void OnSessionCanStartChanged(bool canStart)
@@ -232,7 +244,7 @@ namespace Runtime.GameModes.Wizard
             UpdateInlineError();
         }
 
-        private async UniTask ApplySnapshotOnMainThreadAsync(GameModeSessionSnapshot snapshot)
+        private async UniTask ApplySnapshotOnMainThreadAsync(GameSessionSnapshot snapshot)
         {
             await UniTask.SwitchToMainThread();
 
@@ -344,7 +356,7 @@ namespace Runtime.GameModes.Wizard
         private void UpdateCanStart() =>
             _canStart.Value = _sessionCanStart;
 
-        private void ApplyModeConfig(IGameModeConfig? config)
+        private void ApplyModeConfig(IGameConfig? config)
         {
             if (config == null)
                 return;
@@ -367,7 +379,7 @@ namespace Runtime.GameModes.Wizard
             }
         }
 
-        private void ApplyModeConfigFromSession(IGameModeConfig? config)
+        private void ApplyModeConfigFromSession(IGameConfig? config)
         {
             if (config == null)
                 return;
@@ -423,14 +435,14 @@ namespace Runtime.GameModes.Wizard
             GameLog.Debug($"[MatchSetupViewModel] Ignored ObjectDisposedException in {context}.");
         }
 
-        private sealed class SessionSnapshotObserver : Observer<GameModeSessionSnapshot>
+        private sealed class SessionSnapshotObserver : Observer<GameSessionSnapshot>
         {
-            private readonly Action<GameModeSessionSnapshot> _onNext;
+            private readonly Action<GameSessionSnapshot> _onNext;
 
-            public SessionSnapshotObserver(Action<GameModeSessionSnapshot> onNext) =>
+            public SessionSnapshotObserver(Action<GameSessionSnapshot> onNext) =>
                 _onNext = onNext ?? throw new ArgumentNullException(nameof(onNext));
 
-            protected override void OnNextCore(GameModeSessionSnapshot? value)
+            protected override void OnNextCore(GameSessionSnapshot? value)
             {
                 if (value == null)
                     return;

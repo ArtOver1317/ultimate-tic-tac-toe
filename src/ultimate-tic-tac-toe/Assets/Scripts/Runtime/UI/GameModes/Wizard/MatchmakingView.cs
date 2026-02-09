@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using R3;
@@ -59,7 +59,7 @@ namespace Runtime.UI.GameModes.Wizard
         [Runtime.UI.Core.UxmlElementAttribute("ErrorOverlay", isOptional: true)]
         private WizardErrorOverlay? _errorOverlay;
 
-        private IGameModeWizardCoordinator? _coordinator;
+        private IGameWizardCoordinator? _coordinator;
         private ILocalizationService? _localization;
 
         private string _cancelLabel = string.Empty;
@@ -67,7 +67,7 @@ namespace Runtime.UI.GameModes.Wizard
         private int _hintCount;
 
         [Inject]
-        public void Construct(IGameModeWizardCoordinator coordinator, ILocalizationService localization)
+        public void Construct(IGameWizardCoordinator coordinator, ILocalizationService localization)
         {
             _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));

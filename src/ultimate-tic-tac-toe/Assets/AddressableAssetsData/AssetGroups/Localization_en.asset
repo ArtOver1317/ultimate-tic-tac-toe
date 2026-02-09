@@ -65,13 +65,13 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 95ea9f068a1e105449efe3bb383d3742
-    m_Address: loc_en_gamemodewizard
+  - m_GUID: 99e851a78ba454c4b9af4a388d42234e
+    m_Address: loc_en_gameplay
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 99e851a78ba454c4b9af4a388d42234e
-    m_Address: loc_en_gameplay
+  - m_GUID: ddd50e77b5fc0ec489e8121f66cec7b4
+    m_Address: loc_en_gamewizard
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

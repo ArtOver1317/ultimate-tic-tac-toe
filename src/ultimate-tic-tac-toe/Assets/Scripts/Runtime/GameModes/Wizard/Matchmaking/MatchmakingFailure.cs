@@ -27,7 +27,7 @@ namespace Runtime.GameModes.Wizard
         }
 
         public static MatchmakingFailure Timeout() =>
-            new("matchmaking.timeout", "Errors.GameModeWizard.MatchmakingTimeout", isTimeout: true);
+            new("matchmaking.timeout", "Errors.GameWizard.MatchmakingTimeout", isTimeout: true);
 
         public static MatchmakingFailure FromException(Exception ex)
         {
@@ -35,8 +35,8 @@ namespace Runtime.GameModes.Wizard
                 throw new ArgumentNullException(nameof(ex));
 
             return ex is OperationCanceledException 
-                ? new MatchmakingFailure("matchmaking.cancelled", "Errors.GameModeWizard.MatchmakingCancelled", isTimeout: false) 
-                : new MatchmakingFailure("matchmaking.failed", "Errors.GameModeWizard.MatchmakingFailed", isTimeout: false);
+                ? new MatchmakingFailure("matchmaking.cancelled", "Errors.GameWizard.MatchmakingCancelled", isTimeout: false) 
+                : new MatchmakingFailure("matchmaking.failed", "Errors.GameWizard.MatchmakingFailed", isTimeout: false);
         }
     }
 }

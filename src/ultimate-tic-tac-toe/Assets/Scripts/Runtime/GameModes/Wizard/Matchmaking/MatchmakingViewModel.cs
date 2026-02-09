@@ -62,20 +62,20 @@ namespace Runtime.GameModes.Wizard
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
             _service = service ?? throw new ArgumentNullException(nameof(service));
 
-            var table = new TextTableId("GameModeWizard");
-            TitleText = _localization.Observe(table, new TextKey("GameModeWizard.Matchmaking.Title"));
-            SearchingPrefixText = _localization.Observe(table, new TextKey("GameModeWizard.Matchmaking.SearchingFor"));
-            FoundText = _localization.Observe(table, new TextKey("GameModeWizard.Matchmaking.Found"));
-            FailedText = _localization.Observe(table, new TextKey("GameModeWizard.Matchmaking.Failed"));
-            CancelledText = _localization.Observe(table, new TextKey("GameModeWizard.Matchmaking.Cancelled"));
-            CancelButtonText = _localization.Observe(table, new TextKey("GameModeWizard.Matchmaking.Cancel"));
-            RetryButtonText = _localization.Observe(table, new TextKey("GameModeWizard.Matchmaking.Retry"));
-            BackButtonText = _localization.Observe(table, new TextKey("GameModeWizard.Matchmaking.Back"));
+            var table = new TextTableId("GameWizard");
+            TitleText = _localization.Observe(table, new TextKey("GameWizard.Matchmaking.Title"));
+            SearchingPrefixText = _localization.Observe(table, new TextKey("GameWizard.Matchmaking.SearchingFor"));
+            FoundText = _localization.Observe(table, new TextKey("GameWizard.Matchmaking.Found"));
+            FailedText = _localization.Observe(table, new TextKey("GameWizard.Matchmaking.Failed"));
+            CancelledText = _localization.Observe(table, new TextKey("GameWizard.Matchmaking.Cancelled"));
+            CancelButtonText = _localization.Observe(table, new TextKey("GameWizard.Matchmaking.Cancel"));
+            RetryButtonText = _localization.Observe(table, new TextKey("GameWizard.Matchmaking.Retry"));
+            BackButtonText = _localization.Observe(table, new TextKey("GameWizard.Matchmaking.Back"));
 
             var hintArgs = _playersWithDifferentParams
                 .Select(count => new Dictionary<string, object> { { "count", count } } as IReadOnlyDictionary<string, object>);
 
-            HintText = _localization.Observe(table, new TextKey("GameModeWizard.Matchmaking.Hint"), hintArgs);
+            HintText = _localization.Observe(table, new TextKey("GameWizard.Matchmaking.Hint"), hintArgs);
         }
 
         public override void Initialize()
@@ -187,7 +187,7 @@ namespace Runtime.GameModes.Wizard
             catch (Exception ex)
             {
                 GameLog.Exception(ex);
-                _errorMessageKey.Value = "Errors.GameModeWizard.MatchmakingFailed";
+                _errorMessageKey.Value = "Errors.GameWizard.MatchmakingFailed";
                 _stateFallback.Value = MatchmakingState.Failed;
             }
             finally

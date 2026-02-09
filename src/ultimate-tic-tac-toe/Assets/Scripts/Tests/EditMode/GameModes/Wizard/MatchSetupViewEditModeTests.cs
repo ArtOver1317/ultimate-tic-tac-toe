@@ -32,8 +32,8 @@ namespace Tests.EditMode.GameModes.Wizard
         private VisualTreeAsset _uxml = null!;
 
         private MatchSetupViewModel _viewModel = null!;
-        private FakeGameModeSession _session = null!;
-        private IGameModeWizardCoordinator _coordinator = null!;
+        private FakeGameSession _session = null!;
+        private IGameWizardCoordinator _coordinator = null!;
         private ILocalizationService _localization = null!;
         private ReactiveProperty<bool> _isTransitioning = null!;
         private ReactiveProperty<bool> _isSubmitting = null!;
@@ -63,27 +63,27 @@ namespace Tests.EditMode.GameModes.Wizard
             _isSubmitting = new ReactiveProperty<bool>(false);
             _currentError = new ReactiveProperty<WizardError?>(null);
 
-            _session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            _session = new FakeGameSession(GameSessionSnapshot.Default);
 
-            _coordinator = Substitute.For<IGameModeWizardCoordinator>();
+            _coordinator = Substitute.For<IGameWizardCoordinator>();
             _coordinator.IsTransitioning.Returns(_isTransitioning);
             _coordinator.IsSubmitting.Returns(_isSubmitting);
             _coordinator.CurrentError.Returns(_currentError);
 #pragma warning disable CS8601
-            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(callInfo =>
+            _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(callInfo =>
             {
                 callInfo[0] = _session!;
                 return true;
             });
 #pragma warning restore CS8601
 
-            var catalog = Substitute.For<IGameModeCatalog>();
+            var catalog = Substitute.For<IGameCatalog>();
             var difficultyCatalog = new BotDifficultyCatalog();
             _viewModel = new MatchSetupViewModel(catalog, _coordinator, _localization, difficultyCatalog);
             _viewModel.DisablePlayerLoopForTests();
 
             var assetProvider = new FakeViewAssetProvider();
-            var binders = Array.Empty<IModeSettingsBinder>();
+            var binders = Array.Empty<IGameSettingsBinder>();
             _view.Construct(assetProvider, binders, _localization);
 
             _view.SetViewModel(_viewModel);
@@ -246,7 +246,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var radio = _view.RootForTests.Q<HumanKindRadio>("HumanKindRadio");
 
             // Act
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+            _session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Local)
                 .WithVersion(1));
@@ -264,7 +264,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var section = _view.RootForTests.Q<VisualElement>("HumanSettingsSection");
             section.style.display.value.Should().Be(DisplayStyle.None);
 
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+            _session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithVersion(1));
@@ -292,7 +292,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var input = _view.RootForTests.Q<PlayerIdInput>("PlayerIdInput");
 
             // Act
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+            _session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithVersion(1));
@@ -308,7 +308,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var input = _view.RootForTests.Q<PlayerIdInput>("PlayerIdInput");
 
             // Act
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+            _session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Local)
                 .WithVersion(1));
@@ -321,7 +321,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenValidationErrorTargetsPlayerId_ThenPlayerIdErrorLabelUpdates()
         {
             // Arrange
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+            _session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithVersion(1));
@@ -332,11 +332,11 @@ namespace Tests.EditMode.GameModes.Wizard
             // Act
             _session.EmitValidationErrors(new List<ValidationError>
             {
-                new(WizardFieldNames.TargetPlayerId, "Errors.GameModeWizard.PlayerIdInvalid")
+                new(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdInvalid")
             });
 
             // Assert
-            errorLabel.text.Should().Be("Errors.GameModeWizard.PlayerIdInvalid");
+            errorLabel.text.Should().Be("Errors.GameWizard.PlayerIdInvalid");
             errorLabel.style.display.value.Should().Be(DisplayStyle.Flex);
         }
 
@@ -346,7 +346,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Arrange
             var radio = _view.RootForTests.Q<HumanKindRadio>("HumanKindRadio");
 
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+            _session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.Local)
                 .WithVersion(1));
@@ -354,7 +354,7 @@ namespace Tests.EditMode.GameModes.Wizard
             radio.SelectedKind.Should().Be(HumanOpponentKind.Local);
 
             // Act
-            Action act = () => _session.EmitSnapshot(GameModeSessionSnapshot.Default
+            Action act = () => _session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithVersion(2));
@@ -452,7 +452,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenIsBusyTrue_ThenPlayerIdInputIsDisabled()
         {
             // Arrange
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+            _session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithVersion(1));
@@ -470,7 +470,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenSessionTargetPlayerIdChanges_ThenPlayerIdInputValueUpdates()
         {
             // Arrange
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+            _session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithTargetPlayerId("777")
@@ -481,7 +481,7 @@ namespace Tests.EditMode.GameModes.Wizard
             playerIdInput.Value.Should().Be("777");
 
             // Act
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default
+            _session.EmitSnapshot(GameSessionSnapshot.Default
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
                 .WithTargetPlayerId("12345")
@@ -528,50 +528,50 @@ namespace Tests.EditMode.GameModes.Wizard
 
             Action updateAct = () => _session.EmitValidationErrors(new List<ValidationError>
             {
-                new("ModeConfig", "Errors.GameModeWizard.ModeConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
             });
 
             updateAct.Should().NotThrow();
         }
 
-        private sealed class FakeGameModeSession : IGameModeSession
+        private sealed class FakeGameSession : IGameSession
         {
-            private readonly ReactiveProperty<GameModeSessionSnapshot> _snapshot;
+            private readonly ReactiveProperty<GameSessionSnapshot> _snapshot;
             private readonly ReactiveProperty<bool> _canStart;
             private readonly ReactiveProperty<IReadOnlyList<ValidationError>> _validationErrors;
 
-            public FakeGameModeSession(GameModeSessionSnapshot initial)
+            public FakeGameSession(GameSessionSnapshot initial)
             {
-                _snapshot = new ReactiveProperty<GameModeSessionSnapshot>(initial);
+                _snapshot = new ReactiveProperty<GameSessionSnapshot>(initial);
                 _canStart = new ReactiveProperty<bool>(false);
                 _validationErrors = new ReactiveProperty<IReadOnlyList<ValidationError>>(Array.Empty<ValidationError>());
             }
 
-            public ReadOnlyReactiveProperty<GameModeSessionSnapshot> Snapshot => _snapshot;
+            public ReadOnlyReactiveProperty<GameSessionSnapshot> Snapshot => _snapshot;
             public ReadOnlyReactiveProperty<bool> CanStart => _canStart;
             public ReadOnlyReactiveProperty<IReadOnlyList<ValidationError>> ValidationErrors => _validationErrors;
 
-            public void EmitSnapshot(GameModeSessionSnapshot snapshot) => _snapshot.Value = snapshot;
+            public void EmitSnapshot(GameSessionSnapshot snapshot) => _snapshot.Value = snapshot;
 
             public void EmitCanStart(bool value) => _canStart.Value = value;
 
             public void EmitValidationErrors(IReadOnlyList<ValidationError> errors) => _validationErrors.Value = errors;
 
-            public void Update(Func<GameModeSessionSnapshot, GameModeSessionSnapshot> reducer)
+            public void Update(Func<GameSessionSnapshot, GameSessionSnapshot> reducer)
             {
-                var current = _snapshot.Value ?? GameModeSessionSnapshot.Default;
-                var updated = reducer(current) ?? GameModeSessionSnapshot.Default;
+                var current = _snapshot.Value ?? GameSessionSnapshot.Default;
+                var updated = reducer(current) ?? GameSessionSnapshot.Default;
                 var nextVersion = current.Version + 1;
                 if (updated.Version < nextVersion)
                     updated = updated.WithVersion(nextVersion);
                 _snapshot.Value = updated;
             }
 
-            public void SetModeConfig(IGameModeConfig config) { }
+            public void SetModeConfig(IGameConfig config) { }
 
             public Result<GameLaunchConfig> BuildLaunchConfig() => throw new NotSupportedException();
 
-            public void Reset() => _snapshot.Value = GameModeSessionSnapshot.Default;
+            public void Reset() => _snapshot.Value = GameSessionSnapshot.Default;
 
             public void Dispose()
             {
@@ -589,7 +589,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
         private MatchSetupViewModel CreateViewModel()
         {
-            var catalog = Substitute.For<IGameModeCatalog>();
+            var catalog = Substitute.For<IGameCatalog>();
             var difficultyCatalog = new BotDifficultyCatalog();
             var viewModel = new MatchSetupViewModel(catalog, _coordinator, _localization, difficultyCatalog);
             viewModel.DisablePlayerLoopForTests();

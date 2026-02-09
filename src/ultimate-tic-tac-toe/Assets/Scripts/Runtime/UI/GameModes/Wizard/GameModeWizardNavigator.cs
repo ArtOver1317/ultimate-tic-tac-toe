@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.Localization;
@@ -7,23 +7,25 @@ using Runtime.Services.UI;
 
 namespace Runtime.UI.GameModes.Wizard
 {
-    public sealed class GameModeWizardNavigator : IGameModeWizardNavigator
+    public sealed class GameWizardNavigator : IGameWizardNavigator
     {
         private readonly IUIService _uiService;
         private readonly ILocalizationService _localization;
 
         private static readonly TextTableId[] ModeSelectionTables =
         {
-            new("GameModeWizard"),
+            new("GameWizard"),
             new("Mode"),
+            new("Game"),
         };
 
         private static readonly TextTableId[] WizardTables =
         {
-            new("GameModeWizard"),
+            new("GameWizard"),
+            new("Game"),
         };
 
-        public GameModeWizardNavigator(IUIService uiService, ILocalizationService localization)
+        public GameWizardNavigator(IUIService uiService, ILocalizationService localization)
         {
             _uiService = uiService ?? throw new ArgumentNullException(nameof(uiService));
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
@@ -32,7 +34,7 @@ namespace Runtime.UI.GameModes.Wizard
         public async UniTask OpenModeSelectionAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            await _uiService.OpenWithLocalizationPreloadAsync<ModeSelectionView, ModeSelectionViewModel>(
+            await _uiService.OpenWithLocalizationPreloadAsync<GameSelectionView, GameSelectionViewModel>(
                 _localization,
                 ModeSelectionTables,
                 ct);
@@ -41,7 +43,7 @@ namespace Runtime.UI.GameModes.Wizard
         public UniTask CloseModeSelectionAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            _uiService.Close<ModeSelectionView>();
+            _uiService.Close<GameSelectionView>();
             return UniTask.CompletedTask;
         }
 
@@ -81,7 +83,7 @@ namespace Runtime.UI.GameModes.Wizard
         public UniTask ReplaceModeSelectionWithMatchSetupAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            return _uiService.ReplaceWithLocalizationPreloadAsync<ModeSelectionView, MatchSetupView, MatchSetupViewModel>(
+            return _uiService.ReplaceWithLocalizationPreloadAsync<GameSelectionView, MatchSetupView, MatchSetupViewModel>(
                 _localization,
                 WizardTables,
                 ct);
@@ -90,7 +92,7 @@ namespace Runtime.UI.GameModes.Wizard
         public UniTask ReplaceMatchSetupWithModeSelectionAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            return _uiService.ReplaceWithLocalizationPreloadAsync<MatchSetupView, ModeSelectionView, ModeSelectionViewModel>(
+            return _uiService.ReplaceWithLocalizationPreloadAsync<MatchSetupView, GameSelectionView, GameSelectionViewModel>(
                 _localization,
                 ModeSelectionTables,
                 ct);
@@ -118,7 +120,7 @@ namespace Runtime.UI.GameModes.Wizard
         public UniTask CloseAllWizardWindowsAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            _uiService.Close<ModeSelectionView>();
+            _uiService.Close<GameSelectionView>();
             _uiService.Close<MatchSetupView>();
             _uiService.Close<MatchmakingView>();
             return UniTask.CompletedTask;

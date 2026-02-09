@@ -117,7 +117,7 @@ namespace Runtime.GameModes.Wizard
             }
 
             var disposables = new CompositeDisposable();
-            var table = new TextTableId("GameModeWizard");
+            var table = new TextTableId("GameWizard");
 
             foreach (var difficulty in difficulties)
             {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Runtime.Infrastructure.EntryPoint;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
@@ -43,48 +43,37 @@ namespace Runtime.Infrastructure.Scopes
             // Game Mode Wizard
             builder.Register<IGameLaunchConfigStore, GameLaunchConfigStore>(Lifetime.Singleton);
             
-            builder.Register<IGameModeSession>(resolver =>
-                    new GameModeSession(resolver.Resolve<IGameModeCatalog>()),
+            builder.Register<IGameSession>(resolver =>
+                    new GameSession(resolver.Resolve<IGameCatalog>()),
                 Lifetime.Transient);
             
-            builder.Register<Func<IGameModeSession>>(
-                resolver => () => resolver.Resolve<IGameModeSession>(),
+            builder.Register<Func<IGameSession>>(
+                resolver => () => resolver.Resolve<IGameSession>(),
                 Lifetime.Singleton);
             
-            builder.Register<IGameModeWizardCoordinator, GameModeWizardCoordinator>(Lifetime.Singleton);
-            builder.Register<IGameModeWizardNavigator, GameModeWizardNavigator>(Lifetime.Singleton);
-            builder.Register<IGameModeCatalog, GameModeCatalog>(Lifetime.Singleton);
+            builder.Register<IGameWizardCoordinator, GameWizardCoordinator>(Lifetime.Singleton);
+            builder.Register<IGameWizardNavigator, GameWizardNavigator>(Lifetime.Singleton);
+            builder.Register<IGameCatalog, GameCatalog>(Lifetime.Singleton);
             builder.Register<IBotDifficultyCatalog, BotDifficultyCatalog>(Lifetime.Singleton);
             builder.Register<IMatchmakingService, MatchmakingServiceStub>(Lifetime.Singleton);
 
             builder.Register<Gameplay.IGameplayScopeAccessor, Gameplay.GameplayScopeAccessor>(Lifetime.Singleton);
 
-            builder.Register<ModeSelectionViewModel>(Lifetime.Transient);
+            builder.Register<GameSelectionViewModel>(Lifetime.Transient);
             builder.Register<MatchSetupViewModel>(Lifetime.Transient);
             builder.Register<MatchmakingViewModel>(Lifetime.Transient);
-            builder.Register<ClassicSettingsViewModel>(Lifetime.Transient);
-            builder.Register<UltimateSettingsViewModel>(Lifetime.Transient);
+            builder.Register<TicTacToeSettingsViewModel>(Lifetime.Transient);
 
-            builder.Register<Func<ClassicSettingsViewModel>>(
-                resolver => () => resolver.Resolve<ClassicSettingsViewModel>(),
-                Lifetime.Singleton);
-            
-            builder.Register<Func<UltimateSettingsViewModel>>(
-                resolver => () => resolver.Resolve<UltimateSettingsViewModel>(),
+            builder.Register<Func<TicTacToeSettingsViewModel>>(
+                resolver => () => resolver.Resolve<TicTacToeSettingsViewModel>(),
                 Lifetime.Singleton);
 
             builder.Register(resolver =>
-                        new ClassicModeStrategy(resolver.Resolve<Func<ClassicSettingsViewModel>>()),
+                        new TicTacToeStrategy(resolver.Resolve<Func<TicTacToeSettingsViewModel>>()),
                     Lifetime.Singleton)
-                .As<IGameModeStrategy>();
+                .As<IGameStrategy>();
 
-            builder.Register(resolver =>
-                        new UltimateModeStrategy(resolver.Resolve<Func<UltimateSettingsViewModel>>()),
-                    Lifetime.Singleton)
-                .As<IGameModeStrategy>();
-
-            builder.Register<IModeSettingsBinder, ClassicModeSettingsBinder>(Lifetime.Singleton);
-            builder.Register<IModeSettingsBinder, UltimateModeSettingsBinder>(Lifetime.Singleton);
+            builder.Register<IGameSettingsBinder, TicTacToeSettingsBinder>(Lifetime.Singleton);
             
             // Localization Services
             // Note: Factory registration required - VContainer cannot auto-resolve constructors with optional parameters.

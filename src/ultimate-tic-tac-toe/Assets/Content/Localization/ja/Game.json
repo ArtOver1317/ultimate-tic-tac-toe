@@ -3,11 +3,13 @@
   "locale": "ja-JP",
   "table": "Game",
   "entries": {
+    "Game.Description.TicTacToe": "○×ゲーム — クラシックとアルティメット",
     "Game.OpponentTurn": "{playerName}のターン",
     "Game.Pause": "一時停止",
     "Game.Resume": "再開",
     "Game.Score": "スコア: {score}",
     "Game.Surrender": "降参",
+    "Game.TicTacToe": "○×ゲーム",
     "Game.Timer": "時間: {seconds}秒",
     "Game.YourTurn": "あなたのターン"
   }

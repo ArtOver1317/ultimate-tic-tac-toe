@@ -1,4 +1,4 @@
-namespace Runtime.GameModes.Wizard
+﻿namespace Runtime.GameModes.Wizard
 {
     /// <summary>
     /// Final output built from a validated wizard session.
@@ -6,19 +6,19 @@ namespace Runtime.GameModes.Wizard
     /// </summary>
     public sealed class GameLaunchConfig
     {
-        public string GameModeId { get; }
-        public IGameModeConfig ModeConfig { get; }
+        public string GameId { get; }
+        public IGameConfig GameConfig { get; }
         public IOpponentConfig OpponentConfig { get; }
 
-        public GameLaunchConfig(string gameModeId, IGameModeConfig modeConfig, IOpponentConfig opponentConfig)
+        public GameLaunchConfig(string gameId, IGameConfig gameConfig, IOpponentConfig opponentConfig)
         {
-            if (string.IsNullOrWhiteSpace(gameModeId))
-                throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(gameModeId));
+            if (string.IsNullOrWhiteSpace(gameId))
+                throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(gameId));
             
-            ModeConfig = modeConfig ?? throw new System.ArgumentNullException(nameof(modeConfig));
+            GameConfig = gameConfig ?? throw new System.ArgumentNullException(nameof(gameConfig));
             OpponentConfig = opponentConfig ?? throw new System.ArgumentNullException(nameof(opponentConfig));
 
-            GameModeId = gameModeId;
+            GameId = gameId;
         }
     }
 }

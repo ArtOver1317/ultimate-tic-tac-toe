@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
@@ -23,8 +23,8 @@ namespace Tests.EditMode.GameModes.Wizard
 
         private static GameLaunchConfig CreateConfig(int seed) =>
             new GameLaunchConfig(
-                gameModeId: $"test-mode-{seed}",
-                modeConfig: new ClassicModeConfig(boardSize: 3),
+                gameId: $"test-mode-{seed}",
+                gameConfig: new TicTacToeConfig(boardSize: 3),
                 opponentConfig: new LocalHumanConfig());
 
         [Test]
@@ -51,7 +51,7 @@ namespace Tests.EditMode.GameModes.Wizard
                     {
                         var id = $"writer-{writerIndex}-i-{i}";
                         writtenIds.TryAdd(id, 0);
-                        _sut.Set(new GameLaunchConfig(id, new ClassicModeConfig(3), new LocalHumanConfig()));
+                        _sut.Set(new GameLaunchConfig(id, new TicTacToeConfig(3), new LocalHumanConfig()));
                     }
                 }
                 catch (Exception ex)
@@ -69,7 +69,7 @@ namespace Tests.EditMode.GameModes.Wizard
                     for (var i = 0; i < iterations; i++)
                     {
                         if (_sut.TryPeek(out var config))
-                            peekedIds.Add(config.GameModeId);
+                            peekedIds.Add(config.GameId);
                     }
                 }
                 catch (Exception ex)

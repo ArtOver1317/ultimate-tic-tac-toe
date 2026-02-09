@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
@@ -20,7 +20,7 @@ namespace Runtime.UI.MainMenu
         private readonly IGameStateMachine _stateMachine;
         private readonly IUIService _uiService;
         private readonly ILocalizationService _localization;
-        private readonly IGameModeWizardCoordinator _wizardCoordinator;
+        private readonly IGameWizardCoordinator _wizardCoordinator;
         private CompositeDisposable _disposables = new();
         private CompositeDisposable _wizardDisposables = new();
         private CancellationTokenSource _lifecycleCts = new();
@@ -35,7 +35,7 @@ namespace Runtime.UI.MainMenu
             IGameStateMachine stateMachine,
             IUIService uiService,
             ILocalizationService localization,
-            IGameModeWizardCoordinator wizardCoordinator)
+            IGameWizardCoordinator wizardCoordinator)
         {
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             _uiService = uiService ?? throw new ArgumentNullException(nameof(uiService));

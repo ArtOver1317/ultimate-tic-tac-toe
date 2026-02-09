@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.GameModes.Wizard;
@@ -18,7 +18,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
     {
         private readonly IUIService _uiService;
         private readonly IMainMenuCoordinator _coordinator;
-        private readonly IGameModeWizardCoordinator _wizardCoordinator;
+        private readonly IGameWizardCoordinator _wizardCoordinator;
         private readonly IMainMenuEntryModeStore _entryModeStore;
         private readonly IAssetProvider _assets;
         private readonly AssetLibrary _assetLibrary;
@@ -29,7 +29,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
         public MainMenuState(
             IUIService uiService, 
             IMainMenuCoordinator coordinator,
-            IGameModeWizardCoordinator wizardCoordinator,
+            IGameWizardCoordinator wizardCoordinator,
             IMainMenuEntryModeStore entryModeStore,
             IAssetProvider assets,
             AssetLibrary assetLibrary,
@@ -133,7 +133,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
                 "[MainMenuState] LanguageSelectionPrefab is missing or invalid. Language selection will be disabled.",
                 cancellationToken);
 
-            await TryRegisterWindowPrefabAsync<ModeSelectionView>(
+            await TryRegisterWindowPrefabAsync<GameSelectionView>(
                 _assetLibrary.ModeSelectionPrefab,
                 "[MainMenuState] ModeSelectionPrefab is missing or invalid. Game mode wizard will be disabled.",
                 cancellationToken);

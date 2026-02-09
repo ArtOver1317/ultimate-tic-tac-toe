@@ -30,6 +30,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 60947fe316a90e04c992297590e0faf7
+    m_Address: ui/mode-settings/tic-tac-toe
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 6b7c529509c1a554b82932de3c4dfbc6
     m_Address: Assets/Content/UI/Settings/Prefabs/SettingsUI.prefab
     m_ReadOnly: 0

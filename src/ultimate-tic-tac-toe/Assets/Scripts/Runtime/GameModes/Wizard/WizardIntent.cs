@@ -1,8 +1,8 @@
-namespace Runtime.GameModes.Wizard
+﻿namespace Runtime.GameModes.Wizard
 {
     /// <summary>
     /// High-level navigation intents produced by wizard view-models.
-    /// Processed by <see cref="IGameModeWizardCoordinator"/>.
+    /// Processed by <see cref="IGameWizardCoordinator"/>.
     /// </summary>
     public enum WizardIntent
     {

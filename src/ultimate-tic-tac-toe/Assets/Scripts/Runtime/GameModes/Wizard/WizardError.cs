@@ -43,7 +43,7 @@ namespace Runtime.GameModes.Wizard
 
             return new WizardError(
                 code: "wizard.unhandled_exception",
-                messageKey: "Errors.GameModeWizard.UnhandledException",
+                messageKey: "Errors.GameWizard.UnhandledException",
                 isBlocking: true,
                 displayType: ErrorDisplayType.Modal);
         }

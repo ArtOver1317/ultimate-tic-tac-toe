@@ -3,11 +3,13 @@
   "locale": "en-US",
   "table": "Game",
   "entries": {
+    "Game.Description.TicTacToe": "Classic and Ultimate Tic-Tac-Toe",
     "Game.OpponentTurn": "{playerName}'s Turn",
     "Game.Pause": "Pause",
     "Game.Resume": "Resume",
     "Game.Score": "Score: {score}",
     "Game.Surrender": "Surrender",
+    "Game.TicTacToe": "Tic-Tac-Toe",
     "Game.Timer": "Time: {seconds}s",
     "Game.YourTurn": "Your Turn"
   }

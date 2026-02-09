@@ -3,11 +3,13 @@
   "locale": "ru-RU",
   "table": "Game",
   "entries": {
+    "Game.Description.TicTacToe": "Крестики-нолики — классика и ультимейт",
     "Game.OpponentTurn": "Ход игрока {playerName}",
     "Game.Pause": "Пауза",
     "Game.Resume": "Продолжить",
     "Game.Score": "Счёт: {score}",
     "Game.Surrender": "Сдаться",
+    "Game.TicTacToe": "Крестики-нолики",
     "Game.Timer": "Время: {seconds}с",
     "Game.YourTurn": "Ваш ход"
   }

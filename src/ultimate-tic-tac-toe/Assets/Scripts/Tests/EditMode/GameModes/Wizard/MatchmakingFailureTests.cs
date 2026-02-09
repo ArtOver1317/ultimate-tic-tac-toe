@@ -18,7 +18,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             failure.Code.Should().Be("matchmaking.timeout");
-            failure.MessageKey.Should().Be("Errors.GameModeWizard.MatchmakingTimeout");
+            failure.MessageKey.Should().Be("Errors.GameWizard.MatchmakingTimeout");
             failure.IsTimeout.Should().BeTrue();
         }
 
@@ -33,7 +33,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             failure.Code.Should().Be("matchmaking.cancelled");
-            failure.MessageKey.Should().Be("Errors.GameModeWizard.MatchmakingCancelled");
+            failure.MessageKey.Should().Be("Errors.GameWizard.MatchmakingCancelled");
             failure.IsTimeout.Should().BeFalse();
         }
 
@@ -48,7 +48,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             failure.Code.Should().Be("matchmaking.failed");
-            failure.MessageKey.Should().Be("Errors.GameModeWizard.MatchmakingFailed");
+            failure.MessageKey.Should().Be("Errors.GameWizard.MatchmakingFailed");
             failure.IsTimeout.Should().BeFalse();
         }
 

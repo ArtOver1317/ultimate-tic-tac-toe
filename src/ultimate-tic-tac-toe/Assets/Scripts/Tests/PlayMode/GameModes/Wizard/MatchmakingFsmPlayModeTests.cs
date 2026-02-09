@@ -81,7 +81,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             _sut.Failure.CurrentValue.Should().NotBeNull();
             _sut.Failure.CurrentValue.IsTimeout.Should().BeTrue();
             _sut.Failure.CurrentValue.Code.Should().Be("matchmaking.timeout");
-            _sut.Failure.CurrentValue.MessageKey.Should().Be("Errors.GameModeWizard.MatchmakingTimeout");
+            _sut.Failure.CurrentValue.MessageKey.Should().Be("Errors.GameWizard.MatchmakingTimeout");
             _sut.Result.CurrentValue.Should().BeNull();
         });
 
@@ -274,7 +274,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             _sut.Failure.CurrentValue.Should().NotBeNull();
             _sut.Failure.CurrentValue.IsTimeout.Should().BeFalse();
             _sut.Failure.CurrentValue.Code.Should().Be("matchmaking.failed");
-            _sut.Failure.CurrentValue.MessageKey.Should().Be("Errors.GameModeWizard.MatchmakingFailed");
+            _sut.Failure.CurrentValue.MessageKey.Should().Be("Errors.GameWizard.MatchmakingFailed");
         });
 
         [UnityTest]
@@ -537,7 +537,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         });
 
         private static MatchmakingRequest CreateValidRequest() =>
-            new MatchmakingRequest("classic", new ClassicModeConfig(3));
+            new MatchmakingRequest("classic", new TicTacToeConfig(3));
 
         private static async UniTask WaitUntilAsync(Func<bool> predicate, int timeoutMs)
         {

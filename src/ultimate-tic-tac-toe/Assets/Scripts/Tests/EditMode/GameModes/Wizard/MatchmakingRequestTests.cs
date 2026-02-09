@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
@@ -9,11 +9,11 @@ namespace Tests.EditMode.GameModes.Wizard
     [Category("Unit")]
     public class MatchmakingRequestTests
     {
-        private ClassicModeConfig _config;
+        private TicTacToeConfig _config;
 
         [SetUp]
         public void SetUp() =>
-            _config = new ClassicModeConfig(3);
+            _config = new TicTacToeConfig(3);
 
         [TearDown]
         public void TearDown() =>
@@ -27,8 +27,8 @@ namespace Tests.EditMode.GameModes.Wizard
             var request = new MatchmakingRequest("classic", _config);
 
             // Assert
-            request.GameModeId.Should().Be("classic");
-            request.ModeConfig.Should().BeSameAs(_config);
+            request.GameId.Should().Be("classic");
+            request.GameConfig.Should().BeSameAs(_config);
         }
 
         [Test]

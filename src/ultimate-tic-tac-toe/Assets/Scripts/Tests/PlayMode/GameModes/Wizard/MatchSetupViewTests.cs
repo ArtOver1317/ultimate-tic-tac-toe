@@ -41,8 +41,8 @@ namespace Tests.PlayMode.GameModes.Wizard
         private VisualTreeAsset _ultimateSettingsUxml;
 
         private MatchSetupViewModel _viewModel;
-        private FakeGameModeSession _session;
-        private IGameModeWizardCoordinator _coordinator;
+        private FakeGameSession _session;
+        private IGameWizardCoordinator _coordinator;
         private ILocalizationService _localization;
         private ReactiveProperty<bool> _isTransitioning;
         private ReactiveProperty<bool> _isSubmitting;
@@ -79,25 +79,25 @@ namespace Tests.PlayMode.GameModes.Wizard
             _isSubmitting = new ReactiveProperty<bool>(false);
             _currentError = new ReactiveProperty<WizardError?>(null);
 
-            _session = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            _session = new FakeGameSession(GameSessionSnapshot.Default);
 
-            _coordinator = Substitute.For<IGameModeWizardCoordinator>();
+            _coordinator = Substitute.For<IGameWizardCoordinator>();
             _coordinator.IsTransitioning.Returns(_isTransitioning);
             _coordinator.IsSubmitting.Returns(_isSubmitting);
             _coordinator.CurrentError.Returns(_currentError);
-            _coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(callInfo =>
+            _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(callInfo =>
             {
                 callInfo[0] = _session;
                 return true;
             });
 
-            var catalog = Substitute.For<IGameModeCatalog>();
-            catalog.TryGetStrategy("classic", out Arg.Any<IGameModeStrategy>()).Returns(callInfo =>
+            var catalog = Substitute.For<IGameCatalog>();
+            catalog.TryGetStrategy("classic", out Arg.Any<IGameStrategy>()).Returns(callInfo =>
             {
                 callInfo[1] = new TestStrategy("classic", new TestSettingsViewModel(new TestGameModeConfig("classic")));
                 return true;
             });
-            catalog.TryGetStrategy("ultimate", out Arg.Any<IGameModeStrategy>()).Returns(callInfo =>
+            catalog.TryGetStrategy("ultimate", out Arg.Any<IGameStrategy>()).Returns(callInfo =>
             {
                 callInfo[1] = new TestStrategy("ultimate", new TestSettingsViewModel(new TestGameModeConfig("ultimate")));
                 return true;
@@ -106,9 +106,9 @@ namespace Tests.PlayMode.GameModes.Wizard
             var difficultyCatalog = Substitute.For<IBotDifficultyCatalog>();
             difficultyCatalog.Difficulties.Returns(new[]
             {
-                new BotDifficulty("Easy", "GameModeWizard.MatchSetup.BotDifficulty.Easy", 0),
-                new BotDifficulty("Normal", "GameModeWizard.MatchSetup.BotDifficulty.Normal", 1),
-                new BotDifficulty("Hard", "GameModeWizard.MatchSetup.BotDifficulty.Hard", 2),
+                new BotDifficulty("Easy", "GameWizard.MatchSetup.BotDifficulty.Easy", 0),
+                new BotDifficulty("Normal", "GameWizard.MatchSetup.BotDifficulty.Normal", 1),
+                new BotDifficulty("Hard", "GameWizard.MatchSetup.BotDifficulty.Hard", 2),
             });
             _viewModel = new MatchSetupViewModel(catalog, _coordinator, _localization, difficultyCatalog);
 
@@ -117,7 +117,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             _assetProvider.Register("ui/mode-settings/ultimate", _ultimateSettingsUxml);
 
             _binder = new TestBinder(typeof(TestSettingsViewModel));
-            var binders = new IModeSettingsBinder[] { _binder };
+            var binders = new IGameSettingsBinder[] { _binder };
 
             _view.Construct(_assetProvider, binders, _localization);
 
@@ -150,10 +150,10 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             // Arrange
             // Act
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(1));
+            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
             await _assetProvider.WaitForLastLoadAsync();
 
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId(null).WithVersion(2));
+            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId(null).WithVersion(2));
             await UniTask.Yield();
 
             // Assert
@@ -172,8 +172,8 @@ namespace Tests.PlayMode.GameModes.Wizard
             _assetProvider.SetIgnoreCancellation("ui/mode-settings/classic", true);
 
             // Act
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(1));
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("ultimate").WithVersion(2));
+            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
+            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("ultimate").WithVersion(2));
 
             await _assetProvider.WaitForLastLoadAsync();
             await WaitUntilAsync(
@@ -192,7 +192,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Arrange
             _assetProvider.SetDelay("ui/mode-settings/classic", TimeSpan.FromMilliseconds(500));
 
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(1));
+            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
             await WaitUntilAsync(() => _assetProvider.IsLoadInFlight, timeoutMs: 1000);
 
             // Act
@@ -209,8 +209,8 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenActiveSettingsIsNotNullAndNoBinderCanBind_ThenDoesNotThrowAndStillShowsLoadedUxml() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
-            var noBinderView = CreateViewWithBinders(Array.Empty<IModeSettingsBinder>());
-            var localSession = new FakeGameModeSession(GameModeSessionSnapshot.Default);
+            var noBinderView = CreateViewWithBinders(Array.Empty<IGameSettingsBinder>());
+            var localSession = new FakeGameSession(GameSessionSnapshot.Default);
             var localCoordinator = CreateCoordinator(localSession);
             var viewModel = CreateViewModelWithCatalog(localCoordinator);
 
@@ -219,7 +219,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             noBinderView.Show();
 
             // Act
-            localSession.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(1));
+            localSession.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
             await _assetProvider.WaitForLastLoadAsync();
 
             // Assert
@@ -238,7 +238,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Arrange
             _assetProvider.SetThrow("ui/mode-settings/ultimate", new InvalidOperationException("boom"));
 
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("classic").WithVersion(1));
+            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
             await _assetProvider.WaitForLastLoadAsync();
 
             await WaitUntilAsync(() => GetModeOptionsHost().Q<Label>("BoardSizeValue") != null, timeoutMs: 1000);
@@ -246,7 +246,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             LogAssert.Expect(LogType.Error, new Regex("InvalidOperationException: boom"));
 
             // Act
-            _session.EmitSnapshot(GameModeSessionSnapshot.Default.WithSelectedModeId("ultimate").WithVersion(2));
+            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("ultimate").WithVersion(2));
             await _assetProvider.WaitForLastLoadAsync();
 
             // Assert
@@ -266,7 +266,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Act
             _currentError.Value = new WizardError(
                 "code",
-                "Errors.GameModeWizard.Blocking",
+                "Errors.GameWizard.Blocking",
                 true,
                 ErrorDisplayType.Modal);
             yield return null;
@@ -287,7 +287,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Act
             _currentError.Value = new WizardError(
                 "code",
-                "Errors.GameModeWizard.NonBlocking",
+                "Errors.GameWizard.NonBlocking",
                 false,
                 ErrorDisplayType.Modal);
             yield return null;
@@ -300,7 +300,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
         private Button GetStartButton() => _uiDocument.rootVisualElement.Q<Button>("StartButton");
 
-        private MatchSetupView CreateViewWithBinders(IModeSettingsBinder[] binders)
+        private MatchSetupView CreateViewWithBinders(IGameSettingsBinder[] binders)
         {
             var go = new GameObject("MatchSetupView_NoBinders");
             var uiDocument = go.AddComponent<UIDocument>();
@@ -310,10 +310,10 @@ namespace Tests.PlayMode.GameModes.Wizard
             return view;
         }
 
-        private MatchSetupViewModel CreateViewModelWithCatalog(IGameModeWizardCoordinator coordinator)
+        private MatchSetupViewModel CreateViewModelWithCatalog(IGameWizardCoordinator coordinator)
         {
-            var catalog = Substitute.For<IGameModeCatalog>();
-            catalog.TryGetStrategy("classic", out Arg.Any<IGameModeStrategy>()).Returns(callInfo =>
+            var catalog = Substitute.For<IGameCatalog>();
+            catalog.TryGetStrategy("classic", out Arg.Any<IGameStrategy>()).Returns(callInfo =>
             {
                 callInfo[1] = new TestStrategy("classic", new TestSettingsViewModel(new TestGameModeConfig("classic")));
                 return true;
@@ -322,20 +322,20 @@ namespace Tests.PlayMode.GameModes.Wizard
             var difficultyCatalog = Substitute.For<IBotDifficultyCatalog>();
             difficultyCatalog.Difficulties.Returns(new[]
             {
-                new BotDifficulty("Easy", "GameModeWizard.MatchSetup.BotDifficulty.Easy", 0),
-                new BotDifficulty("Normal", "GameModeWizard.MatchSetup.BotDifficulty.Normal", 1),
-                new BotDifficulty("Hard", "GameModeWizard.MatchSetup.BotDifficulty.Hard", 2),
+                new BotDifficulty("Easy", "GameWizard.MatchSetup.BotDifficulty.Easy", 0),
+                new BotDifficulty("Normal", "GameWizard.MatchSetup.BotDifficulty.Normal", 1),
+                new BotDifficulty("Hard", "GameWizard.MatchSetup.BotDifficulty.Hard", 2),
             });
             return new MatchSetupViewModel(catalog, coordinator, _localization, difficultyCatalog);
         }
 
-        private IGameModeWizardCoordinator CreateCoordinator(FakeGameModeSession session)
+        private IGameWizardCoordinator CreateCoordinator(FakeGameSession session)
         {
-            var coordinator = Substitute.For<IGameModeWizardCoordinator>();
+            var coordinator = Substitute.For<IGameWizardCoordinator>();
             coordinator.IsTransitioning.Returns(_isTransitioning);
             coordinator.IsSubmitting.Returns(_isSubmitting);
             coordinator.CurrentError.Returns(_currentError);
-            coordinator.TryGetSession(out Arg.Any<IGameModeSession>()).Returns(callInfo =>
+            coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(callInfo =>
             {
                 callInfo[0] = session;
                 return true;
@@ -343,42 +343,42 @@ namespace Tests.PlayMode.GameModes.Wizard
             return coordinator;
         }
 
-        private sealed class FakeGameModeSession : IGameModeSession
+        private sealed class FakeGameSession : IGameSession
         {
-            private readonly ReactiveProperty<GameModeSessionSnapshot> _snapshot;
+            private readonly ReactiveProperty<GameSessionSnapshot> _snapshot;
             private readonly ReactiveProperty<bool> _canStart;
             private readonly ReactiveProperty<IReadOnlyList<ValidationError>> _validationErrors;
 
-            public FakeGameModeSession(GameModeSessionSnapshot initial)
+            public FakeGameSession(GameSessionSnapshot initial)
             {
-                _snapshot = new ReactiveProperty<GameModeSessionSnapshot>(initial);
+                _snapshot = new ReactiveProperty<GameSessionSnapshot>(initial);
                 _canStart = new ReactiveProperty<bool>(false);
                 _validationErrors = new ReactiveProperty<IReadOnlyList<ValidationError>>(Array.Empty<ValidationError>());
             }
 
-            public ReadOnlyReactiveProperty<GameModeSessionSnapshot> Snapshot => _snapshot;
+            public ReadOnlyReactiveProperty<GameSessionSnapshot> Snapshot => _snapshot;
             public ReadOnlyReactiveProperty<bool> CanStart => _canStart;
             public ReadOnlyReactiveProperty<IReadOnlyList<ValidationError>> ValidationErrors => _validationErrors;
 
-            public void EmitSnapshot(GameModeSessionSnapshot snapshot) => _snapshot.Value = snapshot;
+            public void EmitSnapshot(GameSessionSnapshot snapshot) => _snapshot.Value = snapshot;
 
             public void SetCanStart(bool canStart) => _canStart.Value = canStart;
 
-            public void Update(Func<GameModeSessionSnapshot, GameModeSessionSnapshot> reducer)
+            public void Update(Func<GameSessionSnapshot, GameSessionSnapshot> reducer)
             {
-                var current = _snapshot.Value ?? GameModeSessionSnapshot.Default;
-                var updated = reducer(current) ?? GameModeSessionSnapshot.Default;
+                var current = _snapshot.Value ?? GameSessionSnapshot.Default;
+                var updated = reducer(current) ?? GameSessionSnapshot.Default;
                 var nextVersion = current.Version + 1;
                 if (updated.Version < nextVersion)
                     updated = updated.WithVersion(nextVersion);
                 _snapshot.Value = updated;
             }
 
-            public void SetModeConfig(IGameModeConfig config) { }
+            public void SetModeConfig(IGameConfig config) { }
 
             public Result<GameLaunchConfig> BuildLaunchConfig() => throw new NotSupportedException();
 
-            public void Reset() => _snapshot.Value = GameModeSessionSnapshot.Default;
+            public void Reset() => _snapshot.Value = GameSessionSnapshot.Default;
 
             public void Dispose()
             {
@@ -388,47 +388,46 @@ namespace Tests.PlayMode.GameModes.Wizard
             }
         }
 
-        private sealed class TestStrategy : IGameModeStrategy
+        private sealed class TestStrategy : IGameStrategy
         {
             private readonly TestSettingsViewModel _viewModel;
 
-            public TestStrategy(string modeId, TestSettingsViewModel viewModel)
+            public TestStrategy(string gameId, TestSettingsViewModel viewModel)
             {
-                ModeId = modeId;
+                GameId = gameId;
                 _viewModel = viewModel;
-                Metadata = new GameModeMetadata(
-                    id: modeId,
+                Metadata = new GameMetadata(
+                    id: gameId,
                     displayNameKey: "Mode.Test",
                     descriptionKey: "desc",
                     iconAssetKey: "icon",
                     sortOrder: 0,
                     supportsBot: true,
                     supportsOnline: true,
-                    supportsLocal: true,
-                    fieldKind: FieldKind.Classic);
+                    supportsLocal: true);
             }
 
-            public string ModeId { get; }
-            public GameModeMetadata Metadata { get; }
+            public string GameId { get; }
+            public GameMetadata Metadata { get; }
 
-            public ModeSettingsPresentation CreatePresentation() =>
-                new ModeSettingsPresentation($"ui/mode-settings/{ModeId}", _viewModel);
+            public GameSettingsPresentation CreatePresentation() =>
+                new GameSettingsPresentation($"ui/mode-settings/{GameId}", _viewModel);
 
-            public IReadOnlyList<ValidationError> ValidateConfig(IGameModeConfig? config) => Array.Empty<ValidationError>();
+            public IReadOnlyList<ValidationError> ValidateConfig(IGameConfig? config) => Array.Empty<ValidationError>();
         }
 
-        private sealed class TestSettingsViewModel : BaseViewModel, ISpecificModeSettingsViewModel
+        private sealed class TestSettingsViewModel : BaseViewModel, IGameSettingsViewModel
         {
-            private readonly ReactiveProperty<IGameModeConfig> _config;
+            private readonly ReactiveProperty<IGameConfig> _config;
             private readonly ReactiveProperty<bool> _isValid = new(true);
 
-            public TestSettingsViewModel(IGameModeConfig config) =>
-                _config = new ReactiveProperty<IGameModeConfig>(config);
+            public TestSettingsViewModel(IGameConfig config) =>
+                _config = new ReactiveProperty<IGameConfig>(config);
 
-            public ReadOnlyReactiveProperty<IGameModeConfig> Config => _config;
+            public ReadOnlyReactiveProperty<IGameConfig> Config => _config;
             public ReadOnlyReactiveProperty<bool> IsValid => _isValid;
 
-            public bool TryApplyConfig(IGameModeConfig config)
+            public bool TryApplyConfig(IGameConfig config)
             {
                 if (config == null)
                     return false;
@@ -445,13 +444,13 @@ namespace Tests.PlayMode.GameModes.Wizard
             }
         }
 
-        private sealed class TestGameModeConfig : IGameModeConfig
+        private sealed class TestGameModeConfig : IGameConfig
         {
             public TestGameModeConfig(string value) => Value = value;
             public string Value { get; }
         }
 
-        private sealed class TestBinder : IModeSettingsBinder
+        private sealed class TestBinder : IGameSettingsBinder
         {
             private readonly Type _supportedType;
 
@@ -459,9 +458,9 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             public int DisposedCount { get; private set; }
 
-            public bool CanBind(ISpecificModeSettingsViewModel viewModel) => viewModel?.GetType() == _supportedType;
+            public bool CanBind(IGameSettingsViewModel viewModel) => viewModel?.GetType() == _supportedType;
 
-            public void Bind(VisualElement root, ISpecificModeSettingsViewModel viewModel, CompositeDisposable disposables) =>
+            public void Bind(VisualElement root, IGameSettingsViewModel viewModel, CompositeDisposable disposables) =>
                 disposables.Add(Disposable.Create(() => DisposedCount++));
         }
 

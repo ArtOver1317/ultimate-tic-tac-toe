@@ -1,0 +1,345 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using FluentAssertions;
+using NSubstitute;
+using NUnit.Framework;
+using R3;
+using Runtime.Gameplay;
+using Runtime.Games.TicTacToe;
+using Runtime.Games.TicTacToe.Moves;
+using UnityEngine;
+using UnityEngine.UIElements;
+using Object = UnityEngine.Object;
+
+namespace Tests.EditMode.Games.TicTacToe
+{
+    [TestFixture]
+    public class GameplayFieldPresenterAdapterTests
+    {
+        private GameplayFieldPresenter _presenter;
+        private UIDocument _document;
+        private GameObject _gameObject;
+
+        [SetUp]
+        public void SetUp() =>
+            (_presenter, _document, _gameObject) = CreatePresenter();
+
+        [TearDown]
+        public void TearDown()
+        {
+            _presenter?.Dispose();
+            if (_gameObject != null)
+                Object.DestroyImmediate(_gameObject);
+
+            _presenter = null;
+            _document = null;
+            _gameObject = null;
+        }
+
+        [Test]
+        [Category("Integration")]
+        public void WhenCellClicked_ThenCellClicksPublishesCellId()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(3));
+
+            var published = new List<CellId>();
+            using var subscription = ((IGameplayFieldUiAdapter)_presenter).CellClicks.Subscribe(x => published.Add(x));
+
+            // Act
+            _presenter.EmitCellClick(new CellId(0, 0));
+
+            // Assert
+            published.Should().HaveCount(1);
+            published[0].Should().Be(new CellId(0, 0));
+        }
+
+        [Test]
+        [Category("Integration")]
+        public void WhenBindClassicAndClickTwoDifferentCells_ThenPublishesTwoDifferentCellIdsInOrder()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(3));
+
+            var published = new List<CellId>();
+            using var subscription = ((IGameplayFieldUiAdapter)_presenter).CellClicks.Subscribe(x => published.Add(x));
+
+            // Act
+            _presenter.EmitCellClick(new CellId(0, 0));
+            _presenter.EmitCellClick(new CellId(2, 2));
+
+            // Assert
+            published.Should().HaveCount(2);
+            published[0].Should().Be(new CellId(0, 0));
+            published[1].Should().Be(new CellId(2, 2));
+        }
+
+        [Test]
+        [Category("Integration")]
+        public void WhenCellClickedAfterUnbind_ThenCellClicksDoesNotPublish()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(3));
+
+            var published = new List<CellId>();
+            using var subscription = ((IGameplayFieldUiAdapter)_presenter).CellClicks.Subscribe(x => published.Add(x));
+
+            _presenter.Unbind();
+
+            // Act
+            Action act = () => _presenter.EmitCellClick(new CellId(0, 0));
+            act.Should().NotThrow();
+
+            // Assert
+            published.Should().BeEmpty();
+        }
+
+        [Test]
+        [Category("Integration")]
+        public void WhenCellClickedAfterDispose_ThenCellClicksDoesNotPublish()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(3));
+
+            var published = new List<CellId>();
+            using var subscription = ((IGameplayFieldUiAdapter)_presenter).CellClicks.Subscribe(x => published.Add(x));
+
+            _presenter.Dispose();
+
+            // Act
+            Action act = () => _presenter.EmitCellClick(new CellId(0, 0));
+            act.Should().NotThrow();
+
+            // Assert
+            published.Should().BeEmpty();
+        }
+
+        [Test]
+        [Category("Unit")]
+        public void WhenBoundAndAccessCurrentPlayerLabel_ThenReturnsValidLabel()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(3));
+
+            // Act
+            var label1 = ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel;
+            var label2 = ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel;
+
+            // Assert
+            label1.Should().NotBeNull();
+            label2.Should().NotBeNull();
+            label2.Should().BeSameAs(label1);
+
+            var fromTree = _document.rootVisualElement.Q<Label>("CurrentPlayerLabel");
+            fromTree.Should().NotBeNull();
+            fromTree.Should().BeSameAs(label1);
+        }
+
+        [Test]
+        [Category("Unit")]
+        public void WhenNotBoundAndAccessCurrentPlayerLabel_ThenThrowsInvalidOperationException()
+        {
+            // Arrange
+            // (no bind)
+
+            // Act
+            Action act = () =>
+            {
+                _ = ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel;
+            };
+
+            // Assert
+            act.Should().Throw<InvalidOperationException>();
+        }
+
+        [Test]
+        [Category("Unit")]
+        public void WhenUnboundAndAccessCurrentPlayerLabel_ThenThrowsInvalidOperationException()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(3));
+            _presenter.Unbind();
+
+            // Act
+            Action act = () =>
+            {
+                _ = ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel;
+            };
+
+            // Assert
+            act.Should().Throw<InvalidOperationException>();
+        }
+
+        [Test]
+        [Category("Unit")]
+        public void WhenDisposedAndAccessCurrentPlayerLabel_ThenThrowsObjectDisposedException()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(3));
+            _presenter.Dispose();
+
+            // Act
+            Action act = () =>
+            {
+                _ = ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel;
+            };
+
+            // Assert
+            act.Should().Throw<ObjectDisposedException>();
+        }
+
+        [Test]
+        [Category("Unit")]
+        public void WhenBoundAndCurrentPlayerLabelAlreadyExists_ThenDoesNotCreateDuplicate()
+        {
+            // Arrange
+            var fieldRoot = _document.rootVisualElement.Q<VisualElement>("GameplayFieldRoot");
+            fieldRoot.Should().NotBeNull();
+
+            var existing = new Label { name = "CurrentPlayerLabel" };
+            fieldRoot.Add(existing);
+
+            BindSync(FieldRenderSpec.Classic(3));
+
+            // Act
+            var label = ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel;
+
+            // Assert
+            label.Should().BeSameAs(existing);
+
+            var labels = _document.rootVisualElement.Query<Label>("CurrentPlayerLabel").ToList();
+            labels.Should().HaveCount(1);
+            labels[0].Should().BeSameAs(existing);
+        }
+
+        [Test]
+        [Category("Unit")]
+        public void WhenBindUltimateAndTryGetMarkForFirstCell_ThenReturnsCellMark()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Ultimate());
+
+            // Act
+            var result = ((IGameplayFieldUiAdapter)_presenter).TryGetMark(new CellId(0, 0), out var mark);
+
+            // Assert
+            result.Should().BeTrue();
+            mark.Should().NotBeNull();
+
+            ((IGameplayFieldUiAdapter)_presenter).TryGetCell(new CellId(0, 0), out var cell).Should().BeTrue();
+            mark.parent.Should().BeSameAs(cell);
+        }
+
+        [Test]
+        [Category("Unit")]
+        public void WhenBindUltimateAndTryGetMarkForMaxCellId_ThenReturnsCellMark()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Ultimate());
+
+            // Act
+            var result = ((IGameplayFieldUiAdapter)_presenter).TryGetMark(new CellId(8, 8), out var mark);
+
+            // Assert
+            result.Should().BeTrue();
+            mark.Should().NotBeNull();
+
+            ((IGameplayFieldUiAdapter)_presenter).TryGetCell(new CellId(8, 8), out var cell).Should().BeTrue();
+            mark.parent.Should().BeSameAs(cell);
+        }
+
+        [Test]
+        [Category("Unit")]
+        public void WhenNotBoundAndTryGetMark_ThenReturnsFalse()
+        {
+            // Arrange
+            // (no bind)
+
+            // Act
+            var result = ((IGameplayFieldUiAdapter)_presenter).TryGetMark(new CellId(0, 0), out var mark);
+
+            // Assert
+            result.Should().BeFalse();
+            mark.Should().BeNull();
+        }
+
+        [Test]
+        [Category("Unit")]
+        public void WhenUnboundAndTryGetMark_ThenReturnsFalse()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(3));
+            _presenter.Unbind();
+
+            // Act
+            var result = ((IGameplayFieldUiAdapter)_presenter).TryGetMark(new CellId(0, 0), out var mark);
+
+            // Assert
+            result.Should().BeFalse();
+            mark.Should().BeNull();
+        }
+
+        [Test]
+        [Category("Unit")]
+        public void WhenDisposedAndTryGetMark_ThenReturnsFalse()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(3));
+            _presenter.Dispose();
+
+            // Act
+            var result = ((IGameplayFieldUiAdapter)_presenter).TryGetMark(new CellId(0, 0), out var mark);
+
+            // Assert
+            result.Should().BeFalse();
+            mark.Should().BeNull();
+        }
+
+        [Test]
+        [Category("Integration")]
+        public void WhenClickingCellViaInternalWiringPoint_ThenPublishesCorrectCellId()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(3));
+
+            var published = new List<CellId>();
+            using var subscription = ((IGameplayFieldUiAdapter)_presenter).CellClicks.Subscribe(x => published.Add(x));
+
+            ((IGameplayFieldUiAdapter)_presenter).TryGetCell(new CellId(2, 2), out var cell).Should().BeTrue();
+            cell.Should().NotBeNull();
+
+            // Act
+            _presenter.OnCellClicked(cell);
+
+            // Assert
+            published.Should().HaveCount(1);
+            published[0].Should().Be(new CellId(2, 2));
+        }
+
+        private void BindSync(FieldRenderSpec spec)
+        {
+            var task = _presenter.BindAsync(spec, CancellationToken.None);
+            var awaiter = task.GetAwaiter();
+
+            awaiter.IsCompleted.Should().BeTrue(
+                "EditMode тесты не должны блокироваться на BindAsync; если BindAsync стал реально async (требует PlayerLoop), переведи тесты в PlayMode или добавь стабильную sync-точку входа");
+
+            awaiter.GetResult();
+        }
+
+        private static (GameplayFieldPresenter presenter, UIDocument document, GameObject gameObject) CreatePresenter()
+        {
+            var gameObject = new GameObject("GameplayFieldPresenterTests");
+            var document = gameObject.AddComponent<UIDocument>();
+            var fieldRoot = new VisualElement { name = "GameplayFieldRoot" };
+            var backButton = new Button { name = "BackButton" };
+            fieldRoot.Add(backButton);
+            document.rootVisualElement.Add(fieldRoot);
+            var backHandler = Substitute.For<IGameplayBackHandler>();
+            var presenter = new GameplayFieldPresenter(document, backHandler);
+            return (presenter, document, gameObject);
+        }
+    }
+}

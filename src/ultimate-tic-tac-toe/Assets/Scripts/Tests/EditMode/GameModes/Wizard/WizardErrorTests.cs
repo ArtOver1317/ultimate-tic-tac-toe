@@ -14,7 +14,7 @@ namespace Tests.EditMode.GameModes.Wizard
         {
             // Arrange
             const string code = "error.code";
-            const string messageKey = "Errors.GameModeWizard.Test";
+            const string messageKey = "Errors.GameWizard.Test";
 
             // Act
             var error = new WizardError(code, messageKey, true, ErrorDisplayType.Toast);
@@ -32,7 +32,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Arrange
 
             // Act
-            Action act = () => new WizardError(null, "Errors.GameModeWizard.Test", false, ErrorDisplayType.Inline);
+            Action act = () => new WizardError(null, "Errors.GameWizard.Test", false, ErrorDisplayType.Inline);
 
             // Assert
             act.Should().Throw<ArgumentException>()
@@ -63,7 +63,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             error.Code.Should().Be("wizard.unhandled_exception");
-            error.MessageKey.Should().Be("Errors.GameModeWizard.UnhandledException");
+            error.MessageKey.Should().Be("Errors.GameWizard.UnhandledException");
             error.IsBlocking.Should().BeTrue();
             error.DisplayType.Should().Be(ErrorDisplayType.Modal);
         }

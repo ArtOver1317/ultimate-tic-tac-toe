@@ -44,12 +44,14 @@ Board.MustPlayInBoard,You must play in board {boardIndex},Вы должны сы
 Board.AnyBoardAvailable,Play in any available board,Играйте на любом доступном поле,利用可能な任意のボードでプレイ,Any board available message
 Turn.Timeout,Turn timeout!,Время хода истекло!,ターンタイムアウト！,Turn timeout message
 Turn.TimeRemaining,{seconds}s remaining,Осталось {seconds}с,残り{seconds}秒,Time remaining display
-Mode.Classic,Classic Mode,Классический режим,クラシックモード,Classic game mode
-Mode.Ultimate,Ultimate Mode,Ультимативный режим,アルティメットモード,Ultimate game mode
-Mode.Blitz,Blitz Mode,Блиц,ブリッツモード,Blitz game mode
-Mode.Description.Classic,Standard Tic-Tac-Toe,Стандартные крестики-нолики,標準的な○×ゲーム,Classic mode description
-Mode.Description.Ultimate,Tic-Tac-Toe within Tic-Tac-Toe,Крестики-нолики внутри крестиков-ноликов,○×ゲームの中の○×ゲーム,Ultimate mode description
-Mode.Description.Blitz,Fast-paced with time limits,Быстрая игра с ограничением времени,時間制限付きの高速ゲーム,Blitz mode description
+Game.TicTacToe,Tic-Tac-Toe,Крестики-нолики,○×ゲーム,Game catalog: TicTacToe display name
+Game.Description.TicTacToe,Classic and Ultimate Tic-Tac-Toe,Крестики-нолики — классика и ультимейт,○×ゲーム — クラシックとアルティメット,Game catalog: TicTacToe description
+Mode.Classic,Classic Mode,Классический режим,クラシックモード,Classic game mode (legacy)
+Mode.Ultimate,Ultimate Mode,Ультимативный режим,アルティメットモード,Ultimate game mode (legacy)
+Mode.Blitz,Blitz Mode,Блиц,ブリッツモード,Blitz game mode (legacy)
+Mode.Description.Classic,Standard Tic-Tac-Toe,Стандартные крестики-нолики,標準的な○×ゲーム,Classic mode description (legacy)
+Mode.Description.Ultimate,Tic-Tac-Toe within Tic-Tac-Toe,Крестики-нолики внутри крестиков-ноликов,○×ゲームの中の○×ゲーム,Ultimate mode description (legacy)
+Mode.Description.Blitz,Fast-paced with time limits,Быстрая игра с ограничением времени,時間制限付きの高速ゲーム,Blitz mode description (legacy)
 Player.X,X,X,×,Player X symbol
 Player.O,O,O,○,Player O symbol
 Player.Waiting,Waiting for opponent...,Ожидание противника...,対戦相手を待っています...,Waiting for opponent
@@ -85,50 +87,49 @@ Errors.System.PermissionDenied,Permission denied,Доступ запрещён,�
 Errors.Localization.KeyNotFound,Text not found: {key},Текст не найден: {key},テキストが見つかりません: {key},Localization key not found
 Errors.Localization.LoadFailed,Failed to load localization: {locale},Не удалось загрузить локализацию: {locale},ローカライゼーションの読み込みに失敗しました: {locale},Localization load failed
 Settings.SelectLanguage,Select Language,Выберите язык,言語を選択,Language selection header
-GameModeWizard.MatchSetup.Back,Back,Назад,戻る,Match setup back button
-GameModeWizard.MatchSetup.Cancel,Cancel,Отмена,キャンセル,Match setup cancel button
-GameModeWizard.MatchSetup.Start,Start,Начать,開始,Match setup start button
-GameModeWizard.MatchSetup.Opponent.Bot,Bot,Бот,ボット,Match setup opponent bot toggle
-GameModeWizard.MatchSetup.Opponent.Human,Human,Человек,人間,Match setup opponent human toggle
-GameModeWizard.MatchSetup.Opponent.Title,Opponent,Соперник,対戦相手,Match setup opponent section title
-GameModeWizard.MatchSetup.ModeOptions.Title,Rules,Правила,ルール,Match setup mode options title
-GameModeWizard.MatchSetup.BotDifficulty.Title,Bot Difficulty,Сложность бота,ボット難易度,Match setup bot difficulty section title
-GameModeWizard.MatchSetup.HumanSettings.Title,Human Settings,Настройки игрока,人間の設定,Match setup human settings section title
-GameModeWizard.MatchSetup.HumanSettings.Local,Local (Same Screen),Локально (один экран),ローカル（同一画面）,Match setup human opponent: local option
-GameModeWizard.MatchSetup.HumanSettings.DirectInvite,Invite by ID,По ID игрока,IDで招待,Match setup human opponent: direct invite option
-GameModeWizard.MatchSetup.HumanSettings.Matchmaking,Find Match,Найти матч,マッチ検索,Match setup human opponent: matchmaking option
-GameModeWizard.Matchmaking.Title,Finding Opponent...,Поиск соперника...,対戦相手を探しています...,Matchmaking title
-GameModeWizard.Matchmaking.SearchingFor,Searching for,Идёт поиск,検索中,Matchmaking searching prefix
-GameModeWizard.Matchmaking.Found,Match found!,Матч найден!,対戦相手が見つかりました!,Matchmaking found status
-GameModeWizard.Matchmaking.Failed,Matchmaking failed,Поиск матча не удался,マッチメイキングに失敗しました,Matchmaking failed status
-GameModeWizard.Matchmaking.Cancelled,Matchmaking cancelled,Поиск матча отменён,マッチメイキングがキャンセルされました,Matchmaking cancelled status
-GameModeWizard.Matchmaking.Cancel,Cancel,Отмена,キャンセル,Matchmaking cancel button
-GameModeWizard.Matchmaking.Retry,Retry,Повторить,再試行,Matchmaking retry button
-GameModeWizard.Matchmaking.Back,Back,Назад,戻る,Matchmaking back button
-GameModeWizard.Matchmaking.Hint,{count} players with different params,{count} игроков с другими параметрами,{count} 人が異なる条件で検索中,Matchmaking hint
-GameModeWizard.MatchSetup.PlayerId.Label,Player ID,ID игрока,プレイヤーID,Match setup player id input label
-GameModeWizard.MatchSetup.BotDifficulty.Easy,Easy,Лёгкая,簡単,Bot difficulty: easy
-GameModeWizard.MatchSetup.BotDifficulty.Normal,Normal,Нормальная,普通,Bot difficulty: normal
-GameModeWizard.MatchSetup.BotDifficulty.Hard,Hard,Сложная,難しい,Bot difficulty: hard
-GameModeWizard.ModeSelection.Title,Select Game Mode,Выберите режим игры,ゲームモードを選択,Mode selection title
-GameModeWizard.ModeSelection.Cancel,Cancel,Отмена,キャンセル,Mode selection cancel button
-GameModeWizard.ModeSelection.Continue,Continue,Продолжить,続行,Mode selection continue button
-GameModeWizard.MatchSetup.Classic.BoardSize,Board Size,Размер поля,盤面サイズ,Classic mode board size label
-GameModeWizard.MatchSetup.Ultimate.NoSettings,No additional settings,Нет дополнительных настроек,追加設定なし,Ultimate mode no settings label
-Errors.GameModeWizard.ModeRequired,Select a game mode,Выберите режим игры,ゲームモードを選択してください,Wizard validation: mode is required
-Errors.GameModeWizard.ModeConfigRequired,Mode settings are required,Нужны настройки режима,モード設定が必要です,Wizard validation: mode config is required
-Errors.GameModeWizard.ModeCatalogMissing,Mode catalog is not available,Каталог режимов недоступен,モードカタログが利用できません,Wizard validation: mode catalog missing
-Errors.GameModeWizard.ModeUnknown,Unknown game mode,Неизвестный режим игры,不明なゲームモードです,Wizard validation: unknown mode
-Errors.GameModeWizard.DifficultyRequired,Select bot difficulty,Выберите сложность бота,ボットの難易度を選択してください,Wizard validation: bot difficulty required
-Errors.GameModeWizard.PlayerIdRequired,Select a player,Выберите игрока,プレイヤーを選択してください,Wizard validation: target player required
-Errors.GameModeWizard.PlayerIdInvalid,Invalid player ID,Некорректный ID игрока,無効なプレイヤーIDです,Wizard validation: player id invalid
-Errors.GameModeWizard.MatchmakingConfigMissing,Matchmaking is not available yet,Матчмейкинг пока недоступен,マッチメイキングはまだ利用できません,Wizard validation: matchmaking not implemented
-Errors.GameModeWizard.MatchmakingCancelled,Matchmaking was cancelled,Поиск матча отменён,マッチメイキングがキャンセルされました,Wizard: matchmaking cancelled
-Errors.GameModeWizard.MatchmakingTimeout,Matchmaking timed out,Поиск матча превысил таймаут,マッチメイキングがタイムアウトしました,Matchmaking timeout
-Errors.GameModeWizard.MatchmakingFailed,Matchmaking failed,Поиск матча не удался,マッチメイキングに失敗しました,Matchmaking failed error
-Errors.GameModeWizard.SessionNotReady,Session is not ready,Сессия не готова,セッションの準備ができていません,Wizard validation: session missing
-Errors.GameModeWizard.ClassicConfigInvalid,Invalid Classic mode settings,Некорректные настройки классического режима,Classicモードの設定が無効です,Wizard validation: classic config invalid
-Errors.GameModeWizard.ClassicBoardSizeInvalid,Board size is out of range,Размер поля вне допустимого диапазона,ボードサイズが範囲外です,Wizard validation: classic board size out of range
-Errors.GameModeWizard.UltimateConfigInvalid,Invalid Ultimate mode settings,Некорректные настройки режима Ultimate,Ultimateモードの設定が無効です,Wizard validation: ultimate config invalid
-Errors.GameModeWizard.UnhandledException,An error occurred. Please try again.,Произошла ошибка. Попробуйте ещё раз.,エラーが発生しました。もう一度お試しください。,Wizard: unhandled exception
+GameWizard.MatchSetup.Back,Back,Назад,戻る,Match setup back button
+GameWizard.MatchSetup.Cancel,Cancel,Отмена,キャンセル,Match setup cancel button
+GameWizard.MatchSetup.Start,Start,Начать,開始,Match setup start button
+GameWizard.MatchSetup.Opponent.Bot,Bot,Бот,ボット,Match setup opponent bot toggle
+GameWizard.MatchSetup.Opponent.Human,Human,Человек,人間,Match setup opponent human toggle
+GameWizard.MatchSetup.Opponent.Title,Opponent,Соперник,対戦相手,Match setup opponent section title
+GameWizard.MatchSetup.ModeOptions.Title,Rules,Правила,ルール,Match setup mode options title
+GameWizard.MatchSetup.BotDifficulty.Title,Bot Difficulty,Сложность бота,ボット難易度,Match setup bot difficulty section title
+GameWizard.MatchSetup.HumanSettings.Title,Human Settings,Настройки игрока,人間の設定,Match setup human settings section title
+GameWizard.MatchSetup.HumanSettings.Local,Local (Same Screen),Локально (один экран),ローカル（同一画面）,Match setup human opponent: local option
+GameWizard.MatchSetup.HumanSettings.DirectInvite,Invite by ID,По ID игрока,IDで招待,Match setup human opponent: direct invite option
+GameWizard.MatchSetup.HumanSettings.Matchmaking,Find Match,Найти матч,マッチ検索,Match setup human opponent: matchmaking option
+GameWizard.Matchmaking.Title,Finding Opponent...,Поиск соперника...,対戦相手を探しています...,Matchmaking title
+GameWizard.Matchmaking.SearchingFor,Searching for,Идёт поиск,検索中,Matchmaking searching prefix
+GameWizard.Matchmaking.Found,Match found!,Матч найден!,対戦相手が見つかりました!,Matchmaking found status
+GameWizard.Matchmaking.Failed,Matchmaking failed,Поиск матча не удался,マッチメイキングに失敗しました,Matchmaking failed status
+GameWizard.Matchmaking.Cancelled,Matchmaking cancelled,Поиск матча отменён,マッチメイキングがキャンセルされました,Matchmaking cancelled status
+GameWizard.Matchmaking.Cancel,Cancel,Отмена,キャンセル,Matchmaking cancel button
+GameWizard.Matchmaking.Retry,Retry,Повторить,再試行,Matchmaking retry button
+GameWizard.Matchmaking.Back,Back,Назад,戻る,Matchmaking back button
+GameWizard.Matchmaking.Hint,{count} players with different params,{count} игроков с другими параметрами,{count} 人が異なる条件で検索中,Matchmaking hint
+GameWizard.MatchSetup.PlayerId.Label,Player ID,ID игрока,プレイヤーID,Match setup player id input label
+GameWizard.MatchSetup.BotDifficulty.Easy,Easy,Лёгкая,簡単,Bot difficulty: easy
+GameWizard.MatchSetup.BotDifficulty.Normal,Normal,Нормальная,普通,Bot difficulty: normal
+GameWizard.MatchSetup.BotDifficulty.Hard,Hard,Сложная,難しい,Bot difficulty: hard
+GameWizard.GameSelection.Title,Select Game,Выберите игру,ゲームを選択,Game selection title
+GameWizard.GameSelection.Cancel,Cancel,Отмена,キャンセル,Game selection cancel button
+GameWizard.GameSelection.Continue,Continue,Продолжить,続行,Game selection continue button
+GameWizard.MatchSetup.TicTacToe.BoardSize,Board Size,Размер поля,盤面サイズ,TicTacToe settings: board size label
+GameWizard.MatchSetup.TicTacToe.UltimateMode,Ultimate Mode,Ультимейт,アルティメットモード,TicTacToe settings: ultimate toggle label
+Errors.GameWizard.GameRequired,Select a game,Выберите игру,ゲームを選択してください,Wizard validation: game is required
+Errors.GameWizard.ConfigRequired,Game settings are required,Нужны настройки игры,ゲーム設定が必要です,Wizard validation: config is required
+Errors.GameWizard.GameCatalogMissing,Game catalog is not available,Каталог игр недоступен,ゲームカタログが利用できません,Wizard validation: game catalog missing
+Errors.GameWizard.GameUnknown,Unknown game,Неизвестная игра,不明なゲームです,Wizard validation: unknown game
+Errors.GameWizard.DifficultyRequired,Select bot difficulty,Выберите сложность бота,ボットの難易度を選択してください,Wizard validation: bot difficulty required
+Errors.GameWizard.PlayerIdRequired,Select a player,Выберите игрока,プレイヤーを選択してください,Wizard validation: target player required
+Errors.GameWizard.PlayerIdInvalid,Invalid player ID,Некорректный ID игрока,無効なプレイヤーIDです,Wizard validation: player id invalid
+Errors.GameWizard.MatchmakingConfigMissing,Matchmaking is not available yet,Матчмейкинг пока недоступен,マッチメイキングはまだ利用できません,Wizard validation: matchmaking not implemented
+Errors.GameWizard.MatchmakingCancelled,Matchmaking was cancelled,Поиск матча отменён,マッチメイキングがキャンセルされました,Wizard: matchmaking cancelled
+Errors.GameWizard.MatchmakingTimeout,Matchmaking timed out,Поиск матча превысил таймаут,マッチメイキングがタイムアウトしました,Matchmaking timeout
+Errors.GameWizard.MatchmakingFailed,Matchmaking failed,Поиск матча не удался,マッチメイキングに失敗しました,Matchmaking failed error
+Errors.GameWizard.SessionNotReady,Session is not ready,Сессия не готова,セッションの準備ができていません,Wizard validation: session missing
+Errors.GameWizard.TicTacToeConfigInvalid,Invalid Tic-Tac-Toe settings,Некорректные настройки крестиков-ноликов,○×ゲームの設定が無効です,Wizard validation: tic-tac-toe config invalid
+Errors.GameWizard.TicTacToeBoardSizeInvalid,Board size is out of range,Размер поля вне допустимого диапазона,ボードサイズが範囲外です,Wizard validation: board size out of range
+Errors.GameWizard.UnhandledException,An error occurred. Please try again.,Произошла ошибка. Попробуйте ещё раз.,エラーが発生しました。もう一度お試しください。,Wizard: unhandled exception
 

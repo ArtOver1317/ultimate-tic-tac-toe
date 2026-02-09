@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -71,7 +71,7 @@ namespace Runtime.UI.GameModes.Wizard
         private WizardErrorOverlay? _errorOverlay;
 
         private IViewAssetProvider _assetProvider = null!;
-        private IModeSettingsBinder[] _binders = System.Array.Empty<IModeSettingsBinder>();
+        private IGameSettingsBinder[] _binders = System.Array.Empty<IGameSettingsBinder>();
         private ILocalizationService? _localization;
 
         private CancellationTokenSource? _loadCts;
@@ -86,10 +86,10 @@ namespace Runtime.UI.GameModes.Wizard
         private string _humanMatchmakingLabel = string.Empty;
 
         [Inject]
-        public void Construct(IViewAssetProvider assetProvider, IEnumerable<IModeSettingsBinder> binders, ILocalizationService localization)
+        public void Construct(IViewAssetProvider assetProvider, IEnumerable<IGameSettingsBinder> binders, ILocalizationService localization)
         {
             _assetProvider = assetProvider ?? throw new ArgumentNullException(nameof(assetProvider));
-            _binders = binders != null ? new List<IModeSettingsBinder>(binders).ToArray() : System.Array.Empty<IModeSettingsBinder>();
+            _binders = binders != null ? new List<IGameSettingsBinder>(binders).ToArray() : System.Array.Empty<IGameSettingsBinder>();
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
         }
 
@@ -290,7 +290,7 @@ namespace Runtime.UI.GameModes.Wizard
             humanKindRadio.SetSelectedKindWithoutNotify(ViewModel.HumanOpponentKind.CurrentValue);
         }
 
-        private async UniTask LoadSettingsSafeAsync(ModeSettingsPresentation? presentation)
+        private async UniTask LoadSettingsSafeAsync(GameSettingsPresentation? presentation)
         {
             CancelPendingLoad();
             CleanupCurrentSettings();
@@ -351,7 +351,7 @@ namespace Runtime.UI.GameModes.Wizard
             }
         }
 
-        private IDisposable BindSubViewModel(VisualElement root, ISpecificModeSettingsViewModel viewModel)
+        private IDisposable BindSubViewModel(VisualElement root, IGameSettingsViewModel viewModel)
         {
             var disposables = new CompositeDisposable();
 

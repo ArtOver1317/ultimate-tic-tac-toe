@@ -28,7 +28,7 @@ namespace Tests.EditMode
         private IGameStateMachine _stateMachineMock;
         private IUIService _uiServiceMock;
         private ILocalizationService _localizationMock;
-        private IGameModeWizardCoordinator _wizardCoordinatorMock;
+        private IGameWizardCoordinator _wizardCoordinatorMock;
         private Subject<GameLaunchConfig> _gameLaunchRequested;
         private Subject<AbortReason> _wizardAborted;
         private MainMenuViewModel _viewModel;
@@ -42,7 +42,7 @@ namespace Tests.EditMode
             _stateMachineMock = Substitute.For<IGameStateMachine>();
             _uiServiceMock = Substitute.For<IUIService>();
             _localizationMock = Substitute.For<ILocalizationService>();
-            _wizardCoordinatorMock = Substitute.For<IGameModeWizardCoordinator>();
+            _wizardCoordinatorMock = Substitute.For<IGameWizardCoordinator>();
             _gameLaunchRequested = new Subject<GameLaunchConfig>();
             _wizardAborted = new Subject<AbortReason>();
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
@@ -260,7 +260,7 @@ namespace Tests.EditMode
         {
             // Arrange
             _coordinator.Initialize(_viewModel);
-            var config = new GameLaunchConfig("Classic", new ClassicModeConfig(3), new LocalHumanConfig());
+            var config = new GameLaunchConfig("Classic", new TicTacToeConfig(3), new LocalHumanConfig());
 
             var enterStarted = new UniTaskCompletionSource<bool>();
             var enterGate = new UniTaskCompletionSource<bool>();
@@ -319,7 +319,7 @@ namespace Tests.EditMode
             _coordinator.Initialize(_viewModel);
             bool? interactableValue = null;
             var subscription = _viewModel.IsInteractable.Subscribe(value => interactableValue = value);
-            var config = new GameLaunchConfig("Classic", new ClassicModeConfig(3), new LocalHumanConfig());
+            var config = new GameLaunchConfig("Classic", new TicTacToeConfig(3), new LocalHumanConfig());
 
             // Act
             _viewModel.RequestStartGame();
@@ -363,7 +363,7 @@ namespace Tests.EditMode
                 _coordinator.Initialize(_viewModel);
 
                 // Act
-                var config = new GameLaunchConfig("Classic", new ClassicModeConfig(3), new LocalHumanConfig());
+                var config = new GameLaunchConfig("Classic", new TicTacToeConfig(3), new LocalHumanConfig());
 
                 _viewModel.Invoking(vm => vm.RequestStartGame()).Should().NotThrow();
                 await UniTask.Yield();
@@ -516,7 +516,7 @@ namespace Tests.EditMode
         public async Task WhenStartGameRequested_ThenClosesOverlaysAndEntersGameplayState()
         {
             _coordinator.Initialize(_viewModel);
-            var config = new GameLaunchConfig("Classic", new ClassicModeConfig(3), new LocalHumanConfig());
+            var config = new GameLaunchConfig("Classic", new TicTacToeConfig(3), new LocalHumanConfig());
 
             _viewModel.RequestStartGame();
             await UniTask.Yield();

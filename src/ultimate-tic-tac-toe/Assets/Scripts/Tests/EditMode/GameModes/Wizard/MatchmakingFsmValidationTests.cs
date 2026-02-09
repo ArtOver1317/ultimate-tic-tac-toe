@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -73,7 +73,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public async Task WhenTryStartSearchAsyncCalledWithZeroTimeout_ThenThrowsArgumentOutOfRangeException()
         {
             // Arrange
-            var request = new MatchmakingRequest("classic", new ClassicModeConfig(3));
+            var request = new MatchmakingRequest("classic", new TicTacToeConfig(3));
             Func<Task> act = async () => await _sut.TryStartSearchAsync(request, TimeSpan.Zero, CancellationToken.None);
 
             // Act / Assert

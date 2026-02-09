@@ -1,4 +1,4 @@
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using FluentAssertions;
@@ -81,7 +81,7 @@ namespace Tests.EditMode
         public async Task WhenEnterAsyncWithPayload_ThenSetsConfigInStoreAndLoadsScene()
         {
             // Arrange
-            var config = new GameLaunchConfig("Classic", new ClassicModeConfig(3), new LocalHumanConfig());
+            var config = new GameLaunchConfig("Classic", new TicTacToeConfig(3), new LocalHumanConfig());
 
             _sceneLoader
                 .LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>())

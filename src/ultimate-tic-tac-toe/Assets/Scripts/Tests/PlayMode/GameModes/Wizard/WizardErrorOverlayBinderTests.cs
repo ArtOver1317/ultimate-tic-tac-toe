@@ -91,7 +91,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenErrorSourceEmitsToastError_ThenOverlayShowsToast()
         {
             // Arrange
-            var error = new WizardError("code", "Errors.GameModeWizard.Toast", false, ErrorDisplayType.Toast);
+            var error = new WizardError("code", "Errors.GameWizard.Toast", false, ErrorDisplayType.Toast);
 
             // Act
             _errorSource.Value = error;
@@ -103,7 +103,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             toast.IsVisible.Should().BeTrue();
             modal.IsVisible.Should().BeFalse();
-            toast.Q<Label>("ToastMessage").text.Should().Be("resolved:Errors.GameModeWizard.Toast");
+            toast.Q<Label>("ToastMessage").text.Should().Be("resolved:Errors.GameWizard.Toast");
         }
 
         [UnityTest]
@@ -111,7 +111,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenErrorSourceEmitsModalError_ThenOverlayShowsModal()
         {
             // Arrange
-            var error = new WizardError("code", "Errors.GameModeWizard.Modal", true, ErrorDisplayType.Modal);
+            var error = new WizardError("code", "Errors.GameWizard.Modal", true, ErrorDisplayType.Modal);
 
             // Act
             _errorSource.Value = error;
@@ -123,7 +123,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             modal.IsVisible.Should().BeTrue();
             toast.IsVisible.Should().BeFalse();
-            modal.Q<Label>("ModalMessage").text.Should().Be("resolved:Errors.GameModeWizard.Modal");
+            modal.Q<Label>("ModalMessage").text.Should().Be("resolved:Errors.GameWizard.Modal");
         }
 
         [UnityTest]
@@ -131,7 +131,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenErrorSourceEmitsInlineError_ThenOverlayIsReset()
         {
             // Arrange
-            var error = new WizardError("code", "Errors.GameModeWizard.Inline", false, ErrorDisplayType.Inline);
+            var error = new WizardError("code", "Errors.GameWizard.Inline", false, ErrorDisplayType.Inline);
 
             // Act
             _errorSource.Value = error;
@@ -149,7 +149,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenErrorSourceEmitsNull_ThenOverlayIsReset()
         {
             // Arrange
-            _errorSource.Value = new WizardError("code", "Errors.GameModeWizard.Modal", true, ErrorDisplayType.Modal);
+            _errorSource.Value = new WizardError("code", "Errors.GameWizard.Modal", true, ErrorDisplayType.Modal);
             yield return null;
 
             // Act
@@ -203,7 +203,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenToastErrorEmittedAndAutoHideExpires_ThenAcknowledgeErrorCalled()
         {
             // Arrange
-            var error = new WizardError("code", "Errors.GameModeWizard.Toast", false, ErrorDisplayType.Toast);
+            var error = new WizardError("code", "Errors.GameWizard.Toast", false, ErrorDisplayType.Toast);
 
             // Act
             _errorSource.Value = error;
@@ -222,7 +222,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenModalDismissed_ThenAcknowledgeErrorCalled()
         {
             // Arrange
-            var error = new WizardError("code", "Errors.GameModeWizard.Modal", true, ErrorDisplayType.Modal);
+            var error = new WizardError("code", "Errors.GameWizard.Modal", true, ErrorDisplayType.Modal);
             _errorSource.Value = error;
             yield return null;
 
@@ -246,7 +246,7 @@ namespace Tests.PlayMode.GameModes.Wizard
                 throw new InvalidOperationException("ack failed");
             });
 
-            var error = new WizardError("code", "Errors.GameModeWizard.Modal", true, ErrorDisplayType.Modal);
+            var error = new WizardError("code", "Errors.GameWizard.Modal", true, ErrorDisplayType.Modal);
             _errorSource.Value = error;
             yield return null;
 
@@ -260,7 +260,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             act.Should().NotThrow();
 
             // Act
-            _errorSource.Value = new WizardError("code", "Errors.GameModeWizard.Toast", false, ErrorDisplayType.Toast);
+            _errorSource.Value = new WizardError("code", "Errors.GameWizard.Toast", false, ErrorDisplayType.Toast);
             yield return null;
 
             // Assert
@@ -272,7 +272,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenBinderDisposed_ThenOverlayResetOnMainThreadAndNoFurtherUpdates()
         {
             // Arrange
-            _errorSource.Value = new WizardError("code", "Errors.GameModeWizard.Modal", true, ErrorDisplayType.Modal);
+            _errorSource.Value = new WizardError("code", "Errors.GameWizard.Modal", true, ErrorDisplayType.Modal);
             yield return null;
 
             var okButton = _overlay.Q<Button>("OkButton");
@@ -287,7 +287,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             _overlay.Q<WizardModal>("WizardModal").IsVisible.Should().BeFalse();
 
             // Act
-            _errorSource.Value = new WizardError("code", "Errors.GameModeWizard.Toast", false, ErrorDisplayType.Toast);
+            _errorSource.Value = new WizardError("code", "Errors.GameWizard.Toast", false, ErrorDisplayType.Toast);
             yield return null;
 
             // Assert
@@ -304,7 +304,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenBinderDisposedOffMainThread_ThenDoesNotResetOverlayButDoesNotThrow()
         {
             // Arrange
-            _errorSource.Value = new WizardError("code", "Errors.GameModeWizard.Modal", true, ErrorDisplayType.Modal);
+            _errorSource.Value = new WizardError("code", "Errors.GameWizard.Modal", true, ErrorDisplayType.Modal);
             yield return null;
 
             // Act
@@ -323,8 +323,8 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenToastErrorEmittedAndNewErrorArrivesBeforeAutoHide_ThenAcknowledgeNotCalledForOldError()
         {
             // Arrange
-            var errorA = new WizardError("codeA", "Errors.GameModeWizard.ToastA", false, ErrorDisplayType.Toast);
-            var errorB = new WizardError("codeB", "Errors.GameModeWizard.ToastB", false, ErrorDisplayType.Toast);
+            var errorA = new WizardError("codeA", "Errors.GameWizard.ToastA", false, ErrorDisplayType.Toast);
+            var errorB = new WizardError("codeB", "Errors.GameWizard.ToastB", false, ErrorDisplayType.Toast);
 
             var ackCount = 0;
             _binding.Dispose();
@@ -349,7 +349,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             ackCount.Should().Be(0);
             var toast = _overlay.Q<WizardToast>("WizardToast");
             toast.IsVisible.Should().BeTrue();
-            toast.Q<Label>("ToastMessage").text.Should().Be("resolved:Errors.GameModeWizard.ToastB");
+            toast.Q<Label>("ToastMessage").text.Should().Be("resolved:Errors.GameWizard.ToastB");
 
             // Assert: B eventually acks once
             yield return WaitUntilAsync(
@@ -369,7 +369,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenBinderDisposedDuringToastAutoHide_ThenAutoHideCancelledAndNoLeaks()
         {
             // Arrange
-            var error = new WizardError("code", "Errors.GameModeWizard.Toast", false, ErrorDisplayType.Toast);
+            var error = new WizardError("code", "Errors.GameWizard.Toast", false, ErrorDisplayType.Toast);
             var previousDuration = SetToastDuration(TimeSpan.FromMilliseconds(200));
 
             try

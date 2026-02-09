@@ -1,5 +1,6 @@
 using Runtime.Gameplay;
-using Runtime.Gameplay.Moves;
+using Runtime.Games.TicTacToe;
+using Runtime.Games.TicTacToe.Moves;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
