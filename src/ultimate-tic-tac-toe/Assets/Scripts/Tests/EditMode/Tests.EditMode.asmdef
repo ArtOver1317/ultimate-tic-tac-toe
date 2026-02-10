@@ -8,7 +8,8 @@
         "Editor",
         "VContainer",
         "UniTask",
-        "Unity.Addressables"
+        "Unity.Addressables",
+        "Scellecs.Morpeh"
     ],
     "includePlatforms": [
         "Editor"

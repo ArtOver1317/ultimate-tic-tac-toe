@@ -3,6 +3,9 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.Gameplay;
+using Runtime.Gameplay.ECS;
+using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Series;
@@ -10,8 +13,8 @@ using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Infrastructure.Logging;
 using StripLog;
-
-using Runtime.Gameplay;
+using EcsRoundFinishedEvent = Runtime.Gameplay.ECS.RoundFinishedEvent;
+using EcsGameStatus = Runtime.Gameplay.ECS.GameStatus;
 
 namespace Runtime.Games.TicTacToe
 {
@@ -21,9 +24,10 @@ namespace Runtime.Games.TicTacToe
         private readonly IGameService _gameService;
         private readonly IGameplayFieldPresenter _fieldPresenter;
         private readonly IGameplayFieldUiAdapter _fieldUiAdapter;
-        private readonly ILocalMovesService _localMoves;
+        private readonly IMatchEcsLifecycle _ecsLifecycle;
+        private readonly IGameplayEventStream _eventStream;
+        private readonly IGameplayCommandSink _commandSink;
         private readonly GameplayMovesBinder _movesBinder;
-        private readonly GameplayRulesHandler _rulesHandler;
         private readonly WinLineRenderer _winLineRenderer;
         private readonly ISeriesService _seriesService;
         private readonly IGameplayBackHandler _backHandler;
@@ -39,9 +43,10 @@ namespace Runtime.Games.TicTacToe
             IGameService gameService,
             IGameplayFieldPresenter fieldPresenter,
             IGameplayFieldUiAdapter fieldUiAdapter,
-            ILocalMovesService localMoves,
+            IMatchEcsLifecycle ecsLifecycle,
+            IGameplayEventStream eventStream,
+            IGameplayCommandSink commandSink,
             GameplayMovesBinder movesBinder,
-            GameplayRulesHandler rulesHandler,
             WinLineRenderer winLineRenderer,
             ISeriesService seriesService,
             IGameplayBackHandler backHandler,
@@ -51,9 +56,10 @@ namespace Runtime.Games.TicTacToe
             _gameService = gameService ?? throw new ArgumentNullException(nameof(gameService));
             _fieldPresenter = fieldPresenter ?? throw new ArgumentNullException(nameof(fieldPresenter));
             _fieldUiAdapter = fieldUiAdapter ?? throw new ArgumentNullException(nameof(fieldUiAdapter));
-            _localMoves = localMoves ?? throw new ArgumentNullException(nameof(localMoves));
+            _ecsLifecycle = ecsLifecycle ?? throw new ArgumentNullException(nameof(ecsLifecycle));
+            _eventStream = eventStream ?? throw new ArgumentNullException(nameof(eventStream));
+            _commandSink = commandSink ?? throw new ArgumentNullException(nameof(commandSink));
             _movesBinder = movesBinder ?? throw new ArgumentNullException(nameof(movesBinder));
-            _rulesHandler = rulesHandler ?? throw new ArgumentNullException(nameof(rulesHandler));
             _winLineRenderer = winLineRenderer ?? throw new ArgumentNullException(nameof(winLineRenderer));
             _seriesService = seriesService ?? throw new ArgumentNullException(nameof(seriesService));
             _backHandler = backHandler ?? throw new ArgumentNullException(nameof(backHandler));
@@ -80,11 +86,8 @@ namespace Runtime.Games.TicTacToe
                 _fieldSpec = session.FieldRenderSpec;
                 _seriesService.StartSeries();
 
-                var movesConfig = LocalMovesConfigMapper.FromLaunchConfig(config, session.FieldRenderSpec);
-                _localMoves.Start(movesConfig);
+                _ecsLifecycle.StartMatch(config);
                 _movesBinder.Bind();
-
-                _rulesHandler.Bind(session.FieldRenderSpec.OuterSize);
 
                 CreateResultVM();
                 SubscribeToEvents();
@@ -112,9 +115,8 @@ namespace Runtime.Games.TicTacToe
 
             _subscriptions?.Dispose();
             _subscriptions = null;
-            _rulesHandler.Unbind();
             _movesBinder.Unbind();
-            _localMoves.Stop();
+            _ecsLifecycle.StopMatch();
             _winLineRenderer.Clear();
             _resultVM?.Dispose();
             _resultVM = null;
@@ -138,7 +140,7 @@ namespace Runtime.Games.TicTacToe
             _subscriptions?.Dispose();
             _subscriptions = new CompositeDisposable();
 
-            _rulesHandler.RoundFinished
+            _eventStream.RoundFinished
                 .Subscribe(OnRoundFinished)
                 .AddTo(_subscriptions);
 
@@ -152,28 +154,36 @@ namespace Runtime.Games.TicTacToe
 
         // -- RoundFinished handling (ADR-10) --
 
-        private void OnRoundFinished(RoundFinishedEvent evt)
-        {
+        private void OnRoundFinished(EcsRoundFinishedEvent evt) =>
             HandleRoundFinished(evt);
-        }
 
-        private void HandleRoundFinished(RoundFinishedEvent evt)
+        private void HandleRoundFinished(EcsRoundFinishedEvent evt)
         {
             try
             {
                 if (_disposed) return;
 
-                // Next-frame deferral is now in GameplayRulesHandler (ADR-4).
-                // RoundFinished already arrives on the next frame.
-
                 // 1. Unbind binder (ADR-5 order: Unbind before Stop).
                 _movesBinder.Unbind();
 
-                // 2. Stop moves -- block input at data level.
-                _localMoves.Stop();
+                // 2. Map ECS result to OOP GameResult for downstream consumers.
+                var winner = evt.WinnerSlot.HasValue
+                    ? TicTacToeEcsRegistrar.SlotToMark(evt.WinnerSlot.Value)
+                    : PlayerMark.None;
+                var oopStatus = MapEcsStatus(evt.Status);
+                WinLine? oopWinLine = null;
+                if (evt.WinLine.HasValue)
+                {
+                    oopWinLine = MapEcsWinLine(evt.WinLine.Value);
+                }
+                var gameResult = oopStatus == Rules.GameStatus.Win
+                    ? GameResult.Win(winner, oopWinLine!.Value)
+                    : oopStatus == Rules.GameStatus.Draw
+                        ? GameResult.Draw()
+                        : GameResult.InProgress();
 
                 // 3. Record result in series.
-                _seriesService.RecordResult(evt.Result);
+                _seriesService.RecordResult(gameResult);
 
                 if (_disposed) return;
 
@@ -181,17 +191,48 @@ namespace Runtime.Games.TicTacToe
                 UpdateScoreLabels();
 
                 // 5. Show win line if applicable.
-                if (evt.Result.Status == GameStatus.Win && evt.Result.WinLine.HasValue)
-                    _winLineRenderer.Show(evt.Result.WinLine.Value);
+                if (evt.WinLine.HasValue)
+                    _winLineRenderer.Show(oopWinLine!.Value);
 
                 // 6. Show result popup.
-                _resultVM?.Show(evt.Result, _seriesService.Score.CurrentValue);
+                _resultVM?.Show(gameResult, _seriesService.Score.CurrentValue);
             }
             catch (Exception ex)
             {
                 if (_disposed) return;
                 Log.Error(LogTags.Infrastructure, $"[GameplayStartup] Error handling round finished: {ex}");
             }
+        }
+
+        private static Rules.GameStatus MapEcsStatus(EcsGameStatus ecsStatus) => ecsStatus switch
+        {
+            EcsGameStatus.Win => Rules.GameStatus.Win,
+            EcsGameStatus.Draw => Rules.GameStatus.Draw,
+            _ => Rules.GameStatus.InProgress,
+        };
+
+        /// <summary>
+        /// Derives Direction and Length from EcsWinLine's Start/End coordinates.
+        /// Assumes normalized line: Start ≤ End (by row, then col) — guaranteed by ClassicRulesEngine.
+        /// </summary>
+        private static WinLine MapEcsWinLine(EcsWinLine ecsLine)
+        {
+            var rowDiff = ecsLine.End.Major - ecsLine.Start.Major;
+            var colDiff = ecsLine.End.Minor - ecsLine.Start.Minor;
+
+            WinLineDirection direction;
+            if (rowDiff == 0)
+                direction = WinLineDirection.Horizontal;
+            else if (colDiff == 0)
+                direction = WinLineDirection.Vertical;
+            else if (colDiff > 0)
+                direction = WinLineDirection.DiagonalMain;
+            else
+                direction = WinLineDirection.DiagonalAnti;
+
+            var length = Math.Max(Math.Abs(rowDiff), Math.Abs(colDiff)) + 1;
+
+            return new WinLine(ecsLine.Start, ecsLine.End, direction, length);
         }
 
         // -- Result actions (Restart / Exit) --
@@ -209,9 +250,6 @@ namespace Runtime.Games.TicTacToe
             }
         }
 
-        /// <summary>
-        /// ADR-10: RestartRound sequence.
-        /// </summary>
         private void RestartRound()
         {
             if (_disposed) return;
@@ -222,21 +260,15 @@ namespace Runtime.Games.TicTacToe
             // 2. Hide popup.
             _resultVM?.Hide();
 
-            // 3. Unbind rules handler.
-            _rulesHandler.Unbind();
-
-            // 4. Alternate starting player.
+            // 3. Alternate starting player.
             var startingPlayer = _seriesService.NextRound();
+            var startingSlot = TicTacToeEcsRegistrar.MarkToSlot(startingPlayer);
 
-            // 5. Restart moves with new starting player.
-            var newConfig = new LocalMovesConfig(_fieldSpec, startingPlayer);
-            _localMoves.Start(newConfig);
+            // 4. Submit restart command — SubmitCommand auto-ticks, board is cleared synchronously.
+            _commandSink.SubmitCommand(new RestartRoundCommand(startingSlot));
 
-            // 6. Cold-path render of empty field + subscribe.
+            // 5. Cold-path render of cleared field + subscribe.
             _movesBinder.Bind();
-
-            // 7. Fresh mirror-board + subscribe to CellChanged.
-            _rulesHandler.Bind(_fieldSpec.OuterSize);
         }
 
         private async UniTaskVoid ExitToMenuAsync()
@@ -272,14 +304,13 @@ namespace Runtime.Games.TicTacToe
 
         private void CleanupGameplay()
         {
-            _rulesHandler.Unbind();
             _subscriptions?.Dispose();
             _subscriptions = null;
             _movesBinder.Unbind();
             _winLineRenderer.Clear();
             _resultVM?.Dispose();
             _resultVM = null;
-            _localMoves.Stop();
+            _ecsLifecycle.StopMatch();
             _fieldPresenter.Unbind();
         }
 

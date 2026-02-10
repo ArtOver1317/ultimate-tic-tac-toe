@@ -27,6 +27,7 @@ namespace Tests.PlayMode.GameModes.Wizard
     public class MatchmakingViewTests
     {
         private const string MatchmakingUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/Matchmaking.uxml";
+        private const string PanelSettingsPath = "Assets/Content/UI Toolkit/Panel Settings.asset";
 
         private GameObject _gameObject = null!;
         private UIDocument _uiDocument = null!;
@@ -48,9 +49,11 @@ namespace Tests.PlayMode.GameModes.Wizard
             _uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(MatchmakingUxmlPath);
             _uxml.Should().NotBeNull();
 
+            _panelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(PanelSettingsPath);
+            _panelSettings.Should().NotBeNull();
+
             _gameObject = new GameObject("MatchmakingView_PlayMode");
             _uiDocument = _gameObject.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
             _uiDocument.panelSettings = _panelSettings;
             _uiDocument.visualTreeAsset = _uxml;
             _view = _gameObject.AddComponent<MatchmakingView>();
@@ -89,9 +92,6 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             if (_gameObject != null)
                 Object.Destroy(_gameObject);
-
-            if (_panelSettings != null)
-                Object.Destroy(_panelSettings);
 
             yield return null;
         }

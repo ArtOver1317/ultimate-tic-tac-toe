@@ -44,9 +44,11 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             _gameObject = new GameObject("WizardErrorOverlayBinderTests");
             _uiDocument = _gameObject.AddComponent<UIDocument>();
-            _uiDocument.visualTreeAsset = _uxml;
             _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
             _uiDocument.panelSettings = _panelSettings;
+            _uiDocument.visualTreeAsset = _uxml;
+
+            yield return WaitUntilRootReady(_uiDocument, timeoutSeconds: 2f);
 
             _overlay = new WizardErrorOverlay();
             _uiDocument.rootVisualElement.Add(_overlay);
@@ -68,6 +70,18 @@ namespace Tests.PlayMode.GameModes.Wizard
             _binding = WizardErrorOverlayBinder.Bind(_overlay, _localization, _errorSource, Acknowledge);
 
             yield return null;
+        }
+
+        private static IEnumerator WaitUntilRootReady(UIDocument uiDocument, float timeoutSeconds)
+        {
+            var start = Time.realtimeSinceStartup;
+            while (uiDocument.rootVisualElement == null)
+            {
+                if (Time.realtimeSinceStartup - start >= timeoutSeconds)
+                    Assert.Fail("UIDocument.rootVisualElement was not created within timeout.");
+
+                yield return null;
+            }
         }
 
         [UnityTearDown]

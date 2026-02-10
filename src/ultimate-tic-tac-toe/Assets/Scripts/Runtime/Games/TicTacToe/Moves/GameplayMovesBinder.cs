@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using R3;
+using Runtime.Gameplay;
+using Runtime.Gameplay.ECS;
+using Runtime.Games.TicTacToe.ECS;
 using Runtime.Infrastructure.Logging;
 using UnityEngine.UIElements;
 
@@ -16,7 +19,9 @@ namespace Runtime.Games.TicTacToe.Moves
         private const string _markLabelOClass = "mark-label--o";
 
         private readonly IGameplayFieldUiAdapter _ui;
-        private readonly ILocalMovesService _moves;
+        private readonly IGameplayCommandSink _commandSink;
+        private readonly IGameplayEventStream _eventStream;
+        private readonly IGameplaySnapshotProvider _snapshotProvider;
         private readonly MovesVfxSettings _vfxSettings;
 
         // Binder owns VFX state storage (do not use VisualElement.userData).
@@ -30,22 +35,28 @@ namespace Runtime.Games.TicTacToe.Moves
 
         public GameplayMovesBinder(
             IGameplayFieldUiAdapter ui,
-            ILocalMovesService moves)
+            IGameplayCommandSink commandSink,
+            IGameplayEventStream eventStream,
+            IGameplaySnapshotProvider snapshotProvider)
         {
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
-            _moves = moves ?? throw new ArgumentNullException(nameof(moves));
-
+            _commandSink = commandSink ?? throw new ArgumentNullException(nameof(commandSink));
+            _eventStream = eventStream ?? throw new ArgumentNullException(nameof(eventStream));
+            _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
             _vfxSettings = NormalizeVfxSettings(MovesVfxSettings.Default);
         }
 
         public GameplayMovesBinder(
             IGameplayFieldUiAdapter ui,
-            ILocalMovesService moves,
+            IGameplayCommandSink commandSink,
+            IGameplayEventStream eventStream,
+            IGameplaySnapshotProvider snapshotProvider,
             MovesVfxSettings vfxSettings)
         {
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
-            _moves = moves ?? throw new ArgumentNullException(nameof(moves));
-
+            _commandSink = commandSink ?? throw new ArgumentNullException(nameof(commandSink));
+            _eventStream = eventStream ?? throw new ArgumentNullException(nameof(eventStream));
+            _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
             _vfxSettings = NormalizeVfxSettings(vfxSettings);
         }
 
@@ -63,8 +74,7 @@ namespace Runtime.Games.TicTacToe.Moves
                 return;
             }
 
-            if (!_moves.IsStarted.CurrentValue)
-                GameLog.Warning("[GameplayMovesBinder] Bind called while moves service is not started. Clicks may be rejected.");
+            // ECS board is initialized at StartMatch — no "IsStarted" check needed.
 
             _currentPlayerLabel = AcquireCurrentPlayerLabel();
 
@@ -84,16 +94,18 @@ namespace Runtime.Games.TicTacToe.Moves
 
             _isBound = true;
 
-            var coldPathSnapshot = _moves.GetAllCells();
+            var ecsCells = _snapshotProvider.GetAllCells();
+            var coldPathSnapshot = MapEcsCells(ecsCells);
 
             SetupMarkAppearVfx(coldPathSnapshot);
             RenderColdPathSnapshot(coldPathSnapshot);
-            UpdateCurrentPlayerLabel(_moves.CurrentPlayer.CurrentValue);
+            // Show the correct starting player from ECS snapshot (handles restarts with O as starter)
+            UpdateCurrentPlayerLabel(TicTacToeEcsRegistrar.SlotToMark(_snapshotProvider.ActivePlayerSlot));
         }
 
         private Label AcquireCurrentPlayerLabel()
         {
-            Label? label;
+            Label label;
             
             try
             {
@@ -130,17 +142,20 @@ namespace Runtime.Games.TicTacToe.Moves
                 .Subscribe(OnCellClicked)
                 .AddTo(_subscriptions!);
 
-            _moves.CellChanged
-                .Subscribe(OnCellChanged)
+            _eventStream.CellChanged
+                .Subscribe(OnEcsCellChanged)
                 .AddTo(_subscriptions!);
 
-            _moves.LastMoveChanged
-                .Subscribe(OnLastMoveChanged)
+            _eventStream.LastMoveChanged
+                .Subscribe(OnEcsLastMoveChanged)
                 .AddTo(_subscriptions!);
 
-            _moves.CurrentPlayer
-                .Skip(1)
-                .Subscribe(UpdateCurrentPlayerLabel)
+            _eventStream.CurrentPlayerChanged
+                .Subscribe(evt => UpdateCurrentPlayerLabel(TicTacToeEcsRegistrar.SlotToMark(evt.ActivePlayerSlot)))
+                .AddTo(_subscriptions!);
+
+            _eventStream.CommandRejected
+                .Subscribe(OnCommandRejected)
                 .AddTo(_subscriptions!);
         }
 
@@ -223,7 +238,7 @@ namespace Runtime.Games.TicTacToe.Moves
 
             try
             {
-                _ = _moves.TryApplyLocalClick(cellId);
+                _commandSink.SubmitCommand(new MakeMoveCommand(cellId));
             }
             catch (ObjectDisposedException)
             {
@@ -231,26 +246,44 @@ namespace Runtime.Games.TicTacToe.Moves
             }
         }
 
-        private void OnCellChanged(CellChangedEvent evt)
+        private void OnCommandRejected(CommandRejectedEvent evt)
         {
             if (!_isBound || _disposed)
                 return;
 
-            UpdateMark(evt.CellId, evt.NewValue, animate: true);
+            // Log rejection for debugging. Full UX feedback (toast/shake) can be added later.
+            GameLog.Warning($"[GameplayMovesBinder] Command rejected: {evt.Rejection.Reason}");
         }
 
-        private void OnLastMoveChanged(LastMoveChangedEvent evt)
+        private void OnEcsCellChanged(CellChangedEvent evt)
         {
             if (!_isBound || _disposed)
                 return;
 
-            if (evt.Previous != null)
-                SetLastMoveClass(evt.Previous.Value, enabled: false);
+            UpdateMark(evt.CellId, TicTacToeEcsRegistrar.SlotToMark(evt.NewSlot), animate: true);
+        }
 
-            if (evt.Current != null)
-                SetLastMoveClass(evt.Current.Value, enabled: true);
+        private void OnEcsLastMoveChanged(LastMoveChangedEvent evt)
+        {
+            if (!_isBound || _disposed)
+                return;
 
-            _lastMoveHighlightCell = evt.Current;
+            // Track previous highlight locally (ECS event only has current CellId)
+            if (_lastMoveHighlightCell != null)
+                SetLastMoveClass(_lastMoveHighlightCell.Value, enabled: false);
+
+            if (evt.CellId != null)
+                SetLastMoveClass(evt.CellId.Value, enabled: true);
+
+            _lastMoveHighlightCell = evt.CellId;
+        }
+
+        private static IReadOnlyList<CellValue> MapEcsCells(IReadOnlyList<CellSnapshot> ecsCells)
+        {
+            var result = new CellValue[ecsCells.Count];
+            for (var i = 0; i < ecsCells.Count; i++)
+                result[i] = new CellValue(ecsCells[i].CellId, TicTacToeEcsRegistrar.SlotToMark(ecsCells[i].Slot));
+            return result;
         }
 
         private void SetLastMoveClass(CellId cellId, bool enabled)

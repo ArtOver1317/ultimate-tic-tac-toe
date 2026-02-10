@@ -9,13 +9,14 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using Runtime.Gameplay;
+using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Moves;
-using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
+using CellId = Runtime.Games.TicTacToe.Moves.CellId;
 using UnityEngine;
 using UnityEngine.TestTools;
 using R3;
@@ -32,9 +33,11 @@ namespace Tests.EditMode.Games.TicTacToe
         private IGameplayFieldPresenter _fieldPresenter;
         private IGameplayFieldUiAdapter _fieldUiAdapter;
         private IGameStateMachine _stateMachine;
-        private ILocalMovesService _localMoves;
+        private IMatchEcsLifecycle _ecsLifecycle;
+        private IGameplayEventStream _eventStream;
+        private IGameplayCommandSink _commandSink;
+        private IGameplaySnapshotProvider _snapshotProvider;
         private GameplayMovesBinder _movesBinder;
-        private GameplayRulesHandler _rulesHandler;
         private WinLineRenderer _winLineRenderer;
         private ISeriesService _seriesService;
         private IGameplayBackHandler _backHandler;
@@ -50,36 +53,17 @@ namespace Tests.EditMode.Games.TicTacToe
             _fieldPresenter = Substitute.For<IGameplayFieldPresenter>();
             _stateMachine = Substitute.For<IGameStateMachine>();
 
-            _localMoves = Substitute.For<ILocalMovesService>();
+            _ecsLifecycle = Substitute.For<IMatchEcsLifecycle>();
+            _commandSink = Substitute.For<IGameplayCommandSink>();
+            _snapshotProvider = Substitute.For<IGameplaySnapshotProvider>();
+            _snapshotProvider.GetAllCells().Returns(new List<CellSnapshot>());
 
-            var isStarted = new ReactiveProperty<bool>(false);
-            var currentPlayer = new ReactiveProperty<PlayerMark>(PlayerMark.None);
-
-            _localMoves.IsStarted.Returns(isStarted);
-            _localMoves.CurrentPlayer.Returns(currentPlayer);
-            _localMoves.CellChanged.Returns(new Subject<CellChangedEvent>());
-            _localMoves.LastMoveChanged.Returns(new Subject<LastMoveChangedEvent>());
-            _localMoves.ClickRejected.Returns(new Subject<ClickRejectedEvent>());
-            _localMoves.GetAllCells().Returns(new List<CellValue>());
-
-            _localMoves
-                .When(x => x.Start(Arg.Any<LocalMovesConfig>()))
-                .Do(callInfo =>
-                {
-                    var cfg = callInfo.ArgAt<LocalMovesConfig>(0);
-                    isStarted.Value = true;
-                    currentPlayer.Value = cfg.StartingPlayer == PlayerMark.X || cfg.StartingPlayer == PlayerMark.O
-                        ? cfg.StartingPlayer
-                        : PlayerMark.X;
-                });
-
-            _localMoves
-                .When(x => x.Stop())
-                .Do(_ =>
-                {
-                    isStarted.Value = false;
-                    currentPlayer.Value = PlayerMark.None;
-                });
+            _eventStream = Substitute.For<IGameplayEventStream>();
+            _eventStream.CellChanged.Returns(new Subject<CellChangedEvent>());
+            _eventStream.LastMoveChanged.Returns(new Subject<LastMoveChangedEvent>());
+            _eventStream.CurrentPlayerChanged.Returns(new Subject<CurrentPlayerChangedEvent>());
+            _eventStream.CommandRejected.Returns(new Subject<CommandRejectedEvent>());
+            _eventStream.RoundFinished.Returns(new Subject<RoundFinishedEvent>());
 
             _fieldUiAdapter = Substitute.For<IGameplayFieldUiAdapter>();
             _fieldUiAdapter.CellClicks.Returns(new Subject<CellId>());
@@ -89,11 +73,8 @@ namespace Tests.EditMode.Games.TicTacToe
             _fieldUiAdapter.Player2Panel.Returns(new VisualElement());
             _fieldUiAdapter.Player1ScoreLabel.Returns(new Label());
             _fieldUiAdapter.Player2ScoreLabel.Returns(new Label());
-            _movesBinder = new GameplayMovesBinder(_fieldUiAdapter, _localMoves);
+            _movesBinder = new GameplayMovesBinder(_fieldUiAdapter, _commandSink, _eventStream, _snapshotProvider);
 
-            var rulesEngine = new ClassicRulesEngine();
-            _rulesHandler = new GameplayRulesHandler(rulesEngine, _localMoves);
-            _rulesHandler.DeferToNextFrame = false;
             _winLineRenderer = new WinLineRenderer(_fieldUiAdapter);
             _seriesService = Substitute.For<ISeriesService>();
             _seriesService.Score.Returns(new ReactiveProperty<SeriesScore>(default));
@@ -119,7 +100,7 @@ namespace Tests.EditMode.Games.TicTacToe
             _stateMachine.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
 
-            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _fieldUiAdapter, _localMoves, _movesBinder, _rulesHandler, _winLineRenderer, _seriesService, _backHandler, _stateMachine);
+            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _fieldUiAdapter, _ecsLifecycle, _eventStream, _commandSink, _movesBinder, _winLineRenderer, _seriesService, _backHandler, _stateMachine);
         }
 
         [TearDown]
@@ -140,7 +121,7 @@ namespace Tests.EditMode.Games.TicTacToe
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] INVALID_CONFIG: Launch config not found\.\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _localMoves.Received(1).Stop();
+            _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.DidNotReceive().StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
@@ -165,7 +146,7 @@ namespace Tests.EditMode.Games.TicTacToe
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] INVALID_CONFIG: Launch config not found\.\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _localMoves.Received(1).Stop();
+            _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.DidNotReceive().StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
@@ -184,10 +165,10 @@ namespace Tests.EditMode.Games.TicTacToe
             await act.Should().NotThrowAsync();
             await _gameService.Received(1).StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
             await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
-            _localMoves.Received(1).Start(Arg.Any<LocalMovesConfig>());
+            _ecsLifecycle.Received(1).StartMatch(Arg.Any<GameLaunchConfig>());
 
             _fieldPresenter.DidNotReceive().Unbind();
-            _localMoves.DidNotReceive().Stop();
+            _ecsLifecycle.DidNotReceive().StopMatch();
             await _stateMachine.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
         }
 
@@ -210,7 +191,7 @@ namespace Tests.EditMode.Games.TicTacToe
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] INVALID_CONFIG: invalid\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _localMoves.Received(1).Stop();
+            _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
         }
@@ -234,7 +215,7 @@ namespace Tests.EditMode.Games.TicTacToe
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] INVALID_CONFIG:[\s\S]*boardSize\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _localMoves.Received(1).Stop();
+            _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
         }
@@ -258,7 +239,7 @@ namespace Tests.EditMode.Games.TicTacToe
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] BUILD_FAILED: boom\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _localMoves.Received(1).Stop();
+            _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
         }
@@ -282,7 +263,7 @@ namespace Tests.EditMode.Games.TicTacToe
                     @"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] BUILD_FAILED: bind failed\s*$",
                     RegexOptions.CultureInvariant));
             _fieldPresenter.Received(1).Unbind();
-            _localMoves.Received(1).Stop();
+            _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.Received(1).StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
             await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
@@ -302,7 +283,7 @@ namespace Tests.EditMode.Games.TicTacToe
             // Assert
             await act.Should().ThrowAsync<OperationCanceledException>();
             _fieldPresenter.Received(1).Unbind();
-            _localMoves.Received(1).Stop();
+            _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
         }
@@ -321,7 +302,7 @@ namespace Tests.EditMode.Games.TicTacToe
             // Assert
             await act.Should().ThrowAsync<OperationCanceledException>();
             _fieldPresenter.Received(1).Unbind();
-            _localMoves.Received(1).Stop();
+            _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.Received(1).StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
             await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());

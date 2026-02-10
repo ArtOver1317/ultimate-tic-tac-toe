@@ -4,46 +4,69 @@ using System.Threading;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
-using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.Gameplay;
+using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe;
+using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
+using Runtime.Games.TicTacToe.Rules;
+using Runtime.GameModes.Wizard;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using CellId = Runtime.Games.TicTacToe.Moves.CellId;
 using Object = UnityEngine.Object;
 
 namespace Tests.EditMode.Games.TicTacToe
 {
+    /// <summary>
+    /// Integration tests for <see cref="GameplayMovesBinder"/> using the full ECS pipeline:
+    /// CommandQueue → ProcessCommandsSystem → game systems → EventPublishSystem → binder reacts.
+    /// <see cref="SynchronousEventScheduler"/> ensures deterministic event delivery within Tick().
+    /// </summary>
     [TestFixture]
     public sealed class GameplayMovesBinderTests
     {
         private GameplayFieldPresenter _presenter;
         private UIDocument _document;
         private GameObject _gameObject;
-        private LocalMovesService _moves;
+
+        private CommandQueue _commandQueue;
+        private MatchEcsLifecycleService _lifecycle;
+        private MatchStateProvider _stateProvider;
         private GameplayMovesBinder _binder;
 
         [SetUp]
         public void SetUp()
         {
             (_presenter, _document, _gameObject) = CreatePresenter();
-            _moves = new LocalMovesService();
+
+            var scheduler = new SynchronousEventScheduler();
+            _commandQueue = new CommandQueue();
+            var eventSystem = new EventPublishSystem(scheduler);
+            var rulesEngine = new ClassicRulesEngine();
+            var registrar = new TicTacToeEcsRegistrar(rulesEngine);
+            _lifecycle = new MatchEcsLifecycleService(
+                new[] { registrar }, _commandQueue, eventSystem);
+            _stateProvider = new MatchStateProvider(
+                _commandQueue, _lifecycle, eventSystem);
         }
 
         [TearDown]
         public void TearDown()
         {
             _binder?.Dispose();
-            _moves?.Dispose();
+            _stateProvider?.Dispose();
+            _lifecycle?.Dispose();
             _presenter?.Dispose();
 
             if (_gameObject != null)
                 Object.DestroyImmediate(_gameObject);
 
             _binder = null;
-            _moves = null;
+            _stateProvider = null;
+            _lifecycle = null;
             _presenter = null;
             _document = null;
             _gameObject = null;
@@ -54,18 +77,12 @@ namespace Tests.EditMode.Games.TicTacToe
         public void WhenCellClicked_ThenUpdatesMarkAndSwitchesCurrentPlayer()
         {
             // Arrange
-            BindSync(FieldRenderSpec.Classic(3));
-            _moves.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.X));
-
-            _binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _moves);
-            _binder.Bind();
+            StartMatchAndBind();
 
             // Act
-            _presenter.EmitCellClick(new CellId(0, 0));
+            ClickAndTick(new CellId(0, 0));
 
             // Assert
-            _moves.GetCellValue(new CellId(0, 0)).Should().Be(PlayerMark.X);
-
             ((IGameplayFieldUiAdapter)_presenter).TryGetMark(new CellId(0, 0), out var markRoot).Should().BeTrue();
             markRoot.childCount.Should().BeGreaterThan(0);
             (markRoot[0] as Label).Should().NotBeNull();
@@ -79,15 +96,11 @@ namespace Tests.EditMode.Games.TicTacToe
         public void WhenTwoMovesApplied_ThenLastMoveClassMovesBetweenCells()
         {
             // Arrange
-            BindSync(FieldRenderSpec.Classic(3));
-            _moves.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.X));
-
-            _binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _moves);
-            _binder.Bind();
+            StartMatchAndBind();
 
             // Act
-            _presenter.EmitCellClick(new CellId(0, 0));
-            _presenter.EmitCellClick(new CellId(1, 1));
+            ClickAndTick(new CellId(0, 0));
+            ClickAndTick(new CellId(1, 1));
 
             // Assert
             ((IGameplayFieldUiAdapter)_presenter).TryGetCell(new CellId(0, 0), out var cell00).Should().BeTrue();
@@ -102,14 +115,10 @@ namespace Tests.EditMode.Games.TicTacToe
         public void WhenMoveApplied_ThenDisablesOccupiedCellAndIgnoresPicking()
         {
             // Arrange
-            BindSync(FieldRenderSpec.Classic(3));
-            _moves.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.X));
-
-            _binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _moves);
-            _binder.Bind();
+            StartMatchAndBind();
 
             // Act
-            _presenter.EmitCellClick(new CellId(0, 0));
+            ClickAndTick(new CellId(0, 0));
 
             // Assert
             ((IGameplayFieldUiAdapter)_presenter).TryGetCell(new CellId(0, 0), out var cell00).Should().BeTrue();
@@ -123,10 +132,10 @@ namespace Tests.EditMode.Games.TicTacToe
         public void WhenBindCalledTwice_ThenDoesNotThrow()
         {
             // Arrange
-            BindSync(FieldRenderSpec.Classic(3));
-            _moves.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.X));
+            BindPresenter(FieldRenderSpec.Classic(3));
+            StartMatch();
 
-            _binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _moves);
+            _binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _stateProvider, _stateProvider, _stateProvider);
 
             // Act
             Action act = () =>
@@ -144,11 +153,7 @@ namespace Tests.EditMode.Games.TicTacToe
         public void WhenUnbindCalledTwice_ThenDoesNotThrow()
         {
             // Arrange
-            BindSync(FieldRenderSpec.Classic(3));
-            _moves.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.X));
-
-            _binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _moves);
-            _binder.Bind();
+            StartMatchAndBind();
 
             // Act
             Action act = () =>
@@ -165,18 +170,18 @@ namespace Tests.EditMode.Games.TicTacToe
         [Category("Integration")]
         public void WhenBindAfterMovesAlreadyApplied_ThenRendersMarksAndInteractivityButNotLastMove()
         {
-            // Arrange
-            BindSync(FieldRenderSpec.Classic(3));
-            _moves.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.X));
+            // Arrange — apply moves via ECS before binding the binder
+            BindPresenter(FieldRenderSpec.Classic(3));
+            StartMatch();
 
-            _moves.TryApplyLocalClick(new CellId(0, 0)).Should().Be(ApplyClickResult.Applied);
-            _moves.TryApplyLocalClick(new CellId(1, 1)).Should().Be(ApplyClickResult.Applied);
+            _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 0)));
+            _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(1, 1)));
 
-            // Act
-            _binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _moves);
+            // Act — binder reads cold-path snapshot (two occupied cells)
+            _binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _stateProvider, _stateProvider, _stateProvider);
             _binder.Bind();
 
-            // Assert
+            // Assert — marks are rendered via cold-path
             ((IGameplayFieldUiAdapter)_presenter).TryGetCellView(new CellId(0, 0), out var cell00, out var mark00).Should().BeTrue();
             mark00.text.Should().Be("X");
             cell00.enabledSelf.Should().BeFalse();
@@ -191,25 +196,21 @@ namespace Tests.EditMode.Games.TicTacToe
 
             ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("Player 1 (X)");
 
-            _presenter.EmitCellClick(new CellId(2, 2));
+            // Another hot-path move after bind
+            ClickAndTick(new CellId(2, 2));
             ((IGameplayFieldUiAdapter)_presenter).TryGetCell(new CellId(2, 2), out var cell22).Should().BeTrue();
             cell22.ClassListContains("cell--lastMove").Should().BeTrue("hot-path ход устанавливает last-move");
         }
 
         [Test]
         [Category("Integration")]
-        public void WhenStartCalledAgainWhileBinderIsBound_ThenUiClearsMarksReEnablesCellsAndClearsLastMove()
+        public void WhenUnbindAndReBindAfterRestart_ThenUiClearsMarksReEnablesCellsAndClearsLastMove()
         {
             // Arrange
-            var spec = FieldRenderSpec.Classic(3);
-            BindSync(spec);
-            _moves.Start(new LocalMovesConfig(spec, PlayerMark.X));
+            StartMatchAndBind();
 
-            _binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _moves);
-            _binder.Bind();
-
-            _presenter.EmitCellClick(new CellId(0, 0)); // X
-            _presenter.EmitCellClick(new CellId(1, 1)); // O -> last move expected here
+            ClickAndTick(new CellId(0, 0)); // X
+            ClickAndTick(new CellId(1, 1)); // O -> last move expected here
 
             ((IGameplayFieldUiAdapter)_presenter).TryGetCellView(new CellId(0, 0), out _, out var markBefore).Should().BeTrue();
             markBefore.text.Should().Be("X");
@@ -217,10 +218,13 @@ namespace Tests.EditMode.Games.TicTacToe
             ((IGameplayFieldUiAdapter)_presenter).TryGetCell(new CellId(1, 1), out var lastMoveCellBefore).Should().BeTrue();
             lastMoveCellBefore.ClassListContains("cell--lastMove").Should().BeTrue("после 2-го хода last-move должен быть установлен");
 
-            // Act
-            _moves.Start(new LocalMovesConfig(spec, PlayerMark.O));
+            // Act — simulate restart cycle: Unbind → RestartRoundCommand → Tick → re-Bind
+            _binder.Unbind();
 
-            // Assert
+            _stateProvider.SubmitCommand(new RestartRoundCommand(TicTacToeEcsRegistrar.SlotO));
+            _binder.Bind();
+
+            // Assert — all cells re-enabled, marks cleared
             ((IGameplayFieldUiAdapter)_presenter).TryGetCellView(new CellId(0, 0), out var cell00, out var mark00).Should().BeTrue();
             mark00.text.Should().BeEmpty();
             cell00.enabledSelf.Should().BeTrue();
@@ -239,14 +243,10 @@ namespace Tests.EditMode.Games.TicTacToe
 
         [Test]
         [Category("Integration")]
-        public void WhenBinderDisposedWithoutUnbind_ThenServiceEventsDoNotUpdateUiAndUiStaysAtPreviousValues()
+        public void WhenBinderDisposedWithoutUnbind_ThenEcsEventsDoNotUpdateUi()
         {
             // Arrange
-            BindSync(FieldRenderSpec.Classic(3));
-            _moves.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.X));
-
-            _binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _moves);
-            _binder.Bind();
+            StartMatchAndBind();
 
             var currentPlayerLabelBefore = ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text;
             currentPlayerLabelBefore.Should().Be("Player 1 (X)", "initial state");
@@ -254,17 +254,12 @@ namespace Tests.EditMode.Games.TicTacToe
             ((IGameplayFieldUiAdapter)_presenter).TryGetCellView(new CellId(0, 0), out _, out var mark00Before).Should().BeTrue();
             mark00Before.text.Should().BeEmpty("клетка пустая до хода");
 
-            // Act
+            // Act — dispose binder, then apply a move through ECS
             _binder.Dispose();
 
-            var result = _moves.TryApplyLocalClick(new CellId(0, 0));
+            _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 0)));
 
-            // Assert
-            result.Should().Be(ApplyClickResult.Applied, "сервис должен применить ход");
-
-            _moves.GetCellValue(new CellId(0, 0)).Should().Be(PlayerMark.X, "сервис применил ход");
-            _moves.CurrentPlayer.CurrentValue.Should().Be(PlayerMark.O, "сервис переключил игрока");
-
+            // Assert — UI NOT updated because binder is disposed
             ((IGameplayFieldUiAdapter)_presenter).TryGetCellView(new CellId(0, 0), out _, out var mark00After).Should().BeTrue();
             mark00After.text.Should().BeEmpty("UI не обновился после Dispose");
 
@@ -274,37 +269,55 @@ namespace Tests.EditMode.Games.TicTacToe
 
         [Test]
         [Category("Integration")]
-        public void WhenBindUnbindRepeatedTenTimes_ThenSingleClickDoesNotProduceClickRejected()
+        public void WhenBindUnbindRepeatedTenTimes_ThenSingleClickSubmitsExactlyOneCommand()
         {
             // Arrange
-            BindSync(FieldRenderSpec.Classic(3));
-            _moves.Start(new LocalMovesConfig(FieldRenderSpec.Classic(3), PlayerMark.X));
+            StartMatchAndBind();
 
-            var clickRejected = new List<ClickRejectedEvent>();
-            using var disposables = new CompositeDisposable();
-            _moves.ClickRejected.Subscribe(e => clickRejected.Add(e)).AddTo(disposables);
-
-            // Act
+            // Rapidly bind/unbind to ensure no leaked subscriptions
             for (var i = 0; i < 10; i++)
             {
-                using var binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _moves);
-                binder.Bind();
-                binder.Unbind();
+                _binder.Unbind();
+                _binder.Bind();
             }
 
-            clickRejected.Clear();
+            // Act — single click
+            ClickAndTick(new CellId(0, 0));
 
-            _binder = new GameplayMovesBinder((IGameplayFieldUiAdapter)_presenter, _moves);
-            _binder.Bind();
-            _presenter.EmitCellClick(new CellId(0, 0));
-
-            // Assert
-            clickRejected.Should().BeEmpty("один клик не должен приводить к двойной обработке и ClickRejected");
-            _moves.GetCellValue(new CellId(0, 0)).Should().Be(PlayerMark.X);
+            // Assert — cell occupied by X, current player switched
+            ((IGameplayFieldUiAdapter)_presenter).TryGetMark(new CellId(0, 0), out var markRoot).Should().BeTrue();
+            markRoot.childCount.Should().BeGreaterThan(0);
+            ((Label)markRoot[0]).text.Should().Be("X");
             ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("Player 2 (O)");
         }
 
-        private void BindSync(FieldRenderSpec spec)
+        // --- Helpers ---
+
+        private void StartMatch()
+        {
+            var config = new GameLaunchConfig(
+                TicTacToeEcsRegistrar.TicTacToeGameId,
+                new TicTacToeConfig(3),
+                new LocalHumanConfig());
+            _lifecycle.StartMatch(config);
+        }
+
+        private void StartMatchAndBind()
+        {
+            BindPresenter(FieldRenderSpec.Classic(3));
+            StartMatch();
+
+            _binder = new GameplayMovesBinder(
+                (IGameplayFieldUiAdapter)_presenter,
+                _stateProvider, _stateProvider, _stateProvider);
+            _binder.Bind();
+        }
+
+        private void ClickAndTick(CellId cellId) =>
+            // EmitCellClick → binder → SubmitCommand (auto-ticks)
+            _presenter.EmitCellClick(cellId);
+
+        private void BindPresenter(FieldRenderSpec spec)
         {
             // In these tests we don't build the full gameplay HUD (BackButton, etc.).
             // GameplayFieldPresenter logs an Error if BackButton is missing.

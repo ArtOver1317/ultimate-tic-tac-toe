@@ -28,9 +28,11 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             _gameObject = new GameObject("WizardToastPlayModeTests");
             _uiDocument = _gameObject.AddComponent<UIDocument>();
-            _uiDocument.visualTreeAsset = _uxml;
             _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
             _uiDocument.panelSettings = _panelSettings;
+            _uiDocument.visualTreeAsset = _uxml;
+
+            yield return WaitUntilRootReady(_uiDocument, timeoutSeconds: 2f);
 
             _toast = new WizardToast();
             _uiDocument.rootVisualElement.Add(_toast);
@@ -122,6 +124,18 @@ namespace Tests.PlayMode.GameModes.Wizard
             var start = Time.realtimeSinceStartup;
             while (Time.realtimeSinceStartup - start < seconds)
                 yield return null;
+        }
+
+        private static IEnumerator WaitUntilRootReady(UIDocument uiDocument, float timeoutSeconds)
+        {
+            var start = Time.realtimeSinceStartup;
+            while (uiDocument.rootVisualElement == null)
+            {
+                if (Time.realtimeSinceStartup - start >= timeoutSeconds)
+                    Assert.Fail("UIDocument.rootVisualElement was not created within timeout.");
+
+                yield return null;
+            }
         }
     }
 }

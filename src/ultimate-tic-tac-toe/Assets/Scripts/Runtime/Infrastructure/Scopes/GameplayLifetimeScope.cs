@@ -1,6 +1,8 @@
 using System;
 using Runtime.Gameplay;
+using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe;
+using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Series;
@@ -23,17 +25,30 @@ namespace Runtime.Infrastructure.Scopes
             builder.RegisterInstance(_gameplayDocument);
             builder.Register<FieldSpecMapper>(Lifetime.Scoped);
             builder.Register<IGameService, LocalGameService>(Lifetime.Scoped);
-            builder.Register<ILocalMovesService, LocalMovesService>(Lifetime.Scoped);
 
             // Phase 4: default VFX settings for local moves.
             builder.RegisterInstance(MovesVfxSettings.Default);
 
+            // ── ECS Infrastructure (Phase 5) ──
+            builder.Register<CommandQueue>(Lifetime.Scoped);
+            builder.Register<IMatchEventScheduler, DeferredEventScheduler>(Lifetime.Scoped);
+            builder.Register<EventPublishSystem>(Lifetime.Scoped);
+            builder.Register<IRulesEngine, ClassicRulesEngine>(Lifetime.Scoped);
+            builder.Register<TicTacToeEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
+            builder.Register<MatchEcsLifecycleService>(Lifetime.Scoped)
+                .AsSelf()
+                .As<IMatchEcsLifecycle>();
+            builder.Register<MatchStateProvider>(Lifetime.Scoped)
+                .As<IMatchStateProvider>()
+                .As<IGameplayCommandSink>()
+                .As<IGameplayEventStream>()
+                .As<IGameplaySnapshotProvider>();
+
+            // ── UI / Binders ──
             builder.Register<GameplayFieldPresenter>(Lifetime.Scoped)
                 .As<IGameplayFieldPresenter>()
                 .As<IGameplayFieldUiAdapter>();
             builder.Register<GameplayMovesBinder>(Lifetime.Scoped);
-            builder.Register<IRulesEngine, ClassicRulesEngine>(Lifetime.Scoped);
-            builder.Register<GameplayRulesHandler>(Lifetime.Scoped);
             builder.Register<WinLineRenderer>(Lifetime.Scoped)
                 .AsSelf()
                 .As<IDisposable>();

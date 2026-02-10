@@ -15,9 +15,11 @@ namespace Tests.PlayMode.UI.Components
 {
     [TestFixture]
     [Category("Integration")]
+    [UnityPlatform(RuntimePlatform.WindowsEditor, RuntimePlatform.OSXEditor, RuntimePlatform.LinuxEditor)]
     public class MatchmakingSpinnerPlayModeTests
     {
         private const string MatchmakingUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/Matchmaking.uxml";
+        private const string PanelSettingsPath = "Assets/Content/UI Toolkit/Panel Settings.asset";
 
         private GameObject _gameObject;
         private UIDocument _uiDocument;
@@ -26,22 +28,28 @@ namespace Tests.PlayMode.UI.Components
         private PanelSettings _panelSettings;
 
         [UnitySetUp]
-        public IEnumerator SetUp() => UniTask.ToCoroutine(async () =>
+        public IEnumerator SetUp()
         {
             _uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(MatchmakingUxmlPath);
-            _uxml.Should().NotBeNull();
+            Assert.NotNull(_uxml, $"UXML not found at path '{MatchmakingUxmlPath}'.");
+
+            var sharedPanelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(PanelSettingsPath);
+            _panelSettings = sharedPanelSettings != null
+                ? Object.Instantiate(sharedPanelSettings)
+                : ScriptableObject.CreateInstance<PanelSettings>();
 
             _gameObject = new GameObject("MatchmakingSpinner_PlayMode");
             _uiDocument = _gameObject.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            Assert.NotNull(_uiDocument);
+
             _uiDocument.panelSettings = _panelSettings;
             _uiDocument.visualTreeAsset = _uxml;
 
-            await UniTask.Yield();
+            yield return WaitUntilRootReady(_uiDocument, timeoutSeconds: 2f);
 
             _spinner = _uiDocument.rootVisualElement.Q<MatchmakingSpinner>("Spinner");
             _spinner.Should().NotBeNull();
-        });
+        }
 
         [UnityTearDown]
         public IEnumerator TearDown()
@@ -134,6 +142,18 @@ namespace Tests.PlayMode.UI.Components
         {
             using var cts = new CancellationTokenSource(timeoutMs);
             await UniTask.WaitUntil(predicate, cancellationToken: cts.Token);
+        }
+
+        private static IEnumerator WaitUntilRootReady(UIDocument uiDocument, float timeoutSeconds)
+        {
+            var start = Time.realtimeSinceStartup;
+            while (uiDocument.rootVisualElement == null)
+            {
+                if (Time.realtimeSinceStartup - start >= timeoutSeconds)
+                    Assert.Fail("UIDocument.rootVisualElement was not created within timeout.");
+
+                yield return null;
+            }
         }
     }
 }
