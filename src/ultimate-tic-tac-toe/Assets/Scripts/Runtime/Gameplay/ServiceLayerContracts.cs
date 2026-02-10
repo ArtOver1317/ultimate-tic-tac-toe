@@ -48,6 +48,12 @@ namespace Runtime.Gameplay
         /// Used by binder cold-path to show the correct starting-player label.
         /// </summary>
         int ActivePlayerSlot { get; }
+
+        /// <summary>
+        /// Returns the last move submitted, or null if no moves were made yet.
+        /// Used for UI highlights, reconnect recovery, and move history display.
+        /// </summary>
+        CellId? LastMove { get; }
     }
 
     /// <summary>

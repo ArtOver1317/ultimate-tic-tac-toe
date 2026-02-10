@@ -63,6 +63,17 @@ namespace Runtime.Gameplay.ECS
             _onRoundFinished = null;
         }
 
+        /// <summary>
+        /// Returns true if any event callbacks are currently registered.
+        /// Useful for diagnostics and lifecycle verification.
+        /// </summary>
+        internal bool HasCallbacks =>
+            _onCellChanged != null ||
+            _onLastMoveChanged != null ||
+            _onCurrentPlayerChanged != null ||
+            _onCommandRejected != null ||
+            _onRoundFinished != null;
+
         public void OnAwake()
         {
             _matchFilter = World.Filter.With<MatchTag>().Build();

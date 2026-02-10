@@ -139,6 +139,25 @@ namespace Runtime.Gameplay
             }
         }
 
+        public CellId? LastMove
+        {
+            get
+            {
+                if (!_lifecycle.IsActive)
+                    return null;
+
+                var world = _lifecycle.World;
+                var entity = _lifecycle.MatchEntity;
+
+                var lastMoveStash = world.GetStash<LastMoveComponent>();
+                if (!lastMoveStash.Has(entity))
+                    return null;
+
+                ref var component = ref lastMoveStash.Get(entity);
+                return component.HasValue ? component.CellId : null;
+            }
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
