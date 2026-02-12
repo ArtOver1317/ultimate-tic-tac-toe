@@ -5,6 +5,7 @@ using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
@@ -32,6 +33,7 @@ namespace Runtime.Games.TicTacToe
         private readonly ISeriesService _seriesService;
         private readonly IGameplayBackHandler _backHandler;
         private readonly IGameStateMachine _stateMachine;
+        private readonly IBotTurnDriver _botDriver;
 
         private FieldRenderSpec _fieldSpec;
         private GameResultViewModel _resultVM;
@@ -50,7 +52,8 @@ namespace Runtime.Games.TicTacToe
             WinLineRenderer winLineRenderer,
             ISeriesService seriesService,
             IGameplayBackHandler backHandler,
-            IGameStateMachine stateMachine)
+            IGameStateMachine stateMachine,
+            IBotTurnDriver botDriver)
         {
             _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));
             _gameService = gameService ?? throw new ArgumentNullException(nameof(gameService));
@@ -64,6 +67,7 @@ namespace Runtime.Games.TicTacToe
             _seriesService = seriesService ?? throw new ArgumentNullException(nameof(seriesService));
             _backHandler = backHandler ?? throw new ArgumentNullException(nameof(backHandler));
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
+            _botDriver = botDriver ?? throw new ArgumentNullException(nameof(botDriver));
         }
 
         public async UniTask StartAsync(CancellationToken ct)
@@ -88,6 +92,9 @@ namespace Runtime.Games.TicTacToe
 
                 _ecsLifecycle.StartMatch(config);
                 _movesBinder.Bind();
+
+                // Start bot driver if opponent is a bot
+                await TryStartBotDriverAsync(config, ct);
 
                 CreateResultVM();
                 SubscribeToEvents();
@@ -115,12 +122,33 @@ namespace Runtime.Games.TicTacToe
 
             _subscriptions?.Dispose();
             _subscriptions = null;
+            _botDriver.Dispose();
             _movesBinder.Unbind();
             _ecsLifecycle.StopMatch();
             _winLineRenderer.Clear();
             _resultVM?.Dispose();
             _resultVM = null;
             _fieldPresenter.Unbind();
+        }
+
+        // -- Bot integration --
+
+        // TODO: BvB support (ADR-10) — currently only Player vs Bot (slot 1).
+        // For Bot vs Bot: need BvBOpponentConfig type, second driver creation
+        // (manual new BotTurnDriver(...) or factory), and DI refactoring.
+        // Self-play tool covers BvB calibration in the meantime.
+
+        private async UniTask TryStartBotDriverAsync(GameLaunchConfig config, CancellationToken ct)
+        {
+            if (config.OpponentConfig is not BotOpponentConfig botConfig)
+                return;
+
+            var result = await _botDriver.StartAsync(config, botSlot: 1, botConfig.DifficultyId, ct);
+            if (result.Status != BotStartStatus.Started)
+            {
+                Log.Warning(LogTags.Infrastructure,
+                    $"[GameplayStartup] Bot driver not started: {result.Status} — {result.Error}");
+            }
         }
 
         // -- Event wiring --
@@ -142,6 +170,32 @@ namespace Runtime.Games.TicTacToe
 
             _eventStream.RoundFinished
                 .Subscribe(OnRoundFinished)
+                .AddTo(_subscriptions);
+
+            // Phase 4: Input blocking while bot is thinking
+            _botDriver.IsBusy
+                .Subscribe(busy =>
+                {
+                    var container = _fieldUiAdapter.FieldContainer;
+                    if (container != null)
+                        container.pickingMode = busy
+                            ? UnityEngine.UIElements.PickingMode.Ignore
+                            : UnityEngine.UIElements.PickingMode.Position;
+                })
+                .AddTo(_subscriptions);
+
+            // ADR-12: Surface bot disable error to user
+            _botDriver.IsDisabled
+                .Where(disabled => disabled)
+                .Subscribe(_ =>
+                {
+                    Log.Error(LogTags.Infrastructure,
+                        "[GameplayStartup] Bot disabled after exhausting all retry attempts.");
+                    // Re-enable input so human can exit the match
+                    var container = _fieldUiAdapter.FieldContainer;
+                    if (container != null)
+                        container.pickingMode = UnityEngine.UIElements.PickingMode.Position;
+                })
                 .AddTo(_subscriptions);
 
             if (_resultVM != null)
@@ -306,6 +360,7 @@ namespace Runtime.Games.TicTacToe
         {
             _subscriptions?.Dispose();
             _subscriptions = null;
+            _botDriver.Dispose();
             _movesBinder.Unbind();
             _winLineRenderer.Clear();
             _resultVM?.Dispose();

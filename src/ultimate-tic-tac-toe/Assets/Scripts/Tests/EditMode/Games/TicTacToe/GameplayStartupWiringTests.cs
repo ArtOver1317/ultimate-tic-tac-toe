@@ -15,6 +15,7 @@ using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
+using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
@@ -106,10 +107,15 @@ namespace Tests.EditMode.Games.TicTacToe
             _stateMachine.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
 
+            var botDriver = Substitute.For<IBotTurnDriver>();
+            botDriver.IsBusy.Returns(new ReactiveProperty<bool>(false));
+            botDriver.IsDisabled.Returns(new ReactiveProperty<bool>(false));
+
             _sut = new GameplayStartup(
                 _configStore, _gameService, _fieldPresenter, _fieldUiAdapter,
                 _ecsLifecycle, eventStream, _commandSink,
-                movesBinder, winLineRenderer, _seriesService, _backHandler, _stateMachine);
+                movesBinder, winLineRenderer, _seriesService, _backHandler, _stateMachine,
+                botDriver);
         }
 
         [TearDown]

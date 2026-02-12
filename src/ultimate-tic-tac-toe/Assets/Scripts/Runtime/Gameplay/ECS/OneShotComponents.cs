@@ -46,4 +46,10 @@ namespace Runtime.Gameplay.ECS
         public int? WinnerSlot;
         public EcsWinLine? WinLine;
     }
+
+    /// <summary>
+    /// One-shot event: placed on match entity by <see cref="Runtime.Games.TicTacToe.ECS.RestartRoundSystem"/>,
+    /// consumed by <see cref="EventPublishSystem"/> to publish <see cref="CurrentPlayerChangedEvent"/>.
+    /// </summary>
+    public struct RoundRestartedOneShot : IComponent { }
 }

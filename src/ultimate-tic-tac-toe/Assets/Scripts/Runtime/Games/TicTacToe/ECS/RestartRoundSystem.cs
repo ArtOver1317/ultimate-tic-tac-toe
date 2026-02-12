@@ -22,6 +22,7 @@ namespace Runtime.Games.TicTacToe.ECS
         private Stash<PlayersComponent> _playersStash;
         private Stash<MatchStatusComponent> _statusStash;
         private Stash<CommandSequenceComponent> _seqStash;
+        private Stash<RoundRestartedOneShot> _roundRestartedStash;
 
         public void OnAwake()
         {
@@ -32,6 +33,7 @@ namespace Runtime.Games.TicTacToe.ECS
             _playersStash = World.GetStash<PlayersComponent>();
             _statusStash = World.GetStash<MatchStatusComponent>();
             _seqStash = World.GetStash<CommandSequenceComponent>();
+            _roundRestartedStash = World.GetStash<RoundRestartedOneShot>();
         }
 
         public void OnUpdate(float deltaTime)
@@ -73,6 +75,10 @@ namespace Runtime.Games.TicTacToe.ECS
                 // Increment command sequence
                 ref var seq = ref _seqStash.Get(entity);
                 seq.Value++;
+
+                // Signal EventPublishSystem to fire CurrentPlayerChangedEvent
+                if (!_roundRestartedStash.Has(entity))
+                    _roundRestartedStash.Set(entity, new RoundRestartedOneShot());
 
                 // Remove request (consumed)
                 _restartStash.Remove(entity);

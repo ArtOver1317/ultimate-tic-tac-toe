@@ -12,6 +12,7 @@ using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Moves;
+using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.GameStateMachine;
@@ -41,6 +42,10 @@ namespace Tests.EditMode.Games.TicTacToe
         private WinLineRenderer _winLineRenderer;
         private ISeriesService _seriesService;
         private IGameplayBackHandler _backHandler;
+        private IBotTurnDriver _botDriver;
+        private ReactiveProperty<bool> _botBusy;
+        private ReactiveProperty<bool> _botDisabled;
+        private VisualElement _fieldContainer;
         private GameplayStartup _sut;
         private GameLaunchConfig _config;
         private IGameplaySession _session;
@@ -65,10 +70,11 @@ namespace Tests.EditMode.Games.TicTacToe
             _eventStream.CommandRejected.Returns(new Subject<CommandRejectedEvent>());
             _eventStream.RoundFinished.Returns(new Subject<RoundFinishedEvent>());
 
+            _fieldContainer = new VisualElement();
             _fieldUiAdapter = Substitute.For<IGameplayFieldUiAdapter>();
             _fieldUiAdapter.CellClicks.Returns(new Subject<CellId>());
             _fieldUiAdapter.CurrentPlayerLabel.Returns(new Label());
-            _fieldUiAdapter.FieldContainer.Returns(new VisualElement());
+            _fieldUiAdapter.FieldContainer.Returns(_fieldContainer);
             _fieldUiAdapter.Player1Panel.Returns(new VisualElement());
             _fieldUiAdapter.Player2Panel.Returns(new VisualElement());
             _fieldUiAdapter.Player1ScoreLabel.Returns(new Label());
@@ -100,7 +106,13 @@ namespace Tests.EditMode.Games.TicTacToe
             _stateMachine.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
 
-            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _fieldUiAdapter, _ecsLifecycle, _eventStream, _commandSink, _movesBinder, _winLineRenderer, _seriesService, _backHandler, _stateMachine);
+            _botDriver = Substitute.For<IBotTurnDriver>();
+            _botBusy = new ReactiveProperty<bool>(false);
+            _botDisabled = new ReactiveProperty<bool>(false);
+            _botDriver.IsBusy.Returns(_botBusy);
+            _botDriver.IsDisabled.Returns(_botDisabled);
+
+            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _fieldUiAdapter, _ecsLifecycle, _eventStream, _commandSink, _movesBinder, _winLineRenderer, _seriesService, _backHandler, _stateMachine, _botDriver);
         }
 
         [TearDown]
@@ -306,6 +318,29 @@ namespace Tests.EditMode.Games.TicTacToe
             await _stateMachine.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.Received(1).StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
             await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
+        }
+
+        [Test]
+        public async Task WhenBotDisabled_ThenRestoresFieldPickingMode()
+        {
+            // Arrange
+            await _sut.StartAsync(CancellationToken.None);
+            _fieldContainer.pickingMode = PickingMode.Ignore;
+            var previousIgnore = LogAssert.ignoreFailingMessages;
+            LogAssert.ignoreFailingMessages = true;
+
+            // Act
+            try
+            {
+                _botDisabled.Value = true;
+
+                // Assert
+                _fieldContainer.pickingMode.Should().Be(PickingMode.Position);
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = previousIgnore;
+            }
         }
 
         private static async Task RunAllowingFailingLogsAsync(Func<Task> action, params Regex[] expectedFailingLogs)

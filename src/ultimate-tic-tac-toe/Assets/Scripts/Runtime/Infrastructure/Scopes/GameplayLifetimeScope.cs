@@ -2,6 +2,7 @@ using System;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe;
+using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
@@ -16,6 +17,8 @@ namespace Runtime.Infrastructure.Scopes
     public sealed class GameplayLifetimeScope : LifetimeScope
     {
         [SerializeField] private UIDocument _gameplayDocument;
+        [SerializeField] private BotProfileCatalog BotProfileCatalog;
+        [SerializeField] private BotSearchSettings BotSearchSettings;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -43,6 +46,21 @@ namespace Runtime.Infrastructure.Scopes
                 .As<IGameplayCommandSink>()
                 .As<IGameplayEventStream>()
                 .As<IGameplaySnapshotProvider>();
+
+            // ── Bot AI ──
+            if (BotProfileCatalog != null)
+                builder.RegisterInstance(BotProfileCatalog).As<IBotProfileCatalog>();
+            else
+                builder.RegisterInstance(new EmptyBotProfileCatalog()).As<IBotProfileCatalog>();
+
+            if (BotSearchSettings != null)
+                builder.RegisterInstance(BotSearchSettings);
+
+            builder.Register<MinimaxDecisionEngine>(Lifetime.Scoped).As<IBotDecisionEngine>();
+            builder.Register<ClassicWinLengthProvider>(Lifetime.Scoped).As<IClassicWinLengthProvider>();
+            builder.Register<BotTurnDriver>(Lifetime.Scoped)
+                .As<IBotTurnDriver>()
+                .As<IDisposable>();
 
             // ── UI / Binders ──
             builder.Register<GameplayFieldPresenter>(Lifetime.Scoped)

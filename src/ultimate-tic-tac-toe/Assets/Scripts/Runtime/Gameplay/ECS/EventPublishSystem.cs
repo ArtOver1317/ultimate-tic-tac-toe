@@ -30,6 +30,7 @@ namespace Runtime.Gameplay.ECS
         private Stash<RoundFinishedOneShot> _roundFinishedStash;
         private Stash<PlayersComponent> _playersStash;
         private Stash<LastMoveComponent> _lastMoveStash;
+        private Stash<RoundRestartedOneShot> _roundRestartedStash;
 
         public EventPublishSystem(IMatchEventScheduler scheduler)
         {
@@ -80,6 +81,7 @@ namespace Runtime.Gameplay.ECS
             _moveAppliedStash = World.GetStash<MoveAppliedOneShot>();
             _moveRejectedStash = World.GetStash<MoveRejectedOneShot>();
             _roundFinishedStash = World.GetStash<RoundFinishedOneShot>();
+            _roundRestartedStash = World.GetStash<RoundRestartedOneShot>();
             _playersStash = World.GetStash<PlayersComponent>();
             _lastMoveStash = World.GetStash<LastMoveComponent>();
         }
@@ -99,6 +101,21 @@ namespace Runtime.Gameplay.ECS
                 _moveRejectedStash.Remove(matchEntity);
 
                 _scheduler.Schedule(() => SafeInvoke(_onCommandRejected, evt, nameof(CommandRejectedEvent)));
+                return;
+            }
+
+            // Handle round restart — publish CurrentPlayerChanged so bot driver reacts
+            if (_roundRestartedStash.Has(matchEntity))
+            {
+                _roundRestartedStash.Remove(matchEntity);
+
+                if (_playersStash.Has(matchEntity))
+                {
+                    ref var players = ref _playersStash.Get(matchEntity);
+                    var playerEvt = new CurrentPlayerChangedEvent(players.ActivePlayerSlot);
+                    _scheduler.Schedule(() => SafeInvoke(_onCurrentPlayerChanged, playerEvt, nameof(CurrentPlayerChangedEvent)));
+                }
+
                 return;
             }
 
