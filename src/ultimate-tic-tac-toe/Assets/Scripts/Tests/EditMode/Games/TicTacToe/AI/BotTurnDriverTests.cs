@@ -63,12 +63,12 @@ namespace Tests.EditMode.Games.TicTacToe.AI
             public void SetCells(int boardSize, PlayerMark[] marks)
             {
                 _cells.Clear();
-                for (int r = 0; r < boardSize; r++)
+                for (var r = 0; r < boardSize; r++)
                 {
-                    for (int c = 0; c < boardSize; c++)
+                    for (var c = 0; c < boardSize; c++)
                     {
                         var mark = marks[r * boardSize + c];
-                        int slot = mark switch
+                        var slot = mark switch
                         {
                             PlayerMark.X => 0,
                             PlayerMark.O => 1,
@@ -148,11 +148,59 @@ namespace Tests.EditMode.Games.TicTacToe.AI
         /// <summary>Waits up to ~2s for SubmittedCommands to reach minCount.</summary>
         private async UniTask WaitForSubmitAsync(int minCount = 1)
         {
-            for (int i = 0; i < 200; i++)
+            for (var i = 0; i < 200; i++)
             {
                 if (_matchState.SubmittedCommands.Count >= minCount) return;
                 await UniTask.DelayFrame(1);
             }
+        }
+
+        private (UniTaskCompletionSource entered, UniTaskCompletionSource release) ConfigureBarrierEngine(
+            bool honorCancellation = true,
+            CellId? move = null)
+        {
+            var entered = new UniTaskCompletionSource();
+            var release = new UniTaskCompletionSource();
+            var selectedMove = move ?? new CellId(1, 1);
+
+            _engine.ChooseMoveAsync(Arg.Any<BotDecisionRequest>(), Arg.Any<BotProfileData>(),
+                    Arg.Any<CancellationToken>())
+                .Returns(info =>
+                {
+                    var ct = info.ArgAt<CancellationToken>(2);
+                    return UniTask.Create(async () =>
+                    {
+                        entered.TrySetResult();
+
+                        if (honorCancellation)
+                            await release.Task.AttachExternalCancellation(ct);
+                        else
+                            await release.Task;
+
+                        return selectedMove;
+                    });
+                });
+
+            return (entered, release);
+        }
+
+        private static async UniTask WaitUntilEngineEnteredAsync(UniTaskCompletionSource entered)
+        {
+            var winner = await UniTask.WhenAny(entered.Task, UniTask.Delay(2000));
+            winner.Should().Be(0, "engine must actually enter ChooseMoveAsync before race mutation");
+        }
+
+        private static async UniTask WaitUntilNotBusyAsync(BotTurnDriver driver)
+        {
+            for (var i = 0; i < 200; i++)
+            {
+                if (!driver.IsBusy.CurrentValue)
+                    return;
+
+                await UniTask.DelayFrame(1);
+            }
+
+            driver.IsBusy.CurrentValue.Should().BeFalse("turn should finish within a reasonable number of frames");
         }
 
         private static GameLaunchConfig MakeConfig(int boardSize = 3, bool isUltimate = false,
@@ -397,5 +445,257 @@ namespace Tests.EditMode.Games.TicTacToe.AI
             driver.IsBusy.CurrentValue.Should().BeFalse();
             driver.Dispose();
         }
+
+        // ══════════════════════════════════════════════
+        //  ADR-6: Stale command guards (gaps)
+        // ══════════════════════════════════════════════
+
+        [UnityTest]
+        public IEnumerator WhenCommandSequenceChangesWhileBotThinking_ThenDoesNotSubmitMove() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                var driver = CreateDriver();
+                SetupEmptyBoard();
+                _matchState.ActivePlayerSlotValue = 0;
+                var (entered, release) = ConfigureBarrierEngine();
+
+                await driver.StartAsync(MakeConfig(), 1, "easy", CancellationToken.None);
+
+                // Trigger bot's turn
+                _matchState.ActivePlayerSlotValue = 1;
+                _matchState.CommandSequenceValue = 1;
+                _matchState.CurrentPlayerChangedSubject.OnNext(new CurrentPlayerChangedEvent(1));
+                await WaitUntilEngineEnteredAsync(entered);
+
+                // Simulate external move accepted (CommandSequence changes)
+                _matchState.CommandSequenceValue = 2;
+                release.TrySetResult();
+                await WaitUntilNotBusyAsync(driver);
+
+                await _engine.Received(1).ChooseMoveAsync(Arg.Any<BotDecisionRequest>(),
+                    Arg.Any<BotProfileData>(), Arg.Any<CancellationToken>());
+
+                // Assert: stale move discarded
+                _matchState.SubmittedCommands.Should().BeEmpty(
+                    "driver must discard move when CommandSequence changed (ADR-6)");
+                driver.IsBusy.CurrentValue.Should().BeFalse();
+
+                driver.Dispose();
+            });
+
+        [UnityTest]
+        public IEnumerator WhenActivePlayerSlotChangesWhileBotThinking_ThenDoesNotSubmitMove() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                var driver = CreateDriver();
+                SetupEmptyBoard();
+                _matchState.ActivePlayerSlotValue = 0;
+                var (entered, release) = ConfigureBarrierEngine();
+
+                await driver.StartAsync(MakeConfig(), 1, "easy", CancellationToken.None);
+
+                // Trigger bot's turn
+                _matchState.ActivePlayerSlotValue = 1;
+                _matchState.CommandSequenceValue = 1;
+                _matchState.CurrentPlayerChangedSubject.OnNext(new CurrentPlayerChangedEvent(1));
+                await WaitUntilEngineEnteredAsync(entered);
+
+                // Active player changes to human (slot guard)
+                _matchState.ActivePlayerSlotValue = 0;
+                release.TrySetResult();
+                await WaitUntilNotBusyAsync(driver);
+
+                await _engine.Received(1).ChooseMoveAsync(Arg.Any<BotDecisionRequest>(),
+                    Arg.Any<BotProfileData>(), Arg.Any<CancellationToken>());
+
+                // Assert
+                _matchState.SubmittedCommands.Should().BeEmpty(
+                    "driver must discard move when ActivePlayerSlot no longer matches bot (ADR-6)");
+                driver.IsBusy.CurrentValue.Should().BeFalse();
+
+                driver.Dispose();
+            });
+
+        [UnityTest]
+        public IEnumerator WhenRoundFinishedFiresWhileBotThinking_ThenDoesNotSubmit() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                var driver = CreateDriver();
+                SetupEmptyBoard();
+                _matchState.ActivePlayerSlotValue = 0;
+                var (entered, release) = ConfigureBarrierEngine();
+
+                await driver.StartAsync(MakeConfig(), 1, "easy", CancellationToken.None);
+
+                _matchState.ActivePlayerSlotValue = 1;
+                _matchState.CommandSequenceValue = 1;
+                _matchState.CurrentPlayerChangedSubject.OnNext(new CurrentPlayerChangedEvent(1));
+                await WaitUntilEngineEnteredAsync(entered);
+
+                // Fire RoundFinished during engine computation
+                _matchState.RoundFinishedSubject.OnNext(
+                    new RoundFinishedEvent(Runtime.Gameplay.ECS.GameStatus.Win, 0, null));
+                release.TrySetResult();
+                await WaitUntilNotBusyAsync(driver);
+
+                await _engine.Received(1).ChooseMoveAsync(Arg.Any<BotDecisionRequest>(),
+                    Arg.Any<BotProfileData>(), Arg.Any<CancellationToken>());
+
+                // Assert
+                _matchState.SubmittedCommands.Should().BeEmpty(
+                    "driver must cancel and not submit when RoundFinished fires");
+                driver.IsBusy.CurrentValue.Should().BeFalse();
+
+                driver.Dispose();
+            });
+
+        [UnityTest]
+        public IEnumerator WhenIsMatchActiveFalseWhileBotThinking_ThenDoesNotSubmit() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                var driver = CreateDriver();
+                SetupEmptyBoard();
+                _matchState.ActivePlayerSlotValue = 0;
+                var (entered, release) = ConfigureBarrierEngine();
+
+                await driver.StartAsync(MakeConfig(), 1, "easy", CancellationToken.None);
+
+                _matchState.ActivePlayerSlotValue = 1;
+                _matchState.CommandSequenceValue = 1;
+                _matchState.CurrentPlayerChangedSubject.OnNext(new CurrentPlayerChangedEvent(1));
+                await WaitUntilEngineEnteredAsync(entered);
+
+                // Match becomes inactive (no RoundFinished fired)
+                _matchState.IsMatchActive = false;
+                release.TrySetResult();
+                await WaitUntilNotBusyAsync(driver);
+
+                await _engine.Received(1).ChooseMoveAsync(Arg.Any<BotDecisionRequest>(),
+                    Arg.Any<BotProfileData>(), Arg.Any<CancellationToken>());
+
+                // Assert
+                _matchState.SubmittedCommands.Should().BeEmpty(
+                    "driver must not submit when IsMatchActive becomes false");
+                driver.IsBusy.CurrentValue.Should().BeFalse();
+
+                driver.Dispose();
+            });
+
+        [UnityTest]
+        public IEnumerator WhenEngineReturnsAfterCancellation_ThenDriverDoesNotSubmit() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange: engine that ignores CancellationToken and returns a move anyway
+                var driver = CreateDriver();
+                SetupEmptyBoard();
+                _matchState.ActivePlayerSlotValue = 0;
+                var (entered, release) = ConfigureBarrierEngine(honorCancellation: false);
+
+                await driver.StartAsync(MakeConfig(), 1, "easy", CancellationToken.None);
+
+                _matchState.ActivePlayerSlotValue = 1;
+                _matchState.CommandSequenceValue = 1;
+                _matchState.CurrentPlayerChangedSubject.OnNext(new CurrentPlayerChangedEvent(1));
+                await WaitUntilEngineEnteredAsync(entered);
+
+                // Cancel via RoundFinished before engine returns
+                _matchState.RoundFinishedSubject.OnNext(
+                    new RoundFinishedEvent(Runtime.Gameplay.ECS.GameStatus.Draw, null, null));
+                release.TrySetResult();
+                await WaitUntilNotBusyAsync(driver);
+
+                await _engine.Received(1).ChooseMoveAsync(Arg.Any<BotDecisionRequest>(),
+                    Arg.Any<BotProfileData>(), Arg.Any<CancellationToken>());
+
+                // Assert: even though engine returned a move, driver must not submit
+                _matchState.SubmittedCommands.Should().BeEmpty(
+                    "driver must not submit even if engine returns after cancellation");
+
+                driver.Dispose();
+            });
+
+        // ══════════════════════════════════════════════
+        //  Lifecycle & Recovery (§3.6)
+        // ══════════════════════════════════════════════
+
+        [UnityTest]
+        public IEnumerator WhenStartAsyncAndItsAlreadyBotTurn_ThenSubmitsMoveImmediately() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                var driver = CreateDriver();
+                SetupEmptyBoard();
+                _matchState.ActivePlayerSlotValue = 1; // already bot's turn
+                _matchState.CommandSequenceValue = 0;
+
+                var expectedMove = new CellId(1, 1);
+                _engine.ChooseMoveAsync(Arg.Any<BotDecisionRequest>(), Arg.Any<BotProfileData>(),
+                        Arg.Any<CancellationToken>())
+                    .Returns(UniTask.FromResult(expectedMove));
+
+                // Act: start when it's already bot turn — should trigger move without event
+                await driver.StartAsync(MakeConfig(), 1, "easy", CancellationToken.None);
+                await WaitForSubmitAsync();
+
+                // Assert
+                _matchState.SubmittedCommands.Should().ContainSingle();
+                var submitted = _matchState.SubmittedCommands[0];
+                submitted.Should().BeAssignableTo<MakeMoveCommand>();
+                ((MakeMoveCommand)submitted).CellId.Should().Be(expectedMove);
+
+                driver.Dispose();
+            });
+
+        [UnityTest]
+        public IEnumerator WhenAllRetriesExhausted_ThenIsDisabledTrueAndIsBusyFalse() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                // Arrange
+                var driver = CreateDriver();
+                SetupEmptyBoard();
+                _matchState.ActivePlayerSlotValue = 0;
+
+                var previousIgnore = LogAssert.ignoreFailingMessages;
+                LogAssert.ignoreFailingMessages = true;
+
+                _engine.ChooseMoveAsync(Arg.Any<BotDecisionRequest>(), Arg.Any<BotProfileData>(),
+                        Arg.Any<CancellationToken>())
+                    .Returns(UniTask.FromResult(new CellId(1, 1)));
+
+                // Reject all submits
+                _matchState.AcceptCommands = false;
+
+                await driver.StartAsync(MakeConfig(), 1, "easy", CancellationToken.None);
+
+                // Trigger bot turn
+                _matchState.ActivePlayerSlotValue = 1;
+                _matchState.CurrentPlayerChangedSubject.OnNext(new CurrentPlayerChangedEvent(1));
+
+                try
+                {
+                    await WaitForSubmitAsync(minCount: 3);
+
+                    // Assert: bot disabled with IsBusy=false
+                    driver.IsDisabled.CurrentValue.Should().BeTrue("bot should be disabled after all retries exhausted");
+                    driver.IsBusy.CurrentValue.Should().BeFalse("IsBusy must be reset after exhausted retries");
+
+                    // Assert: subsequent events are ignored
+                    _matchState.SubmittedCommands.Clear();
+                    _matchState.CurrentPlayerChangedSubject.OnNext(new CurrentPlayerChangedEvent(1));
+                    await UniTask.DelayFrame(5);
+                    _matchState.SubmittedCommands.Should().BeEmpty(
+                        "disabled bot should ignore subsequent CurrentPlayerChanged events");
+                }
+                finally
+                {
+                    LogAssert.ignoreFailingMessages = previousIgnore;
+                    driver.Dispose();
+                }
+            });
+
     }
 }

@@ -114,5 +114,18 @@ namespace Tests.EditMode.Games.TicTacToe.AI
 
             Object.DestroyImmediate(profile);
         }
+
+        [TestCase(0, 1)]
+        [TestCase(-5, 1)]
+        public void WhenTopCandidateCountZeroOrNegative_ThenClampedToAtLeastOne(int topN, int expected)
+        {
+            var profile = CreateProfile(topN: topN);
+            var data = profile.ToValidatedData();
+
+            data.TopCandidateCount.Should().Be(expected,
+                "TopCandidateCount must be clamped to minimum 1");
+
+            Object.DestroyImmediate(profile);
+        }
     }
 }
