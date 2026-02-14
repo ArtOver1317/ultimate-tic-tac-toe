@@ -22,7 +22,6 @@ namespace Runtime.UI.GameModes.Wizard
             if (viewModel is not TicTacToeSettingsViewModel ttt) return;
 
             BindBoardSizeControls(root, ttt, disposables);
-            BindUltimateToggle(root, ttt, disposables);
         }
 
         private void BindBoardSizeControls(VisualElement root, TicTacToeSettingsViewModel vm, CompositeDisposable disposables)
@@ -47,15 +46,6 @@ namespace Runtime.UI.GameModes.Wizard
                 .Subscribe(size => boardSizeValue.text = size.ToString())
                 .AddTo(disposables);
 
-            vm.IsUltimate
-                .Subscribe(isUltimate =>
-                {
-                    var boardSizeSection = root.Q("BoardSizeSection");
-                    if (boardSizeSection != null)
-                        boardSizeSection.SetEnabled(!isUltimate);
-                })
-                .AddTo(disposables);
-
             decrementButton.OnClickAsObservable()
                 .Subscribe(_ => vm.DecrementBoardSize())
                 .AddTo(disposables);
@@ -63,31 +53,6 @@ namespace Runtime.UI.GameModes.Wizard
             incrementButton.OnClickAsObservable()
                 .Subscribe(_ => vm.IncrementBoardSize())
                 .AddTo(disposables);
-        }
-
-        private void BindUltimateToggle(VisualElement root, TicTacToeSettingsViewModel vm, CompositeDisposable disposables)
-        {
-            var ultimateToggle = root.Q<Toggle>("UltimateToggle");
-            var ultimateLabel = root.Q<Label>("UltimateLabel");
-
-            if (ultimateToggle == null) return;
-
-            if (ultimateLabel != null)
-            {
-                _localization
-                    .Observe(new TextTableId("GameWizard"), new TextKey("GameWizard.MatchSetup.TicTacToe.UltimateMode"))
-                    .Subscribe(text => ultimateLabel.text = text)
-                    .AddTo(disposables);
-            }
-
-            vm.IsUltimate
-                .Subscribe(isUltimate => ultimateToggle.SetValueWithoutNotify(isUltimate))
-                .AddTo(disposables);
-
-            EventCallback<ChangeEvent<bool>> onChanged = evt => vm.SetIsUltimate(evt.newValue);
-            ultimateToggle.RegisterValueChangedCallback(onChanged);
-            disposables.Add(Disposable.Create(() =>
-                ultimateToggle.UnregisterValueChangedCallback(onChanged)));
         }
     }
 }

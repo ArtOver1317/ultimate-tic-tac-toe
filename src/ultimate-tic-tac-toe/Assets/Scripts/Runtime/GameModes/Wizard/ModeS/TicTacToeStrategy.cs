@@ -13,7 +13,6 @@ namespace Runtime.GameModes.Wizard
         private const int _defaultMinBoardSize = 3;
         private const int _defaultMaxBoardSize = 10;
         private const int _defaultBoardSizeValue = 3;
-        private const int _ultimateBoardSize = 3;
 
         private const string _settingsUxmlKey = "ui/mode-settings/tic-tac-toe";
 
@@ -101,7 +100,7 @@ namespace Runtime.GameModes.Wizard
                 return _configInvalidError;
 
             if (tttConfig.IsUltimate)
-                return tttConfig.BoardSize == _ultimateBoardSize ? _noErrors : _boardSizeInvalidError;
+                return _configInvalidError;
 
             if (tttConfig.BoardSize < _minBoardSize || tttConfig.BoardSize > _maxBoardSize)
                 return _boardSizeInvalidError;

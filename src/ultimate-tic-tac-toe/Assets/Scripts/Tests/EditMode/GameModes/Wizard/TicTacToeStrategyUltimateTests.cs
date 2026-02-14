@@ -8,9 +8,9 @@ namespace Tests.EditMode.GameModes.Wizard
 {
     [TestFixture]
     [Category("Unit")]
-    public class TicTacToeStrategyUltimateTests
+    public class UltimateTicTacToeStrategyTests
     {
-        private TicTacToeStrategy _sut;
+        private UltimateTicTacToeStrategy _sut;
 
         [TearDown]
         public void TearDown()
@@ -22,7 +22,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenCreatePresentationCalled_ThenReturnsPresentationWithExpectedUxmlKey()
         {
             // Arrange
-            _sut = new TicTacToeStrategy(createSettingsViewModel: () => new TicTacToeSettingsViewModel());
+            _sut = new UltimateTicTacToeStrategy(createSettingsViewModel: () => new UltimateTicTacToeSettingsViewModel());
 
             // Act
             var presentation = _sut.CreatePresentation();
@@ -30,7 +30,8 @@ namespace Tests.EditMode.GameModes.Wizard
             try
             {
                 // Assert
-                presentation.UxmlAssetKey.Should().Be("ui/mode-settings/tic-tac-toe");
+                presentation.UxmlAssetKey.Should().Be("ui/mode-settings/ultimate-tic-tac-toe");
+                presentation.ViewModel.Should().BeOfType<UltimateTicTacToeSettingsViewModel>();
             }
             finally
             {
@@ -42,7 +43,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenValidateConfigCalledWithNull_ThenReturnsConfigRequiredError()
         {
             // Arrange
-            _sut = new TicTacToeStrategy(createSettingsViewModel: () => new TicTacToeSettingsViewModel());
+            _sut = new UltimateTicTacToeStrategy(createSettingsViewModel: () => new UltimateTicTacToeSettingsViewModel());
 
             // Act
             var error = _sut.ValidateConfig(null).Should().ContainSingle().Which;
@@ -56,7 +57,7 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenValidateConfigCalledWithWrongConfigType_ThenReturnsTicTacToeConfigInvalidError()
         {
             // Arrange
-            _sut = new TicTacToeStrategy(createSettingsViewModel: () => new TicTacToeSettingsViewModel());
+            _sut = new UltimateTicTacToeStrategy(createSettingsViewModel: () => new UltimateTicTacToeSettingsViewModel());
 
             // Act
             var error = _sut.ValidateConfig(Substitute.For<IGameConfig>()).Should().ContainSingle().Which;
@@ -67,30 +68,28 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public void WhenValidateConfigCalledWithValidUltimateConfig_ThenReturnsNoErrors()
+        public void WhenValidateConfigCalledWithUltimateConfig_ThenReturnsNoErrors()
         {
             // Arrange
-            _sut = new TicTacToeStrategy(createSettingsViewModel: () => new TicTacToeSettingsViewModel());
+            _sut = new UltimateTicTacToeStrategy(createSettingsViewModel: () => new UltimateTicTacToeSettingsViewModel());
 
             // Act
-            var errors = _sut.ValidateConfig(new TicTacToeConfig(3, isUltimate: true));
+            var errors = _sut.ValidateConfig(UltimateTicTacToeConfig.Instance);
 
             // Assert
             errors.Should().BeEmpty();
         }
 
         [Test]
-        public void WhenValidateConfigCalledWithUltimateBoardSizeNot3_ThenReturnsBoardSizeError()
+        public void WhenCreated_ThenMetadataHasStableUltimateGameIdAndSortOrder()
         {
             // Arrange
-            _sut = new TicTacToeStrategy(createSettingsViewModel: () => new TicTacToeSettingsViewModel());
-
-            // Act
-            var error = _sut.ValidateConfig(new TicTacToeConfig(5, isUltimate: true)).Should().ContainSingle().Which;
+            _sut = new UltimateTicTacToeStrategy(createSettingsViewModel: () => new UltimateTicTacToeSettingsViewModel());
 
             // Assert
-            error.Field.Should().Be("BoardSize");
-            error.MessageKey.Should().Be("Errors.GameWizard.TicTacToeBoardSizeInvalid");
+            _sut.GameId.Should().Be(UltimateTicTacToeStrategy.DefaultGameId);
+            _sut.Metadata.Id.Should().Be(UltimateTicTacToeStrategy.DefaultGameId);
+            _sut.Metadata.SortOrder.Should().Be(11);
         }
     }
 }

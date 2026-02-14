@@ -17,12 +17,18 @@ namespace Runtime.Games.TicTacToe
             if (!catalog.TryGetStrategy(config.GameId, out _))
                 throw new InvalidOperationException($"Unknown game id: '{config.GameId}'.");
 
-            if (config.GameConfig is TicTacToeConfig tttConfig)
+            if (string.Equals(config.GameId, UltimateTicTacToeStrategy.DefaultGameId, StringComparison.Ordinal))
             {
-                return tttConfig.IsUltimate
-                    ? FieldRenderSpec.Ultimate()
-                    : FieldRenderSpec.Classic(tttConfig.BoardSize);
+                if (config.GameConfig is UltimateTicTacToeConfig)
+                    return FieldRenderSpec.Ultimate();
+
+                throw new InvalidOperationException(
+                    $"Unsupported game config type: '{config.GameConfig?.GetType().Name ?? "null"}'.");
             }
+
+            if (string.Equals(config.GameId, TicTacToeStrategy.DefaultGameId, StringComparison.Ordinal)
+                && config.GameConfig is TicTacToeConfig tttConfig)
+                return FieldRenderSpec.Classic(tttConfig.BoardSize);
 
             throw new InvalidOperationException(
                 $"Unsupported game config type: '{config.GameConfig?.GetType().Name ?? "null"}'.");

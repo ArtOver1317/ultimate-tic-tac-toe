@@ -268,7 +268,7 @@ namespace Runtime.GameModes.Wizard
                 (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.SelectedGameId, "Errors.GameWizard.GameRequired"));
 
             if (snapshot.GameConfig == null)
-                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.GameConfig, "Errors.GameWizard.GameConfigRequired"));
+                (errors ??= new List<ValidationError>(capacity: 4)).Add(new ValidationError(WizardFieldNames.GameConfig, "Errors.GameWizard.ConfigRequired"));
 
             if (string.IsNullOrWhiteSpace(snapshot.SelectedGameId))
                 return;

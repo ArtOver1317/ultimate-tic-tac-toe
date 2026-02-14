@@ -528,7 +528,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             Action updateAct = () => _session.EmitValidationErrors(new List<ValidationError>
             {
-                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.ConfigRequired"),
             });
 
             updateAct.Should().NotThrow();

@@ -46,6 +46,8 @@ Turn.Timeout,Turn timeout!,Время хода истекло!,ターンタイ�
 Turn.TimeRemaining,{seconds}s remaining,Осталось {seconds}с,残り{seconds}秒,Time remaining display
 Game.TicTacToe,Tic-Tac-Toe,Крестики-нолики,○×ゲーム,Game catalog: TicTacToe display name
 Game.Description.TicTacToe,Classic and Ultimate Tic-Tac-Toe,Крестики-нолики — классика и ультимейт,○×ゲーム — クラシックとアルティメット,Game catalog: TicTacToe description
+Game.UltimateTicTacToe.Name,Ultimate Tic-Tac-Toe,Ультимативные крестики-нолики,究極の○×ゲーム,Game catalog: Ultimate Tic-Tac-Toe display name
+Game.UltimateTicTacToe.Description,Ultimate board mode,Режим на ультимативном поле,アルティメット盤面モード,Game catalog: Ultimate Tic-Tac-Toe description
 Mode.Classic,Classic Mode,Классический режим,クラシックモード,Classic game mode (legacy)
 Mode.Ultimate,Ultimate Mode,Ультимативный режим,アルティメットモード,Ultimate game mode (legacy)
 Mode.Blitz,Blitz Mode,Блиц,ブリッツモード,Blitz game mode (legacy)

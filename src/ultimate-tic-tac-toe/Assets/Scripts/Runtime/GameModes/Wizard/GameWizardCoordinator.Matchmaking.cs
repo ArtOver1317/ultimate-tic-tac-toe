@@ -22,7 +22,7 @@ namespace Runtime.GameModes.Wizard
             {
                 TrySetCurrentError(new WizardError(
                     code: "wizard.mode_config_required",
-                    messageKey: "Errors.GameWizard.GameConfigRequired",
+                        messageKey: "Errors.GameWizard.ConfigRequired",
                     isBlocking: true,
                     displayType: ErrorDisplayType.Modal));
                 
@@ -86,7 +86,7 @@ namespace Runtime.GameModes.Wizard
             {
                 TrySetCurrentError(new WizardError(
                     code: "wizard.mode_config_required",
-                    messageKey: "Errors.GameWizard.GameConfigRequired",
+                        messageKey: "Errors.GameWizard.ConfigRequired",
                     isBlocking: true,
                     displayType: ErrorDisplayType.Modal));
 

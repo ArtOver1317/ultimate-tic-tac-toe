@@ -193,9 +193,22 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             session.Update(s =>
-                string.Equals(s.SelectedGameId, selectedGameId, StringComparison.Ordinal)
+            {
+                var updated = string.Equals(s.SelectedGameId, selectedGameId, StringComparison.Ordinal)
                     ? s
-                    : s.WithSelectedGameId(selectedGameId));
+                    : s.WithSelectedGameId(selectedGameId);
+
+                if (!string.Equals(selectedGameId, UltimateTicTacToeStrategy.DefaultGameId, StringComparison.Ordinal))
+                    return updated;
+
+                if (updated.OpponentType != OpponentType.Human)
+                    updated = updated.WithOpponentType(OpponentType.Human);
+
+                if (updated.HumanOpponentKind != HumanOpponentKind.Local)
+                    updated = updated.WithHumanOpponentKind(HumanOpponentKind.Local);
+
+                return updated;
+            });
         }
 
         private void UpdateCanContinue(string? selectedGameId) =>

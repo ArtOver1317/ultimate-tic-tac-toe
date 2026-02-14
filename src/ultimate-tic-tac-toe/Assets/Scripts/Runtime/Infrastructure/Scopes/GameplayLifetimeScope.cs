@@ -38,6 +38,7 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<EventPublishSystem>(Lifetime.Scoped);
             builder.Register<IRulesEngine, ClassicRulesEngine>(Lifetime.Scoped);
             builder.Register<TicTacToeEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
+            builder.Register<UltimateTicTacToeEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
             builder.Register<MatchEcsLifecycleService>(Lifetime.Scoped)
                 .AsSelf()
                 .As<IMatchEcsLifecycle>();

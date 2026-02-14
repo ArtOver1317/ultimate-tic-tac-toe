@@ -4,6 +4,8 @@
   "table": "Game",
   "entries": {
     "Game.Description.TicTacToe": "○×ゲーム — クラシックとアルティメット",
+    "Game.UltimateTicTacToe.Description": "アルティメット盤面モード",
+    "Game.UltimateTicTacToe.Name": "究極の○×ゲーム",
     "Game.OpponentTurn": "{playerName}のターン",
     "Game.Pause": "一時停止",
     "Game.Resume": "再開",

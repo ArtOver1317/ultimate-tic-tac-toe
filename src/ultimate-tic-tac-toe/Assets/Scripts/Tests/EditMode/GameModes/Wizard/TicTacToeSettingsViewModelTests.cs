@@ -144,5 +144,19 @@ namespace Tests.EditMode.GameModes.Wizard
             act.Should().NotThrow();
         }
 
+        [Test]
+        public void WhenTryApplyLegacyUltimateConfig_ThenReturnsFalseAndKeepsClassicConfig()
+        {
+            using var sut = new TicTacToeSettingsViewModel();
+            sut.Configure(minBoardSize: 3, maxBoardSize: 10, defaultBoardSize: 4);
+
+            var result = sut.TryApplyConfig(new TicTacToeConfig(3, isUltimate: true));
+
+            result.Should().BeFalse();
+            var config = sut.Config.CurrentValue.Should().BeOfType<TicTacToeConfig>().Subject;
+            config.IsUltimate.Should().BeFalse();
+            config.BoardSize.Should().Be(4);
+        }
+
     }
 }

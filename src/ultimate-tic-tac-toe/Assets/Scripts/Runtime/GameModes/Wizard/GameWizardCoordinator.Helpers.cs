@@ -32,8 +32,44 @@ namespace Runtime.GameModes.Wizard
 
             SetIsSubmitting(true);
 
-            if (launchConfig != null) 
+            if (launchConfig != null)
                 PublishGameLaunchRequested(launchConfig);
+        }
+
+        public void CompleteStartAttempt(bool succeeded, WizardError? error = null)
+        {
+            if (_isDisposed)
+                return;
+
+            if (PlayerLoopHelper.IsMainThread)
+            {
+                CompleteStartAttemptOnMainThreadCoreAsync(succeeded, error).Forget(ex =>
+                {
+                    if (ex is OperationCanceledException || ex is ObjectDisposedException)
+                        return;
+
+                    GameLog.Exception(ex);
+                });
+                return;
+            }
+
+            CompleteStartAttemptOnMainThreadAsync(succeeded, error).Forget();
+        }
+
+        private async UniTask CompleteStartAttemptOnMainThreadCoreAsync(bool succeeded, WizardError? error)
+        {
+            if (!IsActive)
+            {
+                SetIsSubmitting(false);
+                return;
+            }
+
+            if (!succeeded)
+            {
+                SetIsSubmitting(false);
+                TrySetCurrentError(error ?? WizardError.FromException(new InvalidOperationException("Start failed.")));
+                return;
+            }
 
             try
             {
@@ -43,6 +79,23 @@ namespace Runtime.GameModes.Wizard
             {
                 SetIsSubmitting(false);
             }
+        }
+
+        private async UniTaskVoid CompleteStartAttemptOnMainThreadAsync(bool succeeded, WizardError? error)
+        {
+            try
+            {
+                await UniTask.SwitchToMainThread(_lifetimeCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            if (_isDisposed)
+                return;
+
+            await CompleteStartAttemptOnMainThreadCoreAsync(succeeded, error);
         }
 
         private bool TryBuildLaunchConfig(out GameLaunchConfig? launchConfig, out WizardError? error)

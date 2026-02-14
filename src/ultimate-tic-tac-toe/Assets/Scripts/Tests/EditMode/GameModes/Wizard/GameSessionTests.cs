@@ -339,7 +339,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             canStart.Should().BeFalse();
-            errors.Should().ContainSingle(e => e.Field == "GameConfig" && e.MessageKey == "Errors.GameWizard.GameConfigRequired");
+            errors.Should().ContainSingle(e => e.Field == "GameConfig" && e.MessageKey == "Errors.GameWizard.ConfigRequired");
         }
 
         [Test]
@@ -657,7 +657,7 @@ namespace Tests.EditMode.GameModes.Wizard
             result.IsFailure.Should().BeTrue();
             result.Errors.Should().NotBeEmpty();
             result.Errors.Should().ContainSingle(e => e.Field == "SelectedGameId" && e.MessageKey == "Errors.GameWizard.GameRequired");
-            result.Errors.Should().ContainSingle(e => e.Field == "GameConfig" && e.MessageKey == "Errors.GameWizard.GameConfigRequired");
+            result.Errors.Should().ContainSingle(e => e.Field == "GameConfig" && e.MessageKey == "Errors.GameWizard.ConfigRequired");
         }
 
         [Test]

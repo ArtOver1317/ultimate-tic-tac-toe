@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -331,6 +332,7 @@ namespace Tests.EditMode
             await _wizardCoordinatorMock.Received(1).StartWizardAsync(Arg.Any<CancellationToken>());
             await _stateMachineMock.Received(1)
                 .EnterAsync<LoadGameplayState, GameLaunchConfig>(config, Arg.Any<CancellationToken>());
+            _wizardCoordinatorMock.Received(1).CompleteStartAttempt(true, null);
             
             interactableValue.Should().BeFalse("UI должен быть заблокирован во время перехода в игру");
 
@@ -342,6 +344,7 @@ namespace Tests.EditMode
         {
             // Arrange
             Exception unobservedException = null;
+            _wizardCoordinatorMock.IsActive.Returns(true);
 
             void OnUnobservedException(Exception ex) => unobservedException = ex;
 
@@ -370,9 +373,16 @@ namespace Tests.EditMode
                 _gameLaunchRequested.OnNext(config);
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                 await enterStarted.Task.AttachExternalCancellation(cts.Token);
+                await UniTask.WaitUntil(
+                    () => _wizardCoordinatorMock.ReceivedCalls()
+                        .Any(call => call.GetMethodInfo().Name == nameof(IGameWizardCoordinator.CompleteStartAttempt)),
+                    cancellationToken: cts.Token);
 
                 // Assert
                 unobservedException.Should().BeNull("MainMenuCoordinator should handle exceptions from fire-and-forget async handlers");
+                _wizardCoordinatorMock.Received(1).CompleteStartAttempt(
+                    false,
+                    Arg.Is<WizardError>(err => err.Code == "wizard.start_failed"));
             }
             finally
             {

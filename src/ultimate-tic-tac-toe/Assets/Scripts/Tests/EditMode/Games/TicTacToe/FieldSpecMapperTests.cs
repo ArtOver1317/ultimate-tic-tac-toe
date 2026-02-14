@@ -31,7 +31,7 @@ namespace Tests.EditMode.Games.TicTacToe
         {
             // Arrange
             var sut = new FieldSpecMapper();
-            var config = new GameLaunchConfig("classic", new TicTacToeConfig(3), new LocalHumanConfig());
+            var config = new GameLaunchConfig(TicTacToeStrategy.DefaultGameId, new TicTacToeConfig(3), new LocalHumanConfig());
 
             // Act
             Action act = () => sut.Map(config, null);
@@ -48,34 +48,28 @@ namespace Tests.EditMode.Games.TicTacToe
             var catalog = Substitute.For<IGameCatalog>();
             var config = new GameLaunchConfig("unknown", new TicTacToeConfig(3), new LocalHumanConfig());
 
-            catalog.TryGetStrategy(Arg.Any<string>(), out Arg.Any<IGameStrategy>()).Returns(false);
+            // Act
+            Action act = () => sut.Map(config, catalog);
+
+            // Assert
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*Unknown game id*");
+        }
+
+        [Test]
+        public void WhenClassicConfigPassedForUltimateGameId_ThenThrowsInvalidOperationException()
+        {
+            // Arrange
+            var sut = new FieldSpecMapper();
+            var catalog = CreateCatalog(UltimateTicTacToeStrategy.DefaultGameId);
+            var config = new GameLaunchConfig(UltimateTicTacToeStrategy.DefaultGameId, new TicTacToeConfig(3), new LocalHumanConfig());
 
             // Act
             Action act = () => sut.Map(config, catalog);
 
             // Assert
-            act.Should().Throw<InvalidOperationException>();
-        }
-
-        [Test]
-        public void WhenCatalogReturnsTrueButStrategyIsNull_ThenDoesNotThrowBecauseStrategyIsNotUsed()
-        {
-            // Arrange: FieldSpecMapper uses out _ (discard), strategy null is irrelevant
-            var sut = new FieldSpecMapper();
-            var catalog = Substitute.For<IGameCatalog>();
-            var config = new GameLaunchConfig("classic", new TicTacToeConfig(3), new LocalHumanConfig());
-
-            catalog.TryGetStrategy(Arg.Any<string>(), out Arg.Any<IGameStrategy>()).Returns(callInfo =>
-            {
-                callInfo[1] = null;
-                return true;
-            });
-
-            // Act
-            var result = sut.Map(config, catalog);
-
-            // Assert: maps successfully since config type is checked, not strategy
-            result.Kind.Should().Be(FieldKind.Classic);
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*Unsupported game config type*");
         }
 
         [Test]
@@ -83,8 +77,8 @@ namespace Tests.EditMode.Games.TicTacToe
         {
             // Arrange
             var sut = new FieldSpecMapper();
-            var catalog = CreateCatalog("tic-tac-toe");
-            var config = new GameLaunchConfig("tic-tac-toe", new TicTacToeConfig(5), new LocalHumanConfig());
+            var catalog = CreateCatalog(TicTacToeStrategy.DefaultGameId);
+            var config = new GameLaunchConfig(TicTacToeStrategy.DefaultGameId, new TicTacToeConfig(5), new LocalHumanConfig());
 
             // Act
             var result = sut.Map(config, catalog);
@@ -100,8 +94,8 @@ namespace Tests.EditMode.Games.TicTacToe
         {
             // Arrange
             var sut = new FieldSpecMapper();
-            var catalog = CreateCatalog("tic-tac-toe");
-            var config = new GameLaunchConfig("tic-tac-toe", new TicTacToeConfig(3, isUltimate: true), new LocalHumanConfig());
+            var catalog = CreateCatalog(UltimateTicTacToeStrategy.DefaultGameId);
+            var config = new GameLaunchConfig(UltimateTicTacToeStrategy.DefaultGameId, UltimateTicTacToeConfig.Instance, new LocalHumanConfig());
 
             // Act
             var result = sut.Map(config, catalog);

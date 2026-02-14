@@ -1,13 +1,7 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
     <Style src="ModeSettingsStyles.uss" />
     <ui:VisualElement name="TicTacToeSettingsRoot" class="gmw-mode-settings">
-        <!-- Ultimate toggle -->
-        <ui:VisualElement class="gmw-mode-settings__row">
-            <ui:Label text="" name="UltimateLabel" class="gmw-mode-settings__label" />
-            <ui:Toggle name="UltimateToggle" />
-        </ui:VisualElement>
-
-        <!-- Board size (disabled when ultimate) -->
+        <!-- Board size -->
         <ui:VisualElement name="BoardSizeSection">
             <ui:Label text="" name="BoardSizeTitle" class="gmw-mode-settings__label" />
             <ui:VisualElement name="BoardSizeStepper" class="gmw-stepper">

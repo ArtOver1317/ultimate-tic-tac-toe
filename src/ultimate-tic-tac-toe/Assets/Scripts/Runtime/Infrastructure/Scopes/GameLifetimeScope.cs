@@ -63,13 +63,23 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<MatchSetupViewModel>(Lifetime.Transient);
             builder.Register<MatchmakingViewModel>(Lifetime.Transient);
             builder.Register<TicTacToeSettingsViewModel>(Lifetime.Transient);
+            builder.Register<UltimateTicTacToeSettingsViewModel>(Lifetime.Transient);
 
             builder.Register<Func<TicTacToeSettingsViewModel>>(
                 resolver => () => resolver.Resolve<TicTacToeSettingsViewModel>(),
                 Lifetime.Singleton);
 
+            builder.Register<Func<UltimateTicTacToeSettingsViewModel>>(
+                resolver => () => resolver.Resolve<UltimateTicTacToeSettingsViewModel>(),
+                Lifetime.Singleton);
+
             builder.Register(resolver =>
                         new TicTacToeStrategy(resolver.Resolve<Func<TicTacToeSettingsViewModel>>()),
+                    Lifetime.Singleton)
+                .As<IGameStrategy>();
+
+            builder.Register(resolver =>
+                        new UltimateTicTacToeStrategy(resolver.Resolve<Func<UltimateTicTacToeSettingsViewModel>>()),
                     Lifetime.Singleton)
                 .As<IGameStrategy>();
 

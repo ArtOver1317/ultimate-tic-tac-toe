@@ -262,5 +262,19 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             errors.Should().BeEmpty();
         }
+
+        [Test]
+        public void WhenValidateConfigCalledWithLegacyUltimateFlag_ThenReturnsConfigInvalidError()
+        {
+            // Arrange
+            _sut = new TicTacToeStrategy(createSettingsViewModel: () => new TicTacToeSettingsViewModel());
+
+            // Act
+            var error = _sut.ValidateConfig(new TicTacToeConfig(3, isUltimate: true)).Should().ContainSingle().Which;
+
+            // Assert
+            error.Field.Should().Be("GameConfig");
+            error.MessageKey.Should().Be("Errors.GameWizard.TicTacToeConfigInvalid");
+        }
     }
 }

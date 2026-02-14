@@ -41,7 +41,7 @@ namespace Runtime.Games.TicTacToe.ECS
 
                 // Determine the mark for the current player
                 var currentSlot = players.ActivePlayerSlot;
-                var mark = TicTacToeEcsRegistrar.SlotToMark(currentSlot);
+                var mark = PlayerSlotMapping.SlotToMark(currentSlot);
 
                 // Write cell
                 var index = request.CellId.Major * board.MinorCount + request.CellId.Minor;

@@ -4,6 +4,8 @@
   "table": "Game",
   "entries": {
     "Game.Description.TicTacToe": "Крестики-нолики — классика и ультимейт",
+    "Game.UltimateTicTacToe.Description": "Режим на ультимативном поле",
+    "Game.UltimateTicTacToe.Name": "Ультимативные крестики-нолики",
     "Game.OpponentTurn": "Ход игрока {playerName}",
     "Game.Pause": "Пауза",
     "Game.Resume": "Продолжить",

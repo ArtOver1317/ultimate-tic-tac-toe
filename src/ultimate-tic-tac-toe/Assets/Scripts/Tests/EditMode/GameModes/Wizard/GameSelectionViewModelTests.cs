@@ -426,6 +426,30 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenUltimateModeSelected_ThenSessionSwitchesToHumanLocalPolicy()
+        {
+            // Arrange
+            var modes = CreateModes(TicTacToeStrategy.DefaultGameId, UltimateTicTacToeStrategy.DefaultGameId);
+            _catalog.Metadata.Returns(modes);
+            _session = new FakeGameSession(GameSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Bot)
+                .WithHumanOpponentKind(HumanOpponentKind.Matchmaking)
+                .WithBotDifficultyId("normal"));
+            SetupCoordinatorWithSession(_session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            sut.SelectMode(UltimateTicTacToeStrategy.DefaultGameId);
+
+            // Assert
+            _session.Snapshot.CurrentValue.SelectedGameId.Should().Be(UltimateTicTacToeStrategy.DefaultGameId);
+            _session.Snapshot.CurrentValue.OpponentType.Should().Be(OpponentType.Human);
+            _session.Snapshot.CurrentValue.HumanOpponentKind.Should().Be(HumanOpponentKind.Local);
+        }
+
+        [Test]
         public void WhenSessionSnapshotChangesSelectedModeId_ThenVMUpdatesWithoutWritingBack()
         {
             // Arrange

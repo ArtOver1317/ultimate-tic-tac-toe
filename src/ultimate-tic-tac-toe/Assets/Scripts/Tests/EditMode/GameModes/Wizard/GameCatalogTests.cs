@@ -250,6 +250,22 @@ namespace Tests.EditMode.GameModes.Wizard
             strategy.Should().BeNull();
         }
 
+        [Test]
+        public void WhenCatalogCreatedWithClassicAndUltimateStrategies_ThenContainsTwoStableGameIdsInSortOrder()
+        {
+            // Arrange
+            var classic = new TicTacToeStrategy(() => new TicTacToeSettingsViewModel());
+            var ultimate = new UltimateTicTacToeStrategy(() => new UltimateTicTacToeSettingsViewModel());
+
+            // Act
+            var catalog = new GameCatalog(new IGameStrategy[] { ultimate, classic });
+
+            // Assert
+            catalog.Metadata.Should().HaveCount(2);
+            catalog.Metadata[0].Id.Should().Be(TicTacToeStrategy.DefaultGameId);
+            catalog.Metadata[1].Id.Should().Be(UltimateTicTacToeStrategy.DefaultGameId);
+        }
+
         private IGameStrategy CreateStrategy(string gameId, string metadataId, int sortOrder)
         {
             var strategy = Substitute.For<IGameStrategy>();

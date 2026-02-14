@@ -55,6 +55,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 80825f7741b31db42897c2a71a26e504
+    m_Address: ui/mode-settings/ultimate-tic-tac-toe
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 8bc4d21f8fe28c24195ee6257048964f
     m_Address: Assets/Content/UI/GameModes/Wizard/Prefabs/Matchmaking.prefab
     m_ReadOnly: 0

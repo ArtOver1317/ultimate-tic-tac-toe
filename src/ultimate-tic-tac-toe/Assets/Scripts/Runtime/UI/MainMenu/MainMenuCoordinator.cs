@@ -246,16 +246,38 @@ namespace Runtime.UI.MainMenu
                 _launchCts = new CancellationTokenSource();
 
                 await _stateMachine.EnterAsync<LoadGameplayState, GameLaunchConfig>(config, _launchCts.Token);
+                _wizardCoordinator.CompleteStartAttempt(succeeded: true);
             }
             catch (OperationCanceledException)
             {
                 _viewModel.SetInteractable(true);
-                throw;
+
+                if (_wizardCoordinator.IsActive)
+                {
+                    _wizardCoordinator.CompleteStartAttempt(
+                        succeeded: false,
+                        error: new WizardError(
+                            code: "wizard.start_cancelled",
+                            messageKey: "Errors.GameWizard.UnhandledException",
+                            isBlocking: true,
+                            displayType: ErrorDisplayType.Modal));
+                }
             }
             catch (Exception ex)
             {
                 _viewModel.SetInteractable(true);
                 Log.Exception(ex, LogTags.UI);
+
+                if (_wizardCoordinator.IsActive)
+                {
+                    _wizardCoordinator.CompleteStartAttempt(
+                        succeeded: false,
+                        error: new WizardError(
+                            code: "wizard.start_failed",
+                            messageKey: "Errors.GameWizard.UnhandledException",
+                            isBlocking: true,
+                            displayType: ErrorDisplayType.Modal));
+                }
             }
             finally
             {

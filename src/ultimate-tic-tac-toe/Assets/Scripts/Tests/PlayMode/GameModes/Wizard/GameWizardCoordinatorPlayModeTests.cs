@@ -75,26 +75,18 @@ namespace Tests.PlayMode.GameModes.Wizard
             await _sut.StartWizardAsync(CancellationToken.None);
             await MoveToMatchSetupAsync();
 
-            var closeAllStarted = new UniTaskCompletionSource<bool>();
-            var closeAllGate = new UniTaskCompletionSource<bool>();
-
-            _navigator.CloseAllImpl = async ct =>
-            {
-                closeAllStarted.TrySetResult(true);
-                await closeAllGate.Task.AttachExternalCancellation(ct);
-            };
-
             // Act
             _sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
-            await closeAllStarted.Task;
+            await WaitUntilAsync(() => _sut.IsSubmitting.CurrentValue);
 
             var backAccepted = _sut.TryPublishIntent(WizardIntent.Back);
 
             // Assert
             backAccepted.Should().BeFalse();
 
-            closeAllGate.TrySetResult(true);
-            await WaitUntilAsync(() => _sessionFactory.CreatedSessions.Single().DisposeCallCount == 1);
+            _sut.CompleteStartAttempt(false, new WizardError("wizard.start_failed", "Errors.GameWizard.UnhandledException", true, ErrorDisplayType.Modal));
+            await WaitUntilAsync(() => !_sut.IsSubmitting.CurrentValue);
+            await _sut.TryAbortBestEffortAsync();
         });
 
         [UnityTest]
@@ -212,7 +204,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
         [UnityTest]
         [Timeout(10000)]
-        public IEnumerator WhenStartIntentProcessedInMatchSetup_ThenSetsSubmittingTrueAndAbortsWithGameStarted() => UniTask.ToCoroutine(async () =>
+        public IEnumerator WhenStartIntentProcessedInMatchSetup_ThenSetsSubmittingTrueAndAbortsOnlyAfterCompletion() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             await _sut.StartWizardAsync(CancellationToken.None);
@@ -229,6 +221,9 @@ namespace Tests.PlayMode.GameModes.Wizard
             {
                 // Act
                 _sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
+                await WaitUntilAsync(() => _sut.IsSubmitting.CurrentValue);
+
+                _sut.CompleteStartAttempt(true);
                 await WaitUntilAsync(() => _sessionFactory.CreatedSessions.Single().DisposeCallCount == 1);
 
                 // Assert
@@ -647,6 +642,9 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             // Act
             _sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
+            await WaitUntilAsync(() => _sut.IsSubmitting.CurrentValue);
+
+            _sut.CompleteStartAttempt(true);
             await WaitUntilAsync(() => session.DisposeCallCount == 1);
 
             // Assert
@@ -674,6 +672,9 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             // Act
             _sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
+            await WaitUntilAsync(() => _sut.IsSubmitting.CurrentValue);
+
+            _sut.CompleteStartAttempt(true);
             await WaitUntilAsync(() => session.DisposeCallCount == 1);
 
             // Assert
@@ -804,7 +805,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
         [UnityTest]
         [Timeout(10000)]
-        public IEnumerator WhenFullFlowModeSelectionToMatchSetupToStart_ThenPublishesGameLaunchRequestedAndAbortsWithGameStartedReason() =>
+        public IEnumerator WhenFullFlowModeSelectionToMatchSetupToStart_ThenPublishesGameLaunchRequestedAndAbortsAfterCompletion() =>
             UniTask.ToCoroutine(async () =>
             {
                 // Arrange
@@ -824,6 +825,9 @@ namespace Tests.PlayMode.GameModes.Wizard
                     await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1);
 
                     _sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
+                    await WaitUntilAsync(() => launchConfigs.Count == 1);
+
+                    _sut.CompleteStartAttempt(true);
                     await WaitUntilAsync(() => abortReason != null);
 
                     // Assert
@@ -967,25 +971,16 @@ namespace Tests.PlayMode.GameModes.Wizard
                 await _sut.StartWizardAsync(CancellationToken.None);
                 await MoveToMatchSetupAsync();
 
-                var closeAllStarted = new UniTaskCompletionSource<bool>();
-                var closeAllGate = new UniTaskCompletionSource<bool>();
-
-                _navigator.CloseAllImpl = async ct =>
-                {
-                    closeAllStarted.TrySetResult(true);
-                    await closeAllGate.Task.AttachExternalCancellation(ct);
-                };
-
                 // Act
                 var first = _sut.TryPublishIntent(WizardIntent.Start);
-                await closeAllStarted.Task;
+                await WaitUntilAsync(() => _sut.IsSubmitting.CurrentValue);
                 var second = _sut.TryPublishIntent(WizardIntent.Start);
 
                 // Assert
                 first.Should().BeTrue();
                 second.Should().BeFalse();
 
-                closeAllGate.TrySetResult(true);
+                _sut.CompleteStartAttempt(true);
                 await WaitUntilAsync(() => _sessionFactory.CreatedSessions.Single().DisposeCallCount == 1);
             });
 

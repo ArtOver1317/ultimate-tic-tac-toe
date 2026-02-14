@@ -43,6 +43,13 @@ namespace Runtime.GameModes.Wizard
         Observable<GameLaunchConfig> GameLaunchRequested { get; }
 
         /// <summary>
+        /// Completes current start attempt.
+        /// On success wizard is closed with <see cref="AbortReason.GameStarted"/>;
+        /// on failure wizard remains active and displays provided error.
+        /// </summary>
+        void CompleteStartAttempt(bool succeeded, WizardError? error = null);
+
+        /// <summary>
         /// Fired when the wizard is aborted for any reason.
         /// </summary>
         Observable<AbortReason> WizardAborted { get; }

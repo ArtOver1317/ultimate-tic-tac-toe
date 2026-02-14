@@ -4,49 +4,36 @@ using Runtime.GameModes.Wizard;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe.Moves;
-using Runtime.Games.TicTacToe.Rules;
 using Scellecs.Morpeh;
 
 namespace Runtime.Games.TicTacToe.ECS
 {
     /// <summary>
-    /// Registers TicTacToe-specific ECS systems and initializes board state on the match entity.
-    /// Slot mapping: 0 = X, 1 = O.
+    /// Registers Ultimate Tic-Tac-Toe MVP ECS pipeline without rules evaluation.
+    /// Supports move validation/apply only.
     /// </summary>
-    public sealed class TicTacToeEcsRegistrar : IEcsGameplayRegistrar
+    public sealed class UltimateTicTacToeEcsRegistrar : IEcsGameplayRegistrar
     {
-        public const int SlotX = PlayerSlotMapping.SlotX;
-        public const int SlotO = PlayerSlotMapping.SlotO;
-        public const int PlayerCount = PlayerSlotMapping.PlayerCount;
-        public const string TicTacToeGameId = TicTacToeStrategy.DefaultGameId;
-
-        private readonly IRulesEngine _rulesEngine;
-
-        public string GameId => TicTacToeGameId;
-
-        public TicTacToeEcsRegistrar(IRulesEngine rulesEngine) =>
-            _rulesEngine = rulesEngine ?? throw new ArgumentNullException(nameof(rulesEngine));
+        public string GameId => UltimateTicTacToeStrategy.DefaultGameId;
 
         public void Register(World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config)
         {
-            if (config.GameConfig is not TicTacToeConfig tttConfig)
+            if (config.GameConfig is not UltimateTicTacToeConfig)
+            {
                 throw new InvalidOperationException(
-                    $"Expected TicTacToeConfig but got {config.GameConfig?.GetType().Name ?? "null"}.");
-            if (tttConfig.IsUltimate)
-                throw new NotSupportedException(
-                    "Ultimate Tic-Tac-Toe is not yet supported in the ECS pipeline. " +
-                    "Use classic mode (IsUltimate = false).");
-            // Initialize PlayersComponent (shared)
+                    $"Expected UltimateTicTacToeConfig but got {config.GameConfig?.GetType().Name ?? "null"}.");
+            }
+
             var playersStash = world.GetStash<PlayersComponent>();
             playersStash.Set(matchEntity, new PlayersComponent
             {
-                PlayerCount = PlayerCount,
-                ActivePlayerSlot = SlotX, // X always starts first round
+                PlayerCount = PlayerSlotMapping.PlayerCount,
+                ActivePlayerSlot = PlayerSlotMapping.SlotX,
             });
 
-            // Initialize FieldConfigComponent (shared)
+            var spec = FieldRenderSpec.Ultimate();
+
             var fieldConfigStash = world.GetStash<FieldConfigComponent>();
-            var spec = MapSpec(tttConfig);
             fieldConfigStash.Set(matchEntity, new FieldConfigComponent
             {
                 Kind = spec.Kind,
@@ -54,37 +41,20 @@ namespace Runtime.Games.TicTacToe.ECS
                 InnerSize = spec.InnerSize,
             });
 
-            // Initialize BoardStateComponent (game-specific)
-            var boardStash = world.GetStash<BoardStateComponent>();
-            var majorCount = spec.Kind == FieldKind.Classic ? spec.OuterSize : spec.OuterSize * spec.OuterSize;
-            var minorCount = spec.Kind == FieldKind.Classic ? spec.OuterSize : spec.InnerSize * spec.InnerSize;
+            var majorCount = spec.OuterSize * spec.OuterSize;
+            var minorCount = spec.InnerSize * spec.InnerSize;
             var totalCells = majorCount * minorCount;
 
+            var boardStash = world.GetStash<BoardStateComponent>();
             boardStash.Set(matchEntity, new BoardStateComponent
             {
                 Cells = new PlayerMark[totalCells],
                 MinorCount = minorCount,
             });
 
-            // Add game-specific systems (order: validate → apply → rules evaluate)
             systemsGroup.AddSystem(new MoveValidationSystem());
             systemsGroup.AddSystem(new ApplyMoveSystem());
-            systemsGroup.AddSystem(new RulesEvaluationSystem(_rulesEngine));
-            systemsGroup.AddSystem(new RestartRoundSystem());
         }
-
-        internal static FieldRenderSpec MapSpec(TicTacToeConfig config) =>
-            config.IsUltimate
-                ? FieldRenderSpec.Ultimate()
-                : FieldRenderSpec.Classic(config.BoardSize);
-
-        [Obsolete("Use PlayerSlotMapping.SlotToMark.")]
-        public static PlayerMark SlotToMark(int slot) => PlayerSlotMapping.SlotToMark(slot);
-
-        [Obsolete("Use PlayerSlotMapping.MarkToSlot.")]
-        public static int MarkToSlot(PlayerMark mark) => PlayerSlotMapping.MarkToSlot(mark);
-
-        // -- IEcsGameplayRegistrar snapshot methods (ADR-3/ADR-9: game-specific reads) --
 
         public int GetCellSlot(World world, Entity matchEntity, CellId cellId)
         {
@@ -97,7 +67,9 @@ namespace Runtime.Games.TicTacToe.ECS
 
             if (cellId.Major < 0 || cellId.Major >= majorCount
                 || cellId.Minor < 0 || cellId.Minor >= board.MinorCount)
+            {
                 return -1;
+            }
 
             var index = cellId.Major * board.MinorCount + cellId.Minor;
             return PlayerSlotMapping.MarkToSlot(board.Cells[index]);

@@ -315,14 +315,14 @@ namespace Tests.EditMode.GameModes.Wizard
             var errors = new List<ValidationError>
             {
                 new("TargetPlayerId", "Errors.GameWizard.PlayerIdRequired"),
-                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.ConfigRequired"),
             };
 
             // Act
             session.EmitValidationErrors(errors);
 
             // Assert
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.GameConfigRequired");
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.ConfigRequired");
         }
 
         [Test]
@@ -337,7 +337,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.ConfigRequired"),
             });
 
             // Act
@@ -359,14 +359,14 @@ namespace Tests.EditMode.GameModes.Wizard
 
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.ConfigRequired"),
             });
 
             // Act
             _currentError.Value = new WizardError("code", "Errors.GameWizard.Coordinator", true, ErrorDisplayType.Modal);
 
             // Assert
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.GameConfigRequired");
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.ConfigRequired");
         }
 
         [Test]
@@ -381,7 +381,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.ConfigRequired"),
             });
 
             _currentError.Value = new WizardError("code", "Errors.GameWizard.Coordinator", true, ErrorDisplayType.Inline);
@@ -391,7 +391,7 @@ namespace Tests.EditMode.GameModes.Wizard
             _currentError.Value = null;
 
             // Assert
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.GameConfigRequired");
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.ConfigRequired");
         }
 
         [Test]
@@ -406,7 +406,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.ConfigRequired"),
             });
 
             // Act
@@ -1005,12 +1005,12 @@ namespace Tests.EditMode.GameModes.Wizard
             // Act
             session.EmitValidationErrors(new List<ValidationError>
             {
-                new("GameConfig", "Errors.GameWizard.GameConfigRequired"),
+                new("GameConfig", "Errors.GameWizard.ConfigRequired"),
                 new("BotDifficultyId", "Errors.GameWizard.DifficultyRequired"),
             });
 
             // Assert
-            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.GameConfigRequired");
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.ConfigRequired");
         }
 
         [Test]
