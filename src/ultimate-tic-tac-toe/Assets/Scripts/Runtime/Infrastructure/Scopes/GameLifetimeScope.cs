@@ -84,6 +84,7 @@ namespace Runtime.Infrastructure.Scopes
                 .As<IGameStrategy>();
 
             builder.Register<IGameSettingsBinder, TicTacToeSettingsBinder>(Lifetime.Singleton);
+            builder.Register<IGameSettingsBinder, UltimateTicTacToeSettingsBinder>(Lifetime.Singleton);
             
             // Localization Services
             // Note: Factory registration required - VContainer cannot auto-resolve constructors with optional parameters.

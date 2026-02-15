@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -23,16 +25,16 @@ namespace Tests.PlayMode.GameModes.Wizard
     [Category("Integration")]
     public class WizardErrorOverlayBinderTests
     {
-        private GameObject _gameObject;
-        private UIDocument _uiDocument;
-        private VisualTreeAsset _uxml;
-        private WizardErrorOverlay _overlay;
-        private PanelSettings _panelSettings;
+        private GameObject _gameObject = null!;
+        private UIDocument _uiDocument = null!;
+        private VisualTreeAsset _uxml = null!;
+        private WizardErrorOverlay _overlay = null!;
+        private PanelSettings _panelSettings = null!;
 
-        private ILocalizationService _localization;
-        private Subject<string> _okTextStream;
-        private ReactiveProperty<WizardError?> _errorSource;
-        private IDisposable _binding;
+        private ILocalizationService _localization = null!;
+        private Subject<string> _okTextStream = null!;
+        private ReactiveProperty<WizardError?> _errorSource = null!;
+        private IDisposable _binding = null!;
 
         private int _ackCount;
 
@@ -205,7 +207,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             var okButton = _overlay.Q<Button>("OkButton");
 
             // Act
-            _okTextStream.OnNext(null);
+            _okTextStream.OnNext(null!);
             yield return null;
 
             // Assert
@@ -431,7 +433,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             _ackCount++;
         }
 
-        private static IEnumerator WaitUntilAsync(Func<bool> condition, float timeoutSeconds, string context = null)
+        private static IEnumerator WaitUntilAsync(Func<bool> condition, float timeoutSeconds, string? context = null)
         {
             var start = Time.realtimeSinceStartup;
             while (!condition())
@@ -452,7 +454,7 @@ namespace Tests.PlayMode.GameModes.Wizard
                 yield return null;
         }
 
-        private static IEnumerator WaitUntilTime(float targetTime, string context = null)
+        private static IEnumerator WaitUntilTime(float targetTime, string? context = null)
         {
             while (Time.realtimeSinceStartup < targetTime)
                 yield return null;
@@ -480,3 +482,5 @@ namespace Tests.PlayMode.GameModes.Wizard
         }
     }
 }
+
+#nullable restore

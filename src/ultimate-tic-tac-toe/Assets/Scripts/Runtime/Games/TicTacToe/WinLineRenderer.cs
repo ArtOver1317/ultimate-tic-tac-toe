@@ -1,6 +1,8 @@
 using System;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
+using Runtime.Games.TicTacToe.Ultimate.Rules;
+using Runtime.Games.TicTacToe.Ultimate.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -37,6 +39,8 @@ namespace Runtime.Games.TicTacToe
         private VisualElement _lineElement;
         private VisualElement _overlayParent;
         private WinLine? _currentWinLine;
+        private UltimateBigBoardWinLine? _currentUltimateWinLine;
+        private IUltimateGameplayFieldUiAdapter _ultimateUiAdapter;
 
         public WinLineRenderer(IGameplayFieldUiAdapter fieldUiAdapter)
         {
@@ -60,6 +64,8 @@ namespace Runtime.Games.TicTacToe
                 return;
 
             _currentWinLine = winLine;
+            _currentUltimateWinLine = null;
+            _ultimateUiAdapter = null;
             _overlayParent = container;
 
             _lineElement = new VisualElement { name = "WinLine" };
@@ -90,6 +96,52 @@ namespace Runtime.Games.TicTacToe
             _overlayParent.RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
         }
 
+        public void ShowUltimate(UltimateBigBoardWinLine bigBoardWinLine, IUltimateGameplayFieldUiAdapter ultimateUiAdapter)
+        {
+            if (ultimateUiAdapter == null)
+                throw new ArgumentNullException(nameof(ultimateUiAdapter));
+
+            Clear();
+
+            var container = _fieldUiAdapter.FieldContainer;
+            if (container == null)
+                return;
+
+            if (!ultimateUiAdapter.TryGetMiniBoardCenter(bigBoardWinLine.Major0, out var startPanelCenter) ||
+                !ultimateUiAdapter.TryGetMiniBoardCenter(bigBoardWinLine.Major2, out var endPanelCenter))
+            {
+                return;
+            }
+
+            _currentWinLine = null;
+            _currentUltimateWinLine = bigBoardWinLine;
+            _ultimateUiAdapter = ultimateUiAdapter;
+            _overlayParent = container;
+
+            _lineElement = new VisualElement { name = "WinLine" };
+            _lineElement.AddToClassList("win-line");
+            _lineElement.pickingMode = PickingMode.Ignore;
+
+            var resultOverlay = _overlayParent.Q<VisualElement>("ResultOverlay");
+            if (resultOverlay != null)
+            {
+                var idx = _overlayParent.IndexOf(resultOverlay);
+                if (idx >= 0)
+                    _overlayParent.Insert(idx, _lineElement);
+                else
+                    _overlayParent.Add(_lineElement);
+            }
+            else
+            {
+                _overlayParent.Add(_lineElement);
+            }
+
+            UpdateUltimateLineGeometry(bigBoardWinLine, startPanelCenter, endPanelCenter, ultimateUiAdapter);
+
+            _lineElement.schedule.Execute(() => _lineElement?.AddToClassList("win-line--visible"));
+            _overlayParent.RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
+        }
+
         /// <summary>
         /// Removes the win line overlay. Safe to call multiple times or before Show.
         /// </summary>
@@ -101,6 +153,8 @@ namespace Runtime.Games.TicTacToe
             _lineElement?.RemoveFromHierarchy();
             _lineElement = null;
             _currentWinLine = null;
+            _currentUltimateWinLine = null;
+            _ultimateUiAdapter = null;
             _overlayParent = null;
         }
 
@@ -110,7 +164,20 @@ namespace Runtime.Games.TicTacToe
         private void OnGeometryChanged(GeometryChangedEvent evt)
         {
             if (_currentWinLine == null || _lineElement == null || _overlayParent == null)
+            {
+                if (_currentUltimateWinLine == null || _lineElement == null || _overlayParent == null || _ultimateUiAdapter == null)
+                    return;
+
+                var ultimateLine = _currentUltimateWinLine.Value;
+                if (!_ultimateUiAdapter.TryGetMiniBoardCenter(ultimateLine.Major0, out var startCenter) ||
+                    !_ultimateUiAdapter.TryGetMiniBoardCenter(ultimateLine.Major2, out var endCenter))
+                {
+                    return;
+                }
+
+                UpdateUltimateLineGeometry(ultimateLine, startCenter, endCenter, _ultimateUiAdapter);
                 return;
+            }
 
             var winLine = _currentWinLine.Value;
             if (!_fieldUiAdapter.TryGetCell(winLine.Start, out var startCell) ||
@@ -138,6 +205,36 @@ namespace Runtime.Games.TicTacToe
             var extension = cellWidth > 0f ? cellWidth * ExtensionFraction : 0f;
 
             var geo = CalculateGeometry(startCenter, endCenter, LineThickness, extension);
+
+            ApplyGeometry(geo);
+        }
+
+        private void UpdateUltimateLineGeometry(
+            UltimateBigBoardWinLine bigBoardWinLine,
+            Vector2 startPanelCenter,
+            Vector2 endPanelCenter,
+            IUltimateGameplayFieldUiAdapter ultimateUiAdapter)
+        {
+            if (_overlayParent.panel == null)
+                return;
+
+            var startCenter = _overlayParent.WorldToLocal(startPanelCenter);
+            var endCenter = _overlayParent.WorldToLocal(endPanelCenter);
+
+            float referenceWidth = 0f;
+            if (ultimateUiAdapter.TryGetMiniBoard(bigBoardWinLine.Major0, out var startMini) && startMini != null)
+                referenceWidth = startMini.worldBound.width;
+
+            var extension = referenceWidth > 0f ? referenceWidth * ExtensionFraction : 0f;
+            var geo = CalculateGeometry(startCenter, endCenter, LineThickness, extension);
+
+            ApplyGeometry(geo);
+        }
+
+        private void ApplyGeometry(WinLineGeometry geo)
+        {
+            if (_lineElement == null)
+                return;
 
             _lineElement.style.position = Position.Absolute;
             _lineElement.style.width = geo.Width;

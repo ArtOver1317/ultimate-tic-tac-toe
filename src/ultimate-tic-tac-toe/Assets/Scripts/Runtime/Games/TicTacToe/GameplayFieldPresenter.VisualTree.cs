@@ -60,6 +60,8 @@ namespace Runtime.Games.TicTacToe
             _cellById.Clear();
             _markById.Clear();
             _markLabelById.Clear();
+            _miniBoardByMajor.Clear();
+            _miniBoardCenterByMajor.Clear();
             _isCellIdCacheValid = true;
 
             if (_spec.Kind == FieldKind.Classic)
@@ -125,6 +127,10 @@ namespace Runtime.Games.TicTacToe
             centerLabel.AddToClassList("current-player-label");
             scoreboard.Add(centerLabel);
 
+            var drawsScore = new Label { name = "DrawsScore", text = "D:0" };
+            drawsScore.AddToClassList("player-score");
+            scoreboard.Add(drawsScore);
+
             // Player 2 panel
             var p2Panel = new VisualElement { name = "Player2Panel" };
             p2Panel.AddToClassList("player-panel");
@@ -160,6 +166,7 @@ namespace Runtime.Games.TicTacToe
             _player2Panel = scoreboard.Q<VisualElement>("Player2Panel");
             _player1ScoreLabel = scoreboard.Q<Label>("Player1Score");
             _player2ScoreLabel = scoreboard.Q<Label>("Player2Score");
+            _drawsScoreLabel = scoreboard.Q<Label>("DrawsScore");
 
             _currentPlayerLabel = scoreboard.Q<Label>("CurrentPlayerLabel");
         }
@@ -255,8 +262,15 @@ namespace Runtime.Games.TicTacToe
                         mini.Add(row);
                     }
 
+                    var miniStatusOverlay = new Label { name = "MiniStatusOverlay", text = string.Empty };
+                    miniStatusOverlay.AddToClassList("mini-board-status-overlay");
+                    miniStatusOverlay.style.display = DisplayStyle.None;
+                    miniStatusOverlay.pickingMode = PickingMode.Ignore;
+                    mini.Add(miniStatusOverlay);
+
                     miniRow.Add(mini);
                     _miniBoards.Add(mini);
+                    _miniBoardByMajor[miniIndex] = mini;
                 }
 
                 _fieldContainer.Add(miniRow);

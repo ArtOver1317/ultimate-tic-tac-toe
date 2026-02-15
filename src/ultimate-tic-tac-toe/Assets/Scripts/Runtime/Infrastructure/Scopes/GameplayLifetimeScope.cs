@@ -6,6 +6,8 @@ using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
+using Runtime.Games.TicTacToe.Ultimate;
+using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Runtime.Games.TicTacToe.Series;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -37,6 +39,7 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<IMatchEventScheduler, DeferredEventScheduler>(Lifetime.Scoped);
             builder.Register<EventPublishSystem>(Lifetime.Scoped);
             builder.Register<IRulesEngine, ClassicRulesEngine>(Lifetime.Scoped);
+            builder.Register<IUltimateRulesEngine, UltimateRulesEngine>(Lifetime.Scoped);
             builder.Register<TicTacToeEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
             builder.Register<UltimateTicTacToeEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
             builder.Register<MatchEcsLifecycleService>(Lifetime.Scoped)
@@ -46,7 +49,9 @@ namespace Runtime.Infrastructure.Scopes
                 .As<IMatchStateProvider>()
                 .As<IGameplayCommandSink>()
                 .As<IGameplayEventStream>()
-                .As<IGameplaySnapshotProvider>();
+                .As<IGameplaySnapshotProvider>()
+                .As<IUltimateGameplayEventStream>()
+                .As<IUltimateGameplaySnapshotProvider>();
 
             // ── Bot AI ──
             if (BotProfileCatalog != null)

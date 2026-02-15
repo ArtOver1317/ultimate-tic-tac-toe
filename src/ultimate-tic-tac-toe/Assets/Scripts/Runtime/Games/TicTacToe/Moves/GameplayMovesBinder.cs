@@ -100,7 +100,7 @@ namespace Runtime.Games.TicTacToe.Moves
             SetupMarkAppearVfx(coldPathSnapshot);
             RenderColdPathSnapshot(coldPathSnapshot);
             // Show the correct starting player from ECS snapshot (handles restarts with O as starter)
-            UpdateCurrentPlayerLabel(TicTacToeEcsRegistrar.SlotToMark(_snapshotProvider.ActivePlayerSlot));
+            UpdateCurrentPlayerLabel(PlayerSlotMapping.SlotToMark(_snapshotProvider.ActivePlayerSlot));
         }
 
         private Label AcquireCurrentPlayerLabel()
@@ -151,7 +151,7 @@ namespace Runtime.Games.TicTacToe.Moves
                 .AddTo(_subscriptions!);
 
             _eventStream.CurrentPlayerChanged
-                .Subscribe(evt => UpdateCurrentPlayerLabel(TicTacToeEcsRegistrar.SlotToMark(evt.ActivePlayerSlot)))
+                .Subscribe(evt => UpdateCurrentPlayerLabel(PlayerSlotMapping.SlotToMark(evt.ActivePlayerSlot)))
                 .AddTo(_subscriptions!);
 
             _eventStream.CommandRejected
@@ -260,7 +260,7 @@ namespace Runtime.Games.TicTacToe.Moves
             if (!_isBound || _disposed)
                 return;
 
-            UpdateMark(evt.CellId, TicTacToeEcsRegistrar.SlotToMark(evt.NewSlot), animate: true);
+            UpdateMark(evt.CellId, PlayerSlotMapping.SlotToMark(evt.NewSlot), animate: true);
         }
 
         private void OnEcsLastMoveChanged(LastMoveChangedEvent evt)
@@ -282,7 +282,7 @@ namespace Runtime.Games.TicTacToe.Moves
         {
             var result = new CellValue[ecsCells.Count];
             for (var i = 0; i < ecsCells.Count; i++)
-                result[i] = new CellValue(ecsCells[i].CellId, TicTacToeEcsRegistrar.SlotToMark(ecsCells[i].Slot));
+                result[i] = new CellValue(ecsCells[i].CellId, PlayerSlotMapping.SlotToMark(ecsCells[i].Slot));
             return result;
         }
 

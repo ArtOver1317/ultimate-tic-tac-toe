@@ -15,7 +15,11 @@ namespace Runtime.Games.TicTacToe
     /// </summary>
     public sealed partial class GameplayFieldPresenter
     {
-        private void OnGeometryChanged(GeometryChangedEvent evt) => UpdateCellSizes(evt.newRect);
+        private void OnGeometryChanged(GeometryChangedEvent evt)
+        {
+            UpdateCellSizes(evt.newRect);
+            RefreshMiniBoardCenters();
+        }
 
         private void UpdateCellSizes(Rect rect)
         {
@@ -64,6 +68,24 @@ namespace Runtime.Games.TicTacToe
                     mini.style.width = miniSize;
                     mini.style.height = miniSize;
                 }
+
+                RefreshMiniBoardCenters();
+            }
+        }
+
+        private void RefreshMiniBoardCenters()
+        {
+            if (_miniBoardByMajor.Count == 0)
+                return;
+
+            foreach (var pair in _miniBoardByMajor)
+            {
+                var mini = pair.Value;
+                var rect = mini.worldBound;
+                if (rect.width <= 0f || rect.height <= 0f)
+                    continue;
+
+                _miniBoardCenterByMajor[pair.Key] = rect.center;
             }
         }
 

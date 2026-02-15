@@ -41,7 +41,7 @@ namespace Runtime.Games.TicTacToe.ECS
                 {
                     Reject(entity, GameplayRejectionReason.RoundAlreadyEnded);
                     _moveRequestStash.Remove(entity);
-                    return;
+                    continue;
                 }
 
                 ref var board = ref _boardStash.Get(entity);
@@ -53,7 +53,7 @@ namespace Runtime.Games.TicTacToe.ECS
                 {
                     Reject(entity, GameplayRejectionReason.InvalidCell);
                     _moveRequestStash.Remove(entity);
-                    return;
+                    continue;
                 }
 
                 var index = request.CellId.Major * board.MinorCount + request.CellId.Minor;
@@ -63,7 +63,7 @@ namespace Runtime.Games.TicTacToe.ECS
                 {
                     Reject(entity, GameplayRejectionReason.CellOccupied);
                     _moveRequestStash.Remove(entity);
-                    return;
+                    continue;
                 }
 
                 // Validation passed — leave MakeMoveRequest for ApplyMoveSystem

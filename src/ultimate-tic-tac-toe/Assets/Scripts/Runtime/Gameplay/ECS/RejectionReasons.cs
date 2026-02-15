@@ -8,6 +8,7 @@ namespace Runtime.Gameplay.ECS
         CellOccupied = 3,
         NotPlayersTurn = 4,
         InvalidCell = 5,
+        ForbiddenMove = 6,
     }
 
     public readonly struct CommandRejection

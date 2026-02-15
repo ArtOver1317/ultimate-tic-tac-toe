@@ -10,10 +10,14 @@ using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Series;
+using Runtime.Games.TicTacToe.Ultimate;
+using Runtime.Games.TicTacToe.Ultimate.Rules;
+using Runtime.Games.TicTacToe.Ultimate.UI;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Infrastructure.Logging;
 using StripLog;
+using UnityEngine;
 using EcsRoundFinishedEvent = Runtime.Gameplay.ECS.RoundFinishedEvent;
 using EcsGameStatus = Runtime.Gameplay.ECS.GameStatus;
 
@@ -21,6 +25,8 @@ namespace Runtime.Games.TicTacToe
 {
     public sealed class GameplayStartup : IGameplayStartup, IDisposable
     {
+        private static readonly TimeSpan RestartEpochWaitTimeout = TimeSpan.FromSeconds(1);
+
         private readonly IGameLaunchConfigStore _configStore;
         private readonly IGameService _gameService;
         private readonly IGameplayFieldPresenter _fieldPresenter;
@@ -34,10 +40,15 @@ namespace Runtime.Games.TicTacToe
         private readonly IGameplayBackHandler _backHandler;
         private readonly IGameStateMachine _stateMachine;
         private readonly IBotTurnDriver _botDriver;
+        private readonly IUltimateGameplaySnapshotProvider _ultimateSnapshotProvider;
+        private readonly MiniBoardStatus[] _ultimateMiniBoardBuffer = new MiniBoardStatus[9];
 
         private FieldRenderSpec _fieldSpec;
         private GameResultViewModel _resultVM;
+        private UltimateAllowedBinder _ultimateAllowedBinder;
+        private UltimateMiniBoardStatusBinder _ultimateMiniBoardStatusBinder;
         private CompositeDisposable _subscriptions;
+        private bool _restartInProgress;
         private bool _disposed;
 
         public GameplayStartup(
@@ -53,7 +64,8 @@ namespace Runtime.Games.TicTacToe
             ISeriesService seriesService,
             IGameplayBackHandler backHandler,
             IGameStateMachine stateMachine,
-            IBotTurnDriver botDriver)
+            IBotTurnDriver botDriver,
+            IUltimateGameplaySnapshotProvider ultimateSnapshotProvider = null)
         {
             _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));
             _gameService = gameService ?? throw new ArgumentNullException(nameof(gameService));
@@ -68,6 +80,7 @@ namespace Runtime.Games.TicTacToe
             _backHandler = backHandler ?? throw new ArgumentNullException(nameof(backHandler));
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             _botDriver = botDriver ?? throw new ArgumentNullException(nameof(botDriver));
+            _ultimateSnapshotProvider = ultimateSnapshotProvider;
         }
 
         public async UniTask StartAsync(CancellationToken ct)
@@ -92,6 +105,8 @@ namespace Runtime.Games.TicTacToe
 
                 _ecsLifecycle.StartMatch(config);
                 _movesBinder.Bind();
+                BindUltimateUiIfNeeded();
+                SetRoundFinishedVisualState(false);
 
                 // Start bot driver if opponent is a bot
                 await TryStartBotDriverAsync(config, ct);
@@ -124,6 +139,7 @@ namespace Runtime.Games.TicTacToe
             _subscriptions = null;
             _botDriver.Dispose();
             _movesBinder.Unbind();
+            DisposeUltimateUiBinders();
             _ecsLifecycle.StopMatch();
             _winLineRenderer.Clear();
             _resultVM?.Dispose();
@@ -221,20 +237,7 @@ namespace Runtime.Games.TicTacToe
                 _movesBinder.Unbind();
 
                 // 2. Map ECS result to OOP GameResult for downstream consumers.
-                var winner = evt.WinnerSlot.HasValue
-                    ? TicTacToeEcsRegistrar.SlotToMark(evt.WinnerSlot.Value)
-                    : PlayerMark.None;
-                var oopStatus = MapEcsStatus(evt.Status);
-                WinLine? oopWinLine = null;
-                if (evt.WinLine.HasValue)
-                {
-                    oopWinLine = MapEcsWinLine(evt.WinLine.Value);
-                }
-                var gameResult = oopStatus == Rules.GameStatus.Win
-                    ? GameResult.Win(winner, oopWinLine!.Value)
-                    : oopStatus == Rules.GameStatus.Draw
-                        ? GameResult.Draw()
-                        : GameResult.InProgress();
+                var gameResult = BuildGameResult(evt);
 
                 // 3. Record result in series.
                 _seriesService.RecordResult(gameResult);
@@ -244,11 +247,12 @@ namespace Runtime.Games.TicTacToe
                 // 4. Update scoreboard scores.
                 UpdateScoreLabels();
 
-                // 5. Show win line if applicable.
-                if (evt.WinLine.HasValue)
-                    _winLineRenderer.Show(oopWinLine!.Value);
+                // 5. Final sync + show win line.
+                ApplyUltimateFinalSyncIfNeeded();
+                ShowWinLine(gameResult, evt);
 
                 // 6. Show result popup.
+                SetRoundFinishedVisualState(true);
                 _resultVM?.Show(gameResult, _seriesService.Score.CurrentValue);
             }
             catch (Exception ex)
@@ -264,6 +268,74 @@ namespace Runtime.Games.TicTacToe
             EcsGameStatus.Draw => Rules.GameStatus.Draw,
             _ => Rules.GameStatus.InProgress,
         };
+
+        private GameResult BuildGameResult(EcsRoundFinishedEvent evt)
+        {
+            if (_fieldSpec != null
+                && _fieldSpec.Kind == FieldKind.Ultimate
+                && _ultimateSnapshotProvider != null)
+            {
+                var match = _ultimateSnapshotProvider.CurrentMatch;
+                if (match.Status == Rules.GameStatus.Win && match.BigBoardWinLine.HasValue)
+                    return GameResult.Win(match.Winner, MapUltimateBigBoardWinLine(match.BigBoardWinLine.Value));
+
+                if (match.Status == Rules.GameStatus.Win)
+                    throw new InvalidOperationException("Ultimate win result must include BigBoardWinLine.");
+
+                return match.Status == Rules.GameStatus.Draw
+                    ? GameResult.Draw()
+                    : GameResult.InProgress();
+            }
+
+            var winner = evt.WinnerSlot.HasValue
+                ? PlayerSlotMapping.SlotToMark(evt.WinnerSlot.Value)
+                : PlayerMark.None;
+            var oopStatus = MapEcsStatus(evt.Status);
+            WinLine? oopWinLine = null;
+            if (evt.WinLine.HasValue)
+                oopWinLine = MapEcsWinLine(evt.WinLine.Value);
+
+            return oopStatus == Rules.GameStatus.Win
+                ? GameResult.Win(winner, oopWinLine!.Value)
+                : oopStatus == Rules.GameStatus.Draw
+                    ? GameResult.Draw()
+                    : GameResult.InProgress();
+        }
+
+        private void ShowWinLine(GameResult gameResult, EcsRoundFinishedEvent evt)
+        {
+            if (gameResult.Status != Rules.GameStatus.Win)
+                return;
+
+            if (_fieldSpec != null
+                && _fieldSpec.Kind == FieldKind.Ultimate
+                && _ultimateSnapshotProvider != null
+                && _fieldUiAdapter is IUltimateGameplayFieldUiAdapter ultimateUi)
+            {
+                var match = _ultimateSnapshotProvider.CurrentMatch;
+                if (match.BigBoardWinLine.HasValue)
+                    _winLineRenderer.ShowUltimate(match.BigBoardWinLine.Value, ultimateUi);
+
+                return;
+            }
+
+            if (evt.WinLine.HasValue)
+                _winLineRenderer.Show(MapEcsWinLine(evt.WinLine.Value));
+        }
+
+        private void ApplyUltimateFinalSyncIfNeeded()
+        {
+            if (_fieldSpec == null || _fieldSpec.Kind != FieldKind.Ultimate)
+                return;
+
+            if (_ultimateSnapshotProvider == null)
+                return;
+
+            _ultimateSnapshotProvider.CopyMiniBoardsTo(_ultimateMiniBoardBuffer);
+
+            _ultimateAllowedBinder?.ApplyFinalState(_ultimateSnapshotProvider.CurrentAllowedMajors);
+            _ultimateMiniBoardStatusBinder?.ApplyFinalState(_ultimateMiniBoardBuffer);
+        }
 
         /// <summary>
         /// Derives Direction and Length from EcsWinLine's Start/End coordinates.
@@ -289,6 +361,27 @@ namespace Runtime.Games.TicTacToe
             return new WinLine(ecsLine.Start, ecsLine.End, direction, length);
         }
 
+        private static WinLine MapUltimateBigBoardWinLine(UltimateBigBoardWinLine line)
+        {
+            static CellId ToCellId(int major) => new CellId(major / 3, major % 3);
+
+            var start = ToCellId(line.Major0);
+            var end = ToCellId(line.Major2);
+
+            var rowDiff = end.Major - start.Major;
+            var colDiff = end.Minor - start.Minor;
+
+            var direction = rowDiff == 0
+                ? WinLineDirection.Horizontal
+                : colDiff == 0
+                    ? WinLineDirection.Vertical
+                    : colDiff > 0
+                        ? WinLineDirection.DiagonalMain
+                        : WinLineDirection.DiagonalAnti;
+
+            return new WinLine(start, end, direction, 3);
+        }
+
         // -- Result actions (Restart / Exit) --
 
         private void OnResultAction(ResultAction action)
@@ -296,7 +389,13 @@ namespace Runtime.Games.TicTacToe
             switch (action)
             {
                 case ResultAction.Restart:
-                    RestartRound();
+                    if (_restartInProgress)
+                    {
+                        Log.Warning(LogTags.Infrastructure, "[GameplayStartup] Restart already in progress. Ignore duplicate request.");
+                        break;
+                    }
+
+                    RestartRoundAsync().Forget();
                     break;
                 case ResultAction.Exit:
                     ExitToMenuAsync().Forget();
@@ -304,25 +403,80 @@ namespace Runtime.Games.TicTacToe
             }
         }
 
-        private void RestartRound()
+        private async UniTaskVoid RestartRoundAsync()
         {
-            if (_disposed) return;
+            try
+            {
+                if (_disposed) return;
 
-            // 1. Clear win line.
-            _winLineRenderer.Clear();
+                _restartInProgress = true;
 
-            // 2. Hide popup.
-            _resultVM?.Hide();
+                // 1. Unbind ultimate binders before epoch switch.
+                _ultimateAllowedBinder?.Unbind();
+                _ultimateMiniBoardStatusBinder?.Unbind();
 
-            // 3. Alternate starting player.
-            var startingPlayer = _seriesService.NextRound();
-            var startingSlot = TicTacToeEcsRegistrar.MarkToSlot(startingPlayer);
+                // 2. Alternate starting player.
+                var startingPlayer = _seriesService.NextRound();
+                var startingSlot = PlayerSlotMapping.MarkToSlot(startingPlayer);
 
-            // 4. Submit restart command — SubmitCommand auto-ticks, board is cleared synchronously.
-            _commandSink.SubmitCommand(new RestartRoundCommand(startingSlot));
+                // 3. Submit restart command — SubmitCommand auto-ticks.
+                var previousEpoch = _ultimateSnapshotProvider?.Epoch ?? 0UL;
+                _commandSink.SubmitCommand(new RestartRoundCommand(startingSlot));
 
-            // 5. Cold-path render of cleared field + subscribe.
-            _movesBinder.Bind();
+                if (_fieldSpec != null && _fieldSpec.Kind == FieldKind.Ultimate && _ultimateSnapshotProvider != null)
+                {
+                    var epochChanged = await WaitForEpochChangeAsync(previousEpoch, RestartEpochWaitTimeout);
+                    if (!epochChanged)
+                    {
+                        Log.Error(LogTags.Infrastructure,
+                            "[GameplayStartup] Restart timeout: epoch did not change. Keep result overlay visible for Retry/Exit.");
+                        return;
+                    }
+                }
+
+                if (_disposed)
+                    return;
+
+                // 4. Clear finish UI and perform cold-path rebind.
+                _winLineRenderer.Clear();
+                _resultVM?.Hide();
+                SetRoundFinishedVisualState(false);
+
+                _movesBinder.Bind();
+                _ultimateAllowedBinder?.Bind();
+                _ultimateMiniBoardStatusBinder?.Bind();
+            }
+            catch (Exception ex)
+            {
+                if (_disposed)
+                    return;
+
+                Log.Error(LogTags.Infrastructure, $"[GameplayStartup] Restart failed: {ex}");
+            }
+            finally
+            {
+                _restartInProgress = false;
+            }
+        }
+
+        private async UniTask<bool> WaitForEpochChangeAsync(ulong previousEpoch, TimeSpan timeout)
+        {
+            if (_ultimateSnapshotProvider == null)
+                return true;
+
+            var startTime = Time.realtimeSinceStartup;
+            while (!_disposed)
+            {
+                if (_ultimateSnapshotProvider.Epoch != previousEpoch)
+                    return true;
+
+                if (Time.realtimeSinceStartup - startTime >= (float)timeout.TotalSeconds)
+                    return false;
+
+                await UniTask.DelayFrame(1);
+            }
+
+            return false;
         }
 
         private async UniTaskVoid ExitToMenuAsync()
@@ -333,6 +487,7 @@ namespace Runtime.Games.TicTacToe
 
                 _winLineRenderer.Clear();
                 _resultVM?.Hide();
+                SetRoundFinishedVisualState(false);
                 await _backHandler.HandleBackAsync(CancellationToken.None);
             }
             catch (Exception ex)
@@ -349,9 +504,53 @@ namespace Runtime.Games.TicTacToe
             var score = _seriesService.Score.CurrentValue;
             var p1Label = _fieldUiAdapter.Player1ScoreLabel;
             var p2Label = _fieldUiAdapter.Player2ScoreLabel;
+            var drawsLabel = _fieldUiAdapter.DrawsScoreLabel;
 
             if (p1Label != null) p1Label.text = score.Player1Wins.ToString();
             if (p2Label != null) p2Label.text = score.Player2Wins.ToString();
+            if (drawsLabel != null) drawsLabel.text = $"D:{score.Draws}";
+        }
+
+        private void SetRoundFinishedVisualState(bool finished)
+        {
+            var container = _fieldUiAdapter.FieldContainer;
+            if (container == null)
+                return;
+
+            const string cls = "field-container--round-finished";
+            if (finished)
+                container.AddToClassList(cls);
+            else
+                container.RemoveFromClassList(cls);
+        }
+
+        private void BindUltimateUiIfNeeded()
+        {
+            if (_fieldSpec == null || _fieldSpec.Kind != FieldKind.Ultimate)
+                return;
+
+            if (_ultimateSnapshotProvider == null)
+                return;
+
+            if (_fieldUiAdapter is not IUltimateGameplayFieldUiAdapter ultimateUi)
+                return;
+
+            if (_eventStream is not IUltimateGameplayEventStream ultimateEvents)
+                return;
+
+            _ultimateAllowedBinder ??= new UltimateAllowedBinder(ultimateUi, ultimateEvents, _ultimateSnapshotProvider);
+            _ultimateMiniBoardStatusBinder ??= new UltimateMiniBoardStatusBinder(ultimateUi, ultimateEvents, _ultimateSnapshotProvider);
+
+            _ultimateAllowedBinder.Bind();
+            _ultimateMiniBoardStatusBinder.Bind();
+        }
+
+        private void DisposeUltimateUiBinders()
+        {
+            _ultimateAllowedBinder?.Dispose();
+            _ultimateMiniBoardStatusBinder?.Dispose();
+            _ultimateAllowedBinder = null;
+            _ultimateMiniBoardStatusBinder = null;
         }
 
         // -- Cleanup / Error --
@@ -362,10 +561,12 @@ namespace Runtime.Games.TicTacToe
             _subscriptions = null;
             _botDriver.Dispose();
             _movesBinder.Unbind();
+            DisposeUltimateUiBinders();
             _winLineRenderer.Clear();
             _resultVM?.Dispose();
             _resultVM = null;
             _ecsLifecycle.StopMatch();
+            SetRoundFinishedVisualState(false);
             _fieldPresenter.Unbind();
         }
 

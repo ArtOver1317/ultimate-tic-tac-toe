@@ -112,6 +112,10 @@
     height: 100%;
 }
 
+.field-container.field-container--round-finished {
+    opacity: 0.94;
+}
+
 .field-container--ultimate {
 }
 
@@ -129,6 +133,7 @@
     display: flex;
     flex-direction: column;
     flex-wrap: nowrap;
+    position: relative;
     padding: var(--mini-board-padding);
     border-color: var(--mini-board-border-color);
     border-width: var(--mini-board-border-width);
@@ -202,6 +207,15 @@
     background-color: rgba(255, 255, 255, 0.07);
 }
 
+.mini-board.mini-board--allowed {
+    border-color: rgba(100, 200, 120, 0.85);
+    background-color: rgba(100, 200, 120, 0.10);
+}
+
+.mini-board.mini-board--closed {
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
 .cell.cell--allowed {
     background-color: rgba(255, 255, 255, 0.17);
     border-color: rgba(255, 255, 255, 0.34);
@@ -217,9 +231,43 @@
 .mini-board.miniBoard--draw,
 .mini-board.mini-board--wonX,
 .mini-board.mini-board--wonO,
-.mini-board.mini-board--draw {
+.mini-board.mini-board--draw,
+.mini-board.mini-board--won-x,
+.mini-board.mini-board--won-o {
     background-color: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.55);
+}
+
+.mini-board.mini-board--won-x {
+    border-color: rgba(255, 255, 255, 0.82);
+}
+
+.mini-board.mini-board--won-o {
+    border-color: rgba(255, 255, 255, 0.65);
+}
+
+.mini-board-status-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    -unity-text-align: middle-center;
+    color: rgba(255, 255, 255, 0.96);
+    font-size: 86px;
+    -unity-font-style: bold;
+    background-color: rgba(0, 0, 0, 0.34);
+    border-radius: var(--mini-board-radius);
+}
+
+.mini-board.mini-board--closed .mini-board-status-overlay,
+.mini-board.mini-board--won-x .mini-board-status-overlay,
+.mini-board.mini-board--won-o .mini-board-status-overlay,
+.mini-board.mini-board--draw .mini-board-status-overlay {
+    background-color: rgba(0, 0, 0, 0.42);
 }
 
 /* === Win Line Overlay === */

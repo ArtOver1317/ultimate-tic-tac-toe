@@ -4,17 +4,25 @@ using Runtime.GameModes.Wizard;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe.Moves;
+using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Scellecs.Morpeh;
 
 namespace Runtime.Games.TicTacToe.ECS
 {
     /// <summary>
-    /// Registers Ultimate Tic-Tac-Toe MVP ECS pipeline without rules evaluation.
-    /// Supports move validation/apply only.
+    /// Registers Ultimate Tic-Tac-Toe ECS pipeline:
+    /// shared validation/apply + ultimate validation/rules/restart systems.
     /// </summary>
     public sealed class UltimateTicTacToeEcsRegistrar : IEcsGameplayRegistrar
     {
+        private readonly IUltimateRulesEngine _rulesEngine;
+
         public string GameId => UltimateTicTacToeStrategy.DefaultGameId;
+
+        public UltimateTicTacToeEcsRegistrar(IUltimateRulesEngine rulesEngine)
+        {
+            _rulesEngine = rulesEngine ?? throw new ArgumentNullException(nameof(rulesEngine));
+        }
 
         public void Register(World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config)
         {
@@ -52,8 +60,43 @@ namespace Runtime.Games.TicTacToe.ECS
                 MinorCount = minorCount,
             });
 
+            var miniBoardsStash = world.GetStash<UltimateMiniBoardsComponent>();
+            var miniBoards = new MiniBoardStatus[majorCount];
+            for (var major = 0; major < miniBoards.Length; major++)
+            {
+                miniBoards[major] = MiniBoardStatus.InProgress;
+            }
+
+            var allowedStash = world.GetStash<UltimateAllowedMajorsComponent>();
+            allowedStash.Set(matchEntity, new UltimateAllowedMajorsComponent
+            {
+                Value = _rulesEngine.ComputeInitialAllowed(miniBoards),
+            });
+
+            miniBoardsStash.Set(matchEntity, new UltimateMiniBoardsComponent
+            {
+                Statuses = miniBoards,
+            });
+
+            var winLineStash = world.GetStash<UltimateBigBoardWinLineComponent>();
+            winLineStash.Set(matchEntity, new UltimateBigBoardWinLineComponent
+            {
+                HasValue = false,
+                Value = default,
+            });
+
+            var epochStash = world.GetStash<UltimateEpochComponent>();
+            epochStash.Set(matchEntity, new UltimateEpochComponent
+            {
+                Value = 0,
+            });
+
             systemsGroup.AddSystem(new MoveValidationSystem());
+            systemsGroup.AddSystem(new UltimateAllowedMoveValidationSystem());
             systemsGroup.AddSystem(new ApplyMoveSystem());
+            systemsGroup.AddSystem(new UltimateRulesStateUpdateSystem(_rulesEngine));
+            systemsGroup.AddSystem(new RestartRoundSystem());
+            systemsGroup.AddSystem(new UltimateRestartRoundSystem());
         }
 
         public int GetCellSlot(World world, Entity matchEntity, CellId cellId)

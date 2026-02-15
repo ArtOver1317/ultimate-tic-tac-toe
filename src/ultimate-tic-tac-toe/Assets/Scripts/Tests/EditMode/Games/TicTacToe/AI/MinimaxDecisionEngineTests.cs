@@ -18,8 +18,8 @@ namespace Tests.EditMode.Games.TicTacToe.AI
     [Category("Unit")]
     public class MinimaxDecisionEngineTests
     {
-        private IRulesEngine _rules;
-        private MinimaxDecisionEngine _engine;
+        private IRulesEngine _rules = null!;
+        private MinimaxDecisionEngine _engine = null!;
 
         [SetUp]
         public void SetUp()

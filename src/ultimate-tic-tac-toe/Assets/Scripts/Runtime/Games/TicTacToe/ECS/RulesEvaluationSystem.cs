@@ -59,7 +59,7 @@ namespace Runtime.Games.TicTacToe.ECS
                 if (result.Status == RulesGameStatus.Win)
                 {
                     status.Status = EcsGameStatus.Win;
-                    status.WinnerSlot = TicTacToeEcsRegistrar.MarkToSlot(result.Winner);
+                    status.WinnerSlot = PlayerSlotMapping.MarkToSlot(result.Winner);
 
                     if (result.WinLine.HasValue)
                     {

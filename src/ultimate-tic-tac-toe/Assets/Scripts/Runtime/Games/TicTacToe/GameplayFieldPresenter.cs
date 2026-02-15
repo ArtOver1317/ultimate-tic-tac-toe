@@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Infrastructure.Logging;
+using Runtime.Games.TicTacToe.Ultimate.UI;
 using StripLog;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -13,7 +14,7 @@ using UnityEngine.UIElements;
 using Runtime.Gameplay;
 namespace Runtime.Games.TicTacToe
 {
-    public sealed partial class GameplayFieldPresenter : IGameplayFieldPresenter, IGameplayFieldUiAdapter
+    public sealed partial class GameplayFieldPresenter : IGameplayFieldPresenter, IGameplayFieldUiAdapter, IUltimateGameplayFieldUiAdapter
     {
         private readonly UIDocument _uiDocument;
         private readonly IGameplayBackHandler _backHandler;
@@ -22,6 +23,8 @@ namespace Runtime.Games.TicTacToe
         private readonly Dictionary<CellId, VisualElement> _cellById = new();
         private readonly Dictionary<CellId, VisualElement> _markById = new();
         private readonly Dictionary<CellId, Label> _markLabelById = new();
+        private readonly Dictionary<int, VisualElement> _miniBoardByMajor = new();
+        private readonly Dictionary<int, Vector2> _miniBoardCenterByMajor = new();
         private VisualElement _root;
         private VisualElement _fieldRoot;
         private VisualElement _fieldContainer;
@@ -43,6 +46,7 @@ namespace Runtime.Games.TicTacToe
         private VisualElement _player2Panel;
         private Label _player1ScoreLabel;
         private Label _player2ScoreLabel;
+        private Label _drawsScoreLabel;
 
         private float _gridGapHalf;
         private float _miniBoardGapHalf;
@@ -109,12 +113,35 @@ namespace Runtime.Games.TicTacToe
         bool IGameplayFieldUiAdapter.TryGetMark(CellId id, out VisualElement mark) =>
             TryGetMark(id, out mark);
 
+        bool IUltimateGameplayFieldUiAdapter.TryGetMiniBoard(int major, out VisualElement miniBoardRoot)
+        {
+            if (!_isBound || _disposed)
+            {
+                miniBoardRoot = null;
+                return false;
+            }
+
+            return _miniBoardByMajor.TryGetValue(major, out miniBoardRoot) && miniBoardRoot != null;
+        }
+
+        bool IUltimateGameplayFieldUiAdapter.TryGetMiniBoardCenter(int major, out Vector2 panelSpaceCenter)
+        {
+            if (!_isBound || _disposed)
+            {
+                panelSpaceCenter = default;
+                return false;
+            }
+
+            return _miniBoardCenterByMajor.TryGetValue(major, out panelSpaceCenter);
+        }
+
         VisualElement IGameplayFieldUiAdapter.FieldContainer => _isBound ? _fieldContainer : null;
 
         VisualElement IGameplayFieldUiAdapter.Player1Panel => _isBound ? _player1Panel : null;
         VisualElement IGameplayFieldUiAdapter.Player2Panel => _isBound ? _player2Panel : null;
         Label IGameplayFieldUiAdapter.Player1ScoreLabel => _isBound ? _player1ScoreLabel : null;
         Label IGameplayFieldUiAdapter.Player2ScoreLabel => _isBound ? _player2ScoreLabel : null;
+        Label IGameplayFieldUiAdapter.DrawsScoreLabel => _isBound ? _drawsScoreLabel : null;
 
         public UniTask BindAsync(FieldRenderSpec spec, CancellationToken ct)
         {
@@ -166,6 +193,8 @@ namespace Runtime.Games.TicTacToe
             _cellById.Clear();
             _markById.Clear();
             _markLabelById.Clear();
+            _miniBoardByMajor.Clear();
+            _miniBoardCenterByMajor.Clear();
             _isCellIdCacheValid = false;
             _fieldContainer?.Clear();
             _backButton = null;
@@ -175,6 +204,7 @@ namespace Runtime.Games.TicTacToe
             _player2Panel = null;
             _player1ScoreLabel = null;
             _player2ScoreLabel = null;
+            _drawsScoreLabel = null;
             ResetStyleTokenState();
             _bindCts?.Cancel();
             _bindCts?.Dispose();

@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Collections.Generic;
 using FluentAssertions;
 using NSubstitute;
@@ -17,13 +19,13 @@ namespace Tests.EditMode.GameModes.Wizard
     [Category("Unit")]
     public class GameSelectionViewEditModeTests
     {
-        private GameObject _gameObject;
-        private UIDocument _uiDocument;
-        private GameSelectionView _view;
-        private VisualTreeAsset _uxml;
-        private GameSelectionViewModel _viewModel;
-        private ILocalizationService _localization;
-        private ReactiveProperty<WizardError?> _currentError;
+        private GameObject _gameObject = null!;
+        private UIDocument _uiDocument = null!;
+        private GameSelectionView _view = null!;
+        private VisualTreeAsset _uxml = null!;
+        private GameSelectionViewModel _viewModel = null!;
+        private ILocalizationService _localization = null!;
+        private ReactiveProperty<WizardError?> _currentError = null!;
 
         [SetUp]
         public void SetUp()
@@ -47,7 +49,8 @@ namespace Tests.EditMode.GameModes.Wizard
             });
 
             var coordinator = Substitute.For<IGameWizardCoordinator>();
-            coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(false);
+            var initialSession = Substitute.For<IGameSession>();
+            coordinator.TryGetSession(out initialSession).Returns(false);
             coordinator.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
             coordinator.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
 
@@ -108,3 +111,5 @@ namespace Tests.EditMode.GameModes.Wizard
             supportsLocal: true);
     }
 }
+
+#nullable restore

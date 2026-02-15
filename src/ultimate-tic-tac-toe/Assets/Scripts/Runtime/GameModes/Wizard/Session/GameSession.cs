@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using R3;
@@ -13,7 +15,7 @@ namespace Runtime.GameModes.Wizard
         private static readonly IReadOnlyList<ValidationError> _noErrors = Array.Empty<ValidationError>();
 
         private readonly object _lock = new();
-        private readonly IGameCatalog _catalog;
+        private readonly IGameCatalog? _catalog;
         private readonly ReactiveProperty<GameSessionSnapshot> _snapshot;
         private readonly ReactiveProperty<bool> _canStart;
         private readonly ReactiveProperty<IReadOnlyList<ValidationError>> _validationErrors;
@@ -35,7 +37,7 @@ namespace Runtime.GameModes.Wizard
         public GameSession(IGameCatalog catalog, GameSessionSnapshot initialSnapshot)
             : this(catalog ?? throw new ArgumentNullException(nameof(catalog)), initialSnapshot, isInternalCall: true) { }
 
-        private GameSession(IGameCatalog catalog, GameSessionSnapshot initialSnapshot, bool isInternalCall)
+        private GameSession(IGameCatalog? catalog, GameSessionSnapshot initialSnapshot, bool isInternalCall)
         {
             if (initialSnapshot == null)
                 throw new ArgumentNullException(nameof(initialSnapshot));

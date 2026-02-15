@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using FluentAssertions;
 using NSubstitute;
@@ -13,8 +15,8 @@ namespace Tests.EditMode.GameModes.Wizard
     [Category("Unit")]
     public class WizardErrorOverlayBinderValidationTests
     {
-        private ILocalizationService _localization;
-        private ReactiveProperty<WizardError?> _errorSource;
+        private ILocalizationService _localization = null!;
+        private ReactiveProperty<WizardError?> _errorSource = null!;
 
         [SetUp]
         public void SetUp()
@@ -35,7 +37,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Arrange
 
             // Act
-            Action act = () => WizardErrorOverlayBinder.Bind(null, _localization, _errorSource, null);
+            Action act = () => WizardErrorOverlayBinder.Bind(null!, _localization, _errorSource, null!);
 
             // Assert
             act.Should().Throw<ArgumentNullException>()
@@ -43,3 +45,5 @@ namespace Tests.EditMode.GameModes.Wizard
         }
     }
 }
+
+#nullable restore

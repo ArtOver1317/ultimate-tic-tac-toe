@@ -25,16 +25,16 @@ namespace Tests.PlayMode.GameModes.Wizard
     [Category("Integration")]
     public class GameSelectionViewTests
     {
-        private GameObject _gameObject;
-        private UIDocument _uiDocument;
-        private GameSelectionView _view;
-        private VisualTreeAsset _uxml;
+        private GameObject _gameObject = null!;
+        private UIDocument _uiDocument = null!;
+        private GameSelectionView _view = null!;
+        private VisualTreeAsset _uxml = null!;
 
-        private GameSelectionViewModel _viewModel;
-        private IGameWizardCoordinator _coordinator;
-        private ReactiveProperty<WizardError?> _currentError;
-        private List<GameMetadata> _modes;
-        private ILocalizationService _localization;
+        private GameSelectionViewModel _viewModel = null!;
+        private IGameWizardCoordinator _coordinator = null!;
+        private ReactiveProperty<WizardError?> _currentError = null!;
+        private List<GameMetadata> _modes = null!;
+        private ILocalizationService _localization = null!;
 
         [UnitySetUp]
         public IEnumerator SetUp()
@@ -58,7 +58,8 @@ namespace Tests.PlayMode.GameModes.Wizard
             catalog.Metadata.Returns(_modes);
 
             _coordinator = Substitute.For<IGameWizardCoordinator>();
-            _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(false);
+            var initialSession = Substitute.For<IGameSession>();
+            _coordinator.TryGetSession(out initialSession).Returns(false);
             _coordinator.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
             _coordinator.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
             _currentError = new ReactiveProperty<WizardError?>(null);
@@ -110,7 +111,8 @@ namespace Tests.PlayMode.GameModes.Wizard
             catalog.Metadata.Returns(_modes);
 
             var coordinator = Substitute.For<IGameWizardCoordinator>();
-            coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(false);
+            var badUxmlSession = Substitute.For<IGameSession>();
+            coordinator.TryGetSession(out badUxmlSession).Returns(false);
             coordinator.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
             coordinator.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
 
@@ -373,7 +375,8 @@ namespace Tests.PlayMode.GameModes.Wizard
             catalogB.Metadata.Returns(_modes);
 
             var coordinatorB = Substitute.For<IGameWizardCoordinator>();
-            coordinatorB.TryGetSession(out Arg.Any<IGameSession>()).Returns(false);
+            var rebindSession = Substitute.For<IGameSession>();
+            coordinatorB.TryGetSession(out rebindSession).Returns(false);
             coordinatorB.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
             coordinatorB.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
             var currentErrorB = new ReactiveProperty<WizardError?>(null);
@@ -422,7 +425,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenAvailableModesIsNull_ThenViewTreatsAsEmptyAndDoesNotThrow()
         {
             // Arrange
-            _viewModel.SetAvailableModesForTests(null);
+            _viewModel.SetAvailableModesForTests(null!);
 
             // Act
             Action act = () => _view.SetViewModel(_viewModel);
@@ -567,7 +570,8 @@ namespace Tests.PlayMode.GameModes.Wizard
             catalogB.Metadata.Returns(_modes);
 
             var coordinatorB = Substitute.For<IGameWizardCoordinator>();
-            coordinatorB.TryGetSession(out Arg.Any<IGameSession>()).Returns(false);
+            var reusedViewSession = Substitute.For<IGameSession>();
+            coordinatorB.TryGetSession(out reusedViewSession).Returns(false);
             coordinatorB.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
             coordinatorB.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
             var currentErrorB = new ReactiveProperty<WizardError?>(null);
