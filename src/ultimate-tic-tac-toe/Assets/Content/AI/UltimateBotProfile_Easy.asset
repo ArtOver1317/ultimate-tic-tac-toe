@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb6ea849b18260f41bf5437f256bbc1b, type: 3}
+  m_Name: UltimateBotProfile_Easy
+  m_EditorClassIdentifier: Runtime::Runtime.Games.TicTacToe.AI.Ultimate.UltimateBotProfile
+  ProfileId: easy
+  ProfileVersion: 1.0.0
+  TimeBudgetMs: 16
+  MinSearchDepth: 1
+  MaxSearchDepth: 1
+  MaxEvaluatedNodes: 64
+  TopCandidateCount: 81
+  Noise: 1
+  MustWinGlobalNowProbability: 0
+  MustBlockGlobalNowProbability: 0
+  MustWinLocalNowProbability: 0
+  MustBlockLocalNowProbability: 0
+  UseSeed: 0
+  Seed: 0
+  PreMoveDelayMs: 350
+  EnableDiagnostics: 0
+  GlobalControlWeight: 0
+  GlobalThreatWeight: 0
+  LocalThreatWeight: 0
+  SteeringWeight: 0
+  FlexibilityWeight: 0

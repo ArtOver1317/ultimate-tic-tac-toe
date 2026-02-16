@@ -210,6 +210,7 @@ MonoBehaviour:
   _gameplayDocument: {fileID: 125357896}
   BotProfileCatalog: {fileID: 11400000, guid: e25fa7a7f6b73814ca8508ebba5a2b7d, type: 2}
   BotSearchSettings: {fileID: 11400000, guid: 72e8fce39f754fd4b2f02efbc5cca846, type: 2}
+  UltimateBotProfileCatalog: {fileID: 11400000, guid: 2d2c3da40a184dc5b3cc89b2bcfb8b9f, type: 2}
 --- !u!4 &165326518
 Transform:
   m_ObjectHideFlags: 0

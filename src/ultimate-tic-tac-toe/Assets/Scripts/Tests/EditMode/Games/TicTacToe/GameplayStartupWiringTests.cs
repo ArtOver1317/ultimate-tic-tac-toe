@@ -16,6 +16,7 @@ using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.AI;
+using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
@@ -111,11 +112,16 @@ namespace Tests.EditMode.Games.TicTacToe
             botDriver.IsBusy.Returns(new ReactiveProperty<bool>(false));
             botDriver.IsDisabled.Returns(new ReactiveProperty<bool>(false));
 
+            var ultimateBotOrchestrator = Substitute.For<IBotTurnOrchestrator>();
+            ultimateBotOrchestrator.IsThinking.Returns(new ReactiveProperty<bool>(false));
+            ultimateBotOrchestrator.MoveFailed.Returns(new Subject<BotMoveFailedEvent>());
+            var matchFailSafeGateway = Substitute.For<IMatchFailSafeGateway>();
+
             _sut = new GameplayStartup(
                 _configStore, _gameService, _fieldPresenter, _fieldUiAdapter,
                 _ecsLifecycle, eventStream, _commandSink,
                 movesBinder, winLineRenderer, _seriesService, _backHandler, _stateMachine,
-                botDriver);
+                botDriver, ultimateBotOrchestrator, matchFailSafeGateway);
         }
 
         [TearDown]

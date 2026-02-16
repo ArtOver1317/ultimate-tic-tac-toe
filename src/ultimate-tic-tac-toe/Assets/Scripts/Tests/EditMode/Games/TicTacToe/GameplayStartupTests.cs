@@ -13,6 +13,7 @@ using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.AI;
+using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.GameStateMachine;
@@ -43,6 +44,7 @@ namespace Tests.EditMode.Games.TicTacToe
         private ISeriesService _seriesService;
         private IGameplayBackHandler _backHandler;
         private IBotTurnDriver _botDriver;
+        private IBotTurnOrchestrator _ultimateBotOrchestrator;
         private ReactiveProperty<bool> _botBusy;
         private ReactiveProperty<bool> _botDisabled;
         private VisualElement _fieldContainer;
@@ -112,7 +114,12 @@ namespace Tests.EditMode.Games.TicTacToe
             _botDriver.IsBusy.Returns(_botBusy);
             _botDriver.IsDisabled.Returns(_botDisabled);
 
-            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _fieldUiAdapter, _ecsLifecycle, _eventStream, _commandSink, _movesBinder, _winLineRenderer, _seriesService, _backHandler, _stateMachine, _botDriver);
+            _ultimateBotOrchestrator = Substitute.For<IBotTurnOrchestrator>();
+            _ultimateBotOrchestrator.IsThinking.Returns(new ReactiveProperty<bool>(false));
+            _ultimateBotOrchestrator.MoveFailed.Returns(new Subject<BotMoveFailedEvent>());
+            var matchFailSafeGateway = Substitute.For<IMatchFailSafeGateway>();
+
+            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _fieldUiAdapter, _ecsLifecycle, _eventStream, _commandSink, _movesBinder, _winLineRenderer, _seriesService, _backHandler, _stateMachine, _botDriver, _ultimateBotOrchestrator, matchFailSafeGateway);
         }
 
         [TearDown]
@@ -321,26 +328,38 @@ namespace Tests.EditMode.Games.TicTacToe
         }
 
         [Test]
-        public async Task WhenBotDisabled_ThenRestoresFieldPickingMode()
+        public async Task WhenUltimateBotMatchStarted_ThenStartsUltimateOrchestratorAndNotClassicDriver()
         {
-            // Arrange
+            _config = new GameLaunchConfig(
+                "ultimate",
+                UltimateTicTacToeConfig.Instance,
+                new BotOpponentConfig("Normal"));
+
             await _sut.StartAsync(CancellationToken.None);
-            _fieldContainer.pickingMode = PickingMode.Ignore;
-            var previousIgnore = LogAssert.ignoreFailingMessages;
-            LogAssert.ignoreFailingMessages = true;
 
-            // Act
-            try
-            {
-                _botDisabled.Value = true;
+            await _ultimateBotOrchestrator.Received(1)
+                .StartAsync(1, "medium", Arg.Any<CancellationToken>());
+            await _botDriver.DidNotReceive()
+                .StartAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        }
 
-                // Assert
-                _fieldContainer.pickingMode.Should().Be(PickingMode.Position);
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = previousIgnore;
-            }
+        [Test]
+        public async Task WhenClassicBotMatchStarted_ThenStartsClassicDriverAndNotUltimateOrchestrator()
+        {
+            _config = new GameLaunchConfig(
+                "classic",
+                new TicTacToeConfig(boardSize: 3, isUltimate: false),
+                new BotOpponentConfig("Easy"));
+
+            _botDriver.StartAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(UniTask.FromResult(new BotStartResult(BotStartStatus.Started)));
+
+            await _sut.StartAsync(CancellationToken.None);
+
+            await _botDriver.Received(1)
+                .StartAsync(Arg.Any<GameLaunchConfig>(), 1, "Easy", Arg.Any<CancellationToken>());
+            await _ultimateBotOrchestrator.DidNotReceive()
+                .StartAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         }
 
         private static async Task RunAllowingFailingLogsAsync(Func<Task> action, params Regex[] expectedFailingLogs)

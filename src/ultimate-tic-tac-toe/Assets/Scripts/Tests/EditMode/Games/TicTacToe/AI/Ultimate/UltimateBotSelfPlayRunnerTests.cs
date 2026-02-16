@@ -1,0 +1,80 @@
+#nullable enable
+
+using System.Threading;
+using FluentAssertions;
+using NUnit.Framework;
+using Runtime.Games.TicTacToe.AI.Ultimate;
+using Runtime.Games.TicTacToe.Ultimate.Rules;
+
+namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
+{
+    [TestFixture]
+    [Category("Unit")]
+    public class UltimateBotSelfPlayRunnerTests
+    {
+        [Test]
+        public async System.Threading.Tasks.Task WhenRunSmallSeries_ThenReportHasExpectedTotals()
+        {
+            var profiles = new FakeProfiles();
+            var engine = new UltimateBotDecisionEngine(new UltimateRulesEngine());
+            var rngFactory = new BotRngSessionFactory();
+            var rules = new UltimateRulesEngine();
+            var runner = new UltimateBotSelfPlayRunner(profiles, engine, rngFactory, rules);
+
+            var report = await runner.RunAsync(
+                new SelfPlaySeriesConfig("easy", "easy", matches: 4, baseSeed: 100, seedCount: 5),
+                CancellationToken.None);
+
+            report.Matches.Should().Be(20);
+            (report.WinsLeft + report.WinsRight + report.Draws).Should().Be(20);
+            report.AvgMoveMs.Should().BeGreaterOrEqualTo(0f);
+            report.P50MoveMs.Should().BeGreaterOrEqualTo(0f);
+            report.P95MoveMs.Should().BeGreaterOrEqualTo(0f);
+            report.SeedRangeLabel.Should().Be("100..104");
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task WhenSeedCountIsNonPositive_ThenReportUsesNormalizedSeedRange()
+        {
+            var profiles = new FakeProfiles();
+            var engine = new UltimateBotDecisionEngine(new UltimateRulesEngine());
+            var rngFactory = new BotRngSessionFactory();
+            var rules = new UltimateRulesEngine();
+            var runner = new UltimateBotSelfPlayRunner(profiles, engine, rngFactory, rules);
+
+            var report = await runner.RunAsync(
+                new SelfPlaySeriesConfig("easy", "easy", matches: 3, baseSeed: 42, seedCount: 0),
+                CancellationToken.None);
+
+            report.Matches.Should().Be(3);
+            report.SeedRangeLabel.Should().Be("42..42");
+        }
+
+        private sealed class FakeProfiles : IUltimateBotProfileCatalog
+        {
+            public bool TryGet(string difficultyId, out UltimateBotDifficultyProfileData profile)
+            {
+                profile = new UltimateBotDifficultyProfileData(
+                    difficultyId,
+                    "1.0.0",
+                    new string('b', 64),
+                    50,
+                    1,
+                    1,
+                    100,
+                    2,
+                    0f,
+                    1f,
+                    1f,
+                    1f,
+                    1f,
+                    true,
+                    5,
+                    0,
+                    false,
+                    EvaluationWeights.Default);
+                return true;
+            }
+        }
+    }
+}

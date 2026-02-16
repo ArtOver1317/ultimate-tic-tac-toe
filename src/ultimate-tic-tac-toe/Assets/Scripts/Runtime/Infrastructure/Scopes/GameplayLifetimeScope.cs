@@ -3,6 +3,7 @@ using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.AI;
+using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
@@ -21,6 +22,7 @@ namespace Runtime.Infrastructure.Scopes
         [SerializeField] private UIDocument _gameplayDocument;
         [SerializeField] private BotProfileCatalog BotProfileCatalog;
         [SerializeField] private BotSearchSettings BotSearchSettings;
+        [SerializeField] private UltimateBotProfileCatalog UltimateBotProfileCatalog;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -67,6 +69,20 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<BotTurnDriver>(Lifetime.Scoped)
                 .As<IBotTurnDriver>()
                 .As<IDisposable>();
+
+            if (UltimateBotProfileCatalog != null)
+                builder.RegisterInstance(UltimateBotProfileCatalog).As<IUltimateBotProfileCatalog>();
+            else
+                builder.RegisterInstance(new EmptyUltimateBotProfileCatalog()).As<IUltimateBotProfileCatalog>();
+
+            builder.Register<UltimateBotStateReader>(Lifetime.Scoped).As<IUltimateBotStateReader>();
+            builder.Register<UltimateBotDecisionEngine>(Lifetime.Scoped).As<IUltimateBotDecisionEngine>();
+            builder.Register<BotRngSessionFactory>(Lifetime.Scoped).As<IBotRngSessionFactory>();
+            builder.Register<BotRandomizer>(Lifetime.Scoped).As<IBotRandomizer>();
+            builder.Register<GameplayBotMoveCommandSink>(Lifetime.Scoped).As<IBotMoveCommandSink>();
+            builder.Register<LocalMatchFailSafeGateway>(Lifetime.Scoped).As<IMatchFailSafeGateway>();
+            builder.Register<BotTurnOrchestrator>(Lifetime.Scoped).As<IBotTurnOrchestrator>().As<IDisposable>();
+            builder.Register<UltimateBotSelfPlayRunner>(Lifetime.Scoped).As<IBotSelfPlayRunner>();
 
             // ── UI / Binders ──
             builder.Register<GameplayFieldPresenter>(Lifetime.Scoped)

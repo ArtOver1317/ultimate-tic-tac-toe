@@ -6,6 +6,7 @@ using Runtime.GameModes.Wizard;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe.AI;
+using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
@@ -40,6 +41,8 @@ namespace Runtime.Games.TicTacToe
         private readonly IGameplayBackHandler _backHandler;
         private readonly IGameStateMachine _stateMachine;
         private readonly IBotTurnDriver _botDriver;
+        private readonly IBotTurnOrchestrator _ultimateBotOrchestrator;
+        private readonly IMatchFailSafeGateway _matchFailSafeGateway;
         private readonly IUltimateGameplaySnapshotProvider _ultimateSnapshotProvider;
         private readonly MiniBoardStatus[] _ultimateMiniBoardBuffer = new MiniBoardStatus[9];
 
@@ -49,6 +52,8 @@ namespace Runtime.Games.TicTacToe
         private UltimateMiniBoardStatusBinder _ultimateMiniBoardStatusBinder;
         private CompositeDisposable _subscriptions;
         private bool _restartInProgress;
+        private bool _classicBotStarted;
+        private bool _ultimateBotStarted;
         private bool _disposed;
 
         public GameplayStartup(
@@ -65,6 +70,8 @@ namespace Runtime.Games.TicTacToe
             IGameplayBackHandler backHandler,
             IGameStateMachine stateMachine,
             IBotTurnDriver botDriver,
+            IBotTurnOrchestrator ultimateBotOrchestrator,
+            IMatchFailSafeGateway matchFailSafeGateway,
             IUltimateGameplaySnapshotProvider ultimateSnapshotProvider = null)
         {
             _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));
@@ -80,6 +87,8 @@ namespace Runtime.Games.TicTacToe
             _backHandler = backHandler ?? throw new ArgumentNullException(nameof(backHandler));
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             _botDriver = botDriver ?? throw new ArgumentNullException(nameof(botDriver));
+            _ultimateBotOrchestrator = ultimateBotOrchestrator ?? throw new ArgumentNullException(nameof(ultimateBotOrchestrator));
+            _matchFailSafeGateway = matchFailSafeGateway ?? throw new ArgumentNullException(nameof(matchFailSafeGateway));
             _ultimateSnapshotProvider = ultimateSnapshotProvider;
         }
 
@@ -109,7 +118,7 @@ namespace Runtime.Games.TicTacToe
                 SetRoundFinishedVisualState(false);
 
                 // Start bot driver if opponent is a bot
-                await TryStartBotDriverAsync(config, ct);
+                await TryStartBotAsync(config, ct);
 
                 CreateResultVM();
                 SubscribeToEvents();
@@ -138,6 +147,7 @@ namespace Runtime.Games.TicTacToe
             _subscriptions?.Dispose();
             _subscriptions = null;
             _botDriver.Dispose();
+            _ultimateBotOrchestrator.Dispose();
             _movesBinder.Unbind();
             DisposeUltimateUiBinders();
             _ecsLifecycle.StopMatch();
@@ -154,18 +164,44 @@ namespace Runtime.Games.TicTacToe
         // (manual new BotTurnDriver(...) or factory), and DI refactoring.
         // Self-play tool covers BvB calibration in the meantime.
 
-        private async UniTask TryStartBotDriverAsync(GameLaunchConfig config, CancellationToken ct)
+        private async UniTask TryStartBotAsync(GameLaunchConfig config, CancellationToken ct)
         {
             if (config.OpponentConfig is not BotOpponentConfig botConfig)
                 return;
 
-            var result = await _botDriver.StartAsync(config, botSlot: 1, botConfig.DifficultyId, ct);
-            if (result.Status != BotStartStatus.Started)
+            if (IsUltimateConfig(config.GameConfig))
             {
-                Log.Warning(LogTags.Infrastructure,
-                    $"[GameplayStartup] Bot driver not started: {result.Status} — {result.Error}");
+                var normalizedDifficultyId = NormalizeUltimateDifficultyId(botConfig.DifficultyId);
+                try
+                {
+                    await _ultimateBotOrchestrator.StartAsync(botSlot: 1, normalizedDifficultyId, ct);
+                    _ultimateBotStarted = true;
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(
+                        LogTags.Infrastructure,
+                        $"[GameplayStartup] Ultimate bot orchestrator not started: {ex.Message}");
+                    return;
+                }
             }
+
+            var result = await _botDriver.StartAsync(config, botSlot: 1, botConfig.DifficultyId, ct);
+            _classicBotStarted = result.Status == BotStartStatus.Started;
+            if (_classicBotStarted)
+                return;
+
+            Log.Warning(LogTags.Infrastructure,
+                $"[GameplayStartup] Bot driver not started: {result.Status} — {result.Error}");
         }
+
+        private static bool IsUltimateConfig(IGameConfig gameConfig) => gameConfig switch
+        {
+            UltimateTicTacToeConfig => true,
+            TicTacToeConfig ticTacToeConfig => ticTacToeConfig.IsUltimate,
+            _ => false,
+        };
 
         // -- Event wiring --
 
@@ -189,30 +225,64 @@ namespace Runtime.Games.TicTacToe
                 .AddTo(_subscriptions);
 
             // Phase 4: Input blocking while bot is thinking
-            _botDriver.IsBusy
-                .Subscribe(busy =>
-                {
-                    var container = _fieldUiAdapter.FieldContainer;
-                    if (container != null)
-                        container.pickingMode = busy
+            if (_classicBotStarted)
+            {
+                _botDriver.IsBusy
+                    .Subscribe(busy =>
+                    {
+                        var container = _fieldUiAdapter.FieldContainer;
+                        if (container != null)
+                            container.pickingMode = busy
+                                ? UnityEngine.UIElements.PickingMode.Ignore
+                                : UnityEngine.UIElements.PickingMode.Position;
+                    })
+                    .AddTo(_subscriptions);
+            }
+
+            if (_ultimateBotStarted)
+            {
+                _ultimateBotOrchestrator.IsThinking
+                    .Subscribe(thinking =>
+                    {
+                        var container = _fieldUiAdapter.FieldContainer;
+                        if (container != null)
+                            container.pickingMode = thinking || _matchFailSafeGateway.IsInputLocked
+                                ? UnityEngine.UIElements.PickingMode.Ignore
+                                : UnityEngine.UIElements.PickingMode.Position;
+                    })
+                    .AddTo(_subscriptions);
+
+                _ultimateBotOrchestrator.MoveFailed
+                    .Where(evt => evt.Reason is BotFailureReason.NoLegalMovesInconsistentState or BotFailureReason.EngineError)
+                    .Subscribe(evt =>
+                    {
+                        Log.Error(LogTags.Infrastructure,
+                            $"[GameplayStartup] Ultimate bot move failed: {evt.Reason} ({evt.Message})");
+
+                        var container = _fieldUiAdapter.FieldContainer;
+                        if (container != null)
+                            container.pickingMode = _matchFailSafeGateway.IsInputLocked
                             ? UnityEngine.UIElements.PickingMode.Ignore
                             : UnityEngine.UIElements.PickingMode.Position;
-                })
-                .AddTo(_subscriptions);
+                    })
+                    .AddTo(_subscriptions);
+            }
 
             // ADR-12: Surface bot disable error to user
-            _botDriver.IsDisabled
-                .Where(disabled => disabled)
-                .Subscribe(_ =>
-                {
-                    Log.Error(LogTags.Infrastructure,
-                        "[GameplayStartup] Bot disabled after exhausting all retry attempts.");
-                    // Re-enable input so human can exit the match
-                    var container = _fieldUiAdapter.FieldContainer;
-                    if (container != null)
-                        container.pickingMode = UnityEngine.UIElements.PickingMode.Position;
-                })
-                .AddTo(_subscriptions);
+            if (_classicBotStarted)
+            {
+                _botDriver.IsDisabled
+                    .Where(disabled => disabled)
+                    .Subscribe(_ =>
+                    {
+                        Log.Error(LogTags.Infrastructure,
+                            "[GameplayStartup] Bot disabled after exhausting all retry attempts.");
+                        var container = _fieldUiAdapter.FieldContainer;
+                        if (container != null)
+                            container.pickingMode = UnityEngine.UIElements.PickingMode.Position;
+                    })
+                    .AddTo(_subscriptions);
+            }
 
             if (_resultVM != null)
             {
@@ -441,6 +511,7 @@ namespace Runtime.Games.TicTacToe
                 _winLineRenderer.Clear();
                 _resultVM?.Hide();
                 SetRoundFinishedVisualState(false);
+                _matchFailSafeGateway.ResetAbortState();
 
                 _movesBinder.Bind();
                 _ultimateAllowedBinder?.Bind();
@@ -560,6 +631,7 @@ namespace Runtime.Games.TicTacToe
             _subscriptions?.Dispose();
             _subscriptions = null;
             _botDriver.Dispose();
+            _ultimateBotOrchestrator.Dispose();
             _movesBinder.Unbind();
             DisposeUltimateUiBinders();
             _winLineRenderer.Clear();
@@ -568,6 +640,27 @@ namespace Runtime.Games.TicTacToe
             _ecsLifecycle.StopMatch();
             SetRoundFinishedVisualState(false);
             _fieldPresenter.Unbind();
+        }
+
+        private static string NormalizeUltimateDifficultyId(string difficultyId)
+        {
+            if (string.IsNullOrWhiteSpace(difficultyId))
+                return "easy";
+
+            var normalized = difficultyId.Trim();
+            if (string.Equals(normalized, "medium", StringComparison.OrdinalIgnoreCase))
+                return "medium";
+
+            if (string.Equals(normalized, "normal", StringComparison.OrdinalIgnoreCase))
+                return "medium";
+
+            if (string.Equals(normalized, "hard", StringComparison.OrdinalIgnoreCase))
+                return "hard";
+
+            if (string.Equals(normalized, "easy", StringComparison.OrdinalIgnoreCase))
+                return "easy";
+
+            return normalized;
         }
 
         private async UniTask HandleErrorAsync(GameplayError error, CancellationToken ct)

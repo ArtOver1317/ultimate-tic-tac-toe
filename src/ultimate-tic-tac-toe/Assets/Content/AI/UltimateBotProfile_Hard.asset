@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb6ea849b18260f41bf5437f256bbc1b, type: 3}
+  m_Name: UltimateBotProfile_Hard
+  m_EditorClassIdentifier: Runtime::Runtime.Games.TicTacToe.AI.Ultimate.UltimateBotProfile
+  ProfileId: hard
+  ProfileVersion: 1.0.0
+  TimeBudgetMs: 2000
+  MinSearchDepth: 3
+  MaxSearchDepth: 7
+  MaxEvaluatedNodes: 200000
+  TopCandidateCount: 1
+  Noise: 0
+  MustWinGlobalNowProbability: 1
+  MustBlockGlobalNowProbability: 1
+  MustWinLocalNowProbability: 1
+  MustBlockLocalNowProbability: 1
+  UseSeed: 0
+  Seed: 0
+  PreMoveDelayMs: 160
+  EnableDiagnostics: 0
+  GlobalControlWeight: 2.2
+  GlobalThreatWeight: 2.8
+  LocalThreatWeight: 2.5
+  SteeringWeight: 1.4
+  FlexibilityWeight: 0.2
