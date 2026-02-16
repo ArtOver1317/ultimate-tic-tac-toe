@@ -32,6 +32,7 @@
   <Project Path="Unity.2D.Tilemap.Editor.csproj" />
   <Project Path="Unity.Burst.csproj" />
   <Project Path="Scellecs.Morpeh.csproj" />
+  <Project Path="Fusion.Unity.Editor.csproj" />
   <Project Path="LitMotion.csproj" />
   <Project Path="Unity.VisualScripting.Flow.Editor.csproj" />
   <Project Path="VContainer.csproj" />
@@ -89,6 +90,7 @@
   <Project Path="Unity.Multiplayer.Center.Common.csproj" />
   <Project Path="Editor.csproj" />
   <Project Path="Unity.InputSystem.ForUI.csproj" />
+  <Project Path="Fusion.Unity.csproj" />
   <Project Path="R3.Unity.Editor.csproj" />
   <Project Path="Unity.Collections.CodeGen.csproj" />
   <Project Path="Unity.2D.Tilemap.Extras.csproj" />
@@ -124,6 +126,7 @@
   <Project Path="Unity.ScriptableBuildPipeline.csproj" />
   <Project Path="Unity.PlasticSCM.Editor.Entities.csproj" />
   <Project Path="UniTask.Addressables.csproj" />
+  <Project Path="Unity.Fusion.CodeGen.csproj" />
   <Project Path="Unity.Collections.Editor.csproj" />
   <Project Path="UniTask.DOTween.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Config.Runtime.csproj" />
