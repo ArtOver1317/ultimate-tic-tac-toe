@@ -50,6 +50,41 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
             report.SeedRangeLabel.Should().Be("42..42");
         }
 
+        [TestCase(0)]
+        [TestCase(-10)]
+        public void WhenSelfPlayConfigMatchesIsZeroOrNegative_ThenThrowsArgumentOutOfRangeException(int matches)
+        {
+            var profiles = new FakeProfiles();
+            var engine = new UltimateBotDecisionEngine(new UltimateRulesEngine());
+            var rngFactory = new BotRngSessionFactory();
+            var rules = new UltimateRulesEngine();
+            var runner = new UltimateBotSelfPlayRunner(profiles, engine, rngFactory, rules);
+
+            System.Action act = () => runner
+                .RunAsync(new SelfPlaySeriesConfig("easy", "easy", matches, 42, 1), CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+
+            act.Should().Throw<System.ArgumentOutOfRangeException>();
+        }
+
+        [Test]
+        public void WhenSelfPlayProfileMissing_ThenThrowsInvalidOperationException()
+        {
+            var profiles = new MissingRightProfileCatalog();
+            var engine = new UltimateBotDecisionEngine(new UltimateRulesEngine());
+            var rngFactory = new BotRngSessionFactory();
+            var rules = new UltimateRulesEngine();
+            var runner = new UltimateBotSelfPlayRunner(profiles, engine, rngFactory, rules);
+
+            System.Action act = () => runner
+                .RunAsync(new SelfPlaySeriesConfig("easy", "hard", 1, 42, 1), CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+
+            act.Should().Throw<System.InvalidOperationException>();
+        }
+
         private sealed class FakeProfiles : IUltimateBotProfileCatalog
         {
             public bool TryGet(string difficultyId, out UltimateBotDifficultyProfileData profile)
@@ -74,6 +109,39 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
                     false,
                     EvaluationWeights.Default);
                 return true;
+            }
+        }
+
+        private sealed class MissingRightProfileCatalog : IUltimateBotProfileCatalog
+        {
+            public bool TryGet(string difficultyId, out UltimateBotDifficultyProfileData profile)
+            {
+                if (string.Equals(difficultyId, "easy", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    profile = new UltimateBotDifficultyProfileData(
+                        difficultyId,
+                        "1.0.0",
+                        new string('c', 64),
+                        50,
+                        1,
+                        1,
+                        100,
+                        2,
+                        0f,
+                        1f,
+                        1f,
+                        1f,
+                        1f,
+                        true,
+                        5,
+                        0,
+                        false,
+                        EvaluationWeights.Default);
+                    return true;
+                }
+
+                profile = default;
+                return false;
             }
         }
     }

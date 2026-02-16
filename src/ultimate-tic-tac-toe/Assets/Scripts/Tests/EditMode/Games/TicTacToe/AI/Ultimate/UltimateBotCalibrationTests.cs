@@ -85,6 +85,32 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
         }
 
         [Test]
+        [Explicit("Calibration: manual run only")]
+        public async System.Threading.Tasks.Task WhenHardVsMediumCalibrationRun_ThenMeetsTargetWinrateThreshold()
+        {
+            var report = await _runner.RunAsync(
+                new SelfPlaySeriesConfig(
+                    leftProfileId: "hard",
+                    rightProfileId: "medium",
+                    matches: 200,
+                    baseSeed: 40_000,
+                    seedCount: 5),
+                CancellationToken.None);
+
+            var hardWinRate = CalculateWinRate(report.WinsLeft, report.WinsRight, report.Draws);
+
+            (report.WinsLeft + report.WinsRight + report.Draws).Should().Be(report.Matches);
+            hardWinRate.Should().BeGreaterOrEqualTo(0.58f);
+            report.P95MoveMs.Should().BeGreaterOrEqualTo(report.P50MoveMs);
+
+            Debug.Log(BuildReportLine(
+                "hard_vs_medium",
+                report,
+                hardWinRate,
+                CalculateWinRate(report.WinsRight, report.WinsLeft, report.Draws)));
+        }
+
+        [Test]
         [Explicit]
         public async System.Threading.Tasks.Task WhenWinRateCalculated_ThenUsesWDivWPlusLPlusDFormula()
         {

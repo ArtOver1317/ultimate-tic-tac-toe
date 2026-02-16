@@ -114,6 +114,87 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
             failReason.Should().Be(BotFailureReason.NoLegalMovesInconsistentState);
         }
 
+        [Test]
+        public void WhenTryBuildDecisionRequestAndNotBotTurn_ThenReturnsFalseWithoutFailReason()
+        {
+            var gameplay = new FakeGameplaySnapshotProvider(
+                activePlayerSlot: 1,
+                commandSequence: 7,
+                occupiedCells: Array.Empty<CellId>());
+
+            var ultimate = new FakeUltimateSnapshotProvider(
+                matchStatus: GameStatus.InProgress,
+                allowedMajors: AllowedMajors.All,
+                miniBoards: BuildMiniBoards(MiniBoardStatus.InProgress));
+
+            var sut = new UltimateBotStateReader(gameplay, ultimate);
+
+            var built = sut.TryBuildDecisionRequest(
+                botSlot: 0,
+                new BotTurnId(7, 1),
+                CreateProfile(),
+                new FakeBotRngSession(),
+                out _,
+                out var failReason);
+
+            built.Should().BeFalse();
+            failReason.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenTryBuildDecisionRequestAndTurnIdStale_ThenReturnsFalseWithoutFailReason()
+        {
+            var gameplay = new FakeGameplaySnapshotProvider(
+                activePlayerSlot: 0,
+                commandSequence: 15,
+                occupiedCells: Array.Empty<CellId>());
+
+            var ultimate = new FakeUltimateSnapshotProvider(
+                matchStatus: GameStatus.InProgress,
+                allowedMajors: AllowedMajors.All,
+                miniBoards: BuildMiniBoards(MiniBoardStatus.InProgress));
+
+            var sut = new UltimateBotStateReader(gameplay, ultimate);
+
+            var built = sut.TryBuildDecisionRequest(
+                botSlot: 0,
+                new BotTurnId(14, 0),
+                CreateProfile(),
+                new FakeBotRngSession(),
+                out _,
+                out var failReason);
+
+            built.Should().BeFalse();
+            failReason.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenTryBuildDecisionRequestAndMatchNotInProgress_ThenReturnsFalseWithoutFailReason()
+        {
+            var gameplay = new FakeGameplaySnapshotProvider(
+                activePlayerSlot: 0,
+                commandSequence: 5,
+                occupiedCells: Array.Empty<CellId>());
+
+            var ultimate = new FakeUltimateSnapshotProvider(
+                matchStatus: GameStatus.Draw,
+                allowedMajors: AllowedMajors.All,
+                miniBoards: BuildMiniBoards(MiniBoardStatus.InProgress));
+
+            var sut = new UltimateBotStateReader(gameplay, ultimate);
+
+            var built = sut.TryBuildDecisionRequest(
+                botSlot: 0,
+                new BotTurnId(5, 0),
+                CreateProfile(),
+                new FakeBotRngSession(),
+                out _,
+                out var failReason);
+
+            built.Should().BeFalse();
+            failReason.Should().BeNull();
+        }
+
         private static UltimateBotDifficultyProfileData CreateProfile()
         {
             return new UltimateBotDifficultyProfileData(
