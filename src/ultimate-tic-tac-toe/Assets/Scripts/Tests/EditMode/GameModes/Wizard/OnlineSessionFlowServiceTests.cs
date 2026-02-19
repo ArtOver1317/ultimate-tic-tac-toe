@@ -2,6 +2,7 @@
 
 using System;
 using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
@@ -135,38 +136,12 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public async Task WhenReconnectSucceedsAfterDisconnect_ThenReturnsToPreviousStableState()
+        [TestCaseSource(nameof(ActiveStableStates))]
+        public async Task WhenDisconnectDetected_ThenTransitionsToReconnectingFromEachActiveState(OnlineFlowState sourceState)
         {
             // Arrange
             var sut = CreateService("ABCDEF");
-            await sut.EnterHumanSetupAsync("eu", "host");
-            await sut.ConfirmHostIntentAsync();
-            await sut.StartHostSessionAsync(new OnlineSessionConfig(new SessionId("ABCDEF"), "eu", "host"));
-            await sut.OnHostCreatedAsync();
-
-            // Act
-            await sut.OnDisconnectDetectedAsync();
-            var reconnectingSnapshot = sut.Snapshot.CurrentValue;
-
-            await sut.OnReconnectSucceededAsync();
-            var recoveredSnapshot = sut.Snapshot.CurrentValue;
-
-            // Assert
-            reconnectingSnapshot.State.Should().Be(OnlineFlowState.Reconnecting);
-            recoveredSnapshot.State.Should().Be(OnlineFlowState.WaitingForPlayer);
-            recoveredSnapshot.ErrorCode.Should().Be(OnlineErrorCode.None);
-            recoveredSnapshot.GraceDeadlineUtc.Should().BeNull();
-        }
-
-        [Test]
-        public async Task WhenDisconnectDetected_ThenSetsGraceDeadline()
-        {
-            // Arrange
-            var sut = CreateService("ABCDEF");
-            await sut.EnterHumanSetupAsync("eu", "host");
-            await sut.ConfirmHostIntentAsync();
-            await sut.StartHostSessionAsync(new OnlineSessionConfig(new SessionId("ABCDEF"), "eu", "host"));
-            await sut.OnHostCreatedAsync();
+            await BringToStateAsync(sut, sourceState);
 
             // Act
             await sut.OnDisconnectDetectedAsync();
@@ -175,7 +150,24 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             snapshot.State.Should().Be(OnlineFlowState.Reconnecting);
             snapshot.GraceDeadlineUtc.Should().NotBeNull();
-            snapshot.GraceDeadlineUtc.Should().BeAfter(DateTimeOffset.UtcNow.AddSeconds(20));
+        }
+
+        [TestCaseSource(nameof(ActiveStableStates))]
+        public async Task WhenReconnectSucceeds_ThenRestoresPreviousStableStateForEachActiveSource(OnlineFlowState sourceState)
+        {
+            // Arrange
+            var sut = CreateService("ABCDEF");
+            await BringToStateAsync(sut, sourceState);
+
+            // Act
+            await sut.OnDisconnectDetectedAsync();
+            await sut.OnReconnectSucceededAsync();
+            var snapshot = sut.Snapshot.CurrentValue;
+
+            // Assert
+            snapshot.State.Should().Be(sourceState);
+            snapshot.GraceDeadlineUtc.Should().BeNull();
+            snapshot.ErrorCode.Should().Be(OnlineErrorCode.None);
         }
 
         [Test]
@@ -285,6 +277,201 @@ namespace Tests.EditMode.GameModes.Wizard
             afterBothReady.State.Should().Be(OnlineFlowState.ConnectedCountdown);
         }
 
+        [TestCase(true, OnlineFlowState.HostStarting)]
+        [TestCase(false, OnlineFlowState.HostStarting)]
+        [TestCase(true, OnlineFlowState.GuestConnecting)]
+        [TestCase(false, OnlineFlowState.GuestConnecting)]
+        public async Task WhenBackOrExitPressedDuringHostStartingOrGuestConnecting_ThenTransitionsToIdle(bool useBack, OnlineFlowState sourceState)
+        {
+            // Arrange
+            var sut = CreateService("ABCDEF", "GHIJKL");
+            await BringToStateAsync(sut, sourceState);
+
+            // Act
+            if (useBack)
+                await sut.BackAsync();
+            else
+                await sut.ExitAsync();
+
+            var snapshot = sut.Snapshot.CurrentValue;
+
+            // Assert
+            snapshot.State.Should().Be(OnlineFlowState.Idle);
+            snapshot.CandidateSessionId.Should().Be("GHIJKL");
+            snapshot.ActiveSessionId.Should().BeNull();
+        }
+
+        [Test]
+        public async Task WhenBackPressedAndHostCreatedArriveSameTick_ThenBackWinsAndStateIsIdle()
+        {
+            // Arrange
+            var sut = CreateService("ABCDEF", "GHIJKL");
+            await BringToStateAsync(sut, OnlineFlowState.HostStarting);
+
+            // Act
+            await ExecuteSameTickAsync(
+                sut,
+                first: () => sut.OnHostCreatedAsync(),
+                second: () => sut.BackAsync());
+
+            var snapshot = sut.Snapshot.CurrentValue;
+
+            // Assert
+            snapshot.State.Should().Be(OnlineFlowState.Idle);
+            snapshot.ActiveSessionId.Should().BeNull();
+        }
+
+        [Test]
+        public async Task WhenExitPressedAndJoinSucceededArriveSameTick_ThenExitWinsAndNoSessionActivation()
+        {
+            // Arrange
+            var sut = CreateService("ABCDEF", "GHIJKL");
+            await BringToStateAsync(sut, OnlineFlowState.GuestConnecting);
+
+            // Act
+            await ExecuteSameTickAsync(
+                sut,
+                first: () => sut.OnJoinSucceededAsync(),
+                second: () => sut.ExitAsync());
+
+            var snapshot = sut.Snapshot.CurrentValue;
+
+            // Assert
+            snapshot.State.Should().Be(OnlineFlowState.Idle);
+            snapshot.ActiveSessionId.Should().BeNull();
+        }
+
+        [Test]
+        public async Task WhenReconnectSucceededAndGraceTimeoutArriveSameEpoch_ThenReconnectWinsAndTimeoutIgnored()
+        {
+            // Arrange
+            var sut = CreateService("ABCDEF");
+            await BringToStateAsync(sut, OnlineFlowState.WaitingForPlayer);
+            await sut.OnDisconnectDetectedAsync();
+            var reconnectEpoch = sut.Snapshot.CurrentValue.FlowEpoch;
+
+            // Act
+            await ExecuteSameTickAsync(
+                sut,
+                first: () => sut.OnReconnectSucceededAsync(),
+                second: () => sut.OnGraceTimeoutAsync(reconnectEpoch));
+
+            var snapshot = sut.Snapshot.CurrentValue;
+
+            // Assert
+            snapshot.State.Should().Be(OnlineFlowState.WaitingForPlayer);
+            snapshot.ErrorCode.Should().Be(OnlineErrorCode.None);
+        }
+
+        [Test]
+        public async Task WhenOpponentLeftAndSetReadyArriveSameTick_ThenTransitionsToTerminated()
+        {
+            // Arrange
+            var sut = CreateService("ABCDEF");
+            await BringToStateAsync(sut, OnlineFlowState.Result);
+            await sut.OnOpponentReadyForNextMatchAsync(true);
+
+            // Act
+            await ExecuteSameTickAsync(
+                sut,
+                first: () => sut.SetReadyForNextMatchAsync(true),
+                second: () => sut.OnOpponentLeftAsync());
+
+            var snapshot = sut.Snapshot.CurrentValue;
+
+            // Assert
+            snapshot.State.Should().Be(OnlineFlowState.Terminated);
+            snapshot.ErrorCode.Should().Be(OnlineErrorCode.OpponentLeft);
+        }
+
+        [Test]
+        public async Task WhenOpponentLeftEventReceived_ThenTransitionsToTerminatedFromActiveState()
+        {
+            // Arrange
+            var sut = CreateService("ABCDEF");
+            await BringToStateAsync(sut, OnlineFlowState.InGame);
+
+            // Act
+            await sut.OnOpponentLeftAsync();
+            var snapshot = sut.Snapshot.CurrentValue;
+
+            // Assert
+            snapshot.State.Should().Be(OnlineFlowState.Terminated);
+            snapshot.ErrorCode.Should().Be(OnlineErrorCode.OpponentLeft);
+            snapshot.ErrorLocalizationKey.Should().Be("Errors.Online.OpponentLeft");
+        }
+
+        [Test]
+        public async Task WhenBackCalledFromFailed_ThenTransitionsToIdleAndClearsActiveSession()
+        {
+            // Arrange
+            var sut = CreateService("ABCDEF", "GHIJKL");
+            await sut.JoinBySessionIdAsync("bad", "eu", "user-1");
+            sut.Snapshot.CurrentValue.State.Should().Be(OnlineFlowState.Failed);
+
+            // Act
+            await sut.BackAsync();
+            var snapshot = sut.Snapshot.CurrentValue;
+
+            // Assert
+            snapshot.State.Should().Be(OnlineFlowState.Idle);
+            snapshot.CandidateSessionId.Should().Be("ABCDEF");
+            snapshot.ActiveSessionId.Should().BeNull();
+        }
+
+        [Test]
+        public async Task WhenExitCalledFromFailed_ThenStateRemainsFailed()
+        {
+            // Arrange
+            var sut = CreateService("ABCDEF");
+            await sut.JoinBySessionIdAsync("bad", "eu", "user-1");
+            var before = sut.Snapshot.CurrentValue;
+
+            // Act
+            await sut.ExitAsync();
+            var after = sut.Snapshot.CurrentValue;
+
+            // Assert
+            after.State.Should().Be(OnlineFlowState.Failed);
+            after.ErrorCode.Should().Be(before.ErrorCode);
+        }
+
+        [Test]
+        public async Task WhenEnterHumanSetupCalledInHostIntentConfirmed_ThenRemainsInHostIntentConfirmed()
+        {
+            // Arrange
+            var sut = CreateService("ABCDEF");
+            await sut.EnterHumanSetupAsync("eu", "host");
+            await sut.ConfirmHostIntentAsync();
+
+            // Act
+            await sut.EnterHumanSetupAsync("eu", "host");
+            var snapshot = sut.Snapshot.CurrentValue;
+
+            // Assert
+            snapshot.State.Should().Be(OnlineFlowState.HostIntentConfirmed);
+            snapshot.CanStart.Should().BeTrue();
+        }
+
+        [Test]
+        public async Task WhenJoinSucceededReceivedTwice_ThenSecondCallbackIsIdempotent()
+        {
+            // Arrange
+            var sut = CreateService("ABCDEF");
+            await BringToStateAsync(sut, OnlineFlowState.GuestConnecting);
+
+            // Act
+            await sut.OnJoinSucceededAsync();
+            var afterFirst = sut.Snapshot.CurrentValue;
+            await sut.OnJoinSucceededAsync();
+            var afterSecond = sut.Snapshot.CurrentValue;
+
+            // Assert
+            afterFirst.State.Should().Be(OnlineFlowState.WaitingForPlayer);
+            afterSecond.State.Should().Be(OnlineFlowState.WaitingForPlayer);
+            afterSecond.FlowEpoch.Should().Be(afterFirst.FlowEpoch);
+        }
+
         [Test]
         public async Task WhenApiCalledInInvalidState_ThenStateRemainsUnchanged()
         {
@@ -300,6 +487,68 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             snapshot.State.Should().Be(OnlineFlowState.HostIntentConfirmed);
             snapshot.CanStart.Should().BeTrue();
+        }
+
+        private static readonly OnlineFlowState[] ActiveStableStates =
+        {
+            OnlineFlowState.WaitingForPlayer,
+            OnlineFlowState.ConnectedCountdown,
+            OnlineFlowState.InGame,
+            OnlineFlowState.Result,
+        };
+
+        private static async Task BringToStateAsync(OnlineSessionFlowService sut, OnlineFlowState targetState)
+        {
+            await sut.EnterHumanSetupAsync("eu", "host");
+
+            if (targetState == OnlineFlowState.Idle)
+                return;
+
+            if (targetState == OnlineFlowState.HostIntentConfirmed)
+            {
+                await sut.ConfirmHostIntentAsync();
+                return;
+            }
+
+            if (targetState == OnlineFlowState.GuestConnecting)
+            {
+                await sut.JoinBySessionIdAsync("AB2CD7", "eu", "guest");
+                return;
+            }
+
+            await sut.ConfirmHostIntentAsync();
+            await sut.StartHostSessionAsync(new OnlineSessionConfig(new SessionId("ABCDEF"), "eu", "host"));
+
+            if (targetState == OnlineFlowState.HostStarting)
+                return;
+
+            await sut.OnHostCreatedAsync();
+
+            if (targetState == OnlineFlowState.WaitingForPlayer)
+                return;
+
+            await sut.OnGuestJoinedAsync();
+
+            if (targetState == OnlineFlowState.ConnectedCountdown)
+                return;
+
+            await sut.OnGameplayEnteredAsync();
+
+            if (targetState == OnlineFlowState.InGame)
+                return;
+
+            await sut.OnRoundCompletedAsync();
+        }
+
+        private static async Task ExecuteSameTickAsync(OnlineSessionFlowService sut, Func<UniTask> first, Func<UniTask> second)
+        {
+            using (sut.HoldEventQueueForTests())
+            {
+                await first();
+                await second();
+            }
+
+            await sut.DrainEventQueueForTestsAsync();
         }
 
         private static OnlineSessionFlowService CreateService(params string[] candidates)

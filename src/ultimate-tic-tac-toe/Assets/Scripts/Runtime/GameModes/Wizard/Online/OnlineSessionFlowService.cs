@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.Infrastructure.Logging;
@@ -628,6 +629,36 @@ namespace Runtime.GameModes.Wizard
             return true;
         }
 
+        internal IDisposable HoldEventQueueForTests()
+        {
+            Monitor.Enter(_eventLock);
+
+            if (_isProcessing)
+            {
+                Monitor.Exit(_eventLock);
+                throw new InvalidOperationException("Cannot hold event queue while processing is already active.");
+            }
+
+            _isProcessing = true;
+            return new TestQueueHold(this);
+        }
+
+        internal UniTask DrainEventQueueForTestsAsync()
+        {
+            if (_isDisposed)
+                return UniTask.CompletedTask;
+
+            lock (_eventLock)
+            {
+                if (_isProcessing || _pendingEvents.Count == 0)
+                    return UniTask.CompletedTask;
+
+                _isProcessing = true;
+            }
+
+            return ProcessQueueAsync();
+        }
+
         public void Dispose()
         {
             if (_isDisposed)
@@ -635,6 +666,27 @@ namespace Runtime.GameModes.Wizard
 
             _isDisposed = true;
             _snapshot.Dispose();
+        }
+
+        private sealed class TestQueueHold : IDisposable
+        {
+            private readonly OnlineSessionFlowService _owner;
+            private bool _isDisposed;
+
+            public TestQueueHold(OnlineSessionFlowService owner)
+            {
+                _owner = owner;
+            }
+
+            public void Dispose()
+            {
+                if (_isDisposed)
+                    return;
+
+                _isDisposed = true;
+                _owner._isProcessing = false;
+                Monitor.Exit(_owner._eventLock);
+            }
         }
 
         internal enum FlowEvent

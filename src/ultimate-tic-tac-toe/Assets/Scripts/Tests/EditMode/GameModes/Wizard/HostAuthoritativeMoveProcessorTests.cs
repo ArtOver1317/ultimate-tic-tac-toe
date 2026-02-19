@@ -81,6 +81,56 @@ namespace Tests.EditMode.GameModes.Wizard
             duplicateResult.Status.Should().Be(MoveProcessStatus.DuplicateIgnored);
             state.IsCellOccupied(3).Should().BeFalse();
         }
+
+        [Test]
+        public void WhenMoveSubmittedAfterMatchCompleted_ThenRejectedWithMatchAlreadyFinished()
+        {
+            // Arrange
+            var state = new AuthoritativeMatchState(9, "host");
+            state.Complete();
+            var sut = new HostAuthoritativeMoveProcessor();
+            var command = new MoveCommand(Guid.NewGuid(), "host", 1, 7);
+
+            // Act
+            var result = sut.Process(command, state, "guest");
+
+            // Assert
+            result.Status.Should().Be(MoveProcessStatus.Rejected);
+            result.RejectReason.Should().Be(MoveRejectReason.MatchAlreadyFinished);
+        }
+
+        [Test]
+        public void WhenDedupWindowExceedsCapacity_ThenOldestCommandIdIsEvictedAndAcceptedAgain()
+        {
+            // Arrange
+            var state = new AuthoritativeMatchState(9, "host");
+            var sut = new HostAuthoritativeMoveProcessor(dedupWindowSize: 3);
+
+            var firstId = Guid.NewGuid();
+            var secondId = Guid.NewGuid();
+            var thirdId = Guid.NewGuid();
+            var fourthId = Guid.NewGuid();
+
+            // Act
+            var first = sut.Process(new MoveCommand(firstId, "host", 0, 1), state, "guest");
+            state.SetActivePlayer("host");
+            var second = sut.Process(new MoveCommand(secondId, "host", 1, 2), state, "guest");
+            state.SetActivePlayer("host");
+            var third = sut.Process(new MoveCommand(thirdId, "host", 2, 3), state, "guest");
+            state.SetActivePlayer("host");
+            var fourth = sut.Process(new MoveCommand(fourthId, "host", 3, 4), state, "guest");
+            state.SetActivePlayer("host");
+
+            var reusedFirst = sut.Process(new MoveCommand(firstId, "host", 4, 5), state, "guest");
+
+            // Assert
+            first.Status.Should().Be(MoveProcessStatus.Accepted);
+            second.Status.Should().Be(MoveProcessStatus.Accepted);
+            third.Status.Should().Be(MoveProcessStatus.Accepted);
+            fourth.Status.Should().Be(MoveProcessStatus.Accepted);
+            reusedFirst.Status.Should().Be(MoveProcessStatus.Accepted);
+            state.IsCellOccupied(4).Should().BeTrue();
+        }
     }
 }
 

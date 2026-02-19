@@ -1,8 +1,6 @@
 #nullable enable
 
 using System;
-using System.Globalization;
-using System.Text;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
@@ -48,8 +46,8 @@ namespace Runtime.GameModes.Wizard
     public sealed class OnlineSessionLauncher : IOnlineSessionLauncher, IDisposable
     {
         private static readonly TimeSpan _waitPeerJoinTimeout = TimeSpan.FromSeconds(90);
-        private static readonly TimeSpan _reconnectGraceTimeout = TimeSpan.FromSeconds(30);
-        private static readonly TimeSpan _reconnectRetryDelay = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan DefaultReconnectGraceTimeout = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan DefaultReconnectRetryDelay = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan _matchConfigSyncTimeout = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan _countdownSyncTimeout = TimeSpan.FromSeconds(10);
         private const int CountdownDurationSeconds = 3;
@@ -64,6 +62,8 @@ namespace Runtime.GameModes.Wizard
         private readonly OnlineDiagnosticsBuffer _diagnosticsBuffer;
         private readonly OnlineCleanupTracker _cleanupTracker;
         private readonly string _localUserId;
+        private readonly TimeSpan _reconnectGraceTimeout;
+        private readonly TimeSpan _reconnectRetryDelay;
         private readonly CancellationTokenSource _runtimeCts = new();
         private readonly IDisposable _gatewayLifecycleSubscription;
         private int _reconnectInProgress;
@@ -83,6 +83,31 @@ namespace Runtime.GameModes.Wizard
             IOnlineGameplaySessionContextStore sessionContextStore,
             OnlineDiagnosticsBuffer diagnosticsBuffer,
             OnlineCleanupTracker cleanupTracker)
+            : this(
+                gateway,
+                transport,
+                onlineSessionFlow,
+                countdownSync,
+                sessionContextStore,
+                diagnosticsBuffer,
+                cleanupTracker,
+                OnlineIdentityProvider.ResolveCurrentUserId(),
+                DefaultReconnectGraceTimeout,
+                DefaultReconnectRetryDelay)
+        {
+        }
+
+        internal OnlineSessionLauncher(
+            IPhotonSessionGateway gateway,
+            IPhotonSessionTransport transport,
+            IOnlineSessionFlowService onlineSessionFlow,
+            IOnlineCountdownSyncService countdownSync,
+            IOnlineGameplaySessionContextStore sessionContextStore,
+            OnlineDiagnosticsBuffer diagnosticsBuffer,
+            OnlineCleanupTracker cleanupTracker,
+            string localUserId,
+            TimeSpan reconnectGraceTimeout,
+            TimeSpan reconnectRetryDelay)
         {
             _gateway = gateway ?? throw new ArgumentNullException(nameof(gateway));
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
@@ -91,7 +116,15 @@ namespace Runtime.GameModes.Wizard
             _sessionContextStore = sessionContextStore ?? throw new ArgumentNullException(nameof(sessionContextStore));
             _diagnosticsBuffer = diagnosticsBuffer ?? throw new ArgumentNullException(nameof(diagnosticsBuffer));
             _cleanupTracker = cleanupTracker ?? throw new ArgumentNullException(nameof(cleanupTracker));
-            _localUserId = OnlineIdentityProvider.ResolveCurrentUserId();
+            _localUserId = string.IsNullOrWhiteSpace(localUserId)
+                ? throw new ArgumentException("Value cannot be null or whitespace.", nameof(localUserId))
+                : localUserId;
+            _reconnectGraceTimeout = reconnectGraceTimeout > TimeSpan.Zero
+                ? reconnectGraceTimeout
+                : throw new ArgumentOutOfRangeException(nameof(reconnectGraceTimeout), reconnectGraceTimeout, "Value must be positive.");
+            _reconnectRetryDelay = reconnectRetryDelay > TimeSpan.Zero
+                ? reconnectRetryDelay
+                : throw new ArgumentOutOfRangeException(nameof(reconnectRetryDelay), reconnectRetryDelay, "Value must be positive.");
             _gatewayLifecycleSubscription = _gateway.LifecycleEvent
                 .Where(evt => evt.HasValue)
                 .Subscribe(evt => OnGatewayLifecycleEvent(evt!.Value));
@@ -369,7 +402,7 @@ namespace Runtime.GameModes.Wizard
             }
             finally
             {
-                if (!reconnectRecovered && reconnectEpoch > 0)
+                if (!_isDisposed && !_runtimeCts.IsCancellationRequested && !reconnectRecovered && reconnectEpoch > 0)
                 {
                     await _onlineSessionFlow.OnGraceTimeoutAsync(reconnectEpoch);
                     TrackDiagnostic("reconnect_grace_timeout", errorCode: OnlineErrorCode.DisconnectTimeout);
@@ -521,7 +554,7 @@ namespace Runtime.GameModes.Wizard
 
             try
             {
-                await _transport.SendReliableDataAsync(SerializeMatchConfig(payload));
+                await _transport.SendReliableDataAsync(OnlinePayloadSerialization.SerializeMatchConfig(payload));
                 return true;
             }
             catch
@@ -535,7 +568,7 @@ namespace Runtime.GameModes.Wizard
         {
             try
             {
-                await _transport.SendReliableDataAsync(SerializeCountdownTarget(targetNetworkTimeSeconds));
+                await _transport.SendReliableDataAsync(OnlinePayloadSerialization.SerializeCountdownTarget(targetNetworkTimeSeconds));
                 return true;
             }
             catch
@@ -577,75 +610,18 @@ namespace Runtime.GameModes.Wizard
             if (_isDisposed || evt.Payload == null || evt.Payload.Length == 0)
                 return;
 
-            if (TryDeserializeMatchConfig(evt.Payload, out var payload))
+            if (OnlinePayloadSerialization.TryDeserializeMatchConfig(evt.Payload, out var payload))
             {
                 _sessionContextStore.SetMatchConfig(payload);
                 TrackDiagnostic("match_config_received", reason: payload.GameId);
                 return;
             }
 
-            if (!TryDeserializeCountdownTarget(evt.Payload, out var targetNetworkTimeSeconds))
+            if (!OnlinePayloadSerialization.TryDeserializeCountdownTarget(evt.Payload, out var targetNetworkTimeSeconds))
                 return;
 
             _pendingCountdownTargetNetworkTimeSeconds = targetNetworkTimeSeconds;
             TrackDiagnostic("countdown_target_received");
-        }
-
-        private static byte[] SerializeMatchConfig(OnlineMatchConfigPayload payload)
-        {
-            var line = string.Concat(
-                "C|",
-                payload.GameId.Replace("|", string.Empty), "|",
-                payload.BoardSize.ToString(), "|",
-                payload.IsUltimate ? "1" : "0");
-
-            return Encoding.UTF8.GetBytes(line);
-        }
-
-        private static bool TryDeserializeMatchConfig(byte[] payloadBytes, out OnlineMatchConfigPayload payload)
-        {
-            payload = default;
-
-            var line = Encoding.UTF8.GetString(payloadBytes);
-            if (string.IsNullOrWhiteSpace(line))
-                return false;
-
-            var parts = line.Split('|');
-            if (parts.Length != 4 || parts[0] != "C")
-                return false;
-
-            var gameId = parts[1];
-            if (string.IsNullOrWhiteSpace(gameId))
-                return false;
-
-            if (!int.TryParse(parts[2], out var boardSize) || boardSize <= 0)
-                return false;
-
-            var isUltimate = parts[3] == "1";
-
-            payload = new OnlineMatchConfigPayload(gameId, boardSize, isUltimate);
-            return true;
-        }
-
-        private static byte[] SerializeCountdownTarget(double targetNetworkTimeSeconds)
-        {
-            var line = string.Concat("T|", targetNetworkTimeSeconds.ToString("R", CultureInfo.InvariantCulture));
-            return Encoding.UTF8.GetBytes(line);
-        }
-
-        private static bool TryDeserializeCountdownTarget(byte[] payloadBytes, out double targetNetworkTimeSeconds)
-        {
-            targetNetworkTimeSeconds = 0d;
-
-            var line = Encoding.UTF8.GetString(payloadBytes);
-            if (string.IsNullOrWhiteSpace(line))
-                return false;
-
-            var parts = line.Split('|');
-            if (parts.Length != 2 || parts[0] != "T")
-                return false;
-
-            return double.TryParse(parts[1], NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out targetNetworkTimeSeconds);
         }
 
         private void MarkRunnerAllocated()

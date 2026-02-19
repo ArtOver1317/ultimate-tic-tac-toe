@@ -32,12 +32,16 @@ namespace Tests.EditMode.GameModes.Wizard
             // Act
             var firstReady = sut.SetReady(isHost: true, isReady: true);
             var secondReady = sut.SetReady(isHost: false, isReady: true);
+            var thirdReady = sut.SetReady(isHost: true, isReady: true);
+            var fourthReady = sut.SetReady(isHost: false, isReady: true);
 
             // Assert
             firstReady.Should().BeFalse();
             secondReady.Should().BeTrue();
-            sut.MatchRoundId.Should().Be(2);
-            sut.IsHostFirstTurn.Should().BeFalse();
+            thirdReady.Should().BeFalse();
+            fourthReady.Should().BeTrue();
+            sut.MatchRoundId.Should().Be(3);
+            sut.IsHostFirstTurn.Should().BeTrue();
         }
 
         [Test]
