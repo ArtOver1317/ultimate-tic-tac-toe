@@ -13,10 +13,9 @@ namespace Runtime.GameModes.Wizard
             if (IsDisposed)
                 return;
 
-            var normalized = string.IsNullOrWhiteSpace(playerId) ? null : playerId.Trim();
-            
-            if (!string.IsNullOrWhiteSpace(normalized) && PlayerId.TryCreate(normalized, out var parsed))
-                normalized = parsed!.Value;
+            var normalized = string.IsNullOrWhiteSpace(playerId)
+                ? null
+                : OnlineSessionIdFormatter.Normalize(playerId);
 
             if (_opponentType.CurrentValue != global::Runtime.GameModes.Wizard.OpponentType.Human ||
                 _humanOpponentKind.CurrentValue != global::Runtime.GameModes.Wizard.HumanOpponentKind.DirectInvite)
@@ -59,9 +58,7 @@ namespace Runtime.GameModes.Wizard
                 return;
             }
 
-            var normalized = PlayerId.TryCreate(targetPlayerId, out var parsed)
-                ? parsed!.Value
-                : targetPlayerId;
+            var normalized = OnlineSessionIdFormatter.Normalize(targetPlayerId);
 
             if (string.Equals(_targetPlayerId.Value, normalized, StringComparison.Ordinal))
                 return;
@@ -80,7 +77,8 @@ namespace Runtime.GameModes.Wizard
 
             foreach (var error in errors)
             {
-                if (string.Equals(error.Field, WizardFieldNames.TargetPlayerId, StringComparison.Ordinal))
+                if (string.Equals(error.Field, WizardFieldNames.InviteSessionId, StringComparison.Ordinal) ||
+                    string.Equals(error.Field, WizardFieldNames.TargetPlayerId, StringComparison.Ordinal))
                     return ResolveMessageKey(error.MessageKey);
             }
 

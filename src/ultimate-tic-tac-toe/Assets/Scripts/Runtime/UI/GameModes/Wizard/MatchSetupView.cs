@@ -58,6 +58,27 @@ namespace Runtime.UI.GameModes.Wizard
         [Runtime.UI.Core.UxmlElementAttribute("PlayerIdInput")]
         private PlayerIdInput? _playerIdInput;
 
+        [Runtime.UI.Core.UxmlElementAttribute("OnlinePanel")]
+        private VisualElement? _onlinePanel;
+
+        [Runtime.UI.Core.UxmlElementAttribute("SessionIdLabel")]
+        private Label? _sessionIdLabel;
+
+        [Runtime.UI.Core.UxmlElementAttribute("SessionIdValue")]
+        private Label? _sessionIdValue;
+
+        [Runtime.UI.Core.UxmlElementAttribute("CopySessionIdButton")]
+        private Button? _copySessionIdButton;
+
+        [Runtime.UI.Core.UxmlElementAttribute("BecomeHostButton")]
+        private Button? _becomeHostButton;
+
+        [Runtime.UI.Core.UxmlElementAttribute("OnlineStatusLabel")]
+        private Label? _onlineStatusLabel;
+
+        [Runtime.UI.Core.UxmlElementAttribute("OnlineCountdownLabel")]
+        private Label? _onlineCountdownLabel;
+
         [Runtime.UI.Core.UxmlElementAttribute("CancelButton")]
         private Button? _cancelButton;
 
@@ -109,6 +130,13 @@ namespace Runtime.UI.GameModes.Wizard
             var humanSettingsTitle = _humanSettingsTitle ?? throw new InvalidOperationException("HumanSettingsTitle element is missing in UXML.");
             var humanKindRadio = _humanKindRadio ?? throw new InvalidOperationException("HumanKindRadio element is missing in UXML.");
             var playerIdInput = _playerIdInput ?? throw new InvalidOperationException("PlayerIdInput element is missing in UXML.");
+            var onlinePanel = _onlinePanel ?? throw new InvalidOperationException("OnlinePanel element is missing in UXML.");
+            var sessionIdLabel = _sessionIdLabel ?? throw new InvalidOperationException("SessionIdLabel element is missing in UXML.");
+            var sessionIdValue = _sessionIdValue ?? throw new InvalidOperationException("SessionIdValue element is missing in UXML.");
+            var copySessionIdButton = _copySessionIdButton ?? throw new InvalidOperationException("CopySessionIdButton element is missing in UXML.");
+            var becomeHostButton = _becomeHostButton ?? throw new InvalidOperationException("BecomeHostButton element is missing in UXML.");
+            var onlineStatusLabel = _onlineStatusLabel ?? throw new InvalidOperationException("OnlineStatusLabel element is missing in UXML.");
+            var onlineCountdownLabel = _onlineCountdownLabel ?? throw new InvalidOperationException("OnlineCountdownLabel element is missing in UXML.");
             var cancelButton = _cancelButton ?? throw new InvalidOperationException("CancelButton element is missing in UXML.");
             var startButton = _startButton ?? throw new InvalidOperationException("StartButton element is missing in UXML.");
 
@@ -160,8 +188,16 @@ namespace Runtime.UI.GameModes.Wizard
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), opponentToggle);
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), difficultyChips);
             BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), humanKindRadio);
-            BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), playerIdInput);
-            BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), Root);
+            BindEnabled(Observable.CombineLatest(
+                    ViewModel.IsBusy,
+                    ViewModel.IsModeOptionsEnabled,
+                    static (isBusy, isModeOptionsEnabled) => !isBusy && isModeOptionsEnabled),
+                playerIdInput);
+            BindEnabled(Observable.CombineLatest(
+                    ViewModel.IsBusy,
+                    ViewModel.IsModeOptionsEnabled,
+                    static (isBusy, isModeOptionsEnabled) => !isBusy && isModeOptionsEnabled),
+                _modeOptionsHost);
 
             BindVisibility(ViewModel.IsBotSettingsVisible, botSettingsSection);
             BindVisibility(ViewModel.IsHumanSettingsVisible, humanSettingsSection);
@@ -230,10 +266,32 @@ namespace Runtime.UI.GameModes.Wizard
             AddDisposable(ViewModel.TargetPlayerId.Subscribe(id => playerIdInput.SetValueWithoutNotify(id)));
             AddDisposable(ViewModel.PlayerIdErrorText.Subscribe(error => playerIdInput.SetError(error)));
 
+            AddDisposable(ViewModel.OnlinePanelVisible.Subscribe(isVisible =>
+                onlinePanel.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None));
+            AddDisposable(ViewModel.SessionIdLabelText.Subscribe(text => sessionIdLabel.text = text));
+            AddDisposable(ViewModel.VisibleSessionId.Subscribe(text => sessionIdValue.text = text));
+            AddDisposable(ViewModel.CopySessionIdButtonText.Subscribe(text => copySessionIdButton.text = text));
+            AddDisposable(ViewModel.BecomeHostButtonText.Subscribe(text => becomeHostButton.text = text));
+            AddDisposable(ViewModel.OnlineStatusText.Subscribe(text =>
+            {
+                onlineStatusLabel.text = text ?? string.Empty;
+                onlineStatusLabel.style.display = string.IsNullOrWhiteSpace(text) ? DisplayStyle.None : DisplayStyle.Flex;
+            }));
+            AddDisposable(ViewModel.OnlineCountdownText.Subscribe(text =>
+            {
+                onlineCountdownLabel.text = text ?? string.Empty;
+                onlineCountdownLabel.style.display = string.IsNullOrWhiteSpace(text) ? DisplayStyle.None : DisplayStyle.Flex;
+            }));
+            BindEnabled(ViewModel.CanCopySessionId, copySessionIdButton);
+            BindEnabled(ViewModel.CanBecomeHost, becomeHostButton);
+
             void OnPlayerIdChanged(string value) => ViewModel.SetTargetPlayerId(value);
 
             playerIdInput.ValueChanged += OnPlayerIdChanged;
             AddDisposable(Disposable.Create(() => playerIdInput.ValueChanged -= OnPlayerIdChanged));
+
+            AddDisposable(copySessionIdButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestCopySessionId()));
+            AddDisposable(becomeHostButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestBecomeHost()));
 
             AddDisposable(ViewModel.ActiveSettings
                 .Subscribe(presentation => LoadSettingsSafeAsync(presentation).Forget(ex => GameLog.Exception(ex))));

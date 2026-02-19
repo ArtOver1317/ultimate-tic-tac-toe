@@ -34,6 +34,7 @@ namespace Runtime.GameModes.Wizard
 
         private readonly IGameWizardNavigator _navigator;
         private readonly Func<IGameSession> _sessionFactory;
+        private readonly IOnlineSessionFlowService _onlineSessionFlow;
 
         private readonly ReactiveProperty<bool> _isTransitioning = new(false);
         private readonly ReactiveProperty<bool> _isSubmitting = new(false);
@@ -113,10 +114,14 @@ namespace Runtime.GameModes.Wizard
             }
         }
 
-        public GameWizardCoordinator(IGameWizardNavigator navigator, Func<IGameSession> sessionFactory)
+        public GameWizardCoordinator(
+            IGameWizardNavigator navigator,
+            Func<IGameSession> sessionFactory,
+            IOnlineSessionFlowService? onlineSessionFlow = null)
         {
             _navigator = navigator ?? throw new ArgumentNullException(nameof(navigator));
             _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
+            _onlineSessionFlow = onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance;
         }
 
         public async UniTask StartWizardAsync(CancellationToken ct)
@@ -365,6 +370,8 @@ namespace Runtime.GameModes.Wizard
                 case WizardIntent.Back:
                     if (_step != WizardStep.MatchSetup)
                         return;
+
+                    await _onlineSessionFlow.BackAsync();
 
                     await TransitionAsync(
                         transition: _navigator.ReplaceMatchSetupWithModeSelectionAsync,

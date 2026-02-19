@@ -111,6 +111,15 @@ GameWizard.Matchmaking.Retry,Retry,Повторить,再試行,Matchmaking retr
 GameWizard.Matchmaking.Back,Back,Назад,戻る,Matchmaking back button
 GameWizard.Matchmaking.Hint,{count} players with different params,{count} игроков с другими параметрами,{count} 人が異なる条件で検索中,Matchmaking hint
 GameWizard.MatchSetup.PlayerId.Label,Player ID,ID игрока,プレイヤーID,Match setup player id input label
+GameWizard.MatchSetup.SessionId.Label,Session ID,ID сессии,セッションID,Match setup session id label
+GameWizard.MatchSetup.SessionId.Copy,Copy ID,Копировать ID,IDをコピー,Match setup copy session id button
+GameWizard.MatchSetup.Host.Become,Become Host,Стать хостом,ホストになる,Match setup become host button
+GameWizard.MatchSetup.Status.WaitingForPlayer,Waiting for opponent...,Ожидание соперника...,対戦相手を待っています...,Match setup online status: waiting for player
+GameWizard.MatchSetup.Status.Connecting,Connecting to session...,Подключение к сессии...,セッションに接続中...,Match setup online status: connecting
+GameWizard.MatchSetup.Status.PlayerFoundStartingSoon,Opponent found. Starting soon...,Соперник найден. Скоро старт...,対戦相手が見つかりました。まもなく開始...,Match setup online status: player found and countdown
+GameWizard.MatchSetup.Status.Reconnecting,Reconnecting...,Переподключение...,再接続中...,Match setup online status: reconnecting
+GameWizard.MatchSetup.Status.SessionIdCopied,Session ID copied,ID сессии скопирован,セッションIDをコピーしました,Match setup online status: session id copied
+GameWizard.MatchSetup.Status.HostIntentConfirmed,Host mode selected. Press Start to launch.,Режим хоста выбран. Нажмите «Начать» для запуска.,ホストモードを選択しました。開始するには「開始」を押してください。,Match setup online status: host intent confirmed
 GameWizard.MatchSetup.BotDifficulty.Easy,Easy,Лёгкая,簡単,Bot difficulty: easy
 GameWizard.MatchSetup.BotDifficulty.Normal,Normal,Нормальная,普通,Bot difficulty: normal
 GameWizard.MatchSetup.BotDifficulty.Hard,Hard,Сложная,難しい,Bot difficulty: hard
@@ -134,4 +143,13 @@ Errors.GameWizard.SessionNotReady,Session is not ready,Сессия не гот�
 Errors.GameWizard.TicTacToeConfigInvalid,Invalid Tic-Tac-Toe settings,Некорректные настройки крестиков-ноликов,○×ゲームの設定が無効です,Wizard validation: tic-tac-toe config invalid
 Errors.GameWizard.TicTacToeBoardSizeInvalid,Board size is out of range,Размер поля вне допустимого диапазона,ボードサイズが範囲外です,Wizard validation: board size out of range
 Errors.GameWizard.UnhandledException,An error occurred. Please try again.,Произошла ошибка. Попробуйте ещё раз.,エラーが発生しました。もう一度お試しください。,Wizard: unhandled exception
+Errors.Online.SessionNotFound,Session not found,Сессия не найдена,セッションが見つかりません,Online direct invite: session not found
+Errors.Online.SessionFull,Session is full,Сессия заполнена,セッションが満員です,Online direct invite: session full
+Errors.Online.CannotJoinSelf,Cannot join your own session,Нельзя подключиться к собственной сессии,自分のセッションには参加できません,Online direct invite: cannot join self
+Errors.Online.SessionAlreadyInGame,Session already in game,Сессия уже в игре,セッションはすでにゲーム中です,Online direct invite: session already in game
+Errors.Online.NetworkUnavailable,Network is unavailable,Сеть недоступна,ネットワークが利用できません,Online direct invite: network unavailable
+Errors.Online.RegionMismatchOrUnavailable,Region is unavailable or mismatched,Регион недоступен или не совпадает,リージョンが利用できないか一致しません,Online direct invite: region mismatch or unavailable
+Errors.Online.InvalidSessionIdFormat,Invalid session ID format,Некорректный формат ID сессии,セッションIDの形式が無効です,Online direct invite: invalid session id format
+Errors.Online.DisconnectTimeout,Reconnect timeout exceeded,Превышено время на переподключение,再接続のタイムアウトを超えました,Online reconnect: timeout exceeded
+Errors.Online.OpponentLeft,Opponent left the match,Соперник покинул матч,対戦相手がマッチを退出しました,Online match: opponent left
 

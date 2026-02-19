@@ -15,7 +15,7 @@ namespace Tests.EditMode
     public class LoadMainMenuStateTests
     {
         [Test]
-        public async Task WhenEnter_ThenClearsUIPoolsAndLoadsMainMenuScene()
+        public async Task WhenEnter_ThenClearsViewModelPoolsAndLoadsMainMenuScene()
         {
             // Arrange
             var stateMachineMock = Substitute.For<IGameStateMachine>();
@@ -39,10 +39,12 @@ namespace Tests.EditMode
             Received.InOrder(() =>
             {
                 uiService.ClearViewModelPools();
-                assets.Cleanup();
                 sceneLoaderMock.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>());
                 stateMachineMock.EnterAsync<MainMenuState>(Arg.Any<CancellationToken>());
             });
+
+            uiService.DidNotReceive().CloseAll();
+            assets.DidNotReceive().Cleanup();
         }
 
         [Test]

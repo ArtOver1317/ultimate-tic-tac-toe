@@ -31,6 +31,7 @@ namespace Runtime.GameModes.Wizard
         private readonly IGameWizardCoordinator _coordinator;
         private readonly ILocalizationService _localization;
         private readonly IBotDifficultyCatalog _difficultyCatalog;
+        private readonly IOnlineSessionFlowService _onlineSessionFlow;
 
         private readonly ReactiveProperty<string> _modeTitleText = new(string.Empty);
         private readonly ReactiveProperty<string> _modeIconKey = new(string.Empty);
@@ -48,6 +49,13 @@ namespace Runtime.GameModes.Wizard
         private readonly ReactiveProperty<bool> _canStart = new(false);
         private readonly ReactiveProperty<bool> _isBusy = new(false);
         private readonly ReactiveProperty<string?> _inlineErrorText = new(null);
+        private readonly ReactiveProperty<bool> _onlinePanelVisible = new(false);
+        private readonly ReactiveProperty<string> _visibleSessionId = new(string.Empty);
+        private readonly ReactiveProperty<string?> _onlineStatusText = new(null);
+        private readonly ReactiveProperty<string?> _onlineCountdownText = new(null);
+        private readonly ReactiveProperty<bool> _canCopySessionId = new(false);
+        private readonly ReactiveProperty<bool> _canBecomeHost = new(false);
+        private readonly ReactiveProperty<bool> _isModeOptionsEnabled = new(true);
 
         private IGameSession? _session;
         private string? _activeModeId;
@@ -93,6 +101,13 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<string?> PlayerIdErrorText => _playerIdErrorText;
         public ReadOnlyReactiveProperty<bool> CanStart => _canStart;
         public ReadOnlyReactiveProperty<bool> IsBusy => _isBusy;
+        public ReadOnlyReactiveProperty<bool> OnlinePanelVisible => _onlinePanelVisible;
+        public ReadOnlyReactiveProperty<string> VisibleSessionId => _visibleSessionId;
+        public ReadOnlyReactiveProperty<string?> OnlineStatusText => _onlineStatusText;
+        public ReadOnlyReactiveProperty<string?> OnlineCountdownText => _onlineCountdownText;
+        public ReadOnlyReactiveProperty<bool> CanCopySessionId => _canCopySessionId;
+        public ReadOnlyReactiveProperty<bool> CanBecomeHost => _canBecomeHost;
+        public ReadOnlyReactiveProperty<bool> IsModeOptionsEnabled => _isModeOptionsEnabled;
         public ReadOnlyReactiveProperty<WizardError?> Error => _coordinator.CurrentError;
         public ReadOnlyReactiveProperty<string?> InlineErrorText => _inlineErrorText;
 
@@ -109,17 +124,22 @@ namespace Runtime.GameModes.Wizard
         public Observable<string> HumanDirectInviteText { get; }
         public Observable<string> HumanMatchmakingText { get; }
         public Observable<string> PlayerIdLabelText { get; }
+        public Observable<string> SessionIdLabelText { get; }
+        public Observable<string> CopySessionIdButtonText { get; }
+        public Observable<string> BecomeHostButtonText { get; }
 
         public MatchSetupViewModel(
             IGameCatalog catalog,
             IGameWizardCoordinator coordinator,
             ILocalizationService localization,
-            IBotDifficultyCatalog difficultyCatalog)
+            IBotDifficultyCatalog difficultyCatalog,
+            IOnlineSessionFlowService? onlineSessionFlow = null)
         {
             _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
             _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
             _difficultyCatalog = difficultyCatalog ?? throw new ArgumentNullException(nameof(difficultyCatalog));
+            _onlineSessionFlow = onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance;
 
             _availableDifficulties = new ReactiveProperty<IReadOnlyList<BotDifficulty>>(
                 _difficultyCatalog.Difficulties ?? throw new ArgumentException("Difficulty catalog returned null list.", nameof(difficultyCatalog)));
@@ -138,6 +158,9 @@ namespace Runtime.GameModes.Wizard
             HumanDirectInviteText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.HumanSettings.DirectInvite"));
             HumanMatchmakingText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.HumanSettings.Matchmaking"));
             PlayerIdLabelText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.PlayerId.Label"));
+            SessionIdLabelText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.SessionId.Label"));
+            CopySessionIdButtonText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.SessionId.Copy"));
+            BecomeHostButtonText = _localization.Observe(table, new TextKey("GameWizard.MatchSetup.Host.Become"));
         }
 
         public override void Initialize()
@@ -163,11 +186,18 @@ namespace Runtime.GameModes.Wizard
 
         public void RequestCancel()
         {
+            if (TryRequestOnlineSoftCancel())
+                return;
+
             if (!_coordinator.TryPublishIntent(WizardIntent.Cancel))
                 GameLog.Debug("[MatchSetupViewModel] Cancel intent rejected.");
         }
 
         public void AcknowledgeError() => _coordinator.ClearCurrentError();
+
+        public void RequestCopySessionId() => RequestCopySessionIdAsync().Forget();
+
+        public void RequestBecomeHost() => RequestBecomeHostAsync().Forget();
 
         public void SetOpponentType(OpponentType opponentType)
         {
@@ -290,6 +320,13 @@ namespace Runtime.GameModes.Wizard
             _sessionCanStart = false;
             _canStart.Value = false;
             _isBusy.Value = false;
+            _onlinePanelVisible.Value = false;
+            _visibleSessionId.Value = string.Empty;
+            _onlineStatusText.Value = null;
+            _onlineCountdownText.Value = null;
+            _canCopySessionId.Value = false;
+            _canBecomeHost.Value = false;
+            _isModeOptionsEnabled.Value = true;
             _lastAppliedVersion = 0;
             _inlineErrorText.Value = null;
             _validationErrorText = null;
@@ -326,6 +363,13 @@ namespace Runtime.GameModes.Wizard
             _playerIdErrorText.Dispose();
             _canStart.Dispose();
             _isBusy.Dispose();
+            _onlinePanelVisible.Dispose();
+            _visibleSessionId.Dispose();
+            _onlineStatusText.Dispose();
+            _onlineCountdownText.Dispose();
+            _canCopySessionId.Dispose();
+            _canBecomeHost.Dispose();
+            _isModeOptionsEnabled.Dispose();
             _inlineErrorText.Dispose();
 
             base.OnDispose();
@@ -342,6 +386,7 @@ namespace Runtime.GameModes.Wizard
             WireBusyState();
             WireSessionSubscriptions();
             WireUISubscriptions();
+            WireOnlineSubscriptions();
 
             AddDisposable(_availableDifficulties
                 .Subscribe(OnAvailableDifficultiesChanged));

@@ -390,6 +390,92 @@ namespace Tests.EditMode
             }
         }
 
+        [TestCase(OnlineFlowState.Terminated)]
+        [TestCase(OnlineFlowState.Failed)]
+        [TestCase(OnlineFlowState.Idle)]
+        public async Task WhenOnlineFlowReturnsToTerminalOrActiveToIdleDuringLaunch_ThenCancelsStartAttempt(OnlineFlowState state)
+        {
+            // Arrange
+            _coordinator.Dispose();
+
+            var onlineFlow = Substitute.For<IOnlineSessionFlowService>();
+            var flowSnapshot = new ReactiveProperty<OnlineFlowSnapshot>(MainMenuCoordinatorTestsHelpers.CreateFlowSnapshot(OnlineFlowState.WaitingForPlayer));
+            onlineFlow.Snapshot.Returns(flowSnapshot);
+
+            var launcher = Substitute.For<IOnlineSessionLauncher>();
+            launcher.PrepareForLaunchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
+                .Returns(callInfo => MainMenuCoordinatorTestsHelpers.WaitLaunchCancellationAsync(callInfo.Arg<CancellationToken>()));
+
+            _wizardCoordinatorMock.IsActive.Returns(true);
+            _coordinator = new MainMenuCoordinator(
+                _stateMachineMock,
+                _uiServiceMock,
+                _localizationMock,
+                _wizardCoordinatorMock,
+                launcher,
+                onlineFlow);
+            _coordinator.Initialize(_viewModel);
+
+            _viewModel.RequestStartGame();
+            await UniTask.Yield();
+
+            var config = new GameLaunchConfig("Classic", new TicTacToeConfig(3), new DirectInviteConfig("AB2CD7"));
+
+            // Act
+            _gameLaunchRequested.OnNext(config);
+            await UniTask.Yield();
+            flowSnapshot.Value = MainMenuCoordinatorTestsHelpers.CreateFlowSnapshot(state);
+
+            // Assert
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            await UniTask.WaitUntil(
+                () => _wizardCoordinatorMock.ReceivedCalls().Any(call => call.GetMethodInfo().Name == nameof(IGameWizardCoordinator.CancelStartAttempt)),
+                cancellationToken: cts.Token);
+
+            _wizardCoordinatorMock.Received(1).CancelStartAttempt();
+            await _stateMachineMock.DidNotReceiveWithAnyArgs()
+                .EnterAsync<LoadGameplayState, GameLaunchConfig>(default!, default);
+        }
+
+        [Test]
+        public async Task WhenOnlineFlowIsIdleWithoutActiveTransitionDuringLaunch_ThenDoesNotCancelStartAttempt()
+        {
+            // Arrange
+            _coordinator.Dispose();
+
+            var onlineFlow = Substitute.For<IOnlineSessionFlowService>();
+            var flowSnapshot = new ReactiveProperty<OnlineFlowSnapshot>(MainMenuCoordinatorTestsHelpers.CreateFlowSnapshot(OnlineFlowState.Idle));
+            onlineFlow.Snapshot.Returns(flowSnapshot);
+
+            var launcher = Substitute.For<IOnlineSessionLauncher>();
+            launcher.PrepareForLaunchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
+                .Returns(_ => UniTask.FromResult(OnlineLaunchPreparationResult.Success()));
+
+            _wizardCoordinatorMock.IsActive.Returns(true);
+            _coordinator = new MainMenuCoordinator(
+                _stateMachineMock,
+                _uiServiceMock,
+                _localizationMock,
+                _wizardCoordinatorMock,
+                launcher,
+                onlineFlow);
+            _coordinator.Initialize(_viewModel);
+
+            _viewModel.RequestStartGame();
+            await UniTask.Yield();
+
+            var config = new GameLaunchConfig("Classic", new TicTacToeConfig(3), new DirectInviteConfig("AB2CD7"));
+
+            // Act
+            _gameLaunchRequested.OnNext(config);
+            await UniTask.Yield();
+            flowSnapshot.Value = MainMenuCoordinatorTestsHelpers.CreateFlowSnapshot(OnlineFlowState.Idle);
+            await UniTask.Yield();
+
+            // Assert
+            _wizardCoordinatorMock.DidNotReceive().CancelStartAttempt();
+        }
+
         [Test]
         public async Task WhenInitializeCalledTwice_ThenOldSubscriptionsDisposed()
         {
@@ -638,5 +724,29 @@ namespace Tests.EditMode
         public override void Show() => ShowCalls++;
 
         public override void Hide() => HideCalls++;
+    }
+
+    internal static partial class MainMenuCoordinatorTestsHelpers
+    {
+        public static OnlineFlowSnapshot CreateFlowSnapshot(OnlineFlowState state) => new(
+            state,
+            previousStableState: null,
+            candidateSessionId: "ABCDEF",
+            activeSessionId: "ABCDEF",
+            flowEpoch: 1,
+            region: "eu",
+            canStart: false,
+            isBusy: false,
+            errorCode: state == OnlineFlowState.Failed ? OnlineErrorCode.NetworkUnavailable : OnlineErrorCode.None,
+            errorLocalizationKey: state == OnlineFlowState.Failed ? OnlineLocalizationKeys.ErrorKey(OnlineErrorCode.NetworkUnavailable) : null,
+            statusLocalizationKey: null,
+            countdownRemainingSeconds: null,
+            graceDeadlineUtc: null);
+
+        public static async UniTask<OnlineLaunchPreparationResult> WaitLaunchCancellationAsync(CancellationToken ct)
+        {
+            await UniTask.Delay(TimeSpan.FromSeconds(30), cancellationToken: ct);
+            return OnlineLaunchPreparationResult.Success();
+        }
     }
 }

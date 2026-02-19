@@ -63,7 +63,7 @@ namespace Tests.PlayMode.GameModes.Wizard
                             break;
 
                         case HumanOpponentKind.DirectInvite:
-                            opponentConfig = new DirectInviteConfig(snapshot.TargetPlayerId ?? "TestPlayer");
+                            opponentConfig = new DirectInviteConfig(snapshot.TargetPlayerId ?? "AB2CD7");
                             break;
 
                         case HumanOpponentKind.Matchmaking:

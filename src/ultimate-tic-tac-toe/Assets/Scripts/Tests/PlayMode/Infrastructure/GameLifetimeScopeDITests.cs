@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Runtime.Infrastructure.Scopes;
 using Runtime.Localization;
 using Runtime.Services.UI;
+using Runtime.GameModes.Wizard;
 using Runtime.UI.MainMenu;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -305,6 +306,28 @@ namespace Tests.PlayMode.Infrastructure
             localization.Should().NotBeNull("ILocalizationService must be resolvable and injectable into LocaleDebugOverlay");
             
             Object.DestroyImmediate(gameObject);
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator WhenScopeBuilt_ThenOnlineSessionFlowServiceIsResolvable()
+        {
+            var onlineFlow = _scope.Container.Resolve<IOnlineSessionFlowService>();
+
+            onlineFlow.Should().NotBeNull(
+                "IOnlineSessionFlowService must be resolvable from GameLifetimeScope for MainMenu/GameWizard startup");
+
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator WhenScopeBuilt_ThenOnlineSessionLauncherIsResolvable()
+        {
+            var onlineLauncher = _scope.Container.Resolve<IOnlineSessionLauncher>();
+
+            onlineLauncher.Should().NotBeNull(
+                "IOnlineSessionLauncher must be resolvable from GameLifetimeScope for MainMenu/GameWizard startup");
+
             yield return null;
         }
     }

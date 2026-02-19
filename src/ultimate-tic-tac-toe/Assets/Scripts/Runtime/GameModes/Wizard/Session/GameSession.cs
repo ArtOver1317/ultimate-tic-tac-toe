@@ -149,7 +149,7 @@ namespace Runtime.GameModes.Wizard
 
                 case HumanOpponentKind.DirectInvite:
                     if (string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
-                        throw new InvalidOperationException("DirectInvite requires TargetPlayerId after validation.");
+                        throw new InvalidOperationException("DirectInvite requires SessionId after validation.");
 
                     return new DirectInviteConfig(snapshot.TargetPlayerId);
 
@@ -316,12 +316,12 @@ namespace Runtime.GameModes.Wizard
             if (string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
             {
                 (errors ??= new List<ValidationError>(capacity: 4))
-                    .Add(new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdRequired"));
+                    .Add(new ValidationError(WizardFieldNames.InviteSessionId, "Errors.Online.InvalidSessionIdFormat"));
             }
-            else if (!PlayerId.TryCreate(snapshot.TargetPlayerId, out _))
+            else if (!OnlineSessionIdFormatter.TryNormalizeToCanonical(snapshot.TargetPlayerId, out _))
             {
                 (errors ??= new List<ValidationError>(capacity: 4))
-                    .Add(new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdInvalid"));
+                    .Add(new ValidationError(WizardFieldNames.InviteSessionId, "Errors.Online.InvalidSessionIdFormat"));
             }
         }
     }

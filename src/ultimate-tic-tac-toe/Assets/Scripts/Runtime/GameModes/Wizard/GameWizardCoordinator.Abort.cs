@@ -88,6 +88,8 @@ namespace Runtime.GameModes.Wizard
                 GameLog.Debug($"[GameWizardCoordinator] Abort wizard. Reason={reason}");
 
                 wizardCts?.Cancel();
+                if (ShouldExitOnlineFlow(reason))
+                    await _onlineSessionFlow.ExitAsync();
                 await TryCloseWizardWindowsAsync();
                 await TryAwaitProcessingTaskAsync(processingTask, awaitProcessingTask);
             }
@@ -107,6 +109,12 @@ namespace Runtime.GameModes.Wizard
                 Interlocked.Exchange(ref _abortInProgress, 0);
             }
         }
+
+        private static bool ShouldExitOnlineFlow(AbortReason reason) =>
+            reason == AbortReason.UserCancel ||
+            reason == AbortReason.Disconnect ||
+            reason == AbortReason.Error ||
+            reason == AbortReason.StartCancelled;
 
         private (CancellationTokenSource? wizardCts, Task? processingTask, IGameSession? session, bool shouldPublishAbort) DetachWizardState()
         {

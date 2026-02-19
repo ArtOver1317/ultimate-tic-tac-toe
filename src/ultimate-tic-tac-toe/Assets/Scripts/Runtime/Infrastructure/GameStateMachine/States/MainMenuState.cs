@@ -82,6 +82,10 @@ namespace Runtime.Infrastructure.GameStateMachine.States
                 {
                     throw new OperationCanceledException(ex.Message, ex, cancellationToken);
                 }
+                catch (OperationCanceledException)
+                {
+                    _uiService.Get<MainMenuView>()?.Show();
+                }
                 catch (Exception ex)
                 {
                     Log.Error(LogTags.UI, $"[MainMenuState] Wizard entry failed. Falling back to MainMenuView. {ex}");

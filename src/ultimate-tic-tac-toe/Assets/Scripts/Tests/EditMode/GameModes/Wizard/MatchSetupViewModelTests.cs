@@ -314,7 +314,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             var errors = new List<ValidationError>
             {
-                new("TargetPlayerId", "Errors.GameWizard.PlayerIdRequired"),
+                new("TargetPlayerId", "Errors.Online.InvalidSessionIdFormat"),
                 new("GameConfig", "Errors.GameWizard.ConfigRequired"),
             };
 
@@ -1243,7 +1243,7 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public void WhenSetTargetPlayerIdCalledWithInvalidString_ThenWritesTrimmedRawValueToSession()
+        public void WhenSetTargetPlayerIdCalledWithInvalidString_ThenWritesNormalizedValueToSession()
         {
             // Arrange
             var session = new FakeGameSession(GameSessionSnapshot.Default
@@ -1258,11 +1258,11 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.SetTargetPlayerId("invalid");
 
             // Assert
-            session.Snapshot.CurrentValue.TargetPlayerId.Should().Be("invalid");
+            session.Snapshot.CurrentValue.TargetPlayerId.Should().Be("INVALID");
         }
 
         [Test]
-        public void WhenSetTargetPlayerIdCalledWithInvalidStringWithWhitespace_ThenWritesTrimmedRawValueToSession()
+        public void WhenSetTargetPlayerIdCalledWithInvalidStringWithWhitespace_ThenWritesNormalizedValueToSession()
         {
             // Arrange
             var session = new FakeGameSession(GameSessionSnapshot.Default
@@ -1277,7 +1277,7 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.SetTargetPlayerId("  abc  ");
 
             // Assert
-            session.Snapshot.CurrentValue.TargetPlayerId.Should().Be("abc");
+            session.Snapshot.CurrentValue.TargetPlayerId.Should().Be("ABC");
         }
 
         [Test]
@@ -1422,11 +1422,11 @@ namespace Tests.EditMode.GameModes.Wizard
             using var sut = CreateSut();
             sut.Initialize();
 
-            const string expected = "resolved:Errors.GameWizard.PlayerIdRequired";
+            const string expected = "resolved:Errors.Online.InvalidSessionIdFormat";
 
             var errors = new[]
             {
-                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdRequired")
+                new ValidationError(WizardFieldNames.InviteSessionId, "Errors.Online.InvalidSessionIdFormat")
             };
 
             // Act
@@ -1448,12 +1448,12 @@ namespace Tests.EditMode.GameModes.Wizard
             using var sut = CreateSut();
             sut.Initialize();
 
-            const string expected = "resolved:Errors.GameWizard.PlayerIdRequired";
+            const string expected = "resolved:Errors.Online.InvalidSessionIdFormat";
 
             var errors = new[]
             {
                 new ValidationError(WizardFieldNames.GameConfig, "Errors.GameWizard.ModeConfigInvalid"),
-                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdRequired"),
+                new ValidationError(WizardFieldNames.InviteSessionId, "Errors.Online.InvalidSessionIdFormat"),
                 new ValidationError(WizardFieldNames.BotDifficultyId, "Errors.GameWizard.DifficultyRequired")
             };
 
@@ -1476,13 +1476,13 @@ namespace Tests.EditMode.GameModes.Wizard
             using var sut = CreateSut();
             sut.Initialize();
 
-            const string expected = "resolved:Errors.GameWizard.PlayerIdRequired";
+            const string expected = "resolved:Errors.Online.InvalidSessionIdFormat";
 
             var errors = new[]
             {
                 new ValidationError(WizardFieldNames.GameConfig, "Errors.GameWizard.ModeConfigInvalid"),
                 new ValidationError(WizardFieldNames.BotDifficultyId, "Errors.GameWizard.DifficultyRequired"),
-                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdRequired")
+                new ValidationError(WizardFieldNames.InviteSessionId, "Errors.Online.InvalidSessionIdFormat")
             };
 
             // Act
@@ -1506,7 +1506,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             var errors = new[]
             {
-                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdRequired")
+                new ValidationError(WizardFieldNames.InviteSessionId, "Errors.Online.InvalidSessionIdFormat")
             };
 
             // Act
@@ -1530,7 +1530,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             var errors = new[]
             {
-                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.GameWizard.PlayerIdRequired")
+                new ValidationError(WizardFieldNames.TargetPlayerId, "Errors.Online.InvalidSessionIdFormat")
             };
             session.EmitValidationErrors(errors);
 
@@ -1617,6 +1617,81 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.TargetPlayerId.CurrentValue.Should().Be("");
         }
 
+        [Test]
+        public async Task WhenDirectInviteSelectedAndFlowIdleWithoutCandidate_ThenGeneratesSessionIdAndEnablesCopy()
+        {
+            var session = new FakeGameSession(GameSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var onlineFlow = new SpyMatchSetupOnlineFlow(
+                new OnlineFlowSnapshot(
+                    OnlineFlowState.Idle,
+                    previousStableState: null,
+                    candidateSessionId: string.Empty,
+                    activeSessionId: null,
+                    flowEpoch: 1,
+                    region: "eu",
+                    canStart: false,
+                    isBusy: false,
+                    errorCode: OnlineErrorCode.None,
+                    errorLocalizationKey: null,
+                    statusLocalizationKey: null,
+                    countdownRemainingSeconds: null,
+                    graceDeadlineUtc: null));
+
+            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization, _difficultyCatalog, onlineFlow);
+            sut.DisablePlayerLoopForTests();
+            sut.Initialize();
+
+            await WaitUntilAsync(() =>
+                sut.CanCopySessionId.CurrentValue &&
+                string.Equals(sut.VisibleSessionId.CurrentValue, "ABCDEF", StringComparison.Ordinal));
+
+            onlineFlow.EnterHumanSetupCalls.Should().Be(1);
+            sut.VisibleSessionId.CurrentValue.Should().Be("ABCDEF");
+            sut.CanCopySessionId.CurrentValue.Should().BeTrue();
+        }
+
+        [Test]
+        public async Task WhenDirectInviteSelectedAndFlowTerminatedWithoutCandidate_ThenGeneratesSessionIdAndEnablesCopy()
+        {
+            var session = new FakeGameSession(GameSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var onlineFlow = new SpyMatchSetupOnlineFlow(
+                new OnlineFlowSnapshot(
+                    OnlineFlowState.Terminated,
+                    previousStableState: OnlineFlowState.InGame,
+                    candidateSessionId: string.Empty,
+                    activeSessionId: null,
+                    flowEpoch: 2,
+                    region: "eu",
+                    canStart: false,
+                    isBusy: false,
+                    errorCode: OnlineErrorCode.OpponentLeft,
+                    errorLocalizationKey: OnlineLocalizationKeys.ErrorKey(OnlineErrorCode.OpponentLeft),
+                    statusLocalizationKey: null,
+                    countdownRemainingSeconds: null,
+                    graceDeadlineUtc: null));
+
+            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization, _difficultyCatalog, onlineFlow);
+            sut.DisablePlayerLoopForTests();
+            sut.Initialize();
+
+            await WaitUntilAsync(() =>
+                sut.CanCopySessionId.CurrentValue &&
+                string.Equals(sut.VisibleSessionId.CurrentValue, "ABCDEF", StringComparison.Ordinal));
+
+            onlineFlow.EnterHumanSetupCalls.Should().Be(1);
+            sut.VisibleSessionId.CurrentValue.Should().Be("ABCDEF");
+            sut.CanCopySessionId.CurrentValue.Should().BeTrue();
+            sut.CanBecomeHost.CurrentValue.Should().BeTrue();
+        }
+
         private void SetupCoordinatorWithSession(FakeGameSession session) =>
             _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(callInfo =>
             {
@@ -1682,6 +1757,19 @@ namespace Tests.EditMode.GameModes.Wizard
             }
         }
 
+        private static async Task WaitUntilAsync(Func<bool> predicate, int maxFrames = 120)
+        {
+            for (var i = 0; i < maxFrames; i++)
+            {
+                if (predicate())
+                    return;
+
+                await UniTask.DelayFrame(1);
+            }
+
+            Assert.Fail($"Condition was not met within {maxFrames} frames.");
+        }
+
         private MatchSetupViewModel CreateSut() =>
             CreateSutWithDefaults();
 
@@ -1690,6 +1778,71 @@ namespace Tests.EditMode.GameModes.Wizard
             var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization, _difficultyCatalog);
             sut.DisablePlayerLoopForTests();
             return sut;
+        }
+
+        private sealed class SpyMatchSetupOnlineFlow : IOnlineSessionFlowService
+        {
+            private readonly ReactiveProperty<OnlineFlowSnapshot> _snapshot;
+
+            public SpyMatchSetupOnlineFlow(OnlineFlowSnapshot initialSnapshot)
+            {
+                _snapshot = new ReactiveProperty<OnlineFlowSnapshot>(initialSnapshot);
+            }
+
+            public int EnterHumanSetupCalls { get; private set; }
+
+            public ReadOnlyReactiveProperty<OnlineFlowSnapshot> Snapshot => _snapshot;
+
+            public UniTask EnterHumanSetupAsync(string region, string currentUserId)
+            {
+                EnterHumanSetupCalls++;
+
+                var current = _snapshot.Value;
+                if ((current.State == OnlineFlowState.Idle ||
+                     current.State == OnlineFlowState.Terminated ||
+                     current.State == OnlineFlowState.Failed) &&
+                    string.IsNullOrWhiteSpace(current.CandidateSessionId))
+                {
+                    _snapshot.Value = new OnlineFlowSnapshot(
+                        state: OnlineFlowState.Idle,
+                        previousStableState: null,
+                        candidateSessionId: "ABCDEF",
+                        activeSessionId: null,
+                        flowEpoch: current.FlowEpoch + 1,
+                        region: current.Region,
+                        canStart: false,
+                        isBusy: false,
+                        errorCode: OnlineErrorCode.None,
+                        errorLocalizationKey: null,
+                        statusLocalizationKey: null,
+                        countdownRemainingSeconds: null,
+                        graceDeadlineUtc: null);
+                }
+
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask ConfirmHostIntentAsync() => UniTask.CompletedTask;
+            public UniTask StartHostSessionAsync(OnlineSessionConfig hostConfig) => UniTask.CompletedTask;
+            public UniTask JoinBySessionIdAsync(string rawSessionIdInput, string region, string currentUserId) => UniTask.CompletedTask;
+            public UniTask CopyVisibleSessionIdAsync() => UniTask.CompletedTask;
+            public UniTask BackAsync() => UniTask.CompletedTask;
+            public UniTask ExitAsync() => UniTask.CompletedTask;
+            public UniTask SetReadyForNextMatchAsync(bool isReady) => UniTask.CompletedTask;
+            public UniTask OnOpponentReadyForNextMatchAsync(bool isReady) => UniTask.CompletedTask;
+            public UniTask OnHostCreatedAsync() => UniTask.CompletedTask;
+            public UniTask OnJoinSucceededAsync() => UniTask.CompletedTask;
+            public UniTask OnJoinFailedAsync(OnlineErrorCode errorCode) => UniTask.CompletedTask;
+            public UniTask OnGuestJoinedAsync() => UniTask.CompletedTask;
+            public UniTask OnCountdownTickAsync(int remainingSeconds) => UniTask.CompletedTask;
+            public UniTask OnGameplayEnteredAsync() => UniTask.CompletedTask;
+            public UniTask OnRoundCompletedAsync() => UniTask.CompletedTask;
+            public UniTask OnDisconnectDetectedAsync() => UniTask.CompletedTask;
+            public UniTask OnReconnectSucceededAsync() => UniTask.CompletedTask;
+            public UniTask OnGraceTimeoutAsync(int eventEpoch) => UniTask.CompletedTask;
+            public UniTask OnOpponentLeftAsync() => UniTask.CompletedTask;
+
+            public void Dispose() => _snapshot.Dispose();
         }
 
         private sealed class FakeGameSession : IGameSession

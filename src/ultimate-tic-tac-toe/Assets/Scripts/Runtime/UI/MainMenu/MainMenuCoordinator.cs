@@ -21,6 +21,8 @@ namespace Runtime.UI.MainMenu
         private readonly IUIService _uiService;
         private readonly ILocalizationService _localization;
         private readonly IGameWizardCoordinator _wizardCoordinator;
+        private readonly IOnlineSessionLauncher _onlineSessionLauncher;
+        private readonly IOnlineSessionFlowService _onlineSessionFlow;
         private CompositeDisposable _disposables = new();
         private CompositeDisposable _wizardDisposables = new();
         private CancellationTokenSource _lifecycleCts = new();
@@ -30,17 +32,23 @@ namespace Runtime.UI.MainMenu
         private bool _isDisposed;
         private int _startInProgress;
         private int _wizardStartInProgress;
+        private OnlineFlowState _lastOnlineFlowState = OnlineFlowState.Idle;
+        private bool _hasOnlineFlowState;
 
         public MainMenuCoordinator(
             IGameStateMachine stateMachine,
             IUIService uiService,
             ILocalizationService localization,
-            IGameWizardCoordinator wizardCoordinator)
+            IGameWizardCoordinator wizardCoordinator,
+            IOnlineSessionLauncher onlineSessionLauncher = null,
+            IOnlineSessionFlowService onlineSessionFlow = null)
         {
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             _uiService = uiService ?? throw new ArgumentNullException(nameof(uiService));
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
             _wizardCoordinator = wizardCoordinator ?? throw new ArgumentNullException(nameof(wizardCoordinator));
+            _onlineSessionLauncher = onlineSessionLauncher ?? NoOpOnlineSessionLauncher.Instance;
+            _onlineSessionFlow = onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance;
         }
 
         public void Initialize(MainMenuViewModel viewModel)
@@ -92,6 +100,7 @@ namespace Runtime.UI.MainMenu
             _wizardDisposables = new CompositeDisposable();
             _startInProgress = 0;
             _wizardStartInProgress = 0;
+            _hasOnlineFlowState = false;
             _launchCts?.Cancel();
             _launchCts?.Dispose();
             _launchCts = null;
@@ -227,6 +236,10 @@ namespace Runtime.UI.MainMenu
             _wizardCoordinator.WizardAborted
                 .Subscribe(HandleWizardAborted)
                 .AddTo(_wizardDisposables);
+
+            _onlineSessionFlow.Snapshot
+                .Subscribe(HandleOnlineFlowSnapshot)
+                .AddTo(_wizardDisposables);
         }
 
         private async UniTask OnLaunchRequestedAsync(GameLaunchConfig config, CancellationToken cancellationToken)
@@ -242,10 +255,31 @@ namespace Runtime.UI.MainMenu
                 cancellationToken.ThrowIfCancellationRequested();
                 _viewModel.SetInteractable(false);
 
+                _launchCts?.Cancel();
                 _launchCts?.Dispose();
                 _launchCts = new CancellationTokenSource();
+                var launchToken = _launchCts.Token;
 
-                await _stateMachine.EnterAsync<LoadGameplayState, GameLaunchConfig>(config, _launchCts.Token);
+                var preparation = await _onlineSessionLauncher.PrepareForLaunchAsync(config, launchToken);
+                if (!preparation.IsSuccess)
+                {
+                    _viewModel.SetInteractable(true);
+
+                    if (_wizardCoordinator.IsActive)
+                    {
+                        _wizardCoordinator.CompleteStartAttempt(
+                            succeeded: false,
+                            error: preparation.Error ?? new WizardError(
+                                code: "wizard.online_prepare_failed",
+                                messageKey: "Errors.GameWizard.UnhandledException",
+                                isBlocking: true,
+                                displayType: ErrorDisplayType.Modal));
+                    }
+
+                    return;
+                }
+
+                await _stateMachine.EnterAsync<LoadGameplayState, GameLaunchConfig>(config, launchToken);
                 _wizardCoordinator.CompleteStartAttempt(succeeded: true);
             }
             catch (OperationCanceledException)
@@ -253,15 +287,7 @@ namespace Runtime.UI.MainMenu
                 _viewModel.SetInteractable(true);
 
                 if (_wizardCoordinator.IsActive)
-                {
-                    _wizardCoordinator.CompleteStartAttempt(
-                        succeeded: false,
-                        error: new WizardError(
-                            code: "wizard.start_cancelled",
-                            messageKey: "Errors.GameWizard.UnhandledException",
-                            isBlocking: true,
-                            displayType: ErrorDisplayType.Modal));
-                }
+                    _wizardCoordinator.CancelStartAttempt();
             }
             catch (Exception ex)
             {
@@ -286,6 +312,39 @@ namespace Runtime.UI.MainMenu
                 Interlocked.Exchange(ref _startInProgress, 0);
             }
         }
+
+        private void HandleOnlineFlowSnapshot(OnlineFlowSnapshot snapshot)
+        {
+            var previousState = _hasOnlineFlowState ? _lastOnlineFlowState : snapshot.State;
+            _lastOnlineFlowState = snapshot.State;
+            _hasOnlineFlowState = true;
+
+            if (_startInProgress == 0)
+                return;
+
+            if (ShouldCancelLaunchByOnlineTransition(previousState, snapshot.State))
+            {
+                _launchCts?.Cancel();
+            }
+        }
+
+        private static bool ShouldCancelLaunchByOnlineTransition(OnlineFlowState previousState, OnlineFlowState currentState)
+        {
+            if (currentState == OnlineFlowState.Terminated || currentState == OnlineFlowState.Failed)
+                return true;
+
+            return currentState == OnlineFlowState.Idle && IsActiveOnlineState(previousState);
+        }
+
+        private static bool IsActiveOnlineState(OnlineFlowState state) =>
+            state == OnlineFlowState.HostIntentConfirmed ||
+            state == OnlineFlowState.HostStarting ||
+            state == OnlineFlowState.WaitingForPlayer ||
+            state == OnlineFlowState.GuestConnecting ||
+            state == OnlineFlowState.ConnectedCountdown ||
+            state == OnlineFlowState.InGame ||
+            state == OnlineFlowState.Result ||
+            state == OnlineFlowState.Reconnecting;
 
         private void HandleWizardAborted(AbortReason reason)
         {

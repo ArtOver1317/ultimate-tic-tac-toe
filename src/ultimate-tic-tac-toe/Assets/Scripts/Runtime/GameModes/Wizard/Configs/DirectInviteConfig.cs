@@ -2,15 +2,14 @@ namespace Runtime.GameModes.Wizard
 {
     public sealed class DirectInviteConfig : IOpponentConfig
     {
-        public string PlayerId { get; }
+        public string SessionId { get; }
 
-        public DirectInviteConfig(string playerId)
+        public DirectInviteConfig(string sessionId)
         {
-            if (!global::Runtime.GameModes.Wizard.PlayerId.TryCreate(playerId, out var parsed))
-                throw new System.ArgumentException("PlayerId must be a numeric ulong.", nameof(playerId));
+            if (!OnlineSessionIdFormatter.TryNormalizeToCanonical(sessionId, out var canonical))
+                throw new System.ArgumentException("SessionId must be a valid canonical invite code.", nameof(sessionId));
 
-            if (parsed != null) 
-                PlayerId = parsed.Value;
+            SessionId = canonical;
         }
     }
 }

@@ -362,6 +362,105 @@ namespace Tests.EditMode.Games.TicTacToe
                 .StartAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         }
 
+        [Test]
+        public async Task WhenOnlineMatchConfigPayloadExists_ThenUsesHostBoardSizeForStartMatch()
+        {
+            var onlineSessionStore = new OnlineGameplaySessionContextStore();
+            onlineSessionStore.SetDirectInviteSession("ABCDEF", "guest-user", isHost: false);
+            onlineSessionStore.SetMatchConfig(new OnlineMatchConfigPayload("classic", boardSize: 5, isUltimate: false));
+
+            var networkBridge = Substitute.For<IGameplayNetworkBridge>();
+            networkBridge.Snapshot.Returns(new ReactiveProperty<GameplayNetworkSnapshot?>(null));
+            networkBridge.IncomingMoves.Returns(new Subject<MoveCommand>());
+            networkBridge.IncomingRoundReadySignals.Returns(new Subject<RoundReadySignal>());
+            networkBridge.BindAsync(Arg.Any<string>(), Arg.Any<bool>()).Returns(UniTask.CompletedTask);
+
+            var onlineFlow = new TestOnlineSessionFlow();
+            var matchStateProvider = Substitute.For<IMatchStateProvider>();
+
+            var sut = new GameplayStartup(
+                _configStore,
+                _gameService,
+                _fieldPresenter,
+                _fieldUiAdapter,
+                _ecsLifecycle,
+                _eventStream,
+                _commandSink,
+                _movesBinder,
+                _winLineRenderer,
+                _seriesService,
+                _backHandler,
+                _stateMachine,
+                _botDriver,
+                _ultimateBotOrchestrator,
+                Substitute.For<IMatchFailSafeGateway>(),
+                ultimateSnapshotProvider: null,
+                networkBridge: networkBridge,
+                onlineSessionContextStore: onlineSessionStore,
+                matchStateProvider: matchStateProvider,
+                onlineSessionFlow: onlineFlow);
+
+            await sut.StartAsync(CancellationToken.None);
+
+            await _gameService.Received(1).StartMatchAsync(
+                Arg.Is<GameLaunchConfig>(cfg =>
+                    cfg.GameConfig != null &&
+                    cfg.GameConfig.GetType() == typeof(TicTacToeConfig) &&
+                    ((TicTacToeConfig)cfg.GameConfig).BoardSize == 5 &&
+                    !((TicTacToeConfig)cfg.GameConfig).IsUltimate),
+                Arg.Any<CancellationToken>());
+
+            sut.Dispose();
+        }
+
+        [Test]
+        public async Task WhenOnlineFlowTerminatedDuringOnlineMatch_ThenReturnsToMainMenuViaBackHandler()
+        {
+            var onlineFlow = new TestOnlineSessionFlow();
+            var onlineSessionStore = new OnlineGameplaySessionContextStore();
+            onlineSessionStore.SetDirectInviteSession("ABCDEF", "local-user", isHost: false);
+
+            var matchStateProvider = Substitute.For<IMatchStateProvider>();
+            var networkBridge = Substitute.For<IGameplayNetworkBridge>();
+            networkBridge.Snapshot.Returns(new ReactiveProperty<GameplayNetworkSnapshot?>(null));
+            networkBridge.IncomingMoves.Returns(new Subject<MoveCommand>());
+            networkBridge.IncomingRoundReadySignals.Returns(new Subject<RoundReadySignal>());
+            networkBridge.BindAsync(Arg.Any<string>(), Arg.Any<bool>()).Returns(UniTask.CompletedTask);
+
+            _backHandler.ClearReceivedCalls();
+
+            var sut = new GameplayStartup(
+                _configStore,
+                _gameService,
+                _fieldPresenter,
+                _fieldUiAdapter,
+                _ecsLifecycle,
+                _eventStream,
+                _commandSink,
+                _movesBinder,
+                _winLineRenderer,
+                _seriesService,
+                _backHandler,
+                _stateMachine,
+                _botDriver,
+                _ultimateBotOrchestrator,
+                Substitute.For<IMatchFailSafeGateway>(),
+                ultimateSnapshotProvider: null,
+                networkBridge: networkBridge,
+                onlineSessionContextStore: onlineSessionStore,
+                matchStateProvider: matchStateProvider,
+                onlineSessionFlow: onlineFlow);
+
+            await sut.StartAsync(CancellationToken.None);
+
+            onlineFlow.Emit(OnlineFlowState.Terminated, OnlineErrorCode.OpponentLeft);
+            await UniTask.DelayFrame(1);
+
+            await _backHandler.Received(1).HandleBackAsync(Arg.Any<CancellationToken>());
+
+            sut.Dispose();
+        }
+
         private static async Task RunAllowingFailingLogsAsync(Func<Task> action, params Regex[] expectedFailingLogs)
         {
             var captured = new List<(LogType type, string condition)>();
@@ -396,6 +495,66 @@ namespace Tests.EditMode.Games.TicTacToe
                 regex.IsMatch(messages[i]).Should().BeTrue(
                     $"expected failing log #{i + 1} to match regex '{regex}', but was: {messages[i]}");
             }
+        }
+
+        private sealed class TestOnlineSessionFlow : IOnlineSessionFlowService
+        {
+            private readonly ReactiveProperty<OnlineFlowSnapshot> _snapshot = new(
+                new OnlineFlowSnapshot(
+                    OnlineFlowState.Idle,
+                    previousStableState: null,
+                    candidateSessionId: string.Empty,
+                    activeSessionId: null,
+                    flowEpoch: 1,
+                    region: "eu",
+                    canStart: false,
+                    isBusy: false,
+                    errorCode: OnlineErrorCode.None,
+                    errorLocalizationKey: null,
+                    statusLocalizationKey: null,
+                    countdownRemainingSeconds: null,
+                    graceDeadlineUtc: null));
+
+            public ReadOnlyReactiveProperty<OnlineFlowSnapshot> Snapshot => _snapshot;
+
+            public void Emit(OnlineFlowState state, OnlineErrorCode errorCode) =>
+                _snapshot.Value = new OnlineFlowSnapshot(
+                    state,
+                    previousStableState: null,
+                    candidateSessionId: string.Empty,
+                    activeSessionId: "ABCDEF",
+                    flowEpoch: _snapshot.Value.FlowEpoch + 1,
+                    region: "eu",
+                    canStart: false,
+                    isBusy: false,
+                    errorCode: errorCode,
+                    errorLocalizationKey: OnlineLocalizationKeys.ErrorKey(errorCode),
+                    statusLocalizationKey: null,
+                    countdownRemainingSeconds: null,
+                    graceDeadlineUtc: null);
+
+            public UniTask EnterHumanSetupAsync(string region, string currentUserId) => UniTask.CompletedTask;
+            public UniTask ConfirmHostIntentAsync() => UniTask.CompletedTask;
+            public UniTask StartHostSessionAsync(OnlineSessionConfig hostConfig) => UniTask.CompletedTask;
+            public UniTask JoinBySessionIdAsync(string rawSessionIdInput, string region, string currentUserId) => UniTask.CompletedTask;
+            public UniTask CopyVisibleSessionIdAsync() => UniTask.CompletedTask;
+            public UniTask BackAsync() => UniTask.CompletedTask;
+            public UniTask ExitAsync() => UniTask.CompletedTask;
+            public UniTask SetReadyForNextMatchAsync(bool isReady) => UniTask.CompletedTask;
+            public UniTask OnOpponentReadyForNextMatchAsync(bool isReady) => UniTask.CompletedTask;
+            public UniTask OnHostCreatedAsync() => UniTask.CompletedTask;
+            public UniTask OnJoinSucceededAsync() => UniTask.CompletedTask;
+            public UniTask OnJoinFailedAsync(OnlineErrorCode errorCode) => UniTask.CompletedTask;
+            public UniTask OnGuestJoinedAsync() => UniTask.CompletedTask;
+            public UniTask OnCountdownTickAsync(int remainingSeconds) => UniTask.CompletedTask;
+            public UniTask OnGameplayEnteredAsync() => UniTask.CompletedTask;
+            public UniTask OnRoundCompletedAsync() => UniTask.CompletedTask;
+            public UniTask OnDisconnectDetectedAsync() => UniTask.CompletedTask;
+            public UniTask OnReconnectSucceededAsync() => UniTask.CompletedTask;
+            public UniTask OnGraceTimeoutAsync(int eventEpoch) => UniTask.CompletedTask;
+            public UniTask OnOpponentLeftAsync() => UniTask.CompletedTask;
+
+            public void Dispose() => _snapshot.Dispose();
         }
 
     }

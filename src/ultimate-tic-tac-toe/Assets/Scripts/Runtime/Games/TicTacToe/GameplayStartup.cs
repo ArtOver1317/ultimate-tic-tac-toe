@@ -44,6 +44,12 @@ namespace Runtime.Games.TicTacToe
         private readonly IBotTurnOrchestrator _ultimateBotOrchestrator;
         private readonly IMatchFailSafeGateway _matchFailSafeGateway;
         private readonly IUltimateGameplaySnapshotProvider _ultimateSnapshotProvider;
+        private readonly IGameplayNetworkBridge _networkBridge;
+        private readonly IOnlineGameplaySessionContextStore _onlineSessionContextStore;
+        private readonly IOnlineSessionFlowService _onlineSessionFlow;
+        private readonly IMatchStateProvider _matchStateProvider;
+        private readonly HostAuthoritativeMoveProcessor _hostMoveProcessor = new();
+        private readonly OnlineRoundCoordinator _onlineRoundCoordinator = new();
         private readonly MiniBoardStatus[] _ultimateMiniBoardBuffer = new MiniBoardStatus[9];
 
         private FieldRenderSpec _fieldSpec;
@@ -54,6 +60,14 @@ namespace Runtime.Games.TicTacToe
         private bool _restartInProgress;
         private bool _classicBotStarted;
         private bool _ultimateBotStarted;
+        private bool _isOnlineDirectInvite;
+        private bool _onlineIsHost;
+        private bool _onlineRoundFinished;
+        private bool _onlineRematchStarted;
+        private bool _useHostAuthoritativeFilter;
+        private int _exitToMenuRequested;
+        private string? _onlineLocalUserId;
+        private string? _onlineRemoteUserId;
         private bool _disposed;
 
         public GameplayStartup(
@@ -72,7 +86,11 @@ namespace Runtime.Games.TicTacToe
             IBotTurnDriver botDriver,
             IBotTurnOrchestrator ultimateBotOrchestrator,
             IMatchFailSafeGateway matchFailSafeGateway,
-            IUltimateGameplaySnapshotProvider ultimateSnapshotProvider = null)
+            IUltimateGameplaySnapshotProvider ultimateSnapshotProvider = null,
+            IGameplayNetworkBridge networkBridge = null,
+            IOnlineGameplaySessionContextStore onlineSessionContextStore = null,
+            IMatchStateProvider matchStateProvider = null,
+            IOnlineSessionFlowService onlineSessionFlow = null)
         {
             _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));
             _gameService = gameService ?? throw new ArgumentNullException(nameof(gameService));
@@ -90,6 +108,10 @@ namespace Runtime.Games.TicTacToe
             _ultimateBotOrchestrator = ultimateBotOrchestrator ?? throw new ArgumentNullException(nameof(ultimateBotOrchestrator));
             _matchFailSafeGateway = matchFailSafeGateway ?? throw new ArgumentNullException(nameof(matchFailSafeGateway));
             _ultimateSnapshotProvider = ultimateSnapshotProvider;
+            _networkBridge = networkBridge ?? new NoOpGameplayNetworkBridge();
+            _onlineSessionContextStore = onlineSessionContextStore ?? new OnlineGameplaySessionContextStore();
+            _matchStateProvider = matchStateProvider ?? commandSink as IMatchStateProvider;
+            _onlineSessionFlow = onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance;
         }
 
         public async UniTask StartAsync(CancellationToken ct)
@@ -102,6 +124,8 @@ namespace Runtime.Games.TicTacToe
                 await HandleErrorAsync(GameplayError.InvalidConfig("Launch config not found."), ct);
                 return;
             }
+
+            config = ApplyOnlineMatchConfigOverrideIfNeeded(config);
 
             IGameplaySession session = null;
             try
@@ -122,6 +146,7 @@ namespace Runtime.Games.TicTacToe
 
                 CreateResultVM();
                 SubscribeToEvents();
+                await BindOnlineMoveBridgeAsync(ct);
             }
             catch (OperationCanceledException)
             {
@@ -150,6 +175,7 @@ namespace Runtime.Games.TicTacToe
             _ultimateBotOrchestrator.Dispose();
             _movesBinder.Unbind();
             DisposeUltimateUiBinders();
+            _networkBridge.UnbindAsync().Forget();
             _ecsLifecycle.StopMatch();
             _winLineRenderer.Clear();
             _resultVM?.Dispose();
@@ -202,6 +228,19 @@ namespace Runtime.Games.TicTacToe
             TicTacToeConfig ticTacToeConfig => ticTacToeConfig.IsUltimate,
             _ => false,
         };
+
+        private GameLaunchConfig ApplyOnlineMatchConfigOverrideIfNeeded(GameLaunchConfig config)
+        {
+            var session = _onlineSessionContextStore.Snapshot;
+            if (!session.IsOnlineDirectInvite || !session.MatchConfig.HasValue)
+                return config;
+
+            var payload = session.MatchConfig.Value;
+            if (!string.Equals(payload.GameId, config.GameId, StringComparison.Ordinal))
+                return config;
+
+            return new GameLaunchConfig(config.GameId, payload.ToGameConfig(), config.OpponentConfig);
+        }
 
         // -- Event wiring --
 
@@ -290,6 +329,168 @@ namespace Runtime.Games.TicTacToe
                     .Subscribe(OnResultAction)
                     .AddTo(_subscriptions);
             }
+
+            _onlineSessionFlow.Snapshot
+                .Where(ShouldExitToMenuByOnlineFlow)
+                .Subscribe(_ => ExitToMenuAsync().Forget())
+                .AddTo(_subscriptions);
+        }
+
+        private bool ShouldExitToMenuByOnlineFlow(OnlineFlowSnapshot snapshot)
+        {
+            if (_disposed)
+                return false;
+
+            return snapshot.State == OnlineFlowState.Terminated ||
+                   snapshot.State == OnlineFlowState.Failed;
+        }
+
+        private async UniTask BindOnlineMoveBridgeAsync(CancellationToken ct)
+        {
+            var session = _onlineSessionContextStore.Snapshot;
+            if (!session.IsOnlineDirectInvite || string.IsNullOrWhiteSpace(session.LocalUserId) || _matchStateProvider == null)
+                return;
+
+            _isOnlineDirectInvite = true;
+            _onlineRoundFinished = false;
+            _onlineRematchStarted = false;
+            _onlineIsHost = session.IsHost;
+            _onlineRoundCoordinator.ResetSession();
+            _onlineLocalUserId = session.LocalUserId;
+            _onlineRemoteUserId = null;
+            _useHostAuthoritativeFilter = session.IsHost;
+
+            await _networkBridge.BindAsync(session.LocalUserId, session.IsHost);
+
+            _networkBridge.IncomingMoves
+                .Subscribe(OnIncomingOnlineMove)
+                .AddTo(_subscriptions);
+
+            _networkBridge.IncomingRoundReadySignals
+                .Subscribe(OnIncomingRoundReadySignal)
+                .AddTo(_subscriptions);
+        }
+
+        private void OnIncomingOnlineMove(MoveCommand move)
+        {
+            if (_disposed || !_ecsLifecycle.IsActive)
+                return;
+
+            if (_useHostAuthoritativeFilter && !TryValidateIncomingHostMove(move))
+                return;
+
+            var minorCount = OnlineMoveIndexCodec.ResolveMinorCount(_fieldSpec);
+            CellId cellId;
+
+            try
+            {
+                cellId = OnlineMoveIndexCodec.ToCellId(move.CellIndex, minorCount);
+            }
+            catch (Exception)
+            {
+                return;
+            }
+
+            _matchStateProvider.SubmitCommand(new MakeMoveCommand(cellId));
+
+            if (_onlineIsHost)
+                ForwardAuthoritativeHostMoveAsync(move).Forget();
+        }
+
+        private async UniTaskVoid ForwardAuthoritativeHostMoveAsync(MoveCommand proposal)
+        {
+            if (_disposed || !_onlineIsHost || string.IsNullOrWhiteSpace(_onlineLocalUserId))
+                return;
+
+            var authoritativeMove = new MoveCommand(
+                Guid.NewGuid(),
+                _onlineLocalUserId,
+                proposal.CellIndex,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+            try
+            {
+                await _networkBridge.SubmitMoveAsync(authoritativeMove);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(LogTags.Infrastructure, $"[GameplayStartup] Failed to forward authoritative move: {ex.Message}");
+            }
+        }
+
+        private bool TryValidateIncomingHostMove(MoveCommand move)
+        {
+            if (string.IsNullOrWhiteSpace(_onlineLocalUserId))
+                return false;
+
+            if (string.IsNullOrWhiteSpace(_onlineRemoteUserId))
+                _onlineRemoteUserId = move.SenderUserId;
+
+            var remoteUserId = _onlineRemoteUserId;
+            if (string.IsNullOrWhiteSpace(remoteUserId))
+                return false;
+
+            if (!string.Equals(move.SenderUserId, remoteUserId, StringComparison.Ordinal))
+                return false;
+
+            var cells = _matchStateProvider.GetAllCells();
+            if (cells == null || cells.Count == 0)
+                return false;
+
+            var activeUserId = _matchStateProvider.ActivePlayerSlot == 0
+                ? _onlineLocalUserId
+                : remoteUserId;
+
+            var nextUserId = _matchStateProvider.ActivePlayerSlot == 0
+                ? remoteUserId
+                : _onlineLocalUserId;
+
+            if (string.IsNullOrWhiteSpace(activeUserId) || string.IsNullOrWhiteSpace(nextUserId))
+                return false;
+
+            AuthoritativeMatchState state;
+            try
+            {
+                state = BuildAuthoritativeState(cells, activeUserId, _onlineRoundFinished);
+            }
+            catch
+            {
+                return false;
+            }
+
+            var result = _hostMoveProcessor.Process(move, state, nextUserId);
+            return result.Status == MoveProcessStatus.Accepted;
+        }
+
+        private AuthoritativeMatchState BuildAuthoritativeState(
+            System.Collections.Generic.IReadOnlyList<CellSnapshot> cells,
+            string activeUserId,
+            bool isRoundCompleted)
+        {
+            var minorCount = OnlineMoveIndexCodec.ResolveMinorCount(_fieldSpec);
+            var cellsCount = _fieldSpec.Kind == FieldKind.Classic
+                ? _fieldSpec.OuterSize * _fieldSpec.OuterSize
+                : (_fieldSpec.OuterSize * _fieldSpec.OuterSize) * (_fieldSpec.InnerSize * _fieldSpec.InnerSize);
+
+            var state = new AuthoritativeMatchState(cellsCount, activeUserId);
+
+            for (var i = 0; i < cells.Count; i++)
+            {
+                var snapshot = cells[i];
+                if (snapshot.Slot < 0)
+                    continue;
+
+                var index = OnlineMoveIndexCodec.ToCellIndex(snapshot.CellId, minorCount);
+                if (index < 0 || index >= cellsCount)
+                    continue;
+
+                state.MarkCellOccupied(index);
+            }
+
+            if (isRoundCompleted)
+                state.Complete();
+
+            return state;
         }
 
         // -- RoundFinished handling (ADR-10) --
@@ -302,6 +503,13 @@ namespace Runtime.Games.TicTacToe
             try
             {
                 if (_disposed) return;
+
+                if (_isOnlineDirectInvite)
+                {
+                    _onlineRoundFinished = true;
+                    _onlineRematchStarted = false;
+                    _onlineSessionFlow.OnRoundCompletedAsync().Forget();
+                }
 
                 // 1. Unbind binder (ADR-5 order: Unbind before Stop).
                 _movesBinder.Unbind();
@@ -465,12 +673,71 @@ namespace Runtime.Games.TicTacToe
                         break;
                     }
 
-                    RestartRoundAsync().Forget();
+                    if (_isOnlineDirectInvite)
+                        RequestOnlineRematchAsync().Forget();
+                    else
+                        RestartRoundAsync().Forget();
                     break;
                 case ResultAction.Exit:
                     ExitToMenuAsync().Forget();
                     break;
             }
+        }
+
+        private async UniTaskVoid RequestOnlineRematchAsync()
+        {
+            if (_disposed || !_isOnlineDirectInvite || !_onlineRoundFinished || _onlineRematchStarted)
+                return;
+
+            if (string.IsNullOrWhiteSpace(_onlineLocalUserId))
+                return;
+
+            try
+            {
+                await _onlineSessionFlow.SetReadyForNextMatchAsync(true);
+
+                var roundId = _onlineRoundCoordinator.MatchRoundId;
+                await _networkBridge.SubmitRoundReadyAsync(new RoundReadySignal(
+                    _onlineLocalUserId,
+                    isReady: true,
+                    matchRoundId: roundId,
+                    clientTick: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
+
+                var bothReady = _onlineRoundCoordinator.SetReady(_onlineIsHost, isReady: true);
+                if (bothReady)
+                    StartOnlineRestartIfReady();
+            }
+            catch (Exception ex)
+            {
+                if (_disposed)
+                    return;
+
+                Log.Error(LogTags.Infrastructure, $"[GameplayStartup] Online rematch request failed: {ex}");
+            }
+        }
+
+        private void OnIncomingRoundReadySignal(RoundReadySignal signal)
+        {
+            if (_disposed || !_isOnlineDirectInvite || !_onlineRoundFinished || _onlineRematchStarted)
+                return;
+
+            if (signal.MatchRoundId != _onlineRoundCoordinator.MatchRoundId)
+                return;
+
+            _onlineSessionFlow.OnOpponentReadyForNextMatchAsync(signal.IsReady).Forget();
+
+            var bothReady = _onlineRoundCoordinator.SetReady(!_onlineIsHost, signal.IsReady);
+            if (bothReady)
+                StartOnlineRestartIfReady();
+        }
+
+        private void StartOnlineRestartIfReady()
+        {
+            if (_onlineRematchStarted || _restartInProgress)
+                return;
+
+            _onlineRematchStarted = true;
+            RestartRoundAsync().Forget();
         }
 
         private async UniTaskVoid RestartRoundAsync()
@@ -516,12 +783,16 @@ namespace Runtime.Games.TicTacToe
                 _movesBinder.Bind();
                 _ultimateAllowedBinder?.Bind();
                 _ultimateMiniBoardStatusBinder?.Bind();
+
+                _onlineRoundFinished = false;
+                _onlineRematchStarted = false;
             }
             catch (Exception ex)
             {
                 if (_disposed)
                     return;
 
+                _onlineRematchStarted = false;
                 Log.Error(LogTags.Infrastructure, $"[GameplayStartup] Restart failed: {ex}");
             }
             finally
@@ -552,6 +823,9 @@ namespace Runtime.Games.TicTacToe
 
         private async UniTaskVoid ExitToMenuAsync()
         {
+            if (System.Threading.Interlocked.CompareExchange(ref _exitToMenuRequested, 1, 0) != 0)
+                return;
+
             try
             {
                 if (_disposed) return;

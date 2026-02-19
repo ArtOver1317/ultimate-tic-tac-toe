@@ -56,6 +56,21 @@ namespace Runtime.GameModes.Wizard
             CompleteStartAttemptOnMainThreadAsync(succeeded, error).Forget();
         }
 
+        public void CancelStartAttempt()
+        {
+            if (_isDisposed)
+                return;
+
+            if (PlayerLoopHelper.IsMainThread)
+            {
+                SetIsSubmitting(false);
+                ClearCurrentError();
+                return;
+            }
+
+            CancelStartAttemptOnMainThreadAsync().Forget();
+        }
+
         private async UniTask CompleteStartAttemptOnMainThreadCoreAsync(bool succeeded, WizardError? error)
         {
             if (!IsActive)
@@ -96,6 +111,24 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             await CompleteStartAttemptOnMainThreadCoreAsync(succeeded, error);
+        }
+
+        private async UniTaskVoid CancelStartAttemptOnMainThreadAsync()
+        {
+            try
+            {
+                await UniTask.SwitchToMainThread(_lifetimeCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            if (_isDisposed)
+                return;
+
+            SetIsSubmitting(false);
+            ClearCurrentError();
         }
 
         private bool TryBuildLaunchConfig(out GameLaunchConfig? launchConfig, out WizardError? error)

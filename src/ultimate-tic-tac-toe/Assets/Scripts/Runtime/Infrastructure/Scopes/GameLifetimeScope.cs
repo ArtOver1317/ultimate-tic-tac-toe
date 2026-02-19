@@ -56,6 +56,22 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<IGameCatalog, GameCatalog>(Lifetime.Singleton);
             builder.Register<IBotDifficultyCatalog, BotDifficultyCatalog>(Lifetime.Singleton);
             builder.Register<IMatchmakingService, MatchmakingServiceStub>(Lifetime.Singleton);
+            builder.Register(_ => new OnlineSessionIdLifecycle(), Lifetime.Singleton);
+            builder.Register<IOnlineSessionFlowService, OnlineSessionFlowService>(Lifetime.Singleton);
+            builder.Register<IOnlineCountdownSyncService, OnlineCountdownSyncService>(Lifetime.Singleton);
+            builder.Register<IOnlineGameplaySessionContextStore, OnlineGameplaySessionContextStore>(Lifetime.Singleton);
+            builder.Register(_ => new OnlineDiagnosticsBuffer(), Lifetime.Singleton);
+            builder.Register<OnlineCleanupTracker>(Lifetime.Singleton);
+
+            builder.Register<IPhotonSessionTransport>(_ =>
+                {
+                    var go = new GameObject("OnlineFusionTransport");
+                    DontDestroyOnLoad(go);
+                    return go.AddComponent<FusionSessionTransport>();
+                },
+                Lifetime.Singleton);
+            builder.Register<IPhotonSessionGateway, PhotonSessionGateway>(Lifetime.Singleton);
+            builder.Register<IOnlineSessionLauncher, OnlineSessionLauncher>(Lifetime.Singleton);
 
             builder.Register<Gameplay.IGameplayScopeAccessor, Gameplay.GameplayScopeAccessor>(Lifetime.Singleton);
 

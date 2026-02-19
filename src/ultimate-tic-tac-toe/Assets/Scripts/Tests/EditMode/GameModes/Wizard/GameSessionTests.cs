@@ -466,7 +466,7 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public void WhenOpponentIsDirectInviteAndPlayerIdSet_ThenCanStartIsTrue()
+        public void WhenOpponentIsDirectInviteAndSessionIdSet_ThenCanStartIsTrue()
         {
             // Arrange
             using var sut = new GameSession(_catalog, GameSessionSnapshot.Default
@@ -474,7 +474,7 @@ namespace Tests.EditMode.GameModes.Wizard
                 .WithGameConfig(new TicTacToeConfig(boardSize: 3))
                 .WithOpponentType(OpponentType.Human)
                 .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
-                .WithTargetPlayerId("3001"));
+                .WithTargetPlayerId("AB2CD7"));
 
             // Act
             var canStart = sut.CanStart.CurrentValue;
@@ -487,7 +487,7 @@ namespace Tests.EditMode.GameModes.Wizard
         [TestCase(null)]
         [TestCase("")]
         [TestCase("   ")]
-        public void WhenOpponentIsDirectInviteAndNoPlayerId_ThenCanStartIsFalse(string playerId)
+        public void WhenOpponentIsDirectInviteAndNoSessionId_ThenCanStartIsFalse(string playerId)
         {
             // Arrange
             using var sut = new GameSession(_catalog, GameSessionSnapshot.Default
@@ -503,11 +503,11 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             canStart.Should().BeFalse();
-            errors.Should().ContainSingle(e => e.Field == "TargetPlayerId" && e.MessageKey == "Errors.GameWizard.PlayerIdRequired");
+            errors.Should().ContainSingle(e => e.Field == WizardFieldNames.InviteSessionId && e.MessageKey == "Errors.Online.InvalidSessionIdFormat");
         }
 
         [Test]
-        public void WhenOpponentIsDirectInviteAndPlayerIdInvalid_ThenCanStartIsFalse()
+        public void WhenOpponentIsDirectInviteAndSessionIdInvalid_ThenCanStartIsFalse()
         {
             // Arrange
             using var sut = new GameSession(_catalog, GameSessionSnapshot.Default
@@ -523,7 +523,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             canStart.Should().BeFalse();
-            errors.Should().ContainSingle(e => e.Field == "TargetPlayerId" && e.MessageKey == "Errors.GameWizard.PlayerIdInvalid");
+            errors.Should().ContainSingle(e => e.Field == WizardFieldNames.InviteSessionId && e.MessageKey == "Errors.Online.InvalidSessionIdFormat");
         }
 
         [Test]
@@ -560,7 +560,7 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.ValidationErrors.CurrentValue.Should().NotBeEmpty();
 
             // Act
-            sut.Update(s => s.WithTargetPlayerId("3002"));
+            sut.Update(s => s.WithTargetPlayerId("AB2CD7"));
 
             // Assert
             sut.CanStart.CurrentValue.Should().BeTrue();
@@ -622,7 +622,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Arrange
             var gameId = TicTacToeStrategy.DefaultGameId;
             var gameConfig = new TicTacToeConfig(boardSize: 3);
-            var playerId = "3003";
+            var playerId = "AB2CD7";
 
             using var sut = new GameSession(_catalog, GameSessionSnapshot.Default
                 .WithSelectedGameId(gameId)
@@ -640,7 +640,7 @@ namespace Tests.EditMode.GameModes.Wizard
             result.Value.GameConfig.Should().BeSameAs(gameConfig);
 
             var opponent = result.Value.OpponentConfig.Should().BeOfType<DirectInviteConfig>().Subject;
-            opponent.PlayerId.Should().Be(playerId);
+            opponent.SessionId.Should().Be(playerId);
         }
 
         [Test]

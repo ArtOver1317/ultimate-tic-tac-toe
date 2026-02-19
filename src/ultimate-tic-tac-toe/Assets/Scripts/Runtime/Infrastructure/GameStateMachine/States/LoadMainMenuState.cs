@@ -32,7 +32,6 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             cancellationToken.ThrowIfCancellationRequested();
             Log.Debug(LogTags.Scenes, "[LoadMainMenuState] Loading MainMenu scene...");
             _uiService.ClearViewModelPools();
-            _assets.Cleanup();
             await _sceneLoader.LoadSceneAsync(SceneNames.MainMenu, cancellationToken);
             Log.Debug(LogTags.Scenes, "[LoadMainMenuState] MainMenu scene loaded");
             await _stateMachine.EnterAsync<MainMenuState>(cancellationToken);

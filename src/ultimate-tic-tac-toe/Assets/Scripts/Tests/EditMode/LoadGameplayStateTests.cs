@@ -38,7 +38,7 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public async Task WhenEnter_ThenClearsPoolsAndLoadsGameplayScene()
+        public async Task WhenEnter_ThenClearsViewModelPoolsAndLoadsGameplayScene()
         {
             // Arrange
             _sceneLoader
@@ -53,7 +53,8 @@ namespace Tests.EditMode
 
             // Assert
             _uiService.Received(1).ClearViewModelPools();
-            _assets.Received(1).Cleanup();
+            _uiService.DidNotReceive().CloseAll();
+            _assets.DidNotReceive().Cleanup();
             await _sceneLoader.Received(1).LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>());
             await _stateMachine.Received(1).EnterAsync<GameplayState>(Arg.Any<CancellationToken>());
         }

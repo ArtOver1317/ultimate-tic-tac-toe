@@ -1,4 +1,5 @@
 using System;
+using Runtime.GameModes.Wizard;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe;
@@ -49,11 +50,12 @@ namespace Runtime.Infrastructure.Scopes
                 .As<IMatchEcsLifecycle>();
             builder.Register<MatchStateProvider>(Lifetime.Scoped)
                 .As<IMatchStateProvider>()
-                .As<IGameplayCommandSink>()
                 .As<IGameplayEventStream>()
                 .As<IGameplaySnapshotProvider>()
                 .As<IUltimateGameplayEventStream>()
                 .As<IUltimateGameplaySnapshotProvider>();
+            builder.Register<IGameplayNetworkBridge, FileGameplayNetworkBridge>(Lifetime.Scoped);
+            builder.Register<OnlineAwareGameplayCommandSink>(Lifetime.Scoped).As<IGameplayCommandSink>();
 
             // ── Bot AI ──
             if (BotProfileCatalog != null)

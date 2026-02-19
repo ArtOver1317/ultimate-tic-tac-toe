@@ -50,6 +50,12 @@ namespace Runtime.GameModes.Wizard
         void CompleteStartAttempt(bool succeeded, WizardError? error = null);
 
         /// <summary>
+        /// Cancels current start attempt without publishing an error.
+        /// Keeps the wizard active and re-enables interactions.
+        /// </summary>
+        void CancelStartAttempt();
+
+        /// <summary>
         /// Fired when the wizard is aborted for any reason.
         /// </summary>
         Observable<AbortReason> WizardAborted { get; }

@@ -4,8 +4,6 @@
   "table": "Game",
   "entries": {
     "Game.Description.TicTacToe": "Classic and Ultimate Tic-Tac-Toe",
-    "Game.UltimateTicTacToe.Description": "Ultimate board mode",
-    "Game.UltimateTicTacToe.Name": "Ultimate Tic-Tac-Toe",
     "Game.OpponentTurn": "{playerName}'s Turn",
     "Game.Pause": "Pause",
     "Game.Resume": "Resume",
@@ -13,6 +11,8 @@
     "Game.Surrender": "Surrender",
     "Game.TicTacToe": "Tic-Tac-Toe",
     "Game.Timer": "Time: {seconds}s",
+    "Game.UltimateTicTacToe.Description": "Ultimate board mode",
+    "Game.UltimateTicTacToe.Name": "Ultimate Tic-Tac-Toe",
     "Game.YourTurn": "Your Turn"
   }
 }

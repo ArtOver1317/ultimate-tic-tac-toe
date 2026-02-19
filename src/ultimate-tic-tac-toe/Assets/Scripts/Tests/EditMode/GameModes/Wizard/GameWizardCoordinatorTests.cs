@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
+using R3;
 using Runtime.GameModes.Wizard;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -417,6 +418,75 @@ namespace Tests.EditMode.GameModes.Wizard
             await act.Should().ThrowAsync<InvalidOperationException>();
             _sessionFactory.CreatedSessions.Should().ContainSingle();
             _sessionFactory.CreatedSessions.Single().DisposeCallCount.Should().Be(1);
+        }
+
+        [Test]
+        [Timeout(5000)]
+        public async Task WhenDirectInviteStartIntentHandled_ThenCoordinatorDoesNotCallOnlineFlowApis()
+        {
+            // Arrange
+            _sut?.Dispose();
+            var onlineFlowSpy = new SpyOnlineSessionFlow();
+            _sut = new GameWizardCoordinator(_navigator, _sessionFactory.Create, onlineFlowSpy);
+
+            await _sut.StartWizardAsync(CancellationToken.None);
+
+            var continueAccepted = _sut.TryPublishIntent(WizardIntent.Continue);
+            continueAccepted.Should().BeTrue();
+
+            await UniTask.WaitUntil(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls > 0);
+
+            _sut.Session.Update(state => state
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite)
+                .WithTargetPlayerId("AB2CD7"));
+
+            var launchRequested = new UniTaskCompletionSource<bool>();
+            using var launchSubscription = _sut.GameLaunchRequested.Subscribe(_ => launchRequested.TrySetResult(true));
+
+            // Act
+            var startAccepted = _sut.TryPublishIntent(WizardIntent.Start);
+
+            // Assert
+            startAccepted.Should().BeTrue();
+            await launchRequested.Task;
+
+            onlineFlowSpy.EnterHumanSetupCalls.Should().Be(0);
+            onlineFlowSpy.JoinBySessionIdCalls.Should().Be(0);
+        }
+
+        [Test]
+        [Timeout(5000)]
+        public async Task WhenAbortReasonIsSceneChange_ThenCoordinatorDoesNotCallOnlineFlowExit()
+        {
+            // Arrange
+            _sut?.Dispose();
+            var onlineFlowSpy = new SpyOnlineSessionFlow();
+            _sut = new GameWizardCoordinator(_navigator, _sessionFactory.Create, onlineFlowSpy);
+            await _sut.StartWizardAsync(CancellationToken.None);
+
+            // Act
+            await _sut.AbortWizardAsync(AbortReason.SceneChange);
+
+            // Assert
+            onlineFlowSpy.ExitCalls.Should().Be(0);
+        }
+
+        [Test]
+        [Timeout(5000)]
+        public async Task WhenAbortReasonIsUserCancel_ThenCoordinatorCallsOnlineFlowExit()
+        {
+            // Arrange
+            _sut?.Dispose();
+            var onlineFlowSpy = new SpyOnlineSessionFlow();
+            _sut = new GameWizardCoordinator(_navigator, _sessionFactory.Create, onlineFlowSpy);
+            await _sut.StartWizardAsync(CancellationToken.None);
+
+            // Act
+            await _sut.AbortWizardAsync(AbortReason.UserCancel);
+
+            // Assert
+            onlineFlowSpy.ExitCalls.Should().Be(1);
         }
 
         [Test]
@@ -865,6 +935,70 @@ namespace Tests.EditMode.GameModes.Wizard
             }
         }
 
+        private sealed class SpyOnlineSessionFlow : IOnlineSessionFlowService
+        {
+            private readonly R3.ReactiveProperty<OnlineFlowSnapshot> _snapshot = new(
+                new OnlineFlowSnapshot(
+                    OnlineFlowState.Idle,
+                    previousStableState: null,
+                    candidateSessionId: string.Empty,
+                    activeSessionId: null,
+                    flowEpoch: 1,
+                    region: string.Empty,
+                    canStart: false,
+                    isBusy: false,
+                    errorCode: OnlineErrorCode.None,
+                    errorLocalizationKey: null,
+                    statusLocalizationKey: null,
+                    countdownRemainingSeconds: null,
+                    graceDeadlineUtc: null));
+
+            public int EnterHumanSetupCalls { get; private set; }
+            public int JoinBySessionIdCalls { get; private set; }
+            public int ExitCalls { get; private set; }
+
+            public ReadOnlyReactiveProperty<OnlineFlowSnapshot> Snapshot => _snapshot;
+
+            public UniTask EnterHumanSetupAsync(string region, string currentUserId)
+            {
+                EnterHumanSetupCalls++;
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask JoinBySessionIdAsync(string rawSessionIdInput, string region, string currentUserId)
+            {
+                JoinBySessionIdCalls++;
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask ConfirmHostIntentAsync() => UniTask.CompletedTask;
+            public UniTask StartHostSessionAsync(OnlineSessionConfig hostConfig) => UniTask.CompletedTask;
+            public UniTask CopyVisibleSessionIdAsync() => UniTask.CompletedTask;
+            public UniTask BackAsync() => UniTask.CompletedTask;
+            public UniTask ExitAsync()
+            {
+                ExitCalls++;
+                return UniTask.CompletedTask;
+            }
+            public UniTask SetReadyForNextMatchAsync(bool isReady) => UniTask.CompletedTask;
+            public UniTask OnOpponentReadyForNextMatchAsync(bool isReady) => UniTask.CompletedTask;
+            public UniTask OnHostCreatedAsync() => UniTask.CompletedTask;
+            public UniTask OnJoinSucceededAsync() => UniTask.CompletedTask;
+            public UniTask OnJoinFailedAsync(OnlineErrorCode errorCode) => UniTask.CompletedTask;
+            public UniTask OnGuestJoinedAsync() => UniTask.CompletedTask;
+            public UniTask OnCountdownTickAsync(int remainingSeconds) => UniTask.CompletedTask;
+            public UniTask OnGameplayEnteredAsync() => UniTask.CompletedTask;
+            public UniTask OnRoundCompletedAsync() => UniTask.CompletedTask;
+            public UniTask OnDisconnectDetectedAsync() => UniTask.CompletedTask;
+            public UniTask OnReconnectSucceededAsync() => UniTask.CompletedTask;
+            public UniTask OnGraceTimeoutAsync(int eventEpoch) => UniTask.CompletedTask;
+            public UniTask OnOpponentLeftAsync() => UniTask.CompletedTask;
+
+            public void Dispose()
+            {
+            }
+        }
+
         private sealed class SessionFactorySpy
         {
             public readonly List<FakeGameSession> CreatedSessions = new();
@@ -931,7 +1065,7 @@ namespace Tests.EditMode.GameModes.Wizard
                                 break;
 
                             case HumanOpponentKind.DirectInvite:
-                                opponentConfig = new DirectInviteConfig(snapshot.TargetPlayerId ?? "TestPlayer");
+                                opponentConfig = new DirectInviteConfig(snapshot.TargetPlayerId ?? "AB2CD7");
                                 break;
 
                             case HumanOpponentKind.Matchmaking:

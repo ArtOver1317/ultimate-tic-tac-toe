@@ -12,24 +12,24 @@ namespace Tests.EditMode.GameModes.Wizard
     public class DirectInviteConfigTests
     {
         [Test]
-        public void WhenConstructedWithValidPlayerId_ThenStoresNormalizedValue()
+        public void WhenConstructedWithValidSessionId_ThenStoresCanonicalValue()
         {
             // Arrange / Act
-            var config = new DirectInviteConfig("  12345  ");
+            var config = new DirectInviteConfig(" ab2-cd7 ");
 
             // Assert
-            config.PlayerId.Should().Be("12345");
+            config.SessionId.Should().Be("AB2CD7");
         }
 
         [Test]
-        public void WhenConstructedWithInvalidPlayerId_ThenThrowsArgumentException()
+        public void WhenConstructedWithInvalidSessionId_ThenThrowsArgumentException()
         {
             // Arrange
             Action act = () => _ = new DirectInviteConfig("invalid");
 
             // Act / Assert
             act.Should().Throw<ArgumentException>()
-                .WithParameterName("playerId");
+                .WithParameterName("sessionId");
         }
     }
 }
