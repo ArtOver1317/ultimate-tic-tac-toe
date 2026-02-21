@@ -68,7 +68,7 @@ public static class BuildScript
             if (requiresPlayModeConfirmation && !ConfirmPlayModeTestsExecuted())
                 return;
 
-            BuildInternal(menuTarget, "Builds");
+            BuildInternal(menuTarget, "Builds", runEditModeTests: false);
             EditorUtility.DisplayDialog("Build", "Build completed successfully.", "OK");
         }
         catch (BuildFailedException ex)
@@ -78,15 +78,16 @@ public static class BuildScript
     }
 
     private static bool ConfirmPlayModeTestsExecuted() => EditorUtility.DisplayDialog(
-        "PlayMode tests confirmation",
-        "Вы запустили PlayMode-тесты (build.ps1 -TestOnly) перед этой сборкой?",
+        "Tests confirmation",
+        "Вы запустили тесты через build.ps1 -TestOnly перед этой сборкой?\n\n" +
+        "(Menu build не запускает EditMode/PlayMode тесты автоматически.)",
         "Да",
         "Нет");
 
-    private static void BuildInternal(BuildTarget target, string rootBuildPath)
+    private static void BuildInternal(BuildTarget target, string rootBuildPath, bool runEditModeTests = true)
     {
         var skipTests = HasFlag(SkipTestsFlag);
-        if (!skipTests)
+        if (runEditModeTests && !skipTests)
         {
             if (!RunEditModeTestsWithInputHandlerScope())
             {

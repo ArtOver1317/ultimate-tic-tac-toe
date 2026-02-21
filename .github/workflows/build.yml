@@ -1,14 +1,6 @@
 name: Build Pipeline
 
 on:
-  push:
-    branches:
-      - '**'
-    tags:
-      - 'v*.*.*'
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       target:
