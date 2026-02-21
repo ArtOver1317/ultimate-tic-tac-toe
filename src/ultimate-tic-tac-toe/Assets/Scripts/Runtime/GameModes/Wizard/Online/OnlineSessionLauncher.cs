@@ -5,6 +5,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.Infrastructure.Logging;
+using VContainer;
 
 namespace Runtime.GameModes.Wizard
 {
@@ -75,6 +76,7 @@ namespace Runtime.GameModes.Wizard
         private double? _pendingCountdownTargetNetworkTimeSeconds;
         private OnlineErrorCode _lastHostPrepareFailureCode = OnlineErrorCode.DisconnectTimeout;
 
+        [Inject]
         public OnlineSessionLauncher(
             IPhotonSessionGateway gateway,
             IPhotonSessionTransport transport,

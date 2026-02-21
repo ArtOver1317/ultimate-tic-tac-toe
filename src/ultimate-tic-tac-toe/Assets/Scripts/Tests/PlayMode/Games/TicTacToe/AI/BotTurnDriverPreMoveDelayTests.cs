@@ -134,13 +134,20 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
         private BotTurnDriver CreateDriver() =>
             new(_matchState, _engine, _catalog, _winLengthProvider);
 
+        private static readonly TimeSpan SubmitTimeout = TimeSpan.FromSeconds(5);
+
         private async UniTask WaitForSubmitAsync(int minCount = 1)
         {
-            for (var i = 0; i < 200; i++)
+            var deadline = DateTime.UtcNow + SubmitTimeout;
+            while (DateTime.UtcNow < deadline)
             {
-                if (_matchState.SubmittedCommands.Count >= minCount) return;
-                await UniTask.DelayFrame(1);
+                if (_matchState.SubmittedCommands.Count >= minCount)
+                    return;
+
+                await UniTask.Delay(50, DelayType.UnscaledDeltaTime);
             }
+
+            Assert.Fail($"Submit command was not received within {SubmitTimeout.TotalSeconds:0.#}s.");
         }
 
         private (UniTaskCompletionSource entered, UniTaskCompletionSource release) ConfigureBarrierEngine()

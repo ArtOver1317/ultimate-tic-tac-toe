@@ -100,5 +100,31 @@ namespace Tests.EditMode.Games.TicTacToe.AI
             Object.DestroyImmediate(hard);
             Object.DestroyImmediate(catalog);
         }
+
+        [Test]
+        public void WhenNormalRequestedAndOnlyMediumExists_ThenTryGetReturnsTrue()
+        {
+            var medium = CreateProfile("medium");
+            var catalog = CreateCatalog(medium);
+
+            catalog.TryGet("Normal", out var result).Should().BeTrue();
+            result.Should().Be(medium);
+
+            Object.DestroyImmediate(medium);
+            Object.DestroyImmediate(catalog);
+        }
+
+        [Test]
+        public void WhenMediumRequestedAndOnlyNormalExists_ThenTryGetReturnsTrue()
+        {
+            var normal = CreateProfile("normal");
+            var catalog = CreateCatalog(normal);
+
+            catalog.TryGet("medium", out var result).Should().BeTrue();
+            result.Should().Be(normal);
+
+            Object.DestroyImmediate(normal);
+            Object.DestroyImmediate(catalog);
+        }
     }
 }

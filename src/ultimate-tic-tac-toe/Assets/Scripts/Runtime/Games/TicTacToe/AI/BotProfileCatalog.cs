@@ -22,6 +22,19 @@ namespace Runtime.Games.TicTacToe.AI
                 return false;
             }
 
+            if (TryGetExact(difficultyId, out profile))
+                return true;
+
+            var alias = ResolveDifficultyAlias(difficultyId);
+            if (!string.IsNullOrEmpty(alias) && TryGetExact(alias, out profile))
+                return true;
+
+            profile = null;
+            return false;
+        }
+
+        private bool TryGetExact(string difficultyId, out BotProfile? profile)
+        {
             for (int i = 0; i < Profiles.Length; i++)
             {
                 if (Profiles[i] != null &&
@@ -34,6 +47,19 @@ namespace Runtime.Games.TicTacToe.AI
 
             profile = null;
             return false;
+        }
+
+        private static string? ResolveDifficultyAlias(string difficultyId)
+        {
+            var normalized = difficultyId.Trim();
+
+            if (string.Equals(normalized, "normal", StringComparison.OrdinalIgnoreCase))
+                return "medium";
+
+            if (string.Equals(normalized, "medium", StringComparison.OrdinalIgnoreCase))
+                return "normal";
+
+            return null;
         }
     }
 

@@ -103,7 +103,7 @@ namespace Tests.PlayMode
             exitButton.enabledSelf.Should().BeTrue();
 
             _viewModel.SetInteractable(false);
-            yield return new WaitForEndOfFrame();
+            yield return null;
 
             startButton.enabledSelf.Should().BeFalse();
             settingsButton.enabledSelf.Should().BeFalse();
