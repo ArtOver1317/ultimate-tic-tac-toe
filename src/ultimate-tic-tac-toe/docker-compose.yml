@@ -1,0 +1,53 @@
+services:
+  test:
+    image: unityci/editor:ubuntu-6000.3.8f1-base-3
+    working_dir: /project
+    environment:
+      UNITY_LICENSE: ${UNITY_LICENSE:-}
+      UNITY_PATH: /opt/unity/Editor/Unity
+    volumes:
+      - ./:/project
+    command: >
+      bash -lc '
+      set -euo pipefail;
+      /opt/unity/Editor/Unity -batchmode -nographics -projectPath /project -runTests -testPlatform EditMode -testResults /project/TestResults/editmode-results.xml -logFile /project/Logs/editmode.log;
+      /opt/unity/Editor/Unity -batchmode -nographics -projectPath /project -runTests -testPlatform PlayMode -testResults /project/TestResults/playmode-results.xml -logFile /project/Logs/playmode.log;
+      '
+
+  build-desktop:
+    image: unityci/editor:ubuntu-6000.3.8f1-windows-mono-3
+    working_dir: /project
+    environment:
+      UNITY_LICENSE: ${UNITY_LICENSE:-}
+      UNITY_PATH: /opt/unity/Editor/Unity
+      BUILD_TARGET: Desktop
+      BUILD_PATH: Builds
+      BUNDLE_VERSION: ${BUNDLE_VERSION:-0.0.0-ci.local}
+      SKIP_TESTS: "1"
+    volumes:
+      - ./:/project
+    command: >
+      bash -lc '
+      set -euo pipefail;
+      chmod +x /project/build.sh;
+      /project/build.sh;
+      '
+
+  build-webgl:
+    image: unityci/editor:ubuntu-6000.3.8f1-webgl-3
+    working_dir: /project
+    environment:
+      UNITY_LICENSE: ${UNITY_LICENSE:-}
+      UNITY_PATH: /opt/unity/Editor/Unity
+      BUILD_TARGET: WebGL
+      BUILD_PATH: Builds
+      BUNDLE_VERSION: ${BUNDLE_VERSION:-0.0.0-ci.local}
+      SKIP_TESTS: "1"
+    volumes:
+      - ./:/project
+    command: >
+      bash -lc '
+      set -euo pipefail;
+      chmod +x /project/build.sh;
+      /project/build.sh;
+      '

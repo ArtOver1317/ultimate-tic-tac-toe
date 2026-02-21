@@ -16,7 +16,6 @@
 
 # Local documentation (not tracked in git)
 /.docs/
-/.github/
 
 # Copilot instructions (personal, not for public repo)
 **/.copilot-instructions.md
@@ -88,12 +87,15 @@ crashlytics-build.properties
 
 # TestRunner generated files
 InitTestScene*.unity*
+/[Tt]est[Rr]esults/
+/[Tt]est[Rr]esults/*.xml
 
 # Addressables default ignores, before user customizations
 /ServerData
 /[Aa]ssets/StreamingAssets/aa*
 /[Aa]ssets/AddressableAssetsData/link.xml*
 /[Aa]ssets/Addressables_Temp*
+/[Aa]ssets/AddressableAssetsData/[Ww]ebGL*
 # By default, Addressables content builds will generate addressables_content_state.bin
 # files in platform-specific subfolders, for example:
 # /Assets/AddressableAssetsData/OSX/addressables_content_state.bin

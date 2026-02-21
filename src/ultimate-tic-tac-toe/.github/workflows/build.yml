@@ -1,0 +1,368 @@
+name: Build Pipeline
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Build target
+        required: true
+        default: All
+        type: choice
+        options:
+          - All
+          - Desktop
+          - WebGL
+
+permissions: {}
+
+concurrency:
+  group: build-pipeline-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  UNITY_VERSION: 6000.3.8f1
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    container:
+      image: unityci/editor:ubuntu-6000.3.8f1-base-3
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: Library
+          key: unity-${{ env.UNITY_VERSION }}-base-${{ runner.os }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            unity-${{ env.UNITY_VERSION }}-base-${{ runner.os }}-
+
+      - name: Activate Unity license
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${UNITY_LICENSE:-}" ]; then
+            echo "UNITY_LICENSE secret is required" >&2
+            exit 1
+          fi
+          printf '%s' "$UNITY_LICENSE" > /tmp/UnityLicenseFile.ulf
+          /opt/unity/Editor/Unity -batchmode -nographics -quit -manualLicenseFile /tmp/UnityLicenseFile.ulf
+
+      - name: Run EditMode tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p TestResults Logs
+          /opt/unity/Editor/Unity -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults TestResults/editmode-results.xml -logFile Logs/editmode.log
+
+      - name: Run PlayMode tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          /opt/unity/Editor/Unity -batchmode -nographics -projectPath . -runTests -testPlatform PlayMode -testResults TestResults/playmode-results.xml -logFile Logs/playmode.log
+
+      - name: Assert clean git status after tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Repository became dirty after tests:" >&2
+            git status --short >&2
+            exit 1
+          fi
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            TestResults/*.xml
+            Logs/*test*.log
+          retention-days: 14
+
+  build-desktop:
+    name: build-desktop
+    runs-on: ubuntu-latest
+    needs: test
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.target == 'All' || github.event.inputs.target == 'Desktop' }}
+    container:
+      image: unityci/editor:ubuntu-6000.3.8f1-windows-mono-3
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: Library
+          key: unity-${{ env.UNITY_VERSION }}-StandaloneWindows64-${{ runner.os }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            unity-${{ env.UNITY_VERSION }}-StandaloneWindows64-${{ runner.os }}-
+
+      - name: Activate Unity license
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${UNITY_LICENSE:-}" ]; then
+            echo "UNITY_LICENSE secret is required" >&2
+            exit 1
+          fi
+          printf '%s' "$UNITY_LICENSE" > /tmp/UnityLicenseFile.ulf
+          /opt/unity/Editor/Unity -batchmode -nographics -quit -manualLicenseFile /tmp/UnityLicenseFile.ulf
+
+      - name: Compute version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="0.0.0-ci.${GITHUB_SHA:0:7}"
+          fi
+          echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Desktop
+        shell: bash
+        env:
+          UNITY_PATH: /opt/unity/Editor/Unity
+          BUILD_TARGET: Desktop
+          BUILD_PATH: Builds
+          BUNDLE_VERSION: ${{ steps.version.outputs.value }}
+          SKIP_TESTS: '1'
+          ALLOW_SKIP_TESTS: 'true'
+        run: |
+          set -euo pipefail
+          chmod +x ./build.sh
+          ./build.sh
+
+      - name: Assert clean git status after desktop build
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Repository became dirty after desktop build:" >&2
+            git status --short >&2
+            exit 1
+          fi
+
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-desktop
+          path: Builds/Desktop/**
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 90 || 14 }}
+
+  build-webgl:
+    name: build-webgl
+    runs-on: ubuntu-latest
+    needs: test
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.target == 'All' || github.event.inputs.target == 'WebGL' }}
+    container:
+      image: unityci/editor:ubuntu-6000.3.8f1-webgl-3
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: Library
+          key: unity-${{ env.UNITY_VERSION }}-WebGL-${{ runner.os }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            unity-${{ env.UNITY_VERSION }}-WebGL-${{ runner.os }}-
+
+      - name: Activate Unity license
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${UNITY_LICENSE:-}" ]; then
+            echo "UNITY_LICENSE secret is required" >&2
+            exit 1
+          fi
+          printf '%s' "$UNITY_LICENSE" > /tmp/UnityLicenseFile.ulf
+          /opt/unity/Editor/Unity -batchmode -nographics -quit -manualLicenseFile /tmp/UnityLicenseFile.ulf
+
+      - name: Compute version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="0.0.0-ci.${GITHUB_SHA:0:7}"
+          fi
+          echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build WebGL
+        shell: bash
+        env:
+          UNITY_PATH: /opt/unity/Editor/Unity
+          BUILD_TARGET: WebGL
+          BUILD_PATH: Builds
+          BUNDLE_VERSION: ${{ steps.version.outputs.value }}
+          SKIP_TESTS: '1'
+          ALLOW_SKIP_TESTS: 'true'
+        run: |
+          set -euo pipefail
+          chmod +x ./build.sh
+          ./build.sh
+
+      - name: Assert clean git status after webgl build
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Repository became dirty after webgl build:" >&2
+            git status --short >&2
+            exit 1
+          fi
+
+      - name: Upload webgl artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-webgl
+          path: Builds/WebGL/**
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 90 || 14 }}
+
+  deploy-pages:
+    name: deploy-pages
+    runs-on: ubuntu-latest
+    needs: build-webgl
+    if: ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) && needs.build-webgl.result == 'success' }}
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download webgl artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-webgl
+          path: _site
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    needs:
+      - build-desktop
+      - build-webgl
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && needs.build-desktop.result == 'success' && needs.build-webgl.result == 'success' }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-desktop
+          path: release/build-desktop
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-webgl
+          path: release/build-webgl
+
+      - name: Archive artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf build-desktop.tar.gz -C release build-desktop
+          tar -czf build-webgl.tar.gz -C release build-webgl
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG" build-desktop.tar.gz build-webgl.tar.gz --title "$TAG" --notes "Automated release" --clobber
+
+  notify:
+    name: notify
+    runs-on: ubuntu-latest
+    needs:
+      - test
+      - build-desktop
+      - build-webgl
+      - deploy-pages
+      - release
+    if: ${{ always() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) }}
+    permissions:
+      contents: read
+    steps:
+      - name: Send Telegram notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TEST_RESULT: ${{ needs.test.result }}
+          BUILD_DESKTOP_RESULT: ${{ needs.build-desktop.result }}
+          BUILD_WEBGL_RESULT: ${{ needs.build-webgl.result }}
+          DEPLOY_PAGES_RESULT: ${{ needs.deploy-pages.result }}
+          RELEASE_RESULT: ${{ needs.release.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "Telegram secrets are not configured. Skip notify."
+            exit 0
+          fi
+
+          FAILED_JOB="none"
+          for pair in \
+            "test:${TEST_RESULT}" \
+            "build-desktop:${BUILD_DESKTOP_RESULT}" \
+            "build-webgl:${BUILD_WEBGL_RESULT}" \
+            "deploy-pages:${DEPLOY_PAGES_RESULT}" \
+            "release:${RELEASE_RESULT}"; do
+            job="${pair%%:*}"
+            status="${pair##*:}"
+            if [ "$status" = "failure" ] || [ "$status" = "cancelled" ]; then
+              FAILED_JOB="$job"
+              break
+            fi
+          done
+
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          PAGES_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pages"
+
+          if [ "$FAILED_JOB" = "none" ]; then
+            TEXT="✅ Build pipeline succeeded%0ABranch/Tag: ${GITHUB_REF_NAME}%0ARun: ${RUN_URL}%0APages: ${PAGES_URL}"
+          else
+            TEXT="❌ Build pipeline failed%0ABranch/Tag: ${GITHUB_REF_NAME}%0AFailed job: ${FAILED_JOB}%0ARun: ${RUN_URL}"
+          fi
+
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="${TEXT}" \
+            -d parse_mode="HTML" > /dev/null
