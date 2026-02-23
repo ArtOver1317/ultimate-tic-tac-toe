@@ -5,7 +5,7 @@ using Runtime.Games.TicTacToe.Moves;
 
 namespace Runtime.Games.TicTacToe.Rules
 {
-    public enum GameStatus { InProgress, Win, Draw }
+    public enum GameStatus { InProgress, Win, Draw, Timeout }
 
     public enum WinLineDirection { Horizontal, Vertical, DiagonalMain, DiagonalAnti }
 
@@ -45,7 +45,7 @@ namespace Runtime.Games.TicTacToe.Rules
     {
         public GameStatus Status { get; }
 
-        /// <summary><see cref="PlayerMark.None"/> when <see cref="Status"/> != <see cref="GameStatus.Win"/>.</summary>
+        /// <summary><see cref="PlayerMark.None"/> when <see cref="Status"/> is not terminal winner state.</summary>
         public PlayerMark Winner { get; }
 
         /// <summary>null when <see cref="Status"/> != <see cref="GameStatus.Win"/>.</summary>
@@ -61,6 +61,7 @@ namespace Runtime.Games.TicTacToe.Rules
         public static GameResult InProgress() => new(GameStatus.InProgress, PlayerMark.None, null);
         public static GameResult Win(PlayerMark winner, WinLine line) => new(GameStatus.Win, winner, line);
         public static GameResult Draw() => new(GameStatus.Draw, PlayerMark.None, null);
+        public static GameResult Timeout(PlayerMark winner) => new(GameStatus.Timeout, winner, null);
 
         public bool Equals(GameResult other)
             => Status == other.Status && Winner == other.Winner && WinLine == other.WinLine;
@@ -74,6 +75,7 @@ namespace Runtime.Games.TicTacToe.Rules
         {
             GameStatus.Win => $"Win({Winner}, {WinLine})",
             GameStatus.Draw => "Draw",
+            GameStatus.Timeout => $"Timeout({Winner})",
             _ => "InProgress",
         };
     }

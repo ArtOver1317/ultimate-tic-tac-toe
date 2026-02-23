@@ -7,6 +7,7 @@ using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
+using Runtime.UI.Components;
 using Runtime.UI.GameModes.Wizard;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -95,6 +96,86 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Assert
             act.Should().NotThrow();
+        }
+
+        [Test]
+        public void WhenMoveTimerSettingsViewModelCreated_ThenDefaultSelectedPresetIsZero()
+        {
+            // Arrange
+            var config = MoveTimerPresetsConfig.CreateRuntimeDefault();
+
+            // Act
+            using var vm = new MoveTimerSettingsViewModel(config, _localization);
+
+            // Assert
+            vm.MoveTimeLimitSeconds.CurrentValue.Should().Be(0);
+            vm.SelectedPresetId.CurrentValue.Should().Be("0");
+        }
+
+        [Test]
+        public void WhenMoveTimerSettingsTryApplyConfigCalledWithInvalidValue_ThenFallsBackToZero()
+        {
+            // Arrange
+            var config = MoveTimerPresetsConfig.CreateRuntimeDefault();
+            using var vm = new MoveTimerSettingsViewModel(config, _localization);
+
+            vm.SetSelectedPresetId("30");
+            vm.MoveTimeLimitSeconds.CurrentValue.Should().Be(30);
+
+            // Act
+            var result = vm.TryApplyConfig(17);
+
+            // Assert
+            result.Should().BeFalse();
+            vm.MoveTimeLimitSeconds.CurrentValue.Should().Be(0);
+            vm.SelectedPresetId.CurrentValue.Should().Be("0");
+        }
+
+        [Test]
+        public void WhenMoveTimerSettingsBinderBindCalled_ThenFormatsNumericPresetsWithSecondsFormat()
+        {
+            // Arrange
+            _localization
+                .Observe(
+                    Arg.Is<TextTableId>(t => t.Name == "GameWizard"),
+                    Arg.Is<TextKey>(k => k.Value == "GameWizard.Timer.Off"),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(Observable.Return("No limit"));
+
+            _localization
+                .Observe(
+                    Arg.Is<TextTableId>(t => t.Name == "GameWizard"),
+                    Arg.Is<TextKey>(k => k.Value == "GameWizard.Timer.SecondsFormat"),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(Observable.Return("{0} sec"));
+
+            _localization
+                .Observe(
+                    Arg.Is<TextTableId>(t => t.Name == "GameWizard"),
+                    Arg.Is<TextKey>(k => k.Value == "GameWizard.Timer.Label"),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(Observable.Return("Move time"));
+
+            var root = new VisualElement();
+            var title = new Label { name = "MoveTimerTitle" };
+            var chips = new DifficultyChips { name = "MoveTimerChips" };
+            root.Add(title);
+            root.Add(chips);
+
+            var binder = new MoveTimerSettingsBinder();
+            using var vm = new MoveTimerSettingsViewModel(MoveTimerPresetsConfig.CreateRuntimeDefault(), _localization);
+            var disposables = new CompositeDisposable();
+
+            // Act
+            binder.Bind(root, vm, disposables);
+
+            // Assert
+            title.text.Should().Be("Move time");
+            chips.Q<Button>("0")!.text.Should().Be("No limit");
+            chips.Q<Button>("15")!.text.Should().Be("15 sec");
+            chips.Q<Button>("90")!.text.Should().Be("90 sec");
+
+            disposables.Dispose();
         }
     }
 }

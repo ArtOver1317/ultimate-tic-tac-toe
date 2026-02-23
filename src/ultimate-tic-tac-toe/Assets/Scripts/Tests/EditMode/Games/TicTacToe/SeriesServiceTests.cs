@@ -123,6 +123,21 @@ namespace Tests.EditMode.Games.TicTacToe
             _service.Score.CurrentValue.Should().Be(default(SeriesScore));
         }
 
+        [Test]
+        public void WhenRecordTimeoutForO_ThenPlayer2WinsIncrements()
+        {
+            // Arrange
+            _service.StartSeries();
+
+            // Act
+            _service.RecordResult(GameResult.Timeout(PlayerMark.O));
+
+            // Assert
+            _service.Score.CurrentValue.Player1Wins.Should().Be(0);
+            _service.Score.CurrentValue.Player2Wins.Should().Be(1);
+            _service.Score.CurrentValue.Draws.Should().Be(0);
+        }
+
         // ── NextRound / alternation ──
 
         [Test]

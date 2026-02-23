@@ -36,6 +36,7 @@ namespace Runtime.Games.TicTacToe.ECS
             playersStash.Set(matchEntity, new PlayersComponent
             {
                 PlayerCount = PlayerSlotMapping.PlayerCount,
+                PlayerSlots = new[] { PlayerSlotMapping.SlotX, PlayerSlotMapping.SlotO },
                 ActivePlayerSlot = PlayerSlotMapping.SlotX,
             });
 

@@ -109,6 +109,9 @@ namespace Runtime.Gameplay.ECS
 
             ActiveRegistrar = registrar;
 
+            // Infrastructure terminal transition for timeout commands.
+            _systemsGroup.AddSystem(new TimeoutTerminalSystem());
+
             // Last: EventPublishSystem — publishes pending events after all mutations
             _systemsGroup.AddSystem(_eventPublishSystem);
 

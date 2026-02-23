@@ -47,6 +47,7 @@ namespace Runtime.Games.TicTacToe
         private Label _player1ScoreLabel;
         private Label _player2ScoreLabel;
         private Label _drawsScoreLabel;
+        private Label _moveTimerLabel;
 
         private float _gridGapHalf;
         private float _miniBoardGapHalf;
@@ -142,6 +143,7 @@ namespace Runtime.Games.TicTacToe
         Label IGameplayFieldUiAdapter.Player1ScoreLabel => _isBound ? _player1ScoreLabel : null;
         Label IGameplayFieldUiAdapter.Player2ScoreLabel => _isBound ? _player2ScoreLabel : null;
         Label IGameplayFieldUiAdapter.DrawsScoreLabel => _isBound ? _drawsScoreLabel : null;
+        Label IGameplayFieldUiAdapter.MoveTimerLabel => _isBound ? _moveTimerLabel : null;
 
         public UniTask BindAsync(FieldRenderSpec spec, CancellationToken ct)
         {
@@ -205,6 +207,7 @@ namespace Runtime.Games.TicTacToe
             _player1ScoreLabel = null;
             _player2ScoreLabel = null;
             _drawsScoreLabel = null;
+            _moveTimerLabel = null;
             ResetStyleTokenState();
             _bindCts?.Cancel();
             _bindCts?.Dispose();

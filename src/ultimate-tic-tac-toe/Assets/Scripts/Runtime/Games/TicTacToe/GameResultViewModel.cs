@@ -3,6 +3,7 @@ using R3;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Series;
+using Runtime.Localization;
 using UnityEngine.UIElements;
 
 namespace Runtime.Games.TicTacToe
@@ -21,6 +22,7 @@ namespace Runtime.Games.TicTacToe
         private readonly Label _resultLabel;
         private readonly Label _scoreLabel;
         private readonly Label _leadLabel;
+        private readonly ILocalizationService _localization;
 
         /// <summary>
         /// Emits <see cref="ResultAction.Restart"/> or <see cref="ResultAction.Exit"/>
@@ -28,9 +30,11 @@ namespace Runtime.Games.TicTacToe
         /// </summary>
         public Observable<ResultAction> Actions => _actions;
 
-        public GameResultViewModel(VisualElement parent)
+        public GameResultViewModel(VisualElement parent, ILocalizationService localization = null)
         {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
+
+            _localization = localization;
 
             // Build DOM programmatically (inline overlay).
             _overlay = new VisualElement { name = "ResultOverlay" };
@@ -105,8 +109,8 @@ namespace Runtime.Games.TicTacToe
         }
 
         // TODO: Replace with localized strings from Localization tables.
-        private static string FormatResult(GameResult result) =>
-            result.Winner.ToResultText(result.Status);
+        private string FormatResult(GameResult result) =>
+            result.Winner.ToResultText(result.Status, _localization);
 
         private static string FormatScore(SeriesScore score) =>
             $"Score: {score.Player1Wins} - {score.Player2Wins}  (Draws: {score.Draws})";

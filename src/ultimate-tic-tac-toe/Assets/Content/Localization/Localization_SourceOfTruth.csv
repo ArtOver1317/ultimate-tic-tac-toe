@@ -23,6 +23,8 @@ Game.Surrender,Surrender,Сдаться,降参,Surrender button
 GameOver.Victory,Victory!,Победа!,勝利！,Victory message
 GameOver.Defeat,Defeat,Поражение,敗北,Defeat message
 GameOver.Draw,Draw,Ничья,引き分け,Draw message
+GameOver.TimeoutWin.Player1,Player 1 (X) Wins by timeout!,Игрок 1 (X) победил по тайм-ауту!,プレイヤー1 (X) はタイムアウト勝ち！,Timeout win message for player 1
+GameOver.TimeoutWin.Player2,Player 2 (O) Wins by timeout!,Игрок 2 (O) победил по тайм-ауту!,プレイヤー2 (O) はタイムアウト勝ち！,Timeout win message for player 2
 GameOver.Rematch,Rematch,Реванш,再戦,Rematch button
 GameOver.MainMenu,Main Menu,Главное меню,メインメニュー,Return to main menu
 Lobby.WaitingForPlayers,Waiting for players...,Ожидание игроков...,プレイヤーを待っています...,Waiting status
@@ -123,6 +125,9 @@ GameWizard.MatchSetup.Status.HostIntentConfirmed,Host mode selected. Press Start
 GameWizard.MatchSetup.BotDifficulty.Easy,Easy,Лёгкая,簡単,Bot difficulty: easy
 GameWizard.MatchSetup.BotDifficulty.Normal,Normal,Нормальная,普通,Bot difficulty: normal
 GameWizard.MatchSetup.BotDifficulty.Hard,Hard,Сложная,難しい,Bot difficulty: hard
+GameWizard.Timer.Label,Move time,Время на ход,手番制限,Move timer settings title
+GameWizard.Timer.Off,No limit,Без ограничения,制限なし,Move timer disabled preset label
+GameWizard.Timer.SecondsFormat,{0}s,{0}с,{0}秒,Move timer preset seconds format
 GameWizard.GameSelection.Title,Select Game,Выберите игру,ゲームを選択,Game selection title
 GameWizard.GameSelection.Cancel,Cancel,Отмена,キャンセル,Game selection cancel button
 GameWizard.GameSelection.Continue,Continue,Продолжить,続行,Game selection continue button

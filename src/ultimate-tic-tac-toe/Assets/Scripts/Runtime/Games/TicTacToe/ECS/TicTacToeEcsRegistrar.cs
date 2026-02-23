@@ -41,6 +41,7 @@ namespace Runtime.Games.TicTacToe.ECS
             playersStash.Set(matchEntity, new PlayersComponent
             {
                 PlayerCount = PlayerCount,
+                PlayerSlots = new[] { SlotX, SlotO },
                 ActivePlayerSlot = SlotX, // X always starts first round
             });
 

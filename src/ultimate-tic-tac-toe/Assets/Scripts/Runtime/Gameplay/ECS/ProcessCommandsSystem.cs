@@ -21,6 +21,7 @@ namespace Runtime.Gameplay.ECS
         private Filter _matchFilter;
         private Stash<MakeMoveRequest> _moveRequestStash;
         private Stash<RestartRoundRequest> _restartRequestStash;
+        private Stash<TimeoutRequest> _timeoutRequestStash;
 
         public ProcessCommandsSystem(CommandQueue commandQueue)
         {
@@ -32,6 +33,7 @@ namespace Runtime.Gameplay.ECS
             _matchFilter = World.Filter.With<MatchTag>().Build();
             _moveRequestStash = World.GetStash<MakeMoveRequest>();
             _restartRequestStash = World.GetStash<RestartRoundRequest>();
+            _timeoutRequestStash = World.GetStash<TimeoutRequest>();
         }
 
         public void OnUpdate(float deltaTime)
@@ -44,6 +46,7 @@ namespace Runtime.Gameplay.ECS
             // Clean up previous one-shot requests
             _moveRequestStash.Remove(matchEntity);
             _restartRequestStash.Remove(matchEntity);
+            _timeoutRequestStash.Remove(matchEntity);
 
             if (_commandQueue.Count == 0)
                 return;
@@ -61,6 +64,13 @@ namespace Runtime.Gameplay.ECS
                     _restartRequestStash.Set(matchEntity, new RestartRoundRequest
                     {
                         StartingPlayerSlot = restart.StartingPlayerSlot,
+                    });
+                    break;
+
+                case TimeoutCommand timeout:
+                    _timeoutRequestStash.Set(matchEntity, new TimeoutRequest
+                    {
+                        LoserSlot = timeout.LoserSlot,
                     });
                     break;
 

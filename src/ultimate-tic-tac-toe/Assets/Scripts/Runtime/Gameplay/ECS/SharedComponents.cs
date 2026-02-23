@@ -25,6 +25,7 @@ namespace Runtime.Gameplay.ECS
     public struct PlayersComponent : IComponent
     {
         public int PlayerCount;
+        public int[] PlayerSlots;
         public int ActivePlayerSlot;
     }
 

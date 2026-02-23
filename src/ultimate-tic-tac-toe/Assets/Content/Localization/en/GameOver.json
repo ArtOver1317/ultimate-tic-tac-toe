@@ -7,6 +7,8 @@
     "GameOver.Draw": "Draw",
     "GameOver.MainMenu": "Main Menu",
     "GameOver.Rematch": "Rematch",
+    "GameOver.TimeoutWin.Player1": "Player 1 (X) Wins by timeout!",
+    "GameOver.TimeoutWin.Player2": "Player 2 (O) Wins by timeout!",
     "GameOver.Victory": "Victory!"
   }
 }

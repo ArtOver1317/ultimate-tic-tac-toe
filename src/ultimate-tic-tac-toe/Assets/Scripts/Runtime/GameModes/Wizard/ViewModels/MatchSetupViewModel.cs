@@ -32,6 +32,7 @@ namespace Runtime.GameModes.Wizard
         private readonly ILocalizationService _localization;
         private readonly IBotDifficultyCatalog _difficultyCatalog;
         private readonly IOnlineSessionFlowService _onlineSessionFlow;
+        private readonly MoveTimerSettingsViewModel _moveTimerSettings;
 
         private readonly ReactiveProperty<string> _modeTitleText = new(string.Empty);
         private readonly ReactiveProperty<string> _modeIconKey = new(string.Empty);
@@ -84,6 +85,7 @@ namespace Runtime.GameModes.Wizard
         
         // Protects against feedback loop: session -> subVM -> session
         private int _isSyncingModeConfigFromSession;
+        private int _isSyncingMoveTimerFromSession;
         private int _disposedExceptionLogged;
 
         public ReadOnlyReactiveProperty<string> ModeTitleText => _modeTitleText;
@@ -110,6 +112,7 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<bool> IsModeOptionsEnabled => _isModeOptionsEnabled;
         public ReadOnlyReactiveProperty<WizardError?> Error => _coordinator.CurrentError;
         public ReadOnlyReactiveProperty<string?> InlineErrorText => _inlineErrorText;
+        public MoveTimerSettingsViewModel MoveTimerSettings => _moveTimerSettings;
 
         public Observable<string> BackButtonText { get; }
         public Observable<string> CancelButtonText { get; }
@@ -133,6 +136,23 @@ namespace Runtime.GameModes.Wizard
             IGameWizardCoordinator coordinator,
             ILocalizationService localization,
             IBotDifficultyCatalog difficultyCatalog,
+            IOnlineSessionFlowService? onlineSessionFlow)
+            : this(
+                catalog,
+                coordinator,
+                localization,
+                difficultyCatalog,
+                moveTimerPresetsConfig: null,
+                onlineSessionFlow: onlineSessionFlow)
+        {
+        }
+
+        public MatchSetupViewModel(
+            IGameCatalog catalog,
+            IGameWizardCoordinator coordinator,
+            ILocalizationService localization,
+            IBotDifficultyCatalog difficultyCatalog,
+            MoveTimerPresetsConfig? moveTimerPresetsConfig = null,
             IOnlineSessionFlowService? onlineSessionFlow = null)
         {
             _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
@@ -140,6 +160,9 @@ namespace Runtime.GameModes.Wizard
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
             _difficultyCatalog = difficultyCatalog ?? throw new ArgumentNullException(nameof(difficultyCatalog));
             _onlineSessionFlow = onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance;
+            _moveTimerSettings = new MoveTimerSettingsViewModel(
+                moveTimerPresetsConfig ?? MoveTimerPresetsConfig.CreateRuntimeDefault(),
+                _localization);
 
             _availableDifficulties = new ReactiveProperty<IReadOnlyList<BotDifficulty>>(
                 _difficultyCatalog.Difficulties ?? throw new ArgumentException("Difficulty catalog returned null list.", nameof(difficultyCatalog)));
@@ -331,6 +354,7 @@ namespace Runtime.GameModes.Wizard
             _inlineErrorText.Value = null;
             _validationErrorText = null;
             _coordinatorInlineErrorText = null;
+            _moveTimerSettings.TryApplyConfig(0);
 
             _modeTitleSubscription?.Dispose();
             _modeTitleSubscription = null;
@@ -371,6 +395,7 @@ namespace Runtime.GameModes.Wizard
             _canBecomeHost.Dispose();
             _isModeOptionsEnabled.Dispose();
             _inlineErrorText.Dispose();
+            _moveTimerSettings.Dispose();
 
             base.OnDispose();
         }
@@ -418,6 +443,10 @@ namespace Runtime.GameModes.Wizard
 
                 AddDisposable(session.ValidationErrors
                     .Subscribe(errors => OnValidationErrorsChanged(errors)));
+
+                AddDisposable(_moveTimerSettings.MoveTimeLimitSeconds
+                    .Skip(1)
+                    .Subscribe(ApplyMoveTimeLimitToSession));
             }
             else
             {

@@ -20,6 +20,14 @@ namespace Runtime.Gameplay.ECS
     }
 
     /// <summary>
+    /// One-shot request: created by <see cref="ProcessCommandsSystem"/>, consumed by <see cref="TimeoutTerminalSystem"/>.
+    /// </summary>
+    public struct TimeoutRequest : IComponent
+    {
+        public int LoserSlot;
+    }
+
+    /// <summary>
     /// One-shot event: placed on match entity by apply systems, consumed by <see cref="EventPublishSystem"/>.
     /// </summary>
     public struct MoveAppliedOneShot : IComponent

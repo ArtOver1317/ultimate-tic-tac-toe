@@ -56,6 +56,33 @@ namespace Runtime.Infrastructure.Scopes
                 .As<IUltimateGameplaySnapshotProvider>();
             builder.Register<IGameplayNetworkBridge, FileGameplayNetworkBridge>(Lifetime.Scoped);
             builder.Register<OnlineAwareGameplayCommandSink>(Lifetime.Scoped).As<IGameplayCommandSink>();
+            builder.Register<ITimeSource>(resolver =>
+            {
+                var session = resolver.Resolve<IOnlineGameplaySessionContextStore>().Snapshot;
+                return session.IsOnlineDirectInvite
+                    ? new FusionTickTimeSource()
+                    : new UnscaledDeltaTimeSource();
+            }, Lifetime.Scoped);
+
+            builder.Register<IMoveTimerService>(resolver =>
+            {
+                var session = resolver.Resolve<IOnlineGameplaySessionContextStore>().Snapshot;
+
+                return session.IsOnlineDirectInvite
+                    ? new NetworkMoveTimerService(
+                        resolver.Resolve<IGameLaunchConfigStore>(),
+                        resolver.Resolve<IGameplayEventStream>(),
+                        resolver.Resolve<IGameplayCommandSink>(),
+                        resolver.Resolve<ITimeSource>(),
+                        resolver.Resolve<IOnlineGameplaySessionContextStore>())
+                    : new LocalMoveTimerService(
+                        resolver.Resolve<IGameLaunchConfigStore>(),
+                        resolver.Resolve<IGameplayEventStream>(),
+                        resolver.Resolve<IGameplayCommandSink>(),
+                        resolver.Resolve<ITimeSource>());
+            }, Lifetime.Scoped)
+            .As<IMoveTimerService>()
+            .As<IDisposable>();
 
             // ── Bot AI ──
             if (BotProfileCatalog != null)
@@ -91,6 +118,12 @@ namespace Runtime.Infrastructure.Scopes
                 .As<IGameplayFieldPresenter>()
                 .As<IGameplayFieldUiAdapter>();
             builder.Register<GameplayMovesBinder>(Lifetime.Scoped);
+            builder.Register<MoveTimerHudViewModel>(Lifetime.Scoped)
+                .As<IMoveTimerHudViewModel>()
+                .As<IDisposable>();
+            builder.Register<MoveTimerHudBinder>(Lifetime.Scoped)
+                .AsSelf()
+                .As<IDisposable>();
             builder.Register<WinLineRenderer>(Lifetime.Scoped)
                 .AsSelf()
                 .As<IDisposable>();

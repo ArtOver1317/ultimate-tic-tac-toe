@@ -6,6 +6,7 @@ namespace Runtime.Gameplay.ECS
     {
         MakeMove,
         RestartRound,
+        Timeout,
     }
 
     public interface IGameplayCommand
@@ -25,5 +26,12 @@ namespace Runtime.Gameplay.ECS
         public GameplayCommandType CommandType => GameplayCommandType.RestartRound;
         public int StartingPlayerSlot { get; }
         public RestartRoundCommand(int startingPlayerSlot) => StartingPlayerSlot = startingPlayerSlot;
+    }
+
+    public readonly struct TimeoutCommand : IGameplayCommand
+    {
+        public GameplayCommandType CommandType => GameplayCommandType.Timeout;
+        public int LoserSlot { get; }
+        public TimeoutCommand(int loserSlot) => LoserSlot = loserSlot;
     }
 }

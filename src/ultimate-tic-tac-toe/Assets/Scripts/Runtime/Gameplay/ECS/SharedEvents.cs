@@ -6,14 +6,16 @@ using Runtime.Games.TicTacToe.Moves;
 namespace Runtime.Gameplay.ECS
 {
     /// <summary>
-    /// Shared game-agnostic game status. Mirrors <see cref="Runtime.Games.TicTacToe.Rules.GameStatus"/>
-    /// but lives in the shared ECS namespace to avoid tying shared components to game-specific code (ADR-9).
+    /// Shared game-agnostic game status. Extends <see cref="Runtime.Games.TicTacToe.Rules.GameStatus"/>
+    /// with cross-game values (for example Timeout) and lives in shared ECS namespace to avoid tying
+    /// shared components to game-specific code (ADR-9).
     /// </summary>
     public enum GameStatus
     {
         InProgress = 0,
         Win = 1,
         Draw = 2,
+        Timeout = 3,
     }
 
     /// <summary>

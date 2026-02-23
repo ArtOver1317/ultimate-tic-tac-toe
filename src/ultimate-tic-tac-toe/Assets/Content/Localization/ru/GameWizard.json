@@ -12,6 +12,7 @@
     "GameWizard.MatchSetup.BotDifficulty.Normal": "Нормальная",
     "GameWizard.MatchSetup.BotDifficulty.Title": "Сложность бота",
     "GameWizard.MatchSetup.Cancel": "Отмена",
+    "GameWizard.MatchSetup.Host.Become": "Стать хостом",
     "GameWizard.MatchSetup.HumanSettings.DirectInvite": "По ID игрока",
     "GameWizard.MatchSetup.HumanSettings.Local": "Локально (один экран)",
     "GameWizard.MatchSetup.HumanSettings.Matchmaking": "Найти матч",
@@ -20,17 +21,16 @@
     "GameWizard.MatchSetup.Opponent.Bot": "Бот",
     "GameWizard.MatchSetup.Opponent.Human": "Человек",
     "GameWizard.MatchSetup.Opponent.Title": "Соперник",
-    "GameWizard.MatchSetup.Host.Become": "Стать хостом",
     "GameWizard.MatchSetup.PlayerId.Label": "ID игрока",
     "GameWizard.MatchSetup.SessionId.Copy": "Копировать ID",
     "GameWizard.MatchSetup.SessionId.Label": "ID сессии",
+    "GameWizard.MatchSetup.Start": "Начать",
     "GameWizard.MatchSetup.Status.Connecting": "Подключение к сессии...",
     "GameWizard.MatchSetup.Status.HostIntentConfirmed": "Режим хоста выбран. Нажмите «Начать» для запуска.",
     "GameWizard.MatchSetup.Status.PlayerFoundStartingSoon": "Соперник найден. Скоро старт...",
     "GameWizard.MatchSetup.Status.Reconnecting": "Переподключение...",
     "GameWizard.MatchSetup.Status.SessionIdCopied": "ID сессии скопирован",
     "GameWizard.MatchSetup.Status.WaitingForPlayer": "Ожидание соперника...",
-    "GameWizard.MatchSetup.Start": "Начать",
     "GameWizard.MatchSetup.TicTacToe.BoardSize": "Размер поля",
     "GameWizard.MatchSetup.TicTacToe.UltimateMode": "Ультимейт",
     "GameWizard.Matchmaking.Back": "Назад",
@@ -41,6 +41,9 @@
     "GameWizard.Matchmaking.Hint": "{count} игроков с другими параметрами",
     "GameWizard.Matchmaking.Retry": "Повторить",
     "GameWizard.Matchmaking.SearchingFor": "Идёт поиск",
-    "GameWizard.Matchmaking.Title": "Поиск соперника..."
+    "GameWizard.Matchmaking.Title": "Поиск соперника...",
+    "GameWizard.Timer.Label": "Время на ход",
+    "GameWizard.Timer.Off": "Без ограничения",
+    "GameWizard.Timer.SecondsFormat": "{0}с"
   }
 }

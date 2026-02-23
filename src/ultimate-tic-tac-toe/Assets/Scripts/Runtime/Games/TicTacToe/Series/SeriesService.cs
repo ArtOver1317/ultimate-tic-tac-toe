@@ -73,6 +73,10 @@ namespace Runtime.Games.TicTacToe.Series
                     => new SeriesScore(s.Player1Wins + 1, s.Player2Wins, s.Draws, s.RoundIndex),
                 GameStatus.Win when result.Winner == PlayerMark.O
                     => new SeriesScore(s.Player1Wins, s.Player2Wins + 1, s.Draws, s.RoundIndex),
+                GameStatus.Timeout when result.Winner == PlayerMark.X
+                    => new SeriesScore(s.Player1Wins + 1, s.Player2Wins, s.Draws, s.RoundIndex),
+                GameStatus.Timeout when result.Winner == PlayerMark.O
+                    => new SeriesScore(s.Player1Wins, s.Player2Wins + 1, s.Draws, s.RoundIndex),
                 GameStatus.Draw
                     => new SeriesScore(s.Player1Wins, s.Player2Wins, s.Draws + 1, s.RoundIndex),
                 _ => s, // InProgress — ignore

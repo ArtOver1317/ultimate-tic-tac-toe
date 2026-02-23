@@ -93,6 +93,7 @@ namespace Runtime.UI.GameModes.Wizard
 
         private IViewAssetProvider _assetProvider = null!;
         private IGameSettingsBinder[] _binders = System.Array.Empty<IGameSettingsBinder>();
+        private MoveTimerSettingsBinder _moveTimerBinder = new();
         private ILocalizationService? _localization;
 
         private CancellationTokenSource? _loadCts;
@@ -112,6 +113,7 @@ namespace Runtime.UI.GameModes.Wizard
             _assetProvider = assetProvider ?? throw new ArgumentNullException(nameof(assetProvider));
             _binders = binders != null ? new List<IGameSettingsBinder>(binders).ToArray() : System.Array.Empty<IGameSettingsBinder>();
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
+            _moveTimerBinder = new MoveTimerSettingsBinder();
         }
 
         protected override void BindViewModel()
@@ -292,6 +294,10 @@ namespace Runtime.UI.GameModes.Wizard
 
             AddDisposable(copySessionIdButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestCopySessionId()));
             AddDisposable(becomeHostButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestBecomeHost()));
+
+            var moveTimerDisposables = new CompositeDisposable();
+            _moveTimerBinder.Bind(Root, ViewModel.MoveTimerSettings, moveTimerDisposables);
+            AddDisposable(moveTimerDisposables);
 
             AddDisposable(ViewModel.ActiveSettings
                 .Subscribe(presentation => LoadSettingsSafeAsync(presentation).Forget(ex => GameLog.Exception(ex))));

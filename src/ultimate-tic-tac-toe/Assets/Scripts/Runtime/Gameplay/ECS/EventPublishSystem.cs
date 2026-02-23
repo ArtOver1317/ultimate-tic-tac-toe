@@ -201,6 +201,18 @@ namespace Runtime.Gameplay.ECS
                     if (miniEvt.HasValue)
                         SafeInvoke(_onMiniBoardStatusChanged, miniEvt.Value, nameof(MiniBoardStatusChangedEvent));
                 });
+
+                return;
+            }
+
+            // Handle terminal events without move application (for example timeout command).
+            if (_roundFinishedStash.Has(matchEntity))
+            {
+                ref var finished = ref _roundFinishedStash.Get(matchEntity);
+                var roundEvt = new RoundFinishedEvent(finished.Status, finished.WinnerSlot, finished.WinLine);
+                _roundFinishedStash.Remove(matchEntity);
+
+                _scheduler.Schedule(() => SafeInvoke(_onRoundFinished, roundEvt, nameof(RoundFinishedEvent)));
             }
         }
 

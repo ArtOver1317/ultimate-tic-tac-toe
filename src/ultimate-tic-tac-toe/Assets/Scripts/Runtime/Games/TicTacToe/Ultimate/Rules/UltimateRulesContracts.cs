@@ -103,6 +103,7 @@ namespace Runtime.Games.TicTacToe.Ultimate.Rules
                 GameStatus.InProgress => Winner == PlayerMark.None && !BigBoardWinLine.HasValue,
                 GameStatus.Draw => Winner == PlayerMark.None && !BigBoardWinLine.HasValue,
                 GameStatus.Win => Winner != PlayerMark.None && BigBoardWinLine.HasValue,
+                GameStatus.Timeout => Winner != PlayerMark.None && !BigBoardWinLine.HasValue,
                 _ => false,
             };
         }

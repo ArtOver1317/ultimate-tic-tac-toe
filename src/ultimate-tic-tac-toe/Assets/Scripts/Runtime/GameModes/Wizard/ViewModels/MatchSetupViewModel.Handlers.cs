@@ -55,6 +55,7 @@ namespace Runtime.GameModes.Wizard
             ApplyBotDifficultyFromSession(snapshot.BotDifficultyId);
             ApplyTargetPlayerIdFromSession(snapshot.TargetPlayerId);
             ApplyModeConfigFromSession(snapshot.GameConfig);
+            ApplyMoveTimeLimitFromSession(snapshot.MoveTimeLimitSeconds);
         }
 
         private void ApplySelectedMode(string? selectedGameId)
@@ -355,6 +356,40 @@ namespace Runtime.GameModes.Wizard
 
         private void UpdateCanStart() =>
             _canStart.Value = _sessionCanStart;
+
+        private void ApplyMoveTimeLimitToSession(int seconds)
+        {
+            if (Volatile.Read(ref _isSyncingMoveTimerFromSession) != 0)
+                return;
+
+            var session = _session;
+
+            if (session == null)
+                return;
+
+            try
+            {
+                session.Update(s => s.MoveTimeLimitSeconds == seconds ? s : s.WithMoveTimeLimitSeconds(seconds));
+            }
+            catch (ObjectDisposedException)
+            {
+                LogDisposedOnce("ApplyMoveTimeLimitToSession");
+            }
+        }
+
+        private void ApplyMoveTimeLimitFromSession(int seconds)
+        {
+            Interlocked.Exchange(ref _isSyncingMoveTimerFromSession, 1);
+
+            try
+            {
+                _moveTimerSettings.TryApplyConfig(seconds);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isSyncingMoveTimerFromSession, 0);
+            }
+        }
 
         private void ApplyModeConfig(IGameConfig? config)
         {

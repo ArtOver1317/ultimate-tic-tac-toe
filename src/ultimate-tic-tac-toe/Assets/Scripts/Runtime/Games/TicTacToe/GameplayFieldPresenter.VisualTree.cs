@@ -127,6 +127,12 @@ namespace Runtime.Games.TicTacToe
             centerLabel.AddToClassList("current-player-label");
             scoreboard.Add(centerLabel);
 
+            var moveTimerLabel = new Label { name = "MoveTimerLabel", text = "00" };
+            moveTimerLabel.AddToClassList("player-score");
+            moveTimerLabel.AddToClassList("move-timer-label");
+            moveTimerLabel.style.display = DisplayStyle.None;
+            scoreboard.Add(moveTimerLabel);
+
             var drawsScore = new Label { name = "DrawsScore", text = "D:0" };
             drawsScore.AddToClassList("player-score");
             scoreboard.Add(drawsScore);
@@ -167,6 +173,26 @@ namespace Runtime.Games.TicTacToe
             _player1ScoreLabel = scoreboard.Q<Label>("Player1Score");
             _player2ScoreLabel = scoreboard.Q<Label>("Player2Score");
             _drawsScoreLabel = scoreboard.Q<Label>("DrawsScore");
+            _moveTimerLabel = scoreboard.Q<Label>("MoveTimerLabel");
+
+            if (_moveTimerLabel == null)
+            {
+                _moveTimerLabel = new Label { name = "MoveTimerLabel", text = "00" };
+                _moveTimerLabel.AddToClassList("player-score");
+                _moveTimerLabel.AddToClassList("move-timer-label");
+                _moveTimerLabel.style.display = DisplayStyle.None;
+
+                var currentPlayerLabel = scoreboard.Q<Label>("CurrentPlayerLabel");
+                if (currentPlayerLabel != null)
+                {
+                    var index = scoreboard.IndexOf(currentPlayerLabel);
+                    scoreboard.Insert(index + 1, _moveTimerLabel);
+                }
+                else
+                {
+                    scoreboard.Insert(0, _moveTimerLabel);
+                }
+            }
 
             _currentPlayerLabel = scoreboard.Q<Label>("CurrentPlayerLabel");
         }

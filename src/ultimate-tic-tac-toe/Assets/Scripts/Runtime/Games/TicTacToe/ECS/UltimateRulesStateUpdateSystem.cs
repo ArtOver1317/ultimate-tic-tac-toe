@@ -144,6 +144,22 @@ namespace Runtime.Games.TicTacToe.ECS
                         });
                         break;
 
+                    case Rules.GameStatus.Timeout:
+                        status.Status = Gameplay.ECS.GameStatus.Timeout;
+                        status.WinnerSlot = result.Match.Winner == Moves.PlayerMark.None
+                            ? null
+                            : PlayerSlotMapping.MarkToSlot(result.Match.Winner);
+                        status.WinLine = null;
+                        bigBoardWinLine.HasValue = false;
+                        bigBoardWinLine.Value = default;
+                        _roundFinishedStash.Set(entity, new RoundFinishedOneShot
+                        {
+                            Status = status.Status,
+                            WinnerSlot = status.WinnerSlot,
+                            WinLine = status.WinLine,
+                        });
+                        break;
+
                     default:
                         throw new ArgumentOutOfRangeException();
                 }

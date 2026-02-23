@@ -14,6 +14,11 @@
                     <app:ModeOptionsHost name="ModeOptionsHost" class="gmw-mode-options-host" />
                 </ui:VisualElement>
 
+                <ui:VisualElement name="MoveTimerSection" class="gmw-section gmw-move-timer-settings">
+                    <ui:Label text="" name="MoveTimerTitle" class="gmw-section__title" />
+                    <app:DifficultyChips name="MoveTimerChips" class="gmw-difficulty-chips gmw-move-timer-chips" />
+                </ui:VisualElement>
+
                 <ui:VisualElement name="OpponentSection" class="gmw-section">
                     <ui:Label text="" name="OpponentTitle" class="gmw-section__title" />
                     <app:SegmentedToggle name="OpponentToggle" class="gmw-segmented-toggle" />

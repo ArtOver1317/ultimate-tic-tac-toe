@@ -38,5 +38,8 @@ namespace Runtime.Games.TicTacToe.Moves
 
         /// <summary>Score label for draws counter.</summary>
         Label DrawsScoreLabel { get; }
+
+        /// <summary>HUD label for current move timer.</summary>
+        Label MoveTimerLabel { get; }
     }
 }

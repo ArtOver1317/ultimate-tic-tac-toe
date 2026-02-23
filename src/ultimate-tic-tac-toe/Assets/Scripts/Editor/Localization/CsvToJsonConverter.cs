@@ -32,6 +32,13 @@ namespace Editor.Localization
             window.Show();
         }
 
+        [MenuItem("Tools/Localization/Content Management/Convert CSV To JSON (Headless)")]
+        private static void ConvertHeadless()
+        {
+            var converter = CreateInstance<CsvToJsonConverter>();
+            converter.Convert(showDialogs: false);
+        }
+
         private void OnGUI()
         {
             EditorGUILayout.LabelField("CSV → JSON Converter", EditorStyles.boldLabel);
@@ -84,7 +91,9 @@ namespace Editor.Localization
             EditorGUILayout.EndScrollView();
         }
 
-        private void Convert()
+        private void Convert() => Convert(showDialogs: true);
+
+        private void Convert(bool showDialogs)
         {
             _logText = "";
             Log($"Starting conversion: {_csvPath}");
@@ -211,12 +220,16 @@ namespace Editor.Localization
 
                 AssetDatabase.Refresh();
                 Log($"Conversion complete! Written {filesWritten} files.");
-                EditorUtility.DisplayDialog("Success", $"Conversion complete!\n{filesWritten} files written.", "OK");
+
+                if (showDialogs)
+                    EditorUtility.DisplayDialog("Success", $"Conversion complete!\n{filesWritten} files written.", "OK");
             }
             catch (Exception ex)
             {
                 LogError($"Conversion failed: {ex.Message}");
-                EditorUtility.DisplayDialog("Error", $"Conversion failed:\n{ex.Message}", "OK");
+
+                if (showDialogs)
+                    EditorUtility.DisplayDialog("Error", $"Conversion failed:\n{ex.Message}", "OK");
             }
         }
 

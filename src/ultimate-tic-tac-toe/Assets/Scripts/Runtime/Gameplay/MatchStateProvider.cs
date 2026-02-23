@@ -225,7 +225,9 @@ namespace Runtime.Gameplay
                 {
                     Runtime.Gameplay.ECS.GameStatus.Win => Runtime.Games.TicTacToe.Rules.GameStatus.Win,
                     Runtime.Gameplay.ECS.GameStatus.Draw => Runtime.Games.TicTacToe.Rules.GameStatus.Draw,
-                    _ => Runtime.Games.TicTacToe.Rules.GameStatus.InProgress,
+                    Runtime.Gameplay.ECS.GameStatus.InProgress => Runtime.Games.TicTacToe.Rules.GameStatus.InProgress,
+                    Runtime.Gameplay.ECS.GameStatus.Timeout => Runtime.Games.TicTacToe.Rules.GameStatus.Timeout,
+                    _ => throw new ArgumentOutOfRangeException(nameof(ecsStatus.Status), ecsStatus.Status, null),
                 };
 
                 if (status != Runtime.Games.TicTacToe.Rules.GameStatus.Win)

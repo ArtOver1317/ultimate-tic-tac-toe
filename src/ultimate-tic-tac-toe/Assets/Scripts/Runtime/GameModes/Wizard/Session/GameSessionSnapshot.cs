@@ -17,6 +17,7 @@ namespace Runtime.GameModes.Wizard
         public MatchmakingState MatchmakingState { get; }
         public string? MatchmakingMatchId { get; }
         public string? MatchmakingOpponentId { get; }
+        public int MoveTimeLimitSeconds { get; }
         public int Version { get; }
 
         private GameSessionSnapshot(
@@ -29,6 +30,7 @@ namespace Runtime.GameModes.Wizard
             MatchmakingState matchmakingState,
             string? matchmakingMatchId,
             string? matchmakingOpponentId,
+            int moveTimeLimitSeconds,
             int version)
         {
             SelectedGameId = selectedGameId;
@@ -40,6 +42,7 @@ namespace Runtime.GameModes.Wizard
             MatchmakingState = matchmakingState;
             MatchmakingMatchId = matchmakingMatchId;
             MatchmakingOpponentId = matchmakingOpponentId;
+            MoveTimeLimitSeconds = moveTimeLimitSeconds >= 0 ? moveTimeLimitSeconds : 0;
             Version = version;
         }
 
@@ -57,6 +60,7 @@ namespace Runtime.GameModes.Wizard
             MatchmakingState matchmakingState,
             string? matchmakingMatchId,
             string? matchmakingOpponentId,
+            int moveTimeLimitSeconds,
             int version) =>
             new(
                 selectedGameId,
@@ -68,6 +72,7 @@ namespace Runtime.GameModes.Wizard
                 matchmakingState,
                 matchmakingMatchId,
                 matchmakingOpponentId,
+                moveTimeLimitSeconds,
                 version);
 
         public static GameSessionSnapshot Default => Create(
@@ -80,6 +85,7 @@ namespace Runtime.GameModes.Wizard
             matchmakingState: MatchmakingState.Idle,
             matchmakingMatchId: null,
             matchmakingOpponentId: null,
+            moveTimeLimitSeconds: 0,
             version: 0);
 
         public GameSessionSnapshot WithSelectedGameId(string? selectedGameId)
@@ -96,32 +102,36 @@ namespace Runtime.GameModes.Wizard
                 MatchmakingState,
                 MatchmakingMatchId,
                 MatchmakingOpponentId,
+                MoveTimeLimitSeconds,
                 Version);
         }
 
         public GameSessionSnapshot WithGameConfig(IGameConfig? gameConfig) =>
-            new(SelectedGameId, gameConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
+            new(SelectedGameId, gameConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, MoveTimeLimitSeconds, Version);
 
         public GameSessionSnapshot WithOpponentType(OpponentType opponentType) =>
-            new(SelectedGameId, GameConfig, opponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
+            new(SelectedGameId, GameConfig, opponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, MoveTimeLimitSeconds, Version);
 
         public GameSessionSnapshot WithBotDifficultyId(string? botDifficultyId) =>
-            new(SelectedGameId, GameConfig, OpponentType, botDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
+            new(SelectedGameId, GameConfig, OpponentType, botDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, MoveTimeLimitSeconds, Version);
 
         public GameSessionSnapshot WithHumanOpponentKind(HumanOpponentKind humanOpponentKind) =>
-            new(SelectedGameId, GameConfig, OpponentType, BotDifficultyId, humanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
+            new(SelectedGameId, GameConfig, OpponentType, BotDifficultyId, humanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, MoveTimeLimitSeconds, Version);
 
         public GameSessionSnapshot WithTargetPlayerId(string? targetPlayerId) =>
-            new(SelectedGameId, GameConfig, OpponentType, BotDifficultyId, HumanOpponentKind, targetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
+            new(SelectedGameId, GameConfig, OpponentType, BotDifficultyId, HumanOpponentKind, targetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, MoveTimeLimitSeconds, Version);
 
         public GameSessionSnapshot WithMatchmakingState(MatchmakingState matchmakingState) =>
-            new(SelectedGameId, GameConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, matchmakingState, MatchmakingMatchId, MatchmakingOpponentId, Version);
+            new(SelectedGameId, GameConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, matchmakingState, MatchmakingMatchId, MatchmakingOpponentId, MoveTimeLimitSeconds, Version);
 
         public GameSessionSnapshot WithMatchmakingResult(string? matchId, string? opponentId) =>
-            new(SelectedGameId, GameConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, matchId, opponentId, Version);
+            new(SelectedGameId, GameConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, matchId, opponentId, MoveTimeLimitSeconds, Version);
+
+        public GameSessionSnapshot WithMoveTimeLimitSeconds(int moveTimeLimitSeconds) =>
+            new(SelectedGameId, GameConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, moveTimeLimitSeconds, Version);
 
         public GameSessionSnapshot WithVersion(int version) =>
-            new(SelectedGameId, GameConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, version);
+            new(SelectedGameId, GameConfig, OpponentType, BotDifficultyId, HumanOpponentKind, TargetPlayerId, MatchmakingState, MatchmakingMatchId, MatchmakingOpponentId, MoveTimeLimitSeconds, version);
     }
 
     public enum OpponentType

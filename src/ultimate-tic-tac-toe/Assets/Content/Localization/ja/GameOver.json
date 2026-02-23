@@ -7,6 +7,8 @@
     "GameOver.Draw": "引き分け",
     "GameOver.MainMenu": "メインメニュー",
     "GameOver.Rematch": "再戦",
+    "GameOver.TimeoutWin.Player1": "プレイヤー1 (X) はタイムアウト勝ち！",
+    "GameOver.TimeoutWin.Player2": "プレイヤー2 (O) はタイムアウト勝ち！",
     "GameOver.Victory": "勝利！"
   }
 }

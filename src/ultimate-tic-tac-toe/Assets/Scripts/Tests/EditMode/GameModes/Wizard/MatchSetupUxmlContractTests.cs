@@ -27,6 +27,9 @@ namespace Tests.EditMode.GameModes.Wizard
             root.Q<Label>("TitleLabel").Should().NotBeNull();
             root.Q<Label>("ModeOptionsTitle").Should().NotBeNull();
             root.Q<VisualElement>("ModeOptionsHost").Should().NotBeNull();
+            root.Q<VisualElement>("MoveTimerSection").Should().NotBeNull();
+            root.Q<Label>("MoveTimerTitle").Should().NotBeNull();
+            root.Q<VisualElement>("MoveTimerChips").Should().NotBeNull();
             root.Q<Label>("OpponentTitle").Should().NotBeNull();
             root.Q<VisualElement>("OpponentToggle").Should().NotBeNull();
             root.Q<Button>("CancelButton").Should().NotBeNull();

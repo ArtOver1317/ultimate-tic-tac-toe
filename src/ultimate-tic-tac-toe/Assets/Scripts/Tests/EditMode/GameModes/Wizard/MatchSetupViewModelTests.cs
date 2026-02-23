@@ -845,6 +845,26 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenSessionContainsUnsupportedMoveTimeLimit_ThenMoveTimerFallsBackToZero()
+        {
+            // Arrange
+            var session = new FakeGameSession(GameSessionSnapshot.Default.WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            session.EmitSnapshot(GameSessionSnapshot.Default
+                .WithMoveTimeLimitSeconds(17)
+                .WithVersion(2));
+
+            // Assert
+            sut.MoveTimerSettings.MoveTimeLimitSeconds.CurrentValue.Should().Be(0);
+            sut.MoveTimerSettings.SelectedPresetId.CurrentValue.Should().Be("0");
+        }
+
+        [Test]
         public async Task WhenResetCalled_ThenDifficultyLocalizationSubscriptionsAreDisposed()
         {
             // Arrange

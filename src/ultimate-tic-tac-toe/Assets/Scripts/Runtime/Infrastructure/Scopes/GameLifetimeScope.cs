@@ -2,6 +2,7 @@
 using Runtime.Infrastructure.EntryPoint;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
+using Runtime.Infrastructure.Logging;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
 using Runtime.Services.Assets;
@@ -20,6 +21,7 @@ namespace Runtime.Infrastructure.Scopes
     public class GameLifetimeScope : LifetimeScope
     {
         [SerializeField] private AssetLibrary _assetLibrary;
+        [SerializeField] private MoveTimerPresetsConfig _moveTimerPresetsConfig;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -27,9 +29,16 @@ namespace Runtime.Infrastructure.Scopes
 
             if (_assetLibrary == null)
                 throw new InvalidOperationException("AssetLibrary is not assigned in GameLifetimeScope.");
+
+            if (_moveTimerPresetsConfig == null)
+            {
+                GameLog.Warning("[GameLifetimeScope] MoveTimerPresetsConfig is not assigned. Runtime defaults will be used.");
+                _moveTimerPresetsConfig = MoveTimerPresetsConfig.CreateRuntimeDefault();
+            }
             
             // Services
             builder.RegisterInstance(_assetLibrary);
+            builder.RegisterInstance(_moveTimerPresetsConfig);
             builder.Register<IAssetProvider, AddressablesAssetProvider>(Lifetime.Singleton);
             builder.Register<ISceneLoaderService, SceneLoaderService>(Lifetime.Singleton);
             builder.Register<ViewModelFactory>(Lifetime.Singleton);

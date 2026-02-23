@@ -17,6 +17,7 @@ using Runtime.Games.TicTacToe.Ultimate.UI;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Infrastructure.Logging;
+using Runtime.Localization;
 using StripLog;
 using UnityEngine;
 using EcsRoundFinishedEvent = Runtime.Gameplay.ECS.RoundFinishedEvent;
@@ -36,6 +37,7 @@ namespace Runtime.Games.TicTacToe
         private readonly IGameplayEventStream _eventStream;
         private readonly IGameplayCommandSink _commandSink;
         private readonly GameplayMovesBinder _movesBinder;
+        private readonly MoveTimerHudBinder _moveTimerHudBinder;
         private readonly WinLineRenderer _winLineRenderer;
         private readonly ISeriesService _seriesService;
         private readonly IGameplayBackHandler _backHandler;
@@ -48,6 +50,8 @@ namespace Runtime.Games.TicTacToe
         private readonly IOnlineGameplaySessionContextStore _onlineSessionContextStore;
         private readonly IOnlineSessionFlowService _onlineSessionFlow;
         private readonly IMatchStateProvider _matchStateProvider;
+        private readonly IMoveTimerService _moveTimerService;
+        private readonly ILocalizationService _localization;
         private readonly HostAuthoritativeMoveProcessor _hostMoveProcessor = new();
         private readonly OnlineRoundCoordinator _onlineRoundCoordinator = new();
         private readonly MiniBoardStatus[] _ultimateMiniBoardBuffer = new MiniBoardStatus[9];
@@ -90,7 +94,10 @@ namespace Runtime.Games.TicTacToe
             IGameplayNetworkBridge networkBridge = null,
             IOnlineGameplaySessionContextStore onlineSessionContextStore = null,
             IMatchStateProvider matchStateProvider = null,
-            IOnlineSessionFlowService onlineSessionFlow = null)
+            IOnlineSessionFlowService onlineSessionFlow = null,
+            ILocalizationService localization = null,
+            IMoveTimerService moveTimerService = null,
+            MoveTimerHudBinder moveTimerHudBinder = null)
         {
             _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));
             _gameService = gameService ?? throw new ArgumentNullException(nameof(gameService));
@@ -100,6 +107,7 @@ namespace Runtime.Games.TicTacToe
             _eventStream = eventStream ?? throw new ArgumentNullException(nameof(eventStream));
             _commandSink = commandSink ?? throw new ArgumentNullException(nameof(commandSink));
             _movesBinder = movesBinder ?? throw new ArgumentNullException(nameof(movesBinder));
+            _moveTimerHudBinder = moveTimerHudBinder;
             _winLineRenderer = winLineRenderer ?? throw new ArgumentNullException(nameof(winLineRenderer));
             _seriesService = seriesService ?? throw new ArgumentNullException(nameof(seriesService));
             _backHandler = backHandler ?? throw new ArgumentNullException(nameof(backHandler));
@@ -112,6 +120,8 @@ namespace Runtime.Games.TicTacToe
             _onlineSessionContextStore = onlineSessionContextStore ?? new OnlineGameplaySessionContextStore();
             _matchStateProvider = matchStateProvider ?? commandSink as IMatchStateProvider;
             _onlineSessionFlow = onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance;
+            _localization = localization;
+            _moveTimerService = moveTimerService ?? NoOpMoveTimerService.Instance;
         }
 
         public async UniTask StartAsync(CancellationToken ct)
@@ -137,7 +147,10 @@ namespace Runtime.Games.TicTacToe
                 _seriesService.StartSeries();
 
                 _ecsLifecycle.StartMatch(config);
+                var activePlayerSlot = _matchStateProvider?.ActivePlayerSlot ?? 0;
+                _moveTimerService.StartOrResetForPlayer(activePlayerSlot);
                 _movesBinder.Bind();
+                _moveTimerHudBinder?.Bind();
                 BindUltimateUiIfNeeded();
                 SetRoundFinishedVisualState(false);
 
@@ -174,14 +187,34 @@ namespace Runtime.Games.TicTacToe
             _botDriver.Dispose();
             _ultimateBotOrchestrator.Dispose();
             _movesBinder.Unbind();
+            _moveTimerHudBinder?.Unbind();
             DisposeUltimateUiBinders();
             _networkBridge.UnbindAsync().Forget();
+            _moveTimerService.Stop();
             _ecsLifecycle.StopMatch();
             _winLineRenderer.Clear();
             _resultVM?.Dispose();
             _resultVM = null;
             _fieldPresenter.Unbind();
         }
+
+        private sealed class NoOpMoveTimerService : IMoveTimerService
+        {
+            public static readonly NoOpMoveTimerService Instance = new();
+
+            private readonly ReactiveProperty<float> _remainingSeconds = new(0f);
+            private readonly ReactiveProperty<bool> _isActive = new(false);
+
+            public ReadOnlyReactiveProperty<float> RemainingSeconds => _remainingSeconds;
+            public ReadOnlyReactiveProperty<bool> IsActive => _isActive;
+
+            public void StartOrResetForPlayer(int playerSlot) { }
+            public void Stop() { }
+            public void Freeze() { }
+            public void Unfreeze() { }
+            public void Dispose() { }
+        }
+
 
         // -- Bot integration --
 
@@ -239,7 +272,7 @@ namespace Runtime.Games.TicTacToe
             if (!string.Equals(payload.GameId, config.GameId, StringComparison.Ordinal))
                 return config;
 
-            return new GameLaunchConfig(config.GameId, payload.ToGameConfig(), config.OpponentConfig);
+            return new GameLaunchConfig(config.GameId, payload.ToGameConfig(), config.OpponentConfig, config.MoveTimeLimitSeconds);
         }
 
         // -- Event wiring --
@@ -251,7 +284,7 @@ namespace Runtime.Games.TicTacToe
             var container = _fieldUiAdapter.FieldContainer;
             if (container == null) return;
 
-            _resultVM = new GameResultViewModel(container);
+            _resultVM = new GameResultViewModel(container, _localization);
         }
 
         private void SubscribeToEvents()
@@ -513,6 +546,7 @@ namespace Runtime.Games.TicTacToe
 
                 // 1. Unbind binder (ADR-5 order: Unbind before Stop).
                 _movesBinder.Unbind();
+                _moveTimerHudBinder?.Unbind();
 
                 // 2. Map ECS result to OOP GameResult for downstream consumers.
                 var gameResult = BuildGameResult(evt);
@@ -544,7 +578,9 @@ namespace Runtime.Games.TicTacToe
         {
             EcsGameStatus.Win => Rules.GameStatus.Win,
             EcsGameStatus.Draw => Rules.GameStatus.Draw,
-            _ => Rules.GameStatus.InProgress,
+            EcsGameStatus.InProgress => Rules.GameStatus.InProgress,
+            EcsGameStatus.Timeout => Rules.GameStatus.Timeout,
+            _ => throw new ArgumentOutOfRangeException(nameof(ecsStatus), ecsStatus, null),
         };
 
         private GameResult BuildGameResult(EcsRoundFinishedEvent evt)
@@ -559,6 +595,9 @@ namespace Runtime.Games.TicTacToe
 
                 if (match.Status == Rules.GameStatus.Win)
                     throw new InvalidOperationException("Ultimate win result must include BigBoardWinLine.");
+
+                if (match.Status == Rules.GameStatus.Timeout)
+                    return GameResult.Timeout(match.Winner);
 
                 return match.Status == Rules.GameStatus.Draw
                     ? GameResult.Draw()
@@ -575,6 +614,8 @@ namespace Runtime.Games.TicTacToe
 
             return oopStatus == Rules.GameStatus.Win
                 ? GameResult.Win(winner, oopWinLine!.Value)
+                : oopStatus == Rules.GameStatus.Timeout
+                    ? GameResult.Timeout(winner)
                 : oopStatus == Rules.GameStatus.Draw
                     ? GameResult.Draw()
                     : GameResult.InProgress();
@@ -781,8 +822,11 @@ namespace Runtime.Games.TicTacToe
                 _matchFailSafeGateway.ResetAbortState();
 
                 _movesBinder.Bind();
+                _moveTimerHudBinder?.Bind();
                 _ultimateAllowedBinder?.Bind();
                 _ultimateMiniBoardStatusBinder?.Bind();
+
+                _moveTimerService.StartOrResetForPlayer(startingSlot);
 
                 _onlineRoundFinished = false;
                 _onlineRematchStarted = false;
@@ -907,6 +951,7 @@ namespace Runtime.Games.TicTacToe
             _botDriver.Dispose();
             _ultimateBotOrchestrator.Dispose();
             _movesBinder.Unbind();
+            _moveTimerHudBinder?.Unbind();
             DisposeUltimateUiBinders();
             _winLineRenderer.Clear();
             _resultVM?.Dispose();

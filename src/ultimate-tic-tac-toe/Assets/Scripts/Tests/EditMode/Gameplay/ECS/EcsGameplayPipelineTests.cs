@@ -10,6 +10,7 @@ using Runtime.GameModes.Wizard;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe.ECS;
+using UnityEngine.TestTools;
 using CellId = Runtime.Games.TicTacToe.Moves.CellId;
 
 namespace Tests.EditMode.Gameplay.ECS
@@ -205,6 +206,48 @@ namespace Tests.EditMode.Gameplay.ECS
 
             var rej = EventsOf<CommandRejectedEvent>().Should().ContainSingle().Which;
             rej.Rejection.Reason.Should().Be(GameplayRejectionReason.RoundAlreadyEnded);
+        }
+
+        [Test]
+        public void WhenTimeoutCommandSubmitted_ThenRoundFinishedWithTimeoutAndFirstNonLoserWinner()
+        {
+            StartMatch();
+
+            _stateProvider.SubmitCommand(new TimeoutCommand(TicTacToeEcsRegistrar.SlotX));
+
+            var rf = EventsOf<RoundFinishedEvent>().Should().ContainSingle().Which;
+            rf.Status.Should().Be(GameStatus.Timeout);
+            rf.WinnerSlot.Should().Be(TicTacToeEcsRegistrar.SlotO);
+            rf.WinLine.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenTimeoutCommandSubmittedAfterWin_ThenTimeoutIgnored()
+        {
+            StartMatch();
+            PlayMove(0, 0); // X
+            PlayMove(1, 0); // O
+            PlayMove(0, 1); // X
+            PlayMove(1, 1); // O
+            PlayMove(0, 2); // X -> win
+            ClearEvents();
+
+            _stateProvider.SubmitCommand(new TimeoutCommand(TicTacToeEcsRegistrar.SlotO));
+
+            EventsOf<RoundFinishedEvent>().Should().BeEmpty();
+        }
+
+        [Test]
+        public void WhenTimeoutCommandHasInvalidLoserSlot_ThenTimeoutIgnored()
+        {
+            StartMatch();
+
+            LogAssert.Expect(UnityEngine.LogType.Error,
+                "[Infrastructure] [TimeoutTerminalSystem] Invalid LoserSlot=999. Timeout ignored.");
+
+            _stateProvider.SubmitCommand(new TimeoutCommand(999));
+
+            EventsOf<RoundFinishedEvent>().Should().BeEmpty();
         }
 
         // ── Win / Draw ──────────────────────────────────────────

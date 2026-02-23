@@ -644,6 +644,25 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenMoveTimeLimitSetInSession_ThenBuildLaunchConfigReturnsSameMoveTimeLimit()
+        {
+            // Arrange
+            using var sut = new GameSession(_catalog, GameSessionSnapshot.Default
+                .WithSelectedGameId(TicTacToeStrategy.DefaultGameId)
+                .WithGameConfig(new TicTacToeConfig(boardSize: 3))
+                .WithOpponentType(OpponentType.Bot)
+                .WithBotDifficultyId("Easy")
+                .WithMoveTimeLimitSeconds(60));
+
+            // Act
+            var result = sut.BuildLaunchConfig();
+
+            // Assert
+            result.IsSuccess.Should().BeTrue();
+            result.Value.MoveTimeLimitSeconds.Should().Be(60);
+        }
+
+        [Test]
         public void WhenCanStartIsFalse_ThenBuildReturnsFailure()
         {
             // Arrange

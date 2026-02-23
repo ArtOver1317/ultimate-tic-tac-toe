@@ -12,6 +12,7 @@
     "GameWizard.MatchSetup.BotDifficulty.Normal": "Normal",
     "GameWizard.MatchSetup.BotDifficulty.Title": "Bot Difficulty",
     "GameWizard.MatchSetup.Cancel": "Cancel",
+    "GameWizard.MatchSetup.Host.Become": "Become Host",
     "GameWizard.MatchSetup.HumanSettings.DirectInvite": "Invite by ID",
     "GameWizard.MatchSetup.HumanSettings.Local": "Local (Same Screen)",
     "GameWizard.MatchSetup.HumanSettings.Matchmaking": "Find Match",
@@ -20,17 +21,16 @@
     "GameWizard.MatchSetup.Opponent.Bot": "Bot",
     "GameWizard.MatchSetup.Opponent.Human": "Human",
     "GameWizard.MatchSetup.Opponent.Title": "Opponent",
-    "GameWizard.MatchSetup.Host.Become": "Become Host",
     "GameWizard.MatchSetup.PlayerId.Label": "Player ID",
     "GameWizard.MatchSetup.SessionId.Copy": "Copy ID",
     "GameWizard.MatchSetup.SessionId.Label": "Session ID",
+    "GameWizard.MatchSetup.Start": "Start",
     "GameWizard.MatchSetup.Status.Connecting": "Connecting to session...",
     "GameWizard.MatchSetup.Status.HostIntentConfirmed": "Host mode selected. Press Start to launch.",
     "GameWizard.MatchSetup.Status.PlayerFoundStartingSoon": "Opponent found. Starting soon...",
     "GameWizard.MatchSetup.Status.Reconnecting": "Reconnecting...",
     "GameWizard.MatchSetup.Status.SessionIdCopied": "Session ID copied",
     "GameWizard.MatchSetup.Status.WaitingForPlayer": "Waiting for opponent...",
-    "GameWizard.MatchSetup.Start": "Start",
     "GameWizard.MatchSetup.TicTacToe.BoardSize": "Board Size",
     "GameWizard.MatchSetup.TicTacToe.UltimateMode": "Ultimate Mode",
     "GameWizard.Matchmaking.Back": "Back",
@@ -41,6 +41,9 @@
     "GameWizard.Matchmaking.Hint": "{count} players with different params",
     "GameWizard.Matchmaking.Retry": "Retry",
     "GameWizard.Matchmaking.SearchingFor": "Searching for",
-    "GameWizard.Matchmaking.Title": "Finding Opponent..."
+    "GameWizard.Matchmaking.Title": "Finding Opponent...",
+    "GameWizard.Timer.Label": "Move time",
+    "GameWizard.Timer.Off": "No limit",
+    "GameWizard.Timer.SecondsFormat": "{0}s"
   }
 }

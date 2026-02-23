@@ -119,6 +119,14 @@
     flex-direction: row;
 }
 
+.gmw-move-timer-settings {
+    margin-top: 12px;
+}
+
+.gmw-move-timer-chips {
+    flex-direction: row;
+}
+
 .difficulty-chips {
     flex-direction: row;
     width: 100%;

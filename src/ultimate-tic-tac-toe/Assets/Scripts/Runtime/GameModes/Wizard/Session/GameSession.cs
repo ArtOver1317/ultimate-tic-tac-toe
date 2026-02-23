@@ -119,7 +119,8 @@ namespace Runtime.GameModes.Wizard
             return Result<GameLaunchConfig>.Success(new GameLaunchConfig(
                 gameId: snapshot.SelectedGameId ?? throw new InvalidOperationException("Selected mode is missing after validation."),
                 gameConfig: snapshot.GameConfig ?? throw new InvalidOperationException("Mode config is missing after validation."),
-                opponentConfig: opponentConfig));
+                opponentConfig: opponentConfig,
+                moveTimeLimitSeconds: snapshot.MoveTimeLimitSeconds));
         }
 
         private static IOpponentConfig? BuildOpponentConfig(GameSessionSnapshot snapshot)

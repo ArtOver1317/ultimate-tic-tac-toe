@@ -12,6 +12,7 @@
     "GameWizard.MatchSetup.BotDifficulty.Normal": "普通",
     "GameWizard.MatchSetup.BotDifficulty.Title": "ボット難易度",
     "GameWizard.MatchSetup.Cancel": "キャンセル",
+    "GameWizard.MatchSetup.Host.Become": "ホストになる",
     "GameWizard.MatchSetup.HumanSettings.DirectInvite": "IDで招待",
     "GameWizard.MatchSetup.HumanSettings.Local": "ローカル（同一画面）",
     "GameWizard.MatchSetup.HumanSettings.Matchmaking": "マッチ検索",
@@ -20,17 +21,16 @@
     "GameWizard.MatchSetup.Opponent.Bot": "ボット",
     "GameWizard.MatchSetup.Opponent.Human": "人間",
     "GameWizard.MatchSetup.Opponent.Title": "対戦相手",
-    "GameWizard.MatchSetup.Host.Become": "ホストになる",
     "GameWizard.MatchSetup.PlayerId.Label": "プレイヤーID",
     "GameWizard.MatchSetup.SessionId.Copy": "IDをコピー",
     "GameWizard.MatchSetup.SessionId.Label": "セッションID",
+    "GameWizard.MatchSetup.Start": "開始",
     "GameWizard.MatchSetup.Status.Connecting": "セッションに接続中...",
     "GameWizard.MatchSetup.Status.HostIntentConfirmed": "ホストモードを選択しました。開始するには「開始」を押してください。",
     "GameWizard.MatchSetup.Status.PlayerFoundStartingSoon": "対戦相手が見つかりました。まもなく開始...",
     "GameWizard.MatchSetup.Status.Reconnecting": "再接続中...",
     "GameWizard.MatchSetup.Status.SessionIdCopied": "セッションIDをコピーしました",
     "GameWizard.MatchSetup.Status.WaitingForPlayer": "対戦相手を待っています...",
-    "GameWizard.MatchSetup.Start": "開始",
     "GameWizard.MatchSetup.TicTacToe.BoardSize": "盤面サイズ",
     "GameWizard.MatchSetup.TicTacToe.UltimateMode": "アルティメットモード",
     "GameWizard.Matchmaking.Back": "戻る",
@@ -41,6 +41,9 @@
     "GameWizard.Matchmaking.Hint": "{count} 人が異なる条件で検索中",
     "GameWizard.Matchmaking.Retry": "再試行",
     "GameWizard.Matchmaking.SearchingFor": "検索中",
-    "GameWizard.Matchmaking.Title": "対戦相手を探しています..."
+    "GameWizard.Matchmaking.Title": "対戦相手を探しています...",
+    "GameWizard.Timer.Label": "手番制限",
+    "GameWizard.Timer.Off": "制限なし",
+    "GameWizard.Timer.SecondsFormat": "{0}秒"
   }
 }

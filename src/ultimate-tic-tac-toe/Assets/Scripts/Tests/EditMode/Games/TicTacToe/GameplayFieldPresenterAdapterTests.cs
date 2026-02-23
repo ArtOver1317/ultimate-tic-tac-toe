@@ -139,6 +139,22 @@ namespace Tests.EditMode.Games.TicTacToe
 
         [Test]
         [Category("Unit")]
+        public void WhenBoundAndAccessMoveTimerLabel_ThenReturnsValidLabel()
+        {
+            BindSync(FieldRenderSpec.Classic(3));
+
+            var timerLabel = ((IGameplayFieldUiAdapter)_presenter).MoveTimerLabel;
+
+            timerLabel.Should().NotBeNull();
+            timerLabel.name.Should().Be("MoveTimerLabel");
+
+            var fromTree = _document.rootVisualElement.Q<Label>("MoveTimerLabel");
+            fromTree.Should().NotBeNull();
+            fromTree.Should().BeSameAs(timerLabel);
+        }
+
+        [Test]
+        [Category("Unit")]
         public void WhenNotBoundAndAccessCurrentPlayerLabel_ThenThrowsInvalidOperationException()
         {
             // Arrange
