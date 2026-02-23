@@ -116,5 +116,17 @@ namespace Tests.EditMode.Games.TicTacToe
             ui.MoveTimerLabel.style.display.value.Should().Be(DisplayStyle.None);
             ui.MoveTimerLabel.ClassListContains("move-timer-label--warning").Should().BeFalse();
         }
+
+        [Test]
+        public void WhenTimerInactiveAndRemainingSecondsLow_ThenIsWarningFalse()
+        {
+            using var timerService = new FakeMoveTimerService();
+            using var viewModel = new MoveTimerHudViewModel(timerService);
+
+            timerService.SetState(isActive: false, remainingSeconds: 5f);
+
+            viewModel.IsWarning.CurrentValue.Should().BeFalse();
+            viewModel.IsVisible.CurrentValue.Should().BeFalse();
+        }
     }
 }

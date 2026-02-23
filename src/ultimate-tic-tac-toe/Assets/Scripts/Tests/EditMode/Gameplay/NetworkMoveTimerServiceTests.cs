@@ -35,6 +35,9 @@ namespace Tests.EditMode.Gameplay
             public Observable<CurrentPlayerChangedEvent> CurrentPlayerChanged => _currentPlayerChanged;
             public Observable<CommandRejectedEvent> CommandRejected => _commandRejected;
             public Observable<RoundFinishedEvent> RoundFinished => _roundFinished;
+
+            public void PublishCurrentPlayerChanged(int slot) => _currentPlayerChanged.OnNext(new CurrentPlayerChangedEvent(slot));
+            public void PublishRoundFinished(GameStatus status) => _roundFinished.OnNext(new RoundFinishedEvent(status, null, null));
         }
 
         private sealed class CapturingCommandSink : IGameplayCommandSink
@@ -102,6 +105,56 @@ namespace Tests.EditMode.Gameplay
             sink.Commands.Should().BeEmpty();
             sut.IsActive.CurrentValue.Should().BeFalse();
             sut.RemainingSeconds.CurrentValue.Should().Be(0f);
+        }
+
+        [Test]
+        public async Task WhenRoundFinishedEventReceived_ThenNetworkTimerStops()
+        {
+            var stream = new FakeGameplayEventStream();
+            var sink = new CapturingCommandSink();
+            var time = new FakeTimeSource { DeltaTime = 0f };
+            var context = new FakeOnlineSessionContextStore(isHost: true);
+
+            using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(5), stream, sink, time, context);
+            sut.StartOrResetForPlayer(0);
+
+            stream.PublishRoundFinished(GameStatus.Win);
+            await UniTask.DelayFrame(1);
+
+            sut.IsActive.CurrentValue.Should().BeFalse();
+        }
+
+        [Test]
+        public async Task WhenCurrentPlayerChangedEventReceived_ThenNetworkTimerResets()
+        {
+            var stream = new FakeGameplayEventStream();
+            var sink = new CapturingCommandSink();
+            var time = new FakeTimeSource { DeltaTime = 0f };
+            var context = new FakeOnlineSessionContextStore(isHost: true);
+
+            using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(5), stream, sink, time, context);
+            sut.StartOrResetForPlayer(0);
+            stream.PublishCurrentPlayerChanged(1);
+
+            sut.RemainingSeconds.CurrentValue.Should().Be(5f);
+            sut.IsActive.CurrentValue.Should().BeTrue();
+
+            stream.PublishRoundFinished(GameStatus.Win);
+            await WaitUntilAsync(() => sut.IsActive.CurrentValue == false, maxFrames: 5);
+            sut.IsActive.CurrentValue.Should().BeFalse();
+        }
+
+        private static async UniTask WaitUntilAsync(Func<bool> predicate, int maxFrames)
+        {
+            for (var i = 0; i < maxFrames; i++)
+            {
+                if (predicate())
+                    return;
+
+                await UniTask.DelayFrame(1);
+            }
+
+            predicate().Should().BeTrue("condition should become true within allotted frames");
         }
     }
 }

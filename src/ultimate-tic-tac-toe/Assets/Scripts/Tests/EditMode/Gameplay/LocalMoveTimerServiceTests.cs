@@ -126,9 +126,10 @@ namespace Tests.EditMode.Gameplay
             sink.Commands.Should().BeEmpty();
 
             sut.Unfreeze();
-            await UniTask.DelayFrame(1);
+            await WaitUntilAsync(() => sink.Commands.Exists(c => c is TimeoutCommand), maxFrames: 6);
 
             sink.Commands.Should().ContainSingle(c => c is TimeoutCommand);
+            sut.IsActive.CurrentValue.Should().BeFalse();
         }
 
         [Test]
@@ -148,6 +149,60 @@ namespace Tests.EditMode.Gameplay
 
             act.Should().NotThrow();
             sut.IsActive.CurrentValue.Should().BeFalse();
+        }
+
+        [Test]
+        public async Task WhenRoundFinishedEventReceived_ThenTimerStops()
+        {
+            var stream = new FakeGameplayEventStream();
+            var sink = new CapturingCommandSink();
+            var time = new FakeTimeSource { DeltaTime = 0f };
+
+            using var sut = new LocalMoveTimerService(CreateStoreWithLimit(5), stream, sink, time);
+            sut.StartOrResetForPlayer(0);
+
+            stream.PublishRoundFinished(GameStatus.Win);
+            await UniTask.DelayFrame(1);
+
+            sut.IsActive.CurrentValue.Should().BeFalse();
+            sink.Commands.Should().BeEmpty();
+        }
+
+        [Test]
+        public async Task WhenCurrentPlayerChangedEventReceived_ThenCountdownResetForNewPlayer()
+        {
+            var stream = new FakeGameplayEventStream();
+            var sink = new CapturingCommandSink();
+            var time = new FakeTimeSource { DeltaTime = 0.5f };
+
+            using var sut = new LocalMoveTimerService(CreateStoreWithLimit(2), stream, sink, time);
+            sut.StartOrResetForPlayer(0);
+
+            await WaitUntilAsync(() => sut.RemainingSeconds.CurrentValue < 2f, maxFrames: 3);
+
+            stream.PublishCurrentPlayerChanged(1);
+            sut.RemainingSeconds.CurrentValue.Should().Be(2f);
+            sut.IsActive.CurrentValue.Should().BeTrue();
+            sink.Commands.Should().BeEmpty();
+
+            await WaitUntilAsync(() => sink.Commands.Count == 1, maxFrames: 10);
+
+            sink.Commands.Should().ContainSingle(c => c is TimeoutCommand);
+            ((TimeoutCommand)sink.Commands[0]).LoserSlot.Should().Be(1);
+            sut.IsActive.CurrentValue.Should().BeFalse();
+        }
+
+        private static async UniTask WaitUntilAsync(Func<bool> predicate, int maxFrames)
+        {
+            for (var i = 0; i < maxFrames; i++)
+            {
+                if (predicate())
+                    return;
+
+                await UniTask.DelayFrame(1);
+            }
+
+            predicate().Should().BeTrue("condition should become true within allotted frames");
         }
     }
 }

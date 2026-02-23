@@ -1,0 +1,60 @@
+#nullable enable
+
+using FluentAssertions;
+using NUnit.Framework;
+using Runtime.Gameplay.ECS;
+using Scellecs.Morpeh;
+
+namespace Tests.EditMode.Gameplay.ECS
+{
+    [TestFixture]
+    [Category("Unit")]
+    public sealed class ProcessCommandsSystemTests
+    {
+        private World _world = null!;
+        private SystemsGroup _systemsGroup = null!;
+        private CommandQueue _commandQueue = null!;
+        private ProcessCommandsSystem _sut = null!;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _world = World.Create();
+            _world.UpdateByUnity = false;
+
+            _commandQueue = new CommandQueue();
+            _sut = new ProcessCommandsSystem(_commandQueue)
+            {
+                World = _world,
+            };
+
+            _systemsGroup = _world.CreateSystemsGroup();
+            _systemsGroup.AddSystem(_sut);
+            _world.AddSystemsGroup(0, _systemsGroup);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _world?.Dispose();
+        }
+
+        [Test]
+        public void WhenTimeoutCommandEnqueued_ThenTimeoutRequestAddedToMatchEntity()
+        {
+            // Arrange
+            var matchEntity = _world.CreateEntity();
+            _world.GetStash<MatchTag>().Set(matchEntity);
+            _commandQueue.Enqueue(new TimeoutCommand(0));
+            _world.Commit();
+
+            // Act
+            _world.Update(0f);
+
+            // Assert
+            var timeoutRequestStash = _world.GetStash<TimeoutRequest>();
+            timeoutRequestStash.Has(matchEntity).Should().BeTrue();
+            timeoutRequestStash.Get(matchEntity).LoserSlot.Should().Be(0);
+        }
+    }
+}
