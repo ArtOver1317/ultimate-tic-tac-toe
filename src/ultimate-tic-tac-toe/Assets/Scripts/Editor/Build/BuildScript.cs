@@ -120,6 +120,7 @@ public static class BuildScript
     private static void BuildPlayerTarget(UnityEditor.BuildTarget unityBuildTarget, string rootBuildPath, string folderName)
     {
         EnsureActiveBuildTarget(unityBuildTarget);
+        LogScriptingBackend(unityBuildTarget);
         BuildAddressables();
 
         var productionScenes = GetProductionScenes();
@@ -160,6 +161,20 @@ public static class BuildScript
         if (!EditorUserBuildSettings.SwitchActiveBuildTarget(buildTargetGroup, unityBuildTarget))
         {
             FailWith("BuildTargetSwitchFailed", $"Failed to switch active build target to '{unityBuildTarget}'.");
+        }
+    }
+
+    private static void LogScriptingBackend(UnityEditor.BuildTarget unityBuildTarget)
+    {
+        var group = BuildPipeline.GetBuildTargetGroup(unityBuildTarget);
+        var backend = PlayerSettings.GetScriptingBackend(UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(group));
+        Debug.Log($"[Build] Scripting backend for {unityBuildTarget}: {backend}");
+
+        if (unityBuildTarget == UnityEditor.BuildTarget.StandaloneWindows64 && backend != ScriptingImplementation.IL2CPP)
+        {
+            Debug.LogWarning($"[Build] WARNING: Desktop build is using {backend} instead of IL2CPP. " +
+                             "NanoSockets P/Invoke may not work correctly with Mono. " +
+                             "Set Scripting Backend to IL2CPP in Player Settings or ensure IL2CPP module is installed.");
         }
     }
 
