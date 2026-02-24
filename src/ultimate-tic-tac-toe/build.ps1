@@ -3,6 +3,7 @@ param(
     [string]$Target = 'All',
     [switch]$UseDocker,
     [switch]$TestOnly,
+    [switch]$SkipTests,
     [ValidateRange(0, 240)]
     [int]$BuildStallTimeoutMinutes = 30
 )
@@ -477,6 +478,7 @@ function Invoke-DockerBuild {
         [ValidateSet('All', 'Desktop', 'WebGL')]
         [string]$ResolvedTarget,
         [switch]$RunTestsOnly,
+        [switch]$SkipTestRun,
         [Parameter(Mandatory = $true)]
         [string]$BundleVersion
     )
@@ -490,9 +492,11 @@ function Invoke-DockerBuild {
         return
     }
 
-    & docker compose run --rm test
-    if ($LASTEXITCODE -ne 0) {
-        throw "docker compose run test failed with exit code $LASTEXITCODE"
+    if (-not $SkipTestRun) {
+        & docker compose run --rm test
+        if ($LASTEXITCODE -ne 0) {
+            throw "docker compose run test failed with exit code $LASTEXITCODE"
+        }
     }
 
     if ($ResolvedTarget -eq 'All') {
@@ -516,10 +520,14 @@ function Invoke-DockerBuild {
 $script:ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location -Path $script:ProjectRoot
 
+if ($TestOnly -and $SkipTests) {
+    throw 'Parameters -TestOnly and -SkipTests cannot be used together.'
+}
+
 $bundleVersion = "0.0.0-ci.$(Get-GitShortSha)"
 
 if ($UseDocker) {
-    Invoke-DockerBuild -ResolvedTarget $Target -RunTestsOnly:$TestOnly -BundleVersion $bundleVersion
+    Invoke-DockerBuild -ResolvedTarget $Target -RunTestsOnly:$TestOnly -SkipTestRun:$SkipTests -BundleVersion $bundleVersion
     return
 }
 
@@ -527,35 +535,42 @@ $unityPath = Get-UnityPath
 Assert-ProjectIsNotOpenInUnity
 
 Write-Host "[Pipeline] Unity: $unityPath"
-Write-Host "[Pipeline] Target: $Target (TestOnly=$($TestOnly.IsPresent), UseDocker=$($UseDocker.IsPresent))"
+Write-Host "[Pipeline] Target: $Target (TestOnly=$($TestOnly.IsPresent), SkipTests=$($SkipTests.IsPresent), UseDocker=$($UseDocker.IsPresent))"
 Write-Host "[Pipeline] Build stall timeout (no log updates): $BuildStallTimeoutMinutes min"
 
 $originalInputHandler = Get-ActiveInputHandler
 try {
-    # UI Toolkit tests can emit legacy Input API exceptions when Input System is active.
-    # Use Both (2) for stable CLI PlayMode tests and restore after pipeline run.
-    Set-ActiveInputHandler -Value 2
-    Write-Host "[Pipeline] activeInputHandler set to 2 (Both) for test run; original value: $originalInputHandler"
+    if (-not $SkipTests) {
+        # UI Toolkit tests can emit legacy Input API exceptions when Input System is active.
+        # Use Both (2) for stable CLI PlayMode tests and restore after pipeline run.
+        Set-ActiveInputHandler -Value 2
+        Write-Host "[Pipeline] activeInputHandler set to 2 (Both) for test run; original value: $originalInputHandler"
 
-    $editSummary = Invoke-UnityTests -UnityPath $unityPath -Platform 'EditMode'
-    $playSummary = Invoke-UnityTests -UnityPath $unityPath -Platform 'PlayMode'
+        $editSummary = Invoke-UnityTests -UnityPath $unityPath -Platform 'EditMode'
+        $playSummary = Invoke-UnityTests -UnityPath $unityPath -Platform 'PlayMode'
 
-    $total = $editSummary.Total + $playSummary.Total
-    $passed = $editSummary.Passed + $playSummary.Passed
-    $failed = $editSummary.Failed + $playSummary.Failed
-    $skipped = $editSummary.Skipped + $playSummary.Skipped
-    $inconclusive = $editSummary.Inconclusive + $playSummary.Inconclusive
-    Write-Host "[Tests][Total] total=$total, passed=$passed, failed=$failed, skipped=$skipped, inconclusive=$inconclusive"
+        $total = $editSummary.Total + $playSummary.Total
+        $passed = $editSummary.Passed + $playSummary.Passed
+        $failed = $editSummary.Failed + $playSummary.Failed
+        $skipped = $editSummary.Skipped + $playSummary.Skipped
+        $inconclusive = $editSummary.Inconclusive + $playSummary.Inconclusive
+        Write-Host "[Tests][Total] total=$total, passed=$passed, failed=$failed, skipped=$skipped, inconclusive=$inconclusive"
 
-    if ($TestOnly) {
-        Write-Host 'TestOnly mode completed successfully.'
-        return
+        if ($TestOnly) {
+            Write-Host 'TestOnly mode completed successfully.'
+            return
+        }
+    }
+    else {
+        Write-Host '[Pipeline] Tests are skipped by -SkipTests.'
     }
 
     Invoke-UnityBuild -UnityPath $unityPath -ResolvedTarget $Target -BundleVersion $bundleVersion -StallTimeoutMinutes $BuildStallTimeoutMinutes
     Write-Host "Build completed successfully for target '$Target'."
 }
 finally {
-    Set-ActiveInputHandler -Value $originalInputHandler
-    Write-Host "[Pipeline] activeInputHandler restored to $originalInputHandler"
+    if (-not $SkipTests) {
+        Set-ActiveInputHandler -Value $originalInputHandler
+        Write-Host "[Pipeline] activeInputHandler restored to $originalInputHandler"
+    }
 }

@@ -119,6 +119,7 @@ public static class BuildScript
 
     private static void BuildPlayerTarget(UnityEditor.BuildTarget unityBuildTarget, string rootBuildPath, string folderName)
     {
+        EnsureActiveBuildTarget(unityBuildTarget);
         BuildAddressables();
 
         var productionScenes = GetProductionScenes();
@@ -140,6 +141,25 @@ public static class BuildScript
         if (report.summary.result != BuildResult.Succeeded)
         {
             FailWith("PlayerBuildFailed", report.summary.result + ": " + report.summary.totalErrors + " errors.");
+        }
+    }
+
+    private static void EnsureActiveBuildTarget(UnityEditor.BuildTarget unityBuildTarget)
+    {
+        if (EditorUserBuildSettings.activeBuildTarget == unityBuildTarget)
+            return;
+
+        var buildTargetGroup = BuildPipeline.GetBuildTargetGroup(unityBuildTarget);
+        if (buildTargetGroup == UnityEditor.BuildTargetGroup.Unknown)
+        {
+            FailWith("BuildTargetSwitchFailed", $"Build target group for '{unityBuildTarget}' is unknown.");
+            return;
+        }
+
+        Debug.Log($"[Build] Switching active build target to '{unityBuildTarget}' before Addressables/player build.");
+        if (!EditorUserBuildSettings.SwitchActiveBuildTarget(buildTargetGroup, unityBuildTarget))
+        {
+            FailWith("BuildTargetSwitchFailed", $"Failed to switch active build target to '{unityBuildTarget}'.");
         }
     }
 
