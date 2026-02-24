@@ -72,6 +72,7 @@ namespace Runtime.GameModes.Wizard
         private bool _runnerAllocated;
         private bool _reconnectTimerActive;
         private bool _isLeavingSession;
+        private bool _suppressReconnectForUserLeave;
         private bool _isDisposed;
         private double? _pendingCountdownTargetNetworkTimeSeconds;
         private OnlineErrorCode _lastHostPrepareFailureCode = OnlineErrorCode.DisconnectTimeout;
@@ -336,6 +337,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             _isLeavingSession = true;
+            _suppressReconnectForUserLeave = true;
 
             try
             {
@@ -351,6 +353,7 @@ namespace Runtime.GameModes.Wizard
             finally
             {
                 _isLeavingSession = false;
+                _suppressReconnectForUserLeave = false;
             }
         }
 
@@ -358,6 +361,12 @@ namespace Runtime.GameModes.Wizard
         {
             if (_isDisposed)
                 return;
+
+            if (_isLeavingSession || _suppressReconnectForUserLeave)
+            {
+                TrackDiagnostic("reconnect_skipped_user_leave");
+                return;
+            }
 
             var session = _sessionContextStore.Snapshot;
             if (!session.IsOnlineDirectInvite)
@@ -384,6 +393,12 @@ namespace Runtime.GameModes.Wizard
 
                 while (!graceCts.Token.IsCancellationRequested)
                 {
+                    if (_isLeavingSession || _suppressReconnectForUserLeave || !_sessionContextStore.Snapshot.IsOnlineDirectInvite)
+                    {
+                        TrackDiagnostic("reconnect_aborted_user_leave");
+                        break;
+                    }
+
                     var reconnectResult = await _gateway.TryReconnectAsync(region, _localUserId);
                     if (reconnectResult.IsSuccess)
                     {
@@ -404,7 +419,12 @@ namespace Runtime.GameModes.Wizard
             }
             finally
             {
-                if (!_isDisposed && !_runtimeCts.IsCancellationRequested && !reconnectRecovered && reconnectEpoch > 0)
+                if (!_isDisposed &&
+                    !_runtimeCts.IsCancellationRequested &&
+                    !reconnectRecovered &&
+                    reconnectEpoch > 0 &&
+                    !_suppressReconnectForUserLeave &&
+                    _sessionContextStore.Snapshot.IsOnlineDirectInvite)
                 {
                     await _onlineSessionFlow.OnGraceTimeoutAsync(reconnectEpoch);
                     TrackDiagnostic("reconnect_grace_timeout", errorCode: OnlineErrorCode.DisconnectTimeout);

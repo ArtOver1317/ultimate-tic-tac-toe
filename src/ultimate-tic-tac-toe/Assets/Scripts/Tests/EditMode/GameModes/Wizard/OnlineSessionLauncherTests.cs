@@ -329,6 +329,65 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public async Task WhenDisconnectEventReceivedWhileUserLeaveInProgress_ThenReconnectIsSkipped()
+        {
+            // Arrange
+            using var harness = CreateHarness(
+                reconnectGraceTimeout: TimeSpan.FromSeconds(3),
+                reconnectRetryDelay: TimeSpan.FromMilliseconds(50));
+            await BringFlowToStateAsync(harness.Flow, OnlineFlowState.WaitingForPlayer);
+            harness.ContextStore.SetDirectInviteSession("ABCDEF", "guest", isHost: false);
+
+            var leaveGate = new UniTaskCompletionSource<bool>();
+            harness.Gateway.LeaveSessionAsyncImpl = async () => await leaveGate.Task;
+            harness.Gateway.TryReconnectAsyncImpl = (_, _) => UniTask.FromResult(GatewayOperationResult.Failed(OnlineErrorCode.NetworkUnavailable));
+
+            // Act
+            await harness.Flow.ExitAsync();
+            await WaitUntilAsync(() => harness.Gateway.LeaveCallCount == 1);
+            harness.Gateway.RaiseLifecycleEvent("disconnected", "ABCDEF", "host");
+            await UniTask.Delay(TimeSpan.FromMilliseconds(120));
+            var diagnosticsBeforeLeaveComplete = harness.DiagnosticsBuffer.Flush();
+            leaveGate.TrySetResult(true);
+            await UniTask.Delay(TimeSpan.FromMilliseconds(50));
+
+            // Assert
+            harness.Gateway.TryReconnectCallCount.Should().Be(0);
+            harness.Flow.Snapshot.CurrentValue.State.Should().NotBe(OnlineFlowState.Reconnecting);
+            diagnosticsBeforeLeaveComplete.Should().Contain(evt => evt.EventName == "reconnect_skipped_user_leave");
+        }
+
+        [Test]
+        public async Task WhenUserLeavesWhileReconnectLoopIsActive_ThenRetriesStopAndNoGraceTimeoutPublished()
+        {
+            // Arrange
+            using var harness = CreateHarness(
+                reconnectGraceTimeout: TimeSpan.FromSeconds(2),
+                reconnectRetryDelay: TimeSpan.FromMilliseconds(40));
+            await BringFlowToStateAsync(harness.Flow, OnlineFlowState.WaitingForPlayer);
+            harness.ContextStore.SetDirectInviteSession("ABCDEF", "guest", isHost: false);
+            harness.Gateway.TryReconnectAsyncImpl = (_, _) => UniTask.FromResult(GatewayOperationResult.Failed(OnlineErrorCode.NetworkUnavailable));
+
+            // Act
+            harness.Gateway.RaiseLifecycleEvent("disconnected", "ABCDEF", "host");
+            await WaitUntilAsync(() => harness.Flow.Snapshot.CurrentValue.State == OnlineFlowState.Reconnecting);
+            await WaitUntilAsync(() => harness.Gateway.TryReconnectCallCount >= 1);
+
+            await harness.Flow.ExitAsync();
+            await WaitUntilAsync(() => harness.Gateway.LeaveCallCount == 1);
+
+            var retryCountAfterLeave = harness.Gateway.TryReconnectCallCount;
+            await UniTask.Delay(TimeSpan.FromMilliseconds(180));
+            var retryCountStabilized = harness.Gateway.TryReconnectCallCount;
+            var diagnostics = harness.DiagnosticsBuffer.Flush();
+
+            // Assert
+            retryCountStabilized.Should().Be(retryCountAfterLeave);
+            diagnostics.Should().Contain(evt => evt.EventName == "reconnect_aborted_user_leave");
+            diagnostics.Should().NotContain(evt => evt.EventName == "reconnect_grace_timeout");
+        }
+
+        [Test]
         public async Task WhenGatewayLifecyclePeerJoinedNameMatchesContract_ThenHostFlowStartsGameplay()
         {
             // Arrange
@@ -508,6 +567,7 @@ namespace Tests.EditMode.GameModes.Wizard
             public Func<OnlineSessionConfig, UniTask<GatewayOperationResult>>? CreateHostSessionAsyncImpl { get; set; }
             public Func<SessionId, string, string, UniTask<GatewayOperationResult>>? JoinSessionAsyncImpl { get; set; }
             public Func<string, string, UniTask<GatewayOperationResult>>? TryReconnectAsyncImpl { get; set; }
+            public Func<UniTask>? LeaveSessionAsyncImpl { get; set; }
 
             public ReadOnlyReactiveProperty<GatewayLifecycleEvent?> LifecycleEvent => _lifecycle;
             public double NetworkTimeSeconds => NetworkTimeSecondsProvider != null
@@ -533,7 +593,9 @@ namespace Tests.EditMode.GameModes.Wizard
             public UniTask LeaveSessionAsync()
             {
                 LeaveCallCount++;
-                return UniTask.CompletedTask;
+                return LeaveSessionAsyncImpl != null
+                    ? LeaveSessionAsyncImpl()
+                    : UniTask.CompletedTask;
             }
 
             public UniTask<GatewayOperationResult> TryReconnectAsync(string region, string currentUserId)

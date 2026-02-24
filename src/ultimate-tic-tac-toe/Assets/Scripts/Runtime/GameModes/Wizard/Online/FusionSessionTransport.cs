@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Fusion;
+using Fusion.Photon.Realtime;
 using Fusion.Sockets;
 using UnityEngine;
 
@@ -83,6 +84,8 @@ namespace Runtime.GameModes.Wizard
             EnsureNotDisposed();
             await UniTask.SwitchToMainThread();
 
+            TryApplyFixedRegion(config.Region);
+
             var runner = await EnsureRunnerReadyAsync();
             var result = await runner.StartGame(new StartGameArgs
             {
@@ -113,6 +116,8 @@ namespace Runtime.GameModes.Wizard
 
             await UniTask.SwitchToMainThread();
 
+            TryApplyFixedRegion(region);
+
             var runner = await EnsureRunnerReadyAsync();
             var result = await runner.StartGame(new StartGameArgs
             {
@@ -138,11 +143,7 @@ namespace Runtime.GameModes.Wizard
 
             await UniTask.SwitchToMainThread();
 
-            if (_runner != null && _runner.IsRunning)
-            {
-                await _runner.Shutdown();
-                await UniTask.Yield();
-            }
+            await DisposeRunnerAsync();
         }
 
         public async UniTask ReconnectAsync(string region, string currentUserId)
@@ -159,6 +160,8 @@ namespace Runtime.GameModes.Wizard
 
             if (string.IsNullOrWhiteSpace(_lastSessionName) || !_lastGameMode.HasValue)
                 throw new InvalidOperationException("Reconnect requires previous session binding.");
+
+            TryApplyFixedRegion(region);
 
             var runner = await EnsureRunnerReadyAsync();
             var reconnectResult = await runner.StartGame(new StartGameArgs
@@ -242,13 +245,7 @@ namespace Runtime.GameModes.Wizard
         {
             if (_runner != null)
             {
-                if (_runner.IsRunning)
-                {
-                    await _runner.Shutdown();
-                    await UniTask.Yield();
-                }
-
-                return _runner;
+                await DisposeRunnerAsync();
             }
 
             var go = new GameObject(RunnerObjectName);
@@ -257,6 +254,51 @@ namespace Runtime.GameModes.Wizard
             _runner.ProvideInput = false;
             _runner.AddCallbacks(this);
             return _runner;
+        }
+
+        private static void TryApplyFixedRegion(string region)
+        {
+            if (string.IsNullOrWhiteSpace(region))
+                return;
+
+            try
+            {
+                var global = PhotonAppSettings.Global;
+                if (global?.AppSettings == null)
+                    return;
+
+                global.AppSettings.FixedRegion = region;
+            }
+            catch
+            {
+            }
+        }
+
+        private async UniTask DisposeRunnerAsync()
+        {
+            var runner = _runner;
+            _runner = null;
+
+            if (runner == null)
+                return;
+
+            if (runner.IsRunning)
+            {
+                await runner.Shutdown();
+                await UniTask.Yield();
+            }
+
+            if (runner == null)
+                return;
+
+            runner.RemoveCallbacks(this);
+
+            if (runner != null)
+            {
+                var runnerGameObject = runner.gameObject;
+                if (runnerGameObject != null)
+                    Destroy(runnerGameObject);
+            }
         }
 
         private void RaiseLifecycle(string kind, string? sessionId, string? userId) =>
@@ -309,12 +351,23 @@ namespace Runtime.GameModes.Wizard
 
             _isDisposed = true;
 
-            if (_runner != null)
-            {
-                _runner.RemoveCallbacks(this);
+            var runner = _runner;
+            _runner = null;
 
-                if (_runner.IsRunning)
-                    _runner.Shutdown();
+            if (runner == null)
+                return;
+
+            if (runner != null)
+                runner.RemoveCallbacks(this);
+
+            if (runner != null && runner.IsRunning)
+                runner.Shutdown();
+
+            if (runner != null)
+            {
+                var runnerGameObject = runner.gameObject;
+                if (runnerGameObject != null)
+                    Destroy(runnerGameObject);
             }
         }
 
