@@ -73,6 +73,23 @@ namespace Tests.EditMode.GameModes.Wizard
         public void WhenMatchConfigPayloadValid_ThenTryDeserializeMatchConfigReturnsPayload()
         {
             // Arrange
+            var payload = Encoding.UTF8.GetBytes("C|tic-tac-toe|5|1|20");
+
+            // Act
+            var ok = OnlinePayloadSerialization.TryDeserializeMatchConfig(payload, out var config);
+
+            // Assert
+            ok.Should().BeTrue();
+            config.GameId.Should().Be("tic-tac-toe");
+            config.BoardSize.Should().Be(5);
+            config.IsUltimate.Should().BeTrue();
+            config.MoveTimeLimitSeconds.Should().Be(20);
+        }
+
+        [Test]
+        public void WhenMatchConfigPayloadWithoutMoveTimer_ThenTryDeserializeMatchConfigReturnsZeroTimer()
+        {
+            // Arrange
             var payload = Encoding.UTF8.GetBytes("C|tic-tac-toe|5|1");
 
             // Act
@@ -83,13 +100,14 @@ namespace Tests.EditMode.GameModes.Wizard
             config.GameId.Should().Be("tic-tac-toe");
             config.BoardSize.Should().Be(5);
             config.IsUltimate.Should().BeTrue();
+            config.MoveTimeLimitSeconds.Should().Be(0);
         }
 
         [Test]
         public void WhenSerializeMatchConfigAndDeserialize_ThenRoundTripPreservesFields()
         {
             // Arrange
-            var expected = new OnlineMatchConfigPayload("tic-tac-toe", 3, isUltimate: false);
+            var expected = new OnlineMatchConfigPayload("tic-tac-toe", 3, isUltimate: false, moveTimeLimitSeconds: 15);
             var payload = OnlinePayloadSerialization.SerializeMatchConfig(expected);
 
             // Act
@@ -100,6 +118,7 @@ namespace Tests.EditMode.GameModes.Wizard
             actual.GameId.Should().Be(expected.GameId);
             actual.BoardSize.Should().Be(expected.BoardSize);
             actual.IsUltimate.Should().Be(expected.IsUltimate);
+            actual.MoveTimeLimitSeconds.Should().Be(expected.MoveTimeLimitSeconds);
         }
 
     }

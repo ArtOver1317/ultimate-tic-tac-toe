@@ -13,6 +13,8 @@ namespace Runtime.GameModes.Wizard
     public sealed class FusionSessionTransport : MonoBehaviour, IPhotonSessionTransport, INetworkRunnerCallbacks
     {
         private const string RunnerObjectName = "OnlineFusionRunner";
+        private static readonly TimeSpan RemoteRecipientReadyTimeout = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan RemoteRecipientPollDelay = TimeSpan.FromMilliseconds(20);
         private static readonly ReliableKey GameplayReliableKey = ReliableKey.FromInts(
             unchecked((int)0x55545454),
             unchecked((int)0x4f4e4c59),
@@ -227,6 +229,10 @@ namespace Runtime.GameModes.Wizard
 
             if (_runner.IsServer)
             {
+                var hasRemoteRecipient = await WaitForRemoteRecipientAsync(_runner, RemoteRecipientReadyTimeout);
+                if (!hasRemoteRecipient)
+                    throw new InvalidOperationException("Reliable data send requires at least one remote player.");
+
                 foreach (var player in _runner.ActivePlayers)
                 {
                     if (player == _runner.LocalPlayer)
@@ -239,6 +245,27 @@ namespace Runtime.GameModes.Wizard
             }
 
             _runner.SendReliableDataToServer(GameplayReliableKey, payload);
+        }
+
+        private static async UniTask<bool> WaitForRemoteRecipientAsync(NetworkRunner runner, TimeSpan timeout)
+        {
+            var deadline = Time.realtimeSinceStartupAsDouble + timeout.TotalSeconds;
+
+            while (runner != null && runner.IsRunning)
+            {
+                foreach (var player in runner.ActivePlayers)
+                {
+                    if (player != runner.LocalPlayer)
+                        return true;
+                }
+
+                if (Time.realtimeSinceStartupAsDouble >= deadline)
+                    return false;
+
+                await UniTask.Delay(RemoteRecipientPollDelay);
+            }
+
+            return false;
         }
 
         private async UniTask<NetworkRunner> EnsureRunnerReadyAsync()

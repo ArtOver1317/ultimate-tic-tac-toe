@@ -367,12 +367,13 @@ namespace Tests.EditMode.Games.TicTacToe
         {
             var onlineSessionStore = new OnlineGameplaySessionContextStore();
             onlineSessionStore.SetDirectInviteSession("ABCDEF", "guest-user", isHost: false);
-            onlineSessionStore.SetMatchConfig(new OnlineMatchConfigPayload("classic", boardSize: 5, isUltimate: false));
+            onlineSessionStore.SetMatchConfig(new OnlineMatchConfigPayload("classic", boardSize: 5, isUltimate: false, moveTimeLimitSeconds: 20));
 
             var networkBridge = Substitute.For<IGameplayNetworkBridge>();
             networkBridge.Snapshot.Returns(new ReactiveProperty<GameplayNetworkSnapshot?>(null));
             networkBridge.IncomingMoves.Returns(new Subject<MoveCommand>());
             networkBridge.IncomingRoundReadySignals.Returns(new Subject<RoundReadySignal>());
+            networkBridge.IncomingTimeoutSignals.Returns(new Subject<OnlineTimeoutSignal>());
             networkBridge.BindAsync(Arg.Any<string>(), Arg.Any<bool>()).Returns(UniTask.CompletedTask);
 
             var onlineFlow = new TestOnlineSessionFlow();
@@ -407,7 +408,8 @@ namespace Tests.EditMode.Games.TicTacToe
                     cfg.GameConfig != null &&
                     cfg.GameConfig.GetType() == typeof(TicTacToeConfig) &&
                     ((TicTacToeConfig)cfg.GameConfig).BoardSize == 5 &&
-                    !((TicTacToeConfig)cfg.GameConfig).IsUltimate),
+                    !((TicTacToeConfig)cfg.GameConfig).IsUltimate &&
+                    cfg.MoveTimeLimitSeconds == 20),
                 Arg.Any<CancellationToken>());
 
             sut.Dispose();
@@ -425,6 +427,7 @@ namespace Tests.EditMode.Games.TicTacToe
             networkBridge.Snapshot.Returns(new ReactiveProperty<GameplayNetworkSnapshot?>(null));
             networkBridge.IncomingMoves.Returns(new Subject<MoveCommand>());
             networkBridge.IncomingRoundReadySignals.Returns(new Subject<RoundReadySignal>());
+            networkBridge.IncomingTimeoutSignals.Returns(new Subject<OnlineTimeoutSignal>());
             networkBridge.BindAsync(Arg.Any<string>(), Arg.Any<bool>()).Returns(UniTask.CompletedTask);
 
             _backHandler.ClearReceivedCalls();
@@ -459,6 +462,107 @@ namespace Tests.EditMode.Games.TicTacToe
             await _backHandler.Received(1).HandleBackAsync(Arg.Any<CancellationToken>());
 
             sut.Dispose();
+        }
+
+        [Test]
+        public async Task WhenIncomingOnlineTimeoutSignalOnGuest_ThenSubmitsTimeoutCommandToMatchStateProvider()
+        {
+            _ecsLifecycle.IsActive.Returns(true);
+
+            var timeoutSignals = new Subject<OnlineTimeoutSignal>();
+            var onlineSessionStore = new OnlineGameplaySessionContextStore();
+            onlineSessionStore.SetDirectInviteSession("ABCDEF", "guest-user", isHost: false);
+
+            var matchStateProvider = Substitute.For<IMatchStateProvider>();
+            var networkBridge = Substitute.For<IGameplayNetworkBridge>();
+            networkBridge.Snapshot.Returns(new ReactiveProperty<GameplayNetworkSnapshot?>(null));
+            networkBridge.IncomingMoves.Returns(new Subject<MoveCommand>());
+            networkBridge.IncomingRoundReadySignals.Returns(new Subject<RoundReadySignal>());
+            networkBridge.IncomingTimeoutSignals.Returns(timeoutSignals);
+            networkBridge.BindAsync(Arg.Any<string>(), Arg.Any<bool>()).Returns(UniTask.CompletedTask);
+
+            var sut = new GameplayStartup(
+                _configStore,
+                _gameService,
+                _fieldPresenter,
+                _fieldUiAdapter,
+                _ecsLifecycle,
+                _eventStream,
+                _commandSink,
+                _movesBinder,
+                _winLineRenderer,
+                _seriesService,
+                _backHandler,
+                _stateMachine,
+                _botDriver,
+                _ultimateBotOrchestrator,
+                Substitute.For<IMatchFailSafeGateway>(),
+                ultimateSnapshotProvider: null,
+                networkBridge: networkBridge,
+                onlineSessionContextStore: onlineSessionStore,
+                matchStateProvider: matchStateProvider,
+                onlineSessionFlow: new TestOnlineSessionFlow());
+
+            await sut.StartAsync(CancellationToken.None);
+
+            timeoutSignals.OnNext(new OnlineTimeoutSignal("host-user", loserSlot: 1, clientTick: 123));
+            await UniTask.DelayFrame(1);
+
+            matchStateProvider.Received(1)
+                .SubmitCommand(Arg.Is<IGameplayCommand>(command => command.GetType() == typeof(TimeoutCommand) && ((TimeoutCommand)command).LoserSlot == 1));
+
+            sut.Dispose();
+            timeoutSignals.Dispose();
+        }
+
+        [Test]
+        public async Task WhenIncomingOnlineTimeoutSignalOnHost_ThenDoesNotSubmitTimeoutCommandToMatchStateProvider()
+        {
+            _ecsLifecycle.IsActive.Returns(true);
+
+            var timeoutSignals = new Subject<OnlineTimeoutSignal>();
+            var onlineSessionStore = new OnlineGameplaySessionContextStore();
+            onlineSessionStore.SetDirectInviteSession("ABCDEF", "host-user", isHost: true);
+
+            var matchStateProvider = Substitute.For<IMatchStateProvider>();
+            var networkBridge = Substitute.For<IGameplayNetworkBridge>();
+            networkBridge.Snapshot.Returns(new ReactiveProperty<GameplayNetworkSnapshot?>(null));
+            networkBridge.IncomingMoves.Returns(new Subject<MoveCommand>());
+            networkBridge.IncomingRoundReadySignals.Returns(new Subject<RoundReadySignal>());
+            networkBridge.IncomingTimeoutSignals.Returns(timeoutSignals);
+            networkBridge.BindAsync(Arg.Any<string>(), Arg.Any<bool>()).Returns(UniTask.CompletedTask);
+
+            var sut = new GameplayStartup(
+                _configStore,
+                _gameService,
+                _fieldPresenter,
+                _fieldUiAdapter,
+                _ecsLifecycle,
+                _eventStream,
+                _commandSink,
+                _movesBinder,
+                _winLineRenderer,
+                _seriesService,
+                _backHandler,
+                _stateMachine,
+                _botDriver,
+                _ultimateBotOrchestrator,
+                Substitute.For<IMatchFailSafeGateway>(),
+                ultimateSnapshotProvider: null,
+                networkBridge: networkBridge,
+                onlineSessionContextStore: onlineSessionStore,
+                matchStateProvider: matchStateProvider,
+                onlineSessionFlow: new TestOnlineSessionFlow());
+
+            await sut.StartAsync(CancellationToken.None);
+
+            timeoutSignals.OnNext(new OnlineTimeoutSignal("host-user", loserSlot: 1, clientTick: 123));
+            await UniTask.DelayFrame(1);
+
+            matchStateProvider.DidNotReceive().SubmitCommand(Arg.Any<IGameplayCommand>());
+
+            sut.Dispose();
+            timeoutSignals.Dispose();
         }
 
         private static async Task RunAllowingFailingLogsAsync(Func<Task> action, params Regex[] expectedFailingLogs)

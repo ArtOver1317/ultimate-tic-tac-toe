@@ -50,13 +50,13 @@ namespace Tests.EditMode.Gameplay
         {
             private OnlineGameplaySessionSnapshot _snapshot;
 
-            public FakeOnlineSessionContextStore(bool isHost) =>
+            public FakeOnlineSessionContextStore(bool isHost, OnlineMatchConfigPayload? matchConfig = null) =>
                 _snapshot = new OnlineGameplaySessionSnapshot(
                     isOnlineDirectInvite: true,
                     sessionId: "ABCDEF",
                     localUserId: "user-local",
                     isHost: isHost,
-                    matchConfig: null);
+                    matchConfig: matchConfig);
 
             public OnlineGameplaySessionSnapshot Snapshot => _snapshot;
             public void SetDirectInviteSession(string sessionId, string localUserId, bool isHost) => throw new NotSupportedException();
@@ -82,7 +82,7 @@ namespace Tests.EditMode.Gameplay
             using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(1), stream, sink, time, context);
             sut.StartOrResetForPlayer(1);
 
-            await UniTask.DelayFrame(3);
+            await WaitUntilAsync(() => sink.Commands.Count == 1, maxFrames: 240);
 
             sink.Commands.Should().ContainSingle();
             sink.Commands[0].Should().BeOfType<TimeoutCommand>();
@@ -100,7 +100,7 @@ namespace Tests.EditMode.Gameplay
             using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(1), stream, sink, time, context);
             sut.StartOrResetForPlayer(0);
 
-            await UniTask.DelayFrame(3);
+            await WaitUntilAsync(() => sut.IsActive.CurrentValue == false, maxFrames: 240);
 
             sink.Commands.Should().BeEmpty();
             sut.IsActive.CurrentValue.Should().BeFalse();
@@ -142,6 +142,40 @@ namespace Tests.EditMode.Gameplay
             stream.PublishRoundFinished(GameStatus.Win);
             await WaitUntilAsync(() => sut.IsActive.CurrentValue == false, maxFrames: 5);
             sut.IsActive.CurrentValue.Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenOnlineMatchConfigHasMoveTimer_ThenUsesPayloadLimitInsteadOfStoreLimit()
+        {
+            var stream = new FakeGameplayEventStream();
+            var sink = new CapturingCommandSink();
+            var time = new FakeTimeSource { DeltaTime = 0f };
+            var context = new FakeOnlineSessionContextStore(
+                isHost: true,
+                matchConfig: new OnlineMatchConfigPayload("classic", boardSize: 3, isUltimate: false, moveTimeLimitSeconds: 12));
+
+            using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(3), stream, sink, time, context);
+            sut.StartOrResetForPlayer(0);
+
+            sut.RemainingSeconds.CurrentValue.Should().Be(12f);
+            sut.IsActive.CurrentValue.Should().BeTrue();
+        }
+
+        [Test]
+        public async Task WhenMoveTimeLimitIsZero_ThenTimerDoesNotActivateAndNoTimeoutSubmitted()
+        {
+            var stream = new FakeGameplayEventStream();
+            var sink = new CapturingCommandSink();
+            var time = new FakeTimeSource { DeltaTime = 1f };
+            var context = new FakeOnlineSessionContextStore(isHost: true);
+
+            using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(0), stream, sink, time, context);
+            sut.StartOrResetForPlayer(0);
+
+            await UniTask.DelayFrame(3);
+
+            sut.IsActive.CurrentValue.Should().BeFalse();
+            sink.Commands.Should().BeEmpty();
         }
 
         private static async UniTask WaitUntilAsync(Func<bool> predicate, int maxFrames)

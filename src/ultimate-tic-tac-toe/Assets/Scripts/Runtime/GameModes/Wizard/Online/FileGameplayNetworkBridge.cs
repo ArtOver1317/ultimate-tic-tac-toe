@@ -13,21 +13,25 @@ namespace Runtime.GameModes.Wizard
         private readonly ReactiveProperty<GameplayNetworkSnapshot?> _snapshot = new(null);
         private readonly Subject<MoveCommand> _incomingMoves = new();
         private readonly Subject<RoundReadySignal> _incomingRoundReadySignals = new();
+        private readonly Subject<OnlineTimeoutSignal> _incomingTimeoutSignals = new();
 
         public ReadOnlyReactiveProperty<GameplayNetworkSnapshot?> Snapshot => _snapshot;
         public Observable<MoveCommand> IncomingMoves => _incomingMoves;
         public Observable<RoundReadySignal> IncomingRoundReadySignals => _incomingRoundReadySignals;
+        public Observable<OnlineTimeoutSignal> IncomingTimeoutSignals => _incomingTimeoutSignals;
 
         public UniTask BindAsync(string localUserId, bool isHost) => UniTask.CompletedTask;
         public UniTask UnbindAsync() => UniTask.CompletedTask;
         public UniTask SubmitMoveAsync(MoveCommand command) => UniTask.CompletedTask;
         public UniTask SubmitRoundReadyAsync(RoundReadySignal signal) => UniTask.CompletedTask;
+        public UniTask SubmitTimeoutAsync(OnlineTimeoutSignal signal) => UniTask.CompletedTask;
 
         public void Dispose()
         {
             _snapshot.Dispose();
             _incomingMoves.Dispose();
             _incomingRoundReadySignals.Dispose();
+            _incomingTimeoutSignals.Dispose();
         }
     }
 
@@ -40,6 +44,7 @@ namespace Runtime.GameModes.Wizard
         private readonly ReactiveProperty<GameplayNetworkSnapshot?> _snapshot = new(null);
         private readonly Subject<MoveCommand> _incomingMoves = new();
         private readonly Subject<RoundReadySignal> _incomingRoundReadySignals = new();
+        private readonly Subject<OnlineTimeoutSignal> _incomingTimeoutSignals = new();
         private readonly HashSet<Guid> _seenCommands = new();
         private readonly Queue<Guid> _seenCommandOrder = new();
 
@@ -58,6 +63,7 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<GameplayNetworkSnapshot?> Snapshot => _snapshot;
         public Observable<MoveCommand> IncomingMoves => _incomingMoves;
         public Observable<RoundReadySignal> IncomingRoundReadySignals => _incomingRoundReadySignals;
+        public Observable<OnlineTimeoutSignal> IncomingTimeoutSignals => _incomingTimeoutSignals;
 
         public async UniTask BindAsync(string localUserId, bool isHost)
         {
@@ -123,16 +129,39 @@ namespace Runtime.GameModes.Wizard
             await _transport.SendReliableDataAsync(payload);
         }
 
+        public async UniTask SubmitTimeoutAsync(OnlineTimeoutSignal signal)
+        {
+            if (_isDisposed)
+                throw new ObjectDisposedException(nameof(FileGameplayNetworkBridge));
+
+            if (!_isBound)
+                return;
+
+            var payload = SerializeTimeout(signal);
+            await _transport.SendReliableDataAsync(payload);
+            UpdateSnapshot(signal.ClientTick);
+        }
+
         public void Dispose()
         {
             if (_isDisposed)
                 return;
 
             _isDisposed = true;
-            UnbindAsync().Forget();
+
+            if (_isBound)
+                _transport.ReliableDataReceived -= OnReliableDataReceived;
+
+            _isBound = false;
+            _localUserId = null;
+            _seenCommands.Clear();
+            _seenCommandOrder.Clear();
+            _currentMatchRoundId = 1;
+
             _snapshot.Dispose();
             _incomingMoves.Dispose();
             _incomingRoundReadySignals.Dispose();
+            _incomingTimeoutSignals.Dispose();
         }
 
         private void UpdateSnapshot(long tick)
@@ -157,6 +186,16 @@ namespace Runtime.GameModes.Wizard
 
                 UpdateSnapshot(move.ClientTick);
                 _incomingMoves.OnNext(move);
+                return;
+            }
+
+            if (TryDeserializeTimeout(evt.Payload, out var timeoutSignal))
+            {
+                if (string.Equals(timeoutSignal.SenderUserId, _localUserId, StringComparison.Ordinal))
+                    return;
+
+                UpdateSnapshot(timeoutSignal.ClientTick);
+                _incomingTimeoutSignals.OnNext(timeoutSignal);
                 return;
             }
 
@@ -204,6 +243,17 @@ namespace Runtime.GameModes.Wizard
                 signal.SenderUserId.Replace("|", string.Empty), "|",
                 signal.IsReady ? "1" : "0", "|",
                 signal.MatchRoundId.ToString(), "|",
+                signal.ClientTick.ToString());
+
+            return Encoding.UTF8.GetBytes(line);
+        }
+
+        private static byte[] SerializeTimeout(OnlineTimeoutSignal signal)
+        {
+            var line = string.Concat(
+                "X|",
+                signal.SenderUserId.Replace("|", string.Empty), "|",
+                signal.LoserSlot.ToString(), "|",
                 signal.ClientTick.ToString());
 
             return Encoding.UTF8.GetBytes(line);
@@ -264,6 +314,32 @@ namespace Runtime.GameModes.Wizard
                 clientTick = 0;
 
             signal = new RoundReadySignal(sender, isReady, matchRoundId, clientTick);
+            return true;
+        }
+
+        private static bool TryDeserializeTimeout(byte[] payload, out OnlineTimeoutSignal signal)
+        {
+            signal = default;
+
+            var line = Encoding.UTF8.GetString(payload);
+            if (string.IsNullOrWhiteSpace(line))
+                return false;
+
+            var parts = line.Split('|');
+            if (parts.Length != 4 || parts[0] != "X")
+                return false;
+
+            var sender = parts[1];
+            if (string.IsNullOrWhiteSpace(sender))
+                return false;
+
+            if (!int.TryParse(parts[2], out var loserSlot) || loserSlot < 0)
+                return false;
+
+            if (!long.TryParse(parts[3], out var clientTick))
+                clientTick = 0;
+
+            signal = new OnlineTimeoutSignal(sender, loserSlot, clientTick);
             return true;
         }
     }

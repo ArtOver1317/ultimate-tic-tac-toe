@@ -14,7 +14,8 @@ namespace Runtime.GameModes.Wizard
                 "C|",
                 payload.GameId.Replace("|", string.Empty), "|",
                 payload.BoardSize.ToString(CultureInfo.InvariantCulture), "|",
-                payload.IsUltimate ? "1" : "0");
+                payload.IsUltimate ? "1" : "0", "|",
+                payload.MoveTimeLimitSeconds.ToString(CultureInfo.InvariantCulture));
 
             return Encoding.UTF8.GetBytes(line);
         }
@@ -28,7 +29,7 @@ namespace Runtime.GameModes.Wizard
                 return false;
 
             var parts = line.Split('|');
-            if (parts.Length != 4 || parts[0] != "C")
+            if ((parts.Length != 4 && parts.Length != 5) || parts[0] != "C")
                 return false;
 
             var gameId = parts[1];
@@ -39,8 +40,14 @@ namespace Runtime.GameModes.Wizard
                 return false;
 
             var isUltimate = parts[3] == "1";
+            var moveTimeLimitSeconds = 0;
+            if (parts.Length == 5)
+            {
+                if (!int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out moveTimeLimitSeconds) || moveTimeLimitSeconds < 0)
+                    return false;
+            }
 
-            payload = new OnlineMatchConfigPayload(gameId, boardSize, isUltimate);
+            payload = new OnlineMatchConfigPayload(gameId, boardSize, isUltimate, moveTimeLimitSeconds);
             return true;
         }
 

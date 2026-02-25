@@ -6,6 +6,7 @@ using Runtime.GameModes.Wizard;
 using Runtime.Gameplay.ECS;
 using Runtime.Infrastructure.Logging;
 using StripLog;
+using UnityEngine;
 
 namespace Runtime.Gameplay
 {
@@ -42,7 +43,7 @@ namespace Runtime.Gameplay
             var snapshot = (sessionContextStore ?? throw new ArgumentNullException(nameof(sessionContextStore))).Snapshot;
             _isHost = snapshot.IsHost;
 
-            _moveTimeLimitSeconds = ResolveMoveTimeLimitSeconds(configStore);
+            _moveTimeLimitSeconds = ResolveMoveTimeLimitSeconds(configStore, snapshot);
             _remainingSeconds = new ReactiveProperty<float>(_moveTimeLimitSeconds);
             _isActive = new ReactiveProperty<bool>(false);
 
@@ -118,14 +119,30 @@ namespace Runtime.Gameplay
         {
             try
             {
+                var lastRealtime = Time.realtimeSinceStartupAsDouble;
+
                 while (!ct.IsCancellationRequested)
                 {
                     await UniTask.Yield(PlayerLoopTiming.Update, ct);
 
+                    if (_isDisposed || ct.IsCancellationRequested)
+                        return;
+
+                    float deltaTime;
+                    if (Application.isPlaying)
+                    {
+                        var nowRealtime = Time.realtimeSinceStartupAsDouble;
+                        deltaTime = (float)(nowRealtime - lastRealtime);
+                        lastRealtime = nowRealtime;
+                    }
+                    else
+                    {
+                        deltaTime = _timeSource.DeltaTime;
+                    }
+
                     if (_isFrozen || !_isActive.Value)
                         continue;
 
-                    var deltaTime = _timeSource.DeltaTime;
                     if (deltaTime <= 0f)
                         continue;
 
@@ -143,6 +160,9 @@ namespace Runtime.Gameplay
                 }
             }
             catch (OperationCanceledException)
+            {
+            }
+            catch (ObjectDisposedException) when (_isDisposed || ct.IsCancellationRequested)
             {
             }
             catch (Exception ex)
@@ -169,8 +189,14 @@ namespace Runtime.Gameplay
             _countdownCts = null;
         }
 
-        private static int ResolveMoveTimeLimitSeconds(IGameLaunchConfigStore configStore)
+        private static int ResolveMoveTimeLimitSeconds(IGameLaunchConfigStore configStore, OnlineGameplaySessionSnapshot session)
         {
+            if (session.IsOnlineDirectInvite && session.MatchConfig.HasValue)
+            {
+                var onlineLimit = session.MatchConfig.Value.MoveTimeLimitSeconds;
+                return onlineLimit > 0 ? onlineLimit : 0;
+            }
+
             if (!configStore.TryPeek(out var config) || config == null)
                 return 0;
 

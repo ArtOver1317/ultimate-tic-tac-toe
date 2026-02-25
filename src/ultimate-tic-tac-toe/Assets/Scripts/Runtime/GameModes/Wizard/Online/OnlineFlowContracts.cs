@@ -238,6 +238,26 @@ namespace Runtime.GameModes.Wizard
         }
     }
 
+    public readonly struct OnlineTimeoutSignal
+    {
+        public string SenderUserId { get; }
+        public int LoserSlot { get; }
+        public long ClientTick { get; }
+
+        public OnlineTimeoutSignal(string senderUserId, int loserSlot, long clientTick)
+        {
+            if (string.IsNullOrWhiteSpace(senderUserId))
+                throw new ArgumentException("Value cannot be null or whitespace.", nameof(senderUserId));
+
+            if (loserSlot < 0)
+                throw new ArgumentOutOfRangeException(nameof(loserSlot), loserSlot, "Value cannot be negative.");
+
+            SenderUserId = senderUserId;
+            LoserSlot = loserSlot;
+            ClientTick = clientTick;
+        }
+    }
+
     public interface IOnlineSessionFlowService : IDisposable
     {
         ReadOnlyReactiveProperty<OnlineFlowSnapshot> Snapshot { get; }
@@ -281,11 +301,13 @@ namespace Runtime.GameModes.Wizard
         ReadOnlyReactiveProperty<GameplayNetworkSnapshot?> Snapshot { get; }
         Observable<MoveCommand> IncomingMoves { get; }
         Observable<RoundReadySignal> IncomingRoundReadySignals { get; }
+        Observable<OnlineTimeoutSignal> IncomingTimeoutSignals { get; }
 
         UniTask BindAsync(string localUserId, bool isHost);
         UniTask UnbindAsync();
         UniTask SubmitMoveAsync(MoveCommand command);
         UniTask SubmitRoundReadyAsync(RoundReadySignal signal);
+        UniTask SubmitTimeoutAsync(OnlineTimeoutSignal signal);
     }
 
     public static class OnlineLocalizationKeys

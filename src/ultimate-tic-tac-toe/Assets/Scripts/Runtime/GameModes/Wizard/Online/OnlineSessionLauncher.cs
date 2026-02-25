@@ -75,6 +75,7 @@ namespace Runtime.GameModes.Wizard
         private bool _suppressReconnectForUserLeave;
         private bool _isDisposed;
         private double? _pendingCountdownTargetNetworkTimeSeconds;
+        private OnlineMatchConfigPayload? _pendingMatchConfigBuffer;
         private OnlineErrorCode _lastHostPrepareFailureCode = OnlineErrorCode.DisconnectTimeout;
 
         [Inject]
@@ -150,6 +151,7 @@ namespace Runtime.GameModes.Wizard
             if (config.OpponentConfig is not DirectInviteConfig directInvite)
             {
                 _sessionContextStore.Clear();
+                ClearPendingPayloadBuffers();
                 TrackDiagnostic("prepare_local_mode");
                 return OnlineLaunchPreparationResult.Success();
             }
@@ -192,6 +194,7 @@ namespace Runtime.GameModes.Wizard
                 if (!hostCreateResult.IsSuccess)
                 {
                     _sessionContextStore.Clear();
+                    ClearPendingPayloadBuffers();
                     await _onlineSessionFlow.OnJoinFailedAsync(hostCreateResult.ErrorCode);
                     TrackDiagnostic("host_create_failed", errorCode: hostCreateResult.ErrorCode);
                     return OnlineLaunchPreparationResult.Failed(ToWizardError(hostCreateResult.ErrorCode));
@@ -202,6 +205,7 @@ namespace Runtime.GameModes.Wizard
                 _sessionContextStore.SetDirectInviteSession(directInvite.SessionId, _localUserId, isHost: true);
                 if (OnlineMatchConfigPayload.TryFromLaunchConfig(config, out var hostMatchConfig))
                     _sessionContextStore.SetMatchConfig(hostMatchConfig);
+                TryApplyBufferedMatchConfig();
                 TrackDiagnostic("host_created", reason: directInvite.SessionId);
 
                 _lastHostPrepareFailureCode = OnlineErrorCode.DisconnectTimeout;
@@ -210,6 +214,7 @@ namespace Runtime.GameModes.Wizard
                 {
                     var errorCode = _lastHostPrepareFailureCode;
                     _sessionContextStore.Clear();
+                    ClearPendingPayloadBuffers();
                     await _onlineSessionFlow.OnJoinFailedAsync(errorCode);
                     TrackDiagnostic(
                         errorCode == OnlineErrorCode.DisconnectTimeout ? "host_countdown_timeout" : "host_sync_failed",
@@ -226,15 +231,18 @@ namespace Runtime.GameModes.Wizard
             var joinResult = await _gateway.JoinSessionAsync(sessionId, region, _localUserId);
             if (joinResult.IsSuccess)
             {
+                _sessionContextStore.SetDirectInviteSession(directInvite.SessionId, _localUserId, isHost: false);
+                TryApplyBufferedMatchConfig();
+                _pendingCountdownTargetNetworkTimeSeconds = null;
+
                 MarkRunnerAllocated();
                 await _onlineSessionFlow.OnJoinSucceededAsync();
-                _sessionContextStore.SetDirectInviteSession(directInvite.SessionId, _localUserId, isHost: false);
-                _pendingCountdownTargetNetworkTimeSeconds = null;
 
                 var matchConfigReceived = await WaitForHostMatchConfigAsync(ct);
                 if (!matchConfigReceived)
                 {
                     _sessionContextStore.Clear();
+                    ClearPendingPayloadBuffers();
                     await _onlineSessionFlow.OnJoinFailedAsync(OnlineErrorCode.NetworkUnavailable);
                     TrackDiagnostic("guest_match_config_timeout", errorCode: OnlineErrorCode.NetworkUnavailable);
                     return OnlineLaunchPreparationResult.Failed(ToWizardError(OnlineErrorCode.NetworkUnavailable));
@@ -244,6 +252,7 @@ namespace Runtime.GameModes.Wizard
                 if (!countdownSynced)
                 {
                     _sessionContextStore.Clear();
+                    ClearPendingPayloadBuffers();
                     await _onlineSessionFlow.OnJoinFailedAsync(OnlineErrorCode.NetworkUnavailable);
                     TrackDiagnostic("guest_countdown_sync_timeout", errorCode: OnlineErrorCode.NetworkUnavailable);
                     return OnlineLaunchPreparationResult.Failed(ToWizardError(OnlineErrorCode.NetworkUnavailable));
@@ -254,6 +263,7 @@ namespace Runtime.GameModes.Wizard
             }
 
             _sessionContextStore.Clear();
+            ClearPendingPayloadBuffers();
             await _onlineSessionFlow.OnJoinFailedAsync(joinResult.ErrorCode);
             TrackDiagnostic("join_failed", errorCode: joinResult.ErrorCode);
             return OnlineLaunchPreparationResult.Failed(ToWizardError(joinResult.ErrorCode));
@@ -343,6 +353,7 @@ namespace Runtime.GameModes.Wizard
             {
                 await _gateway.LeaveSessionAsync();
                 _sessionContextStore.Clear();
+                ClearPendingPayloadBuffers();
                 TrackDiagnostic("session_left");
             }
             catch (Exception ex)
@@ -634,8 +645,17 @@ namespace Runtime.GameModes.Wizard
 
             if (OnlinePayloadSerialization.TryDeserializeMatchConfig(evt.Payload, out var payload))
             {
-                _sessionContextStore.SetMatchConfig(payload);
-                TrackDiagnostic("match_config_received", reason: payload.GameId);
+                if (_sessionContextStore.Snapshot.IsOnlineDirectInvite)
+                {
+                    _sessionContextStore.SetMatchConfig(payload);
+                    TrackDiagnostic("match_config_received", reason: payload.GameId);
+                }
+                else
+                {
+                    _pendingMatchConfigBuffer = payload;
+                    TrackDiagnostic("match_config_buffered_prejoin", reason: payload.GameId);
+                }
+
                 return;
             }
 
@@ -673,6 +693,26 @@ namespace Runtime.GameModes.Wizard
                 Guid.NewGuid(),
                 reason,
                 errorCode));
+        }
+
+        private void TryApplyBufferedMatchConfig()
+        {
+            if (!_pendingMatchConfigBuffer.HasValue)
+                return;
+
+            if (!_sessionContextStore.Snapshot.IsOnlineDirectInvite)
+                return;
+
+            var payload = _pendingMatchConfigBuffer.Value;
+            _sessionContextStore.SetMatchConfig(payload);
+            _pendingMatchConfigBuffer = null;
+            TrackDiagnostic("match_config_applied_from_buffer", reason: payload.GameId);
+        }
+
+        private void ClearPendingPayloadBuffers()
+        {
+            _pendingMatchConfigBuffer = null;
+            _pendingCountdownTargetNetworkTimeSeconds = null;
         }
 
         private static WizardError ToWizardError(OnlineErrorCode errorCode)

@@ -41,6 +41,19 @@ namespace Runtime.Gameplay
                 return;
             }
 
+            if (command is TimeoutCommand timeout)
+            {
+                if (!session.IsHost)
+                    return;
+
+                _localCommandSink.SubmitCommand(command);
+                SubmitOnlineTimeoutAsync(new OnlineTimeoutSignal(
+                    session.LocalUserId,
+                    timeout.LoserSlot,
+                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())).Forget();
+                return;
+            }
+
             if (command is not MakeMoveCommand move)
             {
                 _localCommandSink.SubmitCommand(command);
@@ -97,6 +110,18 @@ namespace Runtime.Gameplay
             catch (Exception ex)
             {
                 Log.Error(LogTags.Infrastructure, $"[OnlineAwareGameplayCommandSink] Failed to submit online move: {ex.Message}");
+            }
+        }
+
+        private async UniTaskVoid SubmitOnlineTimeoutAsync(OnlineTimeoutSignal signal)
+        {
+            try
+            {
+                await _networkBridge.SubmitTimeoutAsync(signal);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(LogTags.Infrastructure, $"[OnlineAwareGameplayCommandSink] Failed to submit online timeout: {ex.Message}");
             }
         }
     }

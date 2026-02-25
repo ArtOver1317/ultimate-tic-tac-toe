@@ -9,8 +9,9 @@ namespace Runtime.GameModes.Wizard
         public string GameId { get; }
         public int BoardSize { get; }
         public bool IsUltimate { get; }
+        public int MoveTimeLimitSeconds { get; }
 
-        public OnlineMatchConfigPayload(string gameId, int boardSize, bool isUltimate)
+        public OnlineMatchConfigPayload(string gameId, int boardSize, bool isUltimate, int moveTimeLimitSeconds)
         {
             if (string.IsNullOrWhiteSpace(gameId))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(gameId));
@@ -18,9 +19,13 @@ namespace Runtime.GameModes.Wizard
             if (boardSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(boardSize), boardSize, "BoardSize must be positive.");
 
+            if (moveTimeLimitSeconds < 0)
+                throw new ArgumentOutOfRangeException(nameof(moveTimeLimitSeconds), moveTimeLimitSeconds, "Value cannot be negative.");
+
             GameId = gameId;
             BoardSize = boardSize;
             IsUltimate = isUltimate;
+            MoveTimeLimitSeconds = moveTimeLimitSeconds;
         }
 
         public static bool TryFromLaunchConfig(GameLaunchConfig config, out OnlineMatchConfigPayload payload)
@@ -31,13 +36,13 @@ namespace Runtime.GameModes.Wizard
 
             if (config.GameConfig is UltimateTicTacToeConfig)
             {
-                payload = new OnlineMatchConfigPayload(config.GameId, boardSize: 3, isUltimate: true);
+                payload = new OnlineMatchConfigPayload(config.GameId, boardSize: 3, isUltimate: true, moveTimeLimitSeconds: config.MoveTimeLimitSeconds);
                 return true;
             }
 
             if (config.GameConfig is TicTacToeConfig ticTacToeConfig)
             {
-                payload = new OnlineMatchConfigPayload(config.GameId, ticTacToeConfig.BoardSize, ticTacToeConfig.IsUltimate);
+                payload = new OnlineMatchConfigPayload(config.GameId, ticTacToeConfig.BoardSize, ticTacToeConfig.IsUltimate, config.MoveTimeLimitSeconds);
                 return true;
             }
 

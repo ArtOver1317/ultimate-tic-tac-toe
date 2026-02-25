@@ -272,7 +272,7 @@ namespace Runtime.Games.TicTacToe
             if (!string.Equals(payload.GameId, config.GameId, StringComparison.Ordinal))
                 return config;
 
-            return new GameLaunchConfig(config.GameId, payload.ToGameConfig(), config.OpponentConfig, config.MoveTimeLimitSeconds);
+            return new GameLaunchConfig(config.GameId, payload.ToGameConfig(), config.OpponentConfig, payload.MoveTimeLimitSeconds);
         }
 
         // -- Event wiring --
@@ -402,6 +402,18 @@ namespace Runtime.Games.TicTacToe
             _networkBridge.IncomingRoundReadySignals
                 .Subscribe(OnIncomingRoundReadySignal)
                 .AddTo(_subscriptions);
+
+            _networkBridge.IncomingTimeoutSignals
+                .Subscribe(OnIncomingOnlineTimeoutSignal)
+                .AddTo(_subscriptions);
+        }
+
+        private void OnIncomingOnlineTimeoutSignal(OnlineTimeoutSignal signal)
+        {
+            if (_disposed || !_ecsLifecycle.IsActive || _onlineIsHost)
+                return;
+
+            _matchStateProvider.SubmitCommand(new TimeoutCommand(signal.LoserSlot));
         }
 
         private void OnIncomingOnlineMove(MoveCommand move)

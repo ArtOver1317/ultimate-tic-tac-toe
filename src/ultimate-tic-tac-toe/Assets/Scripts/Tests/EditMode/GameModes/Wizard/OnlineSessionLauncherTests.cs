@@ -176,6 +176,31 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public async Task WhenHostSendsMatchConfigBeforeGuestSessionContext_ThenGuestStillReceivesHostConfig()
+        {
+            // Arrange
+            using var harness = CreateHarness();
+            harness.Gateway.NetworkTimeSecondsValue = 100d;
+            harness.Gateway.JoinSessionAsyncImpl = (_, _, _) =>
+            {
+                harness.Transport.RaiseReliableData(Encoding.UTF8.GetBytes("C|tic-tac-toe|5|1"));
+                harness.Transport.RaiseReliableData(Encoding.UTF8.GetBytes("T|100"));
+                return UniTask.FromResult(GatewayOperationResult.Success());
+            };
+
+            var config = CreateDirectInviteConfig("AB2CD7", new TicTacToeConfig(3, isUltimate: false));
+
+            // Act
+            var result = await harness.Launcher.PrepareForLaunchAsync(config, CancellationToken.None);
+
+            // Assert
+            result.IsSuccess.Should().BeTrue();
+            harness.ContextStore.Snapshot.MatchConfig.HasValue.Should().BeTrue();
+            harness.ContextStore.Snapshot.MatchConfig!.Value.BoardSize.Should().Be(5);
+            harness.ContextStore.Snapshot.MatchConfig!.Value.IsUltimate.Should().BeTrue();
+        }
+
+        [Test]
         public async Task WhenHostCreateFailsWithKnownErrorCode_ThenFlowTransitionsToFailedWithCorrectErrorCode()
         {
             // Arrange
