@@ -317,6 +317,18 @@ namespace Runtime.GameModes.Wizard
                 || string.Equals(evt.Kind, "shutdown", StringComparison.Ordinal)
                 || string.Equals(evt.Kind, "connect_failed", StringComparison.Ordinal))
             {
+                var session = _sessionContextStore.Snapshot;
+                var flow = _onlineSessionFlow.Snapshot.CurrentValue;
+                if (session.IsOnlineDirectInvite &&
+                    (flow.State == OnlineFlowState.ConnectedCountdown ||
+                     flow.State == OnlineFlowState.InGame ||
+                     flow.State == OnlineFlowState.Result))
+                {
+                    TrackDiagnostic("gateway_disconnect_treated_as_opponent_left", reason: evt.Kind);
+                    _onlineSessionFlow.OnOpponentLeftAsync().Forget();
+                    return;
+                }
+
                 TrackDiagnostic("gateway_disconnect_detected", reason: evt.Kind);
                 HandleDisconnectLifecycleAsync().Forget();
             }

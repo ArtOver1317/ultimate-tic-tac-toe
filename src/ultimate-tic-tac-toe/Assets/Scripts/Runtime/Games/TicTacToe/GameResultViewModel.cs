@@ -85,9 +85,11 @@ namespace Runtime.Games.TicTacToe
         /// <summary>
         /// Shows the result popup with current round result and series score.
         /// </summary>
-        public void Show(GameResult result, SeriesScore score)
+        public void Show(GameResult result, SeriesScore score, string? customResultText = null)
         {
-            _resultLabel.text = FormatResult(result);
+            _resultLabel.text = string.IsNullOrWhiteSpace(customResultText)
+                ? FormatResult(result)
+                : customResultText;
             _scoreLabel.text = FormatScore(score);
             _leadLabel.text = FormatLead(score);
             _overlay.style.display = DisplayStyle.Flex;

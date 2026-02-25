@@ -68,6 +68,7 @@ namespace Runtime.Games.TicTacToe
         private bool _onlineIsHost;
         private bool _onlineRoundFinished;
         private bool _onlineRematchStarted;
+        private bool _onlineTerminalResultShown;
         private bool _useHostAuthoritativeFilter;
         private int _exitToMenuRequested;
         private string? _onlineLocalUserId;
@@ -364,14 +365,74 @@ namespace Runtime.Games.TicTacToe
             }
 
             _onlineSessionFlow.Snapshot
+                .Where(ShouldHandleOnlineOpponentDisconnectAsResult)
+                .Subscribe(HandleOnlineOpponentDisconnectAsResult)
+                .AddTo(_subscriptions);
+
+            _onlineSessionFlow.Snapshot
                 .Where(ShouldExitToMenuByOnlineFlow)
                 .Subscribe(_ => ExitToMenuAsync().Forget())
                 .AddTo(_subscriptions);
         }
 
+        private bool ShouldHandleOnlineOpponentDisconnectAsResult(OnlineFlowSnapshot snapshot)
+        {
+            if (_disposed || !_isOnlineDirectInvite || _onlineTerminalResultShown)
+                return false;
+
+            if (!IsOpponentDisconnectTerminal(snapshot))
+                return false;
+
+            return true;
+        }
+
+        private static bool IsOpponentDisconnectTerminal(OnlineFlowSnapshot snapshot) =>
+            snapshot.State == OnlineFlowState.Terminated &&
+            (snapshot.ErrorCode == OnlineErrorCode.OpponentLeft ||
+             snapshot.ErrorCode == OnlineErrorCode.DisconnectTimeout);
+
+        private void HandleOnlineOpponentDisconnectAsResult(OnlineFlowSnapshot snapshot)
+        {
+            if (_disposed || _onlineTerminalResultShown)
+                return;
+
+            _onlineTerminalResultShown = true;
+            _onlineRoundFinished = true;
+            _onlineRematchStarted = false;
+            _isOnlineDirectInvite = false;
+
+            _moveTimerService.Stop();
+            _movesBinder.Unbind();
+            _moveTimerHudBinder?.Unbind();
+            _winLineRenderer.Clear();
+
+            var winner = _onlineIsHost ? PlayerMark.X : PlayerMark.O;
+            var gameResult = GameResult.Timeout(winner);
+            _seriesService.RecordResult(gameResult);
+            UpdateScoreLabels();
+
+            SetRoundFinishedVisualState(true);
+            _resultVM?.Show(gameResult, _seriesService.Score.CurrentValue, ResolveOpponentLeftResultText(snapshot.ErrorCode));
+        }
+
+        private string ResolveOpponentLeftResultText(OnlineErrorCode errorCode)
+        {
+            var key = errorCode == OnlineErrorCode.OpponentLeft
+                ? "Errors.Online.OpponentLeft"
+                : "Errors.Online.DisconnectTimeout";
+
+            if (_localization == null)
+                return key;
+
+            return _localization.Resolve("Errors", key);
+        }
+
         private bool ShouldExitToMenuByOnlineFlow(OnlineFlowSnapshot snapshot)
         {
             if (_disposed)
+                return false;
+
+            if (IsOpponentDisconnectTerminal(snapshot))
                 return false;
 
             return snapshot.State == OnlineFlowState.Terminated ||
@@ -553,6 +614,7 @@ namespace Runtime.Games.TicTacToe
                 {
                     _onlineRoundFinished = true;
                     _onlineRematchStarted = false;
+                    _onlineTerminalResultShown = false;
                     _onlineSessionFlow.OnRoundCompletedAsync().Forget();
                 }
 
@@ -720,6 +782,12 @@ namespace Runtime.Games.TicTacToe
             switch (action)
             {
                 case ResultAction.Restart:
+                    if (_onlineTerminalResultShown)
+                    {
+                        ExitToMenuAsync().Forget();
+                        break;
+                    }
+
                     if (_restartInProgress)
                     {
                         Log.Warning(LogTags.Infrastructure, "[GameplayStartup] Restart already in progress. Ignore duplicate request.");
@@ -842,6 +910,7 @@ namespace Runtime.Games.TicTacToe
 
                 _onlineRoundFinished = false;
                 _onlineRematchStarted = false;
+                _onlineTerminalResultShown = false;
             }
             catch (Exception ex)
             {

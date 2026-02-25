@@ -354,6 +354,26 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public async Task WhenGatewayDisconnectedDuringInGame_ThenTreatsAsOpponentLeftWithoutReconnectLoop()
+        {
+            // Arrange
+            using var harness = CreateHarness(
+                reconnectGraceTimeout: TimeSpan.FromSeconds(3),
+                reconnectRetryDelay: TimeSpan.FromSeconds(1));
+            await BringFlowToStateAsync(harness.Flow, OnlineFlowState.InGame);
+            harness.ContextStore.SetDirectInviteSession("ABCDEF", "guest", isHost: false);
+            harness.Gateway.TryReconnectAsyncImpl = (_, _) => UniTask.FromResult(GatewayOperationResult.Failed(OnlineErrorCode.NetworkUnavailable));
+
+            // Act
+            harness.Gateway.RaiseLifecycleEvent("disconnected", "ABCDEF", "host");
+            await WaitUntilAsync(() => harness.Flow.Snapshot.CurrentValue.State == OnlineFlowState.Terminated);
+
+            // Assert
+            harness.Gateway.TryReconnectCallCount.Should().Be(0);
+            harness.Flow.Snapshot.CurrentValue.ErrorCode.Should().Be(OnlineErrorCode.OpponentLeft);
+        }
+
+        [Test]
         public async Task WhenDisconnectEventReceivedWhileUserLeaveInProgress_ThenReconnectIsSkipped()
         {
             // Arrange

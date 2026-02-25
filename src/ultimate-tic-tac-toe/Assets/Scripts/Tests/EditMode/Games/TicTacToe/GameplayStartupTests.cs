@@ -14,6 +14,7 @@ using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.AI.Ultimate;
+using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.GameStateMachine;
@@ -416,7 +417,7 @@ namespace Tests.EditMode.Games.TicTacToe
         }
 
         [Test]
-        public async Task WhenOnlineFlowTerminatedDuringOnlineMatch_ThenReturnsToMainMenuViaBackHandler()
+        public async Task WhenOnlineFlowTerminatedByOpponentLeftDuringOnlineMatch_ThenShowsResultAndRecordsLocalWin()
         {
             var onlineFlow = new TestOnlineSessionFlow();
             var onlineSessionStore = new OnlineGameplaySessionContextStore();
@@ -459,7 +460,13 @@ namespace Tests.EditMode.Games.TicTacToe
             onlineFlow.Emit(OnlineFlowState.Terminated, OnlineErrorCode.OpponentLeft);
             await UniTask.DelayFrame(1);
 
-            await _backHandler.Received(1).HandleBackAsync(Arg.Any<CancellationToken>());
+            _seriesService.Received(1)
+                .RecordResult(Arg.Is<GameResult>(result =>
+                    result.Status == Runtime.Games.TicTacToe.Rules.GameStatus.Timeout &&
+                    result.Winner == PlayerMark.O));
+
+            _fieldContainer.ClassListContains("field-container--round-finished").Should().BeTrue();
+            await _backHandler.DidNotReceive().HandleBackAsync(Arg.Any<CancellationToken>());
 
             sut.Dispose();
         }
