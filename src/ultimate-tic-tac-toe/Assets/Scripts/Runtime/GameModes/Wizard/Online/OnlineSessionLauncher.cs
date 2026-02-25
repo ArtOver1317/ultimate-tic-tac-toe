@@ -233,7 +233,6 @@ namespace Runtime.GameModes.Wizard
             {
                 _sessionContextStore.SetDirectInviteSession(directInvite.SessionId, _localUserId, isHost: false);
                 TryApplyBufferedMatchConfig();
-                _pendingCountdownTargetNetworkTimeSeconds = null;
 
                 MarkRunnerAllocated();
                 await _onlineSessionFlow.OnJoinSucceededAsync();

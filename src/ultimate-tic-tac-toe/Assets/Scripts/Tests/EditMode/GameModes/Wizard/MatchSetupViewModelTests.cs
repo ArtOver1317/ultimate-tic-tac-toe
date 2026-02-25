@@ -1712,6 +1712,42 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.CanBecomeHost.CurrentValue.Should().BeTrue();
         }
 
+        [Test]
+        public async Task WhenDirectInviteSelectedAndFlowIdleWithCandidateAndStaleActive_ThenVisibleSessionIdUsesCandidate()
+        {
+            var session = new FakeGameSession(GameSessionSnapshot.Default
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.DirectInvite));
+            SetupCoordinatorWithSession(session);
+
+            using var onlineFlow = new SpyMatchSetupOnlineFlow(
+                new OnlineFlowSnapshot(
+                    OnlineFlowState.Idle,
+                    previousStableState: null,
+                    candidateSessionId: "NEW123",
+                    activeSessionId: "OLD999",
+                    flowEpoch: 1,
+                    region: "eu",
+                    canStart: false,
+                    isBusy: false,
+                    errorCode: OnlineErrorCode.None,
+                    errorLocalizationKey: null,
+                    statusLocalizationKey: null,
+                    countdownRemainingSeconds: null,
+                    graceDeadlineUtc: null));
+
+            using var sut = new MatchSetupViewModel(_catalog, _coordinator, _localization, _difficultyCatalog, onlineFlow);
+            sut.DisablePlayerLoopForTests();
+            sut.Initialize();
+
+            await WaitUntilAsync(() =>
+                sut.CanCopySessionId.CurrentValue &&
+                string.Equals(sut.VisibleSessionId.CurrentValue, "NEW123", StringComparison.Ordinal));
+
+            sut.VisibleSessionId.CurrentValue.Should().Be("NEW123");
+            sut.CanCopySessionId.CurrentValue.Should().BeTrue();
+        }
+
         private void SetupCoordinatorWithSession(FakeGameSession session) =>
             _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(callInfo =>
             {

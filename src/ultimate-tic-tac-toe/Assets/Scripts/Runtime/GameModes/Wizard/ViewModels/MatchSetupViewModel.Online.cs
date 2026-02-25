@@ -72,11 +72,21 @@ namespace Runtime.GameModes.Wizard
                                         (snapshot.State == OnlineFlowState.WaitingForPlayer &&
                                          string.IsNullOrWhiteSpace(snapshot.ActiveSessionId));
 
+            var preferCandidateSessionId = snapshot.State == OnlineFlowState.Idle ||
+                                           snapshot.State == OnlineFlowState.HostIntentConfirmed ||
+                                           snapshot.State == OnlineFlowState.HostStarting ||
+                                           snapshot.State == OnlineFlowState.Failed ||
+                                           snapshot.State == OnlineFlowState.Terminated;
+
             var visibleSessionId = hideSessionIdForGuest
                 ? string.Empty
-                : !string.IsNullOrWhiteSpace(snapshot.ActiveSessionId)
-                    ? snapshot.ActiveSessionId!
-                    : snapshot.CandidateSessionId;
+                : preferCandidateSessionId
+                    ? !string.IsNullOrWhiteSpace(snapshot.CandidateSessionId)
+                        ? snapshot.CandidateSessionId
+                        : snapshot.ActiveSessionId
+                    : !string.IsNullOrWhiteSpace(snapshot.ActiveSessionId)
+                        ? snapshot.ActiveSessionId
+                        : snapshot.CandidateSessionId;
 
             _visibleSessionId.Value = visibleSessionId ?? string.Empty;
             _canCopySessionId.Value = !string.IsNullOrWhiteSpace(_visibleSessionId.Value);
