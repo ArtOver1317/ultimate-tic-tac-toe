@@ -204,9 +204,6 @@ namespace Runtime.GameModes.Wizard
                 if (updated.OpponentType != OpponentType.Human)
                     updated = updated.WithOpponentType(OpponentType.Human);
 
-                if (updated.HumanOpponentKind != HumanOpponentKind.Local)
-                    updated = updated.WithHumanOpponentKind(HumanOpponentKind.Local);
-
                 return updated;
             });
         }

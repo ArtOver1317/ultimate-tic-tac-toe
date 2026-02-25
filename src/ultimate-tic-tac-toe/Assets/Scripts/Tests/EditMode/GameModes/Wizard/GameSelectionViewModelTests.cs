@@ -426,7 +426,7 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public void WhenUltimateModeSelected_ThenSessionSwitchesToHumanLocalPolicy()
+        public void WhenUltimateModeSelected_ThenSessionSwitchesToHumanWithoutOverridingHumanKind()
         {
             // Arrange
             var modes = CreateModes(TicTacToeStrategy.DefaultGameId, UltimateTicTacToeStrategy.DefaultGameId);
@@ -446,7 +446,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             _session.Snapshot.CurrentValue.SelectedGameId.Should().Be(UltimateTicTacToeStrategy.DefaultGameId);
             _session.Snapshot.CurrentValue.OpponentType.Should().Be(OpponentType.Human);
-            _session.Snapshot.CurrentValue.HumanOpponentKind.Should().Be(HumanOpponentKind.Local);
+            _session.Snapshot.CurrentValue.HumanOpponentKind.Should().Be(HumanOpponentKind.Matchmaking);
         }
 
         [Test]

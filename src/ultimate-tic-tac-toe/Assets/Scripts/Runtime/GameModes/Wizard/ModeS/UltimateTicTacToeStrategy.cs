@@ -45,7 +45,7 @@ namespace Runtime.GameModes.Wizard
                 iconAssetKey: "icons/game_tic_tac_toe",
                 sortOrder: 11,
                 supportsBot: false,
-                supportsOnline: false,
+                supportsOnline: true,
                 supportsLocal: true);
         }
 
