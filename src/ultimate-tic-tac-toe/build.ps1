@@ -240,6 +240,25 @@ function Get-ActiveInputHandler {
     return [int]$match.Groups[2].Value
 }
 
+function Assert-SaveEncryptionDefineDisabledForProduction {
+    $settingsPath = Join-Path $script:ProjectRoot 'ProjectSettings\ProjectSettings.asset'
+    if (-not (Test-Path $settingsPath)) {
+        throw "ProjectSettings.asset not found at $settingsPath"
+    }
+
+    $content = Get-Content -Path $settingsPath -Raw
+    $standaloneMatch = [regex]::Match($content, '^\s*Standalone:\s*(.*)$', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+    $webGlMatch = [regex]::Match($content, '^\s*WebGL:\s*(.*)$', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+
+    $standaloneDefines = if ($standaloneMatch.Success) { $standaloneMatch.Groups[1].Value } else { '' }
+    $webGlDefines = if ($webGlMatch.Success) { $webGlMatch.Groups[1].Value } else { '' }
+
+    if ($standaloneDefines -match '(^|;)SAVE_ENCRYPTION_DISABLED(;|$)' -or
+        $webGlDefines -match '(^|;)SAVE_ENCRYPTION_DISABLED(;|$)') {
+        throw 'Production build is blocked: SAVE_ENCRYPTION_DISABLED is present in Scripting Define Symbols (Standalone/WebGL). Remove it before running build.'
+    }
+}
+
 function Set-ActiveInputHandler {
     param(
         [Parameter(Mandatory = $true)]
@@ -537,6 +556,10 @@ Assert-ProjectIsNotOpenInUnity
 Write-Host "[Pipeline] Unity: $unityPath"
 Write-Host "[Pipeline] Target: $Target (TestOnly=$($TestOnly.IsPresent), SkipTests=$($SkipTests.IsPresent), UseDocker=$($UseDocker.IsPresent))"
 Write-Host "[Pipeline] Build stall timeout (no log updates): $BuildStallTimeoutMinutes min"
+
+if (-not $TestOnly) {
+    Assert-SaveEncryptionDefineDisabledForProduction
+}
 
 $originalInputHandler = Get-ActiveInputHandler
 try {

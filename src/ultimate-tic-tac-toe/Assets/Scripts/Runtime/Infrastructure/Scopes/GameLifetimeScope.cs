@@ -3,6 +3,8 @@ using Runtime.Infrastructure.EntryPoint;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Infrastructure.Logging;
+using Runtime.Infrastructure.Save;
+using Runtime.Infrastructure.Save.Backends;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
 using Runtime.Services.Assets;
@@ -121,7 +123,15 @@ namespace Runtime.Infrastructure.Scopes
                         defaultLocale: null), 
                 Lifetime.Singleton);
             
-            builder.Register<ILocaleStorage, PlayerPrefsLocaleStorage>(Lifetime.Singleton);
+            #if UNITY_WEBGL
+            builder.Register<PlayerPrefsSaveBackend>(Lifetime.Singleton).As<ISaveBackend>();
+            #else
+            builder.Register<FileSaveBackend>(Lifetime.Singleton).As<ISaveBackend>();
+            #endif
+
+            builder.Register<SaveEncryptor>(Lifetime.Singleton);
+            builder.Register<SaveService>(Lifetime.Singleton).As<ISaveService>().As<IInitializable>().AsSelf();
+            builder.Register<SaveServiceLocaleStorage>(Lifetime.Singleton).As<ILocaleStorage>();
             builder.Register<ILocalizationCatalog, AddressablesLocalizationCatalog>(Lifetime.Singleton);
             builder.Register<ILocalizationLoader, AddressablesLocalizationLoader>(Lifetime.Singleton);
             builder.Register<ILocalizationParser, JsonLocalizationParser>(Lifetime.Singleton);

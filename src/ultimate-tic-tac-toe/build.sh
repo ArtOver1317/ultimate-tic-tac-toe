@@ -32,6 +32,26 @@ if [[ ! -f "ProjectSettings/ProjectSettings.asset" ]]; then
   exit 1
 fi
 
+if [[ "${BUILD_TARGET}" == "All" || "${BUILD_TARGET}" == "Desktop" || "${BUILD_TARGET}" == "WebGL" ]]; then
+if python3 - <<'PY'
+import re
+from pathlib import Path
+
+text = Path('ProjectSettings/ProjectSettings.asset').read_text(encoding='utf-8')
+standalone = re.search(r'^\s*Standalone:\s*(.*)$', text, flags=re.MULTILINE)
+webgl = re.search(r'^\s*WebGL:\s*(.*)$', text, flags=re.MULTILINE)
+values = [standalone.group(1) if standalone else '', webgl.group(1) if webgl else '']
+pattern = re.compile(r'(^|;)SAVE_ENCRYPTION_DISABLED(;|$)')
+raise SystemExit(1 if any(pattern.search(v) for v in values) else 0)
+PY
+then
+  :
+else
+  echo "[build.sh] ERROR: production build blocked because SAVE_ENCRYPTION_DISABLED is present in Standalone/WebGL defines"
+  exit 1
+fi
+fi
+
 if [[ "${SKIP_TESTS}" == "1" ]]; then
   current_allow="${ALLOW_SKIP_TESTS:-}"
   if [[ -n "${current_allow}" && "${current_allow,,}" != "true" ]]; then
