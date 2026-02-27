@@ -33,8 +33,14 @@ namespace Runtime.Games.TicTacToe.Moves
         /// <summary>Score label for Player 1 (shows win count).</summary>
         Label Player1ScoreLabel { get; }
 
+        /// <summary>Name label for Player 1.</summary>
+        Label Player1NameLabel { get; }
+
         /// <summary>Score label for Player 2 (shows win count).</summary>
         Label Player2ScoreLabel { get; }
+
+        /// <summary>Name label for Player 2.</summary>
+        Label Player2NameLabel { get; }
 
         /// <summary>Score label for draws counter.</summary>
         Label DrawsScoreLabel { get; }

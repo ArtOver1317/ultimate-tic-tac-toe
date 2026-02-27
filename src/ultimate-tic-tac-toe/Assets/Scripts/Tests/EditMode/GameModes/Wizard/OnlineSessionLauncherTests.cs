@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.PlayerProfile;
 
 namespace Tests.EditMode.GameModes.Wizard
 {
@@ -198,6 +200,74 @@ namespace Tests.EditMode.GameModes.Wizard
             harness.ContextStore.Snapshot.MatchConfig.HasValue.Should().BeTrue();
             harness.ContextStore.Snapshot.MatchConfig!.Value.BoardSize.Should().Be(5);
             harness.ContextStore.Snapshot.MatchConfig!.Value.IsUltimate.Should().BeTrue();
+        }
+
+        [Test]
+        public async Task WhenGuestLaunchPreparationSucceeds_ThenLauncherSendsGuestPlayerNamePayload()
+        {
+            using var harness = CreateHarness(customName: "Alex");
+            harness.Gateway.NetworkTimeSecondsValue = 100d;
+            harness.Gateway.JoinSessionAsyncImpl = (_, _, _) =>
+            {
+                UniTask.Void(async () =>
+                {
+                    await UniTask.Yield();
+                    harness.Transport.RaiseReliableData(Encoding.UTF8.GetBytes("C|tic-tac-toe|3|0"));
+                    harness.Transport.RaiseReliableData(Encoding.UTF8.GetBytes("T|100"));
+                });
+
+                return UniTask.FromResult(GatewayOperationResult.Success());
+            };
+
+            var config = CreateDirectInviteConfig("AB2CD7", new TicTacToeConfig(3, isUltimate: false));
+
+            var result = await harness.Launcher.PrepareForLaunchAsync(config, CancellationToken.None);
+
+            result.IsSuccess.Should().BeTrue();
+            harness.Transport.SentPayloads.Should().Contain(payload => payload.StartsWith("N|1|G|1|Alex", StringComparison.Ordinal));
+        }
+
+        [Test]
+        public async Task WhenGuestLaunchPreparationSucceedsAndNameIsInvalid_ThenLauncherDoesNotSendNamePayloadAndTracksDiagnostic()
+        {
+            using var harness = CreateHarness(customName: "Bad Name");
+            harness.Gateway.NetworkTimeSecondsValue = 100d;
+            harness.Gateway.JoinSessionAsyncImpl = (_, _, _) =>
+            {
+                UniTask.Void(async () =>
+                {
+                    await UniTask.Yield();
+                    harness.Transport.RaiseReliableData(Encoding.UTF8.GetBytes("C|tic-tac-toe|3|0"));
+                    harness.Transport.RaiseReliableData(Encoding.UTF8.GetBytes("T|100"));
+                });
+
+                return UniTask.FromResult(GatewayOperationResult.Success());
+            };
+
+            var config = CreateDirectInviteConfig("AB2CD7", new TicTacToeConfig(3, isUltimate: false));
+
+            var result = await harness.Launcher.PrepareForLaunchAsync(config, CancellationToken.None);
+
+            result.IsSuccess.Should().BeTrue();
+            harness.Transport.SentPayloads.Should().NotContain(payload => payload.StartsWith("N|1|G|", StringComparison.Ordinal));
+
+            var diagnostics = harness.DiagnosticsBuffer.Flush();
+            diagnostics.Should().Contain(evt => evt.EventName == "local_name_send_invalid");
+        }
+
+        [Test]
+        public void WhenPlayerNamePayloadReceivedBeforeGameplayBind_ThenBindingAppliesBufferedNameToStore()
+        {
+            using var harness = CreateHarness();
+            var onlineStore = new OnlinePlayerNamesStore();
+
+            harness.ContextStore.SetDirectInviteSession("ABCDEF", harness.LocalUserId, isHost: false);
+            harness.Transport.RaiseReliableData(Encoding.UTF8.GetBytes("N|1|H|1|HostName"));
+
+            harness.Launcher.BindMatchPlayerNamesStore(onlineStore);
+
+            onlineStore.Snapshot.CurrentValue.HostCustomName.Should().Be("HostName");
+            onlineStore.Snapshot.CurrentValue.GuestCustomName.Should().BeNull();
         }
 
         [Test]
@@ -523,7 +593,8 @@ namespace Tests.EditMode.GameModes.Wizard
 
         private static TestHarness CreateHarness(
             TimeSpan? reconnectGraceTimeout = null,
-            TimeSpan? reconnectRetryDelay = null)
+            TimeSpan? reconnectRetryDelay = null,
+            string? customName = null)
         {
             const string localUserId = "tests-local-user";
             var lifecycle = new OnlineSessionIdLifecycle(() => "ABCDEF");
@@ -534,6 +605,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var contextStore = new OnlineGameplaySessionContextStore();
             var diagnosticsBuffer = new OnlineDiagnosticsBuffer();
             var cleanupTracker = new OnlineCleanupTracker();
+            var playerNameService = new FakePlayerNameService(new PlayerNameSnapshot(customName, customName ?? "Player"));
 
             var launcher = new OnlineSessionLauncher(
                 gateway,
@@ -543,6 +615,7 @@ namespace Tests.EditMode.GameModes.Wizard
                 contextStore,
                 diagnosticsBuffer,
                 cleanupTracker,
+                playerNameService,
                 localUserId,
                 reconnectGraceTimeout ?? TimeSpan.FromSeconds(30),
                 reconnectRetryDelay ?? TimeSpan.FromSeconds(1));
@@ -556,6 +629,21 @@ namespace Tests.EditMode.GameModes.Wizard
                 diagnosticsBuffer,
                 cleanupTracker,
                 localUserId);
+        }
+
+        private sealed class FakePlayerNameService : IPlayerNameService
+        {
+            private readonly ReactiveProperty<PlayerNameSnapshot> _snapshot;
+
+            public FakePlayerNameService(PlayerNameSnapshot snapshot)
+            {
+                _snapshot = new ReactiveProperty<PlayerNameSnapshot>(snapshot);
+            }
+
+            public ReadOnlyReactiveProperty<PlayerNameSnapshot> Snapshot => _snapshot;
+
+            public UniTask<PlayerNameChangeResult> TrySetOnConfirmAsync(string input, CancellationToken ct)
+                => UniTask.FromResult(PlayerNameChangeResult.Success());
         }
 
         private sealed class TestHarness : IDisposable
@@ -659,8 +747,12 @@ namespace Tests.EditMode.GameModes.Wizard
 
         private sealed class SpyPhotonSessionTransport : IPhotonSessionTransport, IDisposable
         {
+            private readonly List<string> _sentPayloads = new();
+
             public event Action<PhotonTransportLifecycleEvent>? LifecycleEvent;
             public event Action<PhotonReliableDataEvent>? ReliableDataReceived;
+
+            public IReadOnlyList<string> SentPayloads => _sentPayloads;
 
             public double NetworkTimeSeconds => 0d;
 
@@ -672,7 +764,11 @@ namespace Tests.EditMode.GameModes.Wizard
 
             public UniTask ReconnectAsync(string region, string currentUserId) => UniTask.CompletedTask;
 
-            public UniTask SendReliableDataAsync(byte[] payload) => UniTask.CompletedTask;
+            public UniTask SendReliableDataAsync(byte[] payload)
+            {
+                _sentPayloads.Add(Encoding.UTF8.GetString(payload));
+                return UniTask.CompletedTask;
+            }
 
             public void RaiseReliableData(byte[] payload) => ReliableDataReceived?.Invoke(new PhotonReliableDataEvent(payload));
 
@@ -680,6 +776,7 @@ namespace Tests.EditMode.GameModes.Wizard
             {
                 LifecycleEvent = null;
                 ReliableDataReceived = null;
+                _sentPayloads.Clear();
             }
         }
     }

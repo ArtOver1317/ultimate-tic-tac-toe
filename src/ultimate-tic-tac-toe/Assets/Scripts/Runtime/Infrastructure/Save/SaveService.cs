@@ -10,7 +10,7 @@ using JsonNode = SimpleJSON.JSONNode;
 
 namespace Runtime.Infrastructure.Save
 {
-    internal sealed class SaveService : ISaveService, IInitializable
+    internal sealed class SaveService : ISaveService, ISaveServiceWithResult, IInitializable
     {
         private const int CurrentVersion = 1;
         private const int SaveFrequencyWarningThreshold = 5;
@@ -170,24 +170,29 @@ namespace Runtime.Infrastructure.Save
 
         public void Save<T>(string section, T data)
         {
+            TrySave(section, data);
+        }
+
+        public SaveWriteResult TrySave<T>(string section, T data)
+        {
             ValidateSection(section);
 
             if (!_isInitialized)
             {
                 GameLog.Error($"[SaveSystem] Save called before Initialize. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section={section}, PayloadBytes=0, ExceptionType=None");
-                return;
+                return SaveWriteResult.Failed(SaveWriteError.NotInitialized);
             }
 
             if (_isWriteBlocked)
             {
                 GameLog.Error($"[SaveSystem] Save blocked due to incompatible persisted data. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section={section}, PayloadBytes=0, ExceptionType=None");
-                return;
+                return SaveWriteResult.Failed(SaveWriteError.IncompatiblePersistedData);
             }
 
             EnsureMainThread();
 
             if (!TryEnsureTypeInfo(typeof(T), section, false))
-                return;
+                return SaveWriteResult.Failed(SaveWriteError.SerializationFailed);
 
             string sectionJson;
             try
@@ -199,7 +204,7 @@ namespace Runtime.Infrastructure.Save
             catch (Exception ex)
             {
                 GameLog.Error($"[SaveSystem] Failed to serialize section. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section={section}, PayloadBytes=0, ExceptionType={ex.GetType().Name}, ExceptionMessage={ex.Message}");
-                return;
+                return SaveWriteResult.Failed(SaveWriteError.SerializationFailed);
             }
 
             var payloadBytes = Encoding.UTF8.GetByteCount(sectionJson);
@@ -208,7 +213,10 @@ namespace Runtime.Infrastructure.Save
             if (!TryPersistRoot(BuildRootNode(), section, out var totalBytes))
             {
                 GameLog.Error($"[SaveSystem] Save write failed. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section={section}, PayloadBytes={totalBytes}, ExceptionType=<see previous log>");
+                return SaveWriteResult.Failed(SaveWriteError.BackendWriteFailed);
             }
+
+            return SaveWriteResult.Success();
         }
 
         private bool TryPersistRoot(JsonNode root, string section, out int payloadBytes)

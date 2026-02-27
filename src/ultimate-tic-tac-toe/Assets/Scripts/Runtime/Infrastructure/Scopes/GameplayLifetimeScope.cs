@@ -11,6 +11,8 @@ using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Runtime.Games.TicTacToe.Series;
+using Runtime.Localization;
+using Runtime.PlayerProfile;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
@@ -128,6 +130,24 @@ namespace Runtime.Infrastructure.Scopes
                 .AsSelf()
                 .As<IDisposable>();
             builder.Register<ISeriesService, SeriesService>(Lifetime.Scoped);
+            builder.Register<OnlinePlayerNamesStore>(Lifetime.Scoped)
+                .As<IOnlinePlayerNamesStore>()
+                .As<IDisposable>();
+            builder.Register<IMatchPlayerNames>(resolver =>
+            {
+                var session = resolver.Resolve<IOnlineGameplaySessionContextStore>().Snapshot;
+                return session.IsOnlineDirectInvite
+                    ? new OnlineMatchPlayerNames(
+                        resolver.Resolve<IOnlineGameplaySessionContextStore>(),
+                        resolver.Resolve<IPlayerNameService>(),
+                        resolver.Resolve<IOnlinePlayerNamesStore>(),
+                        resolver.Resolve<ILocalizationService>())
+                    : new LocalMatchPlayerNames(
+                        resolver.Resolve<IPlayerNameService>(),
+                        resolver.Resolve<ILocalizationService>());
+            }, Lifetime.Scoped)
+            .As<IMatchPlayerNames>()
+            .As<IDisposable>();
             builder.Register<IGameplayBackHandler, GameplayBackHandler>(Lifetime.Scoped);
             builder.Register<GameplayStartup>(Lifetime.Scoped)
                 .As<IGameplayStartup>()

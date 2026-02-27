@@ -46,6 +46,8 @@ namespace Runtime.Games.TicTacToe
         private VisualElement _player2Panel;
         private Label _player1ScoreLabel;
         private Label _player2ScoreLabel;
+        private Label _player1NameLabel;
+        private Label _player2NameLabel;
         private Label _drawsScoreLabel;
         private Label _moveTimerLabel;
 
@@ -141,7 +143,9 @@ namespace Runtime.Games.TicTacToe
         VisualElement IGameplayFieldUiAdapter.Player1Panel => _isBound ? _player1Panel : null;
         VisualElement IGameplayFieldUiAdapter.Player2Panel => _isBound ? _player2Panel : null;
         Label IGameplayFieldUiAdapter.Player1ScoreLabel => _isBound ? _player1ScoreLabel : null;
+        Label IGameplayFieldUiAdapter.Player1NameLabel => _isBound ? _player1NameLabel : null;
         Label IGameplayFieldUiAdapter.Player2ScoreLabel => _isBound ? _player2ScoreLabel : null;
+        Label IGameplayFieldUiAdapter.Player2NameLabel => _isBound ? _player2NameLabel : null;
         Label IGameplayFieldUiAdapter.DrawsScoreLabel => _isBound ? _drawsScoreLabel : null;
         Label IGameplayFieldUiAdapter.MoveTimerLabel => _isBound ? _moveTimerLabel : null;
 
@@ -206,6 +210,8 @@ namespace Runtime.Games.TicTacToe
             _player2Panel = null;
             _player1ScoreLabel = null;
             _player2ScoreLabel = null;
+            _player1NameLabel = null;
+            _player2NameLabel = null;
             _drawsScoreLabel = null;
             _moveTimerLabel = null;
             ResetStyleTokenState();

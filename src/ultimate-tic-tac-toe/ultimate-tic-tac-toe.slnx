@@ -22,6 +22,7 @@
   <Project Path="Unity.Addressables.Editor.csproj" />
   <Project Path="Unity.MemoryProfiler.Editor.csproj" />
   <Project Path="Unity.Collections.csproj" />
+  <Project Path="Runtime.csproj" />
   <Project Path="Scellecs.Morpeh.WorldBrowser.Editor.csproj" />
   <Project Path="Unity.VisualScripting.Core.Editor.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.Editor.csproj" />
@@ -52,7 +53,6 @@
   <Project Path="Unity.UnifiedRayTracing.Runtime.csproj" />
   <Project Path="TriInspector.csproj" />
   <Project Path="Unity.VisualScripting.State.Editor.csproj" />
-  <Project Path="Runtime.csproj" />
   <Project Path="Unity.TestTools.CodeCoverage.Editor.csproj" />
   <Project Path="Unity.Burst.CodeGen.csproj" />
   <Project Path="Unity.Addressables.DocExampleCode.Editor.Tests.csproj" />

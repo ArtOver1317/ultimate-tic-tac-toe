@@ -121,6 +121,57 @@ namespace Tests.EditMode.GameModes.Wizard
             actual.MoveTimeLimitSeconds.Should().Be(expected.MoveTimeLimitSeconds);
         }
 
+        [Test]
+        public void WhenSerializePlayerNamePayloadWithCustomNameAndDeserialize_ThenRoundTripPreservesFields()
+        {
+            var payload = OnlinePlayerNamePayload.Serialize(isHost: true, customName: "Alice");
+
+            var ok = OnlinePlayerNamePayload.TryDeserialize(payload, out var actual);
+
+            ok.Should().BeTrue();
+            actual.IsHost.Should().BeTrue();
+            actual.CustomName.Should().Be("Alice");
+        }
+
+        [Test]
+        public void WhenSerializePlayerNamePayloadWithoutCustomName_ThenDeserializeReturnsNullCustomName()
+        {
+            var payload = OnlinePlayerNamePayload.Serialize(isHost: false, customName: null);
+
+            var ok = OnlinePlayerNamePayload.TryDeserialize(payload, out var actual);
+
+            ok.Should().BeTrue();
+            actual.IsHost.Should().BeFalse();
+            actual.CustomName.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenPlayerNamePayloadHasInvalidName_ThenTryDeserializeReturnsFalse()
+        {
+            var payload = Encoding.UTF8.GetBytes("N|1|H|1|Bad#Name");
+
+            var ok = OnlinePlayerNamePayload.TryDeserialize(payload, out var actual);
+
+            ok.Should().BeFalse();
+            actual.Should().Be(default(OnlinePlayerNamePayloadData));
+        }
+
+        [Test]
+        public void WhenSerializePlayerNamePayloadContainsProtocolSeparator_ThenThrowsArgumentException()
+        {
+            System.Func<byte[]> action = () => OnlinePlayerNamePayload.Serialize(isHost: true, customName: "Bad|Name");
+
+            action.Should().Throw<ArgumentException>();
+        }
+
+        [Test]
+        public void WhenSerializePlayerNamePayloadDoesNotPassValidator_ThenThrowsArgumentException()
+        {
+            System.Func<byte[]> action = () => OnlinePlayerNamePayload.Serialize(isHost: true, customName: "Bad Name");
+
+            action.Should().Throw<ArgumentException>();
+        }
+
     }
 }
 

@@ -4,6 +4,7 @@
         <ui:VisualElement name="Panel" class="panel">
             <ui:Label text="..." name="Title" class="title" />
             <ui:Button text="..." name="LanguageButton" class="menu-button" />
+            <ui:Button text="..." name="PlayerNameButton" class="menu-button" />
             <ui:Button text="..." name="BackButton" class="menu-button" />
         </ui:VisualElement>
     </ui:VisualElement>

@@ -45,6 +45,11 @@ namespace Tests.EditMode.UI.Settings
 
             _localization.Received(1).Observe(
                 Arg.Is<TextTableId>(t => t.Name == "Settings"),
+                Arg.Is<TextKey>(k => k.Value == "Settings.EditPlayerName"),
+                Arg.Any<IReadOnlyDictionary<string, object>>());
+
+            _localization.Received(1).Observe(
+                Arg.Is<TextTableId>(t => t.Name == "Settings"),
                 Arg.Is<TextKey>(k => k.Value == "Settings.Back"),
                 Arg.Any<IReadOnlyDictionary<string, object>>());
         }
@@ -56,6 +61,17 @@ namespace Tests.EditMode.UI.Settings
             using var subscription = _sut.LanguageRequest.Subscribe(_ => emitted = true);
 
             _sut.OpenLanguageSelection();
+
+            emitted.Should().BeTrue();
+        }
+
+        [Test]
+        public void WhenPlayerNameEditCommandExecuted_ThenEmitsPlayerNameEditRequest()
+        {
+            var emitted = false;
+            using var subscription = _sut.PlayerNameEditRequest.Subscribe(_ => emitted = true);
+
+            _sut.OpenPlayerNameEdit();
 
             emitted.Should().BeTrue();
         }

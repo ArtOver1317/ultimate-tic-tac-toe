@@ -10,6 +10,7 @@ MainMenu.JoinRoom,Join Room,Присоединиться,ルームに参加,Join
 MainMenu.QuickMatch,Quick Match,Быстрая игра,クイックマッチ,Quick match button
 Settings.Title,Settings,Настройки,設定,Settings screen title
 Settings.Language,Language,Язык,言語,Language selection label
+Settings.EditPlayerName,Edit Player Name,Изменить имя игрока,プレイヤー名を変更,Open player name edit screen
 Settings.Audio,Audio,Звук,オーディオ,Audio settings label
 Settings.Volume,Volume: {volume}%,Громкость: {volume}%,音量: {volume}%,Volume display with placeholder
 Settings.Back,Back,Назад,戻る,Back button
@@ -38,6 +39,7 @@ Common.Yes,Yes,Да,はい,Confirmation
 Common.No,No,Нет,いいえ,Decline
 Common.Ok,OK,ОК,OK,Acknowledgment
 Common.Cancel,Cancel,Отмена,キャンセル,Cancel action
+Common.Player,Player,Игрок,プレイヤー,Default local player display name without slot number
 Board.SelectCell,Select a cell,Выберите клетку,マスを選択,Instruction to select
 Board.InvalidMove,Invalid move,Недопустимый ход,無効な手,Invalid move error
 Board.LocalBoardWon,Local board won!,Локальное поле выиграно!,ローカルボード勝利！,Local board win message
@@ -90,6 +92,10 @@ Errors.System.FileNotFound,File not found: {fileName},Файл не найден
 Errors.System.PermissionDenied,Permission denied,Доступ запрещён,アクセス拒否,Permission denied
 Errors.Localization.KeyNotFound,Text not found: {key},Текст не найден: {key},テキストが見つかりません: {key},Localization key not found
 Errors.Localization.LoadFailed,Failed to load localization: {locale},Не удалось загрузить локализацию: {locale},ローカライゼーションの読み込みに失敗しました: {locale},Localization load failed
+Errors.PlayerProfile.NameEmpty,Name cannot be empty,Имя не может быть пустым,名前は空にできません,Player name validation error: empty
+Errors.PlayerProfile.NameTooLong,Name is too long,Имя слишком длинное,名前が長すぎます,Player name validation error: too long
+Errors.PlayerProfile.NameInvalidChars,Name contains invalid characters,Имя содержит недопустимые символы,名前に無効な文字が含まれています,Player name validation error: invalid symbols
+Errors.PlayerProfile.SaveFailed,Failed to save player name,Не удалось сохранить имя игрока,プレイヤー名の保存に失敗しました,Player name save failed
 Settings.SelectLanguage,Select Language,Выберите язык,言語を選択,Language selection header
 GameWizard.MatchSetup.Back,Back,Назад,戻る,Match setup back button
 GameWizard.MatchSetup.Cancel,Cancel,Отмена,キャンセル,Match setup cancel button

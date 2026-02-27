@@ -36,6 +36,12 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  PlayerNameEditPrefab:
+    m_AssetGUID: e4d5a3d2b2db4d1f8f42d8cbb2ac9e11
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
   GameBoardPrefab:
     m_AssetGUID: 
     m_SubObjectName: 

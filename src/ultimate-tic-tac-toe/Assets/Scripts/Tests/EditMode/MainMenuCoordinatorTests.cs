@@ -121,6 +121,19 @@ namespace Tests.EditMode
             return view;
         }
 
+        private PlayerNameEditView CreateInactivePlayerNameEditView(PlayerNameEditViewModel viewModel)
+        {
+            var go = new GameObject("PlayerNameEditView_Test");
+            go.SetActive(false);
+
+            var view = go.AddComponent<PlayerNameEditView>();
+            view.Construct(_localizationMock);
+            view.SetViewModel(viewModel);
+
+            _createdGameObjects.Add(go);
+            return view;
+        }
+
         #region Core Functionality
 
         [Test]
@@ -646,6 +659,27 @@ namespace Tests.EditMode
             settingsVm.OpenLanguageSelection();
 
             _uiServiceMock.Received(1).Open<LanguageSelectionView, LanguageSelectionViewModel>();
+        }
+
+        [Test]
+        public async Task WhenPlayerNameEditRequestedFromSettings_ThenOpensPlayerNameEditWindow()
+        {
+            var settingsVm = new SettingsViewModel(_localizationMock);
+            var settingsView = CreateInactiveSettingsView(settingsVm);
+            _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns(settingsView);
+
+            var playerNameVm = new PlayerNameEditViewModel(Substitute.For<Runtime.PlayerProfile.IPlayerNameService>(), _localizationMock);
+            var playerNameView = CreateInactivePlayerNameEditView(playerNameVm);
+            _uiServiceMock.Open<PlayerNameEditView, PlayerNameEditViewModel>().Returns(playerNameView);
+
+            _coordinator.Initialize(_viewModel);
+
+            _viewModel.RequestSettings();
+            await UniTask.Yield();
+            settingsVm.OpenPlayerNameEdit();
+            await UniTask.Yield();
+
+            _uiServiceMock.Received(1).Open<PlayerNameEditView, PlayerNameEditViewModel>();
         }
 
         [Test]

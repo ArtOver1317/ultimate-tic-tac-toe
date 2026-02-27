@@ -50,6 +50,15 @@
     -unity-text-align: middle-center;
 }
 
+.name-input {
+    width: 420px;
+    max-width: 95%;
+    height: 64px;
+    font-size: 28px;
+    margin-bottom: 16px;
+    border-radius: 5px;
+}
+
 .menu-button {
     width: 420px;
     max-width: 95%;

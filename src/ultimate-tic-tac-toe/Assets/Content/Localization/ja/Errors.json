@@ -46,6 +46,10 @@
     "Errors.Online.SessionAlreadyInGame": "セッションはすでにゲーム中です",
     "Errors.Online.SessionFull": "セッションが満員です",
     "Errors.Online.SessionNotFound": "セッションが見つかりません",
+    "Errors.PlayerProfile.NameEmpty": "名前は空にできません",
+    "Errors.PlayerProfile.NameInvalidChars": "名前に無効な文字が含まれています",
+    "Errors.PlayerProfile.NameTooLong": "名前が長すぎます",
+    "Errors.PlayerProfile.SaveFailed": "プレイヤー名の保存に失敗しました",
     "Errors.System.FileNotFound": "ファイルが見つかりません: {fileName}",
     "Errors.System.OutOfMemory": "メモリ不足",
     "Errors.System.PermissionDenied": "アクセス拒否"

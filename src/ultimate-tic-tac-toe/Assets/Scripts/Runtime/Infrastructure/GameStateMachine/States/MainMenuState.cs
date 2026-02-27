@@ -137,6 +137,11 @@ namespace Runtime.Infrastructure.GameStateMachine.States
                 "[MainMenuState] LanguageSelectionPrefab is missing or invalid. Language selection will be disabled.",
                 cancellationToken);
 
+            await TryRegisterWindowPrefabAsync<UI.Settings.PlayerNameEditView>(
+                _assetLibrary.PlayerNameEditPrefab,
+                "[MainMenuState] PlayerNameEditPrefab is missing or invalid. Player name edit will be disabled.",
+                cancellationToken);
+
             await TryRegisterWindowPrefabAsync<GameSelectionView>(
                 _assetLibrary.ModeSelectionPrefab,
                 "[MainMenuState] ModeSelectionPrefab is missing or invalid. Game mode wizard will be disabled.",
@@ -180,6 +185,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             
             // Close all potential sub-windows to prevent UI leaks
             _uiService.Close<UI.Settings.LanguageSelectionView>();
+            _uiService.Close<UI.Settings.PlayerNameEditView>();
             _uiService.Close<UI.Settings.SettingsView>();
             _uiService.Close<MainMenuView>();
             

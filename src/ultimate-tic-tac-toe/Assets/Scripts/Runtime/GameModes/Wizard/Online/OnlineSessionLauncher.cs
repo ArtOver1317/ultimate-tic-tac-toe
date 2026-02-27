@@ -5,6 +5,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.Infrastructure.Logging;
+using Runtime.PlayerProfile;
 using VContainer;
 
 namespace Runtime.GameModes.Wizard
@@ -34,6 +35,8 @@ namespace Runtime.GameModes.Wizard
     public interface IOnlineSessionLauncher
     {
         UniTask<OnlineLaunchPreparationResult> PrepareForLaunchAsync(GameLaunchConfig config, CancellationToken ct);
+        void BindMatchPlayerNamesStore(IOnlinePlayerNamesStore store);
+        void UnbindMatchPlayerNamesStore(IOnlinePlayerNamesStore store);
     }
 
     public sealed class NoOpOnlineSessionLauncher : IOnlineSessionLauncher
@@ -42,6 +45,10 @@ namespace Runtime.GameModes.Wizard
 
         public UniTask<OnlineLaunchPreparationResult> PrepareForLaunchAsync(GameLaunchConfig config, CancellationToken ct) =>
             UniTask.FromResult(OnlineLaunchPreparationResult.Success());
+
+        public void BindMatchPlayerNamesStore(IOnlinePlayerNamesStore store) { }
+
+        public void UnbindMatchPlayerNamesStore(IOnlinePlayerNamesStore store) { }
     }
 
     public sealed class OnlineSessionLauncher : IOnlineSessionLauncher, IDisposable
@@ -62,6 +69,7 @@ namespace Runtime.GameModes.Wizard
         private readonly IOnlineGameplaySessionContextStore _sessionContextStore;
         private readonly OnlineDiagnosticsBuffer _diagnosticsBuffer;
         private readonly OnlineCleanupTracker _cleanupTracker;
+        private readonly IPlayerNameService? _playerNameService;
         private readonly string _localUserId;
         private readonly TimeSpan _reconnectGraceTimeout;
         private readonly TimeSpan _reconnectRetryDelay;
@@ -76,6 +84,11 @@ namespace Runtime.GameModes.Wizard
         private bool _isDisposed;
         private double? _pendingCountdownTargetNetworkTimeSeconds;
         private OnlineMatchConfigPayload? _pendingMatchConfigBuffer;
+        private IOnlinePlayerNamesStore? _boundPlayerNamesStore;
+        private bool _hasPendingHostNameBuffer;
+        private string? _pendingHostCustomNameBuffer;
+        private bool _hasPendingGuestNameBuffer;
+        private string? _pendingGuestCustomNameBuffer;
         private OnlineErrorCode _lastHostPrepareFailureCode = OnlineErrorCode.DisconnectTimeout;
 
         [Inject]
@@ -86,7 +99,8 @@ namespace Runtime.GameModes.Wizard
             IOnlineCountdownSyncService countdownSync,
             IOnlineGameplaySessionContextStore sessionContextStore,
             OnlineDiagnosticsBuffer diagnosticsBuffer,
-            OnlineCleanupTracker cleanupTracker)
+            OnlineCleanupTracker cleanupTracker,
+            IPlayerNameService playerNameService)
             : this(
                 gateway,
                 transport,
@@ -95,6 +109,7 @@ namespace Runtime.GameModes.Wizard
                 sessionContextStore,
                 diagnosticsBuffer,
                 cleanupTracker,
+                playerNameService,
                 OnlineIdentityProvider.ResolveCurrentUserId(),
                 DefaultReconnectGraceTimeout,
                 DefaultReconnectRetryDelay)
@@ -109,6 +124,7 @@ namespace Runtime.GameModes.Wizard
             IOnlineGameplaySessionContextStore sessionContextStore,
             OnlineDiagnosticsBuffer diagnosticsBuffer,
             OnlineCleanupTracker cleanupTracker,
+            IPlayerNameService? playerNameService,
             string localUserId,
             TimeSpan reconnectGraceTimeout,
             TimeSpan reconnectRetryDelay)
@@ -120,6 +136,7 @@ namespace Runtime.GameModes.Wizard
             _sessionContextStore = sessionContextStore ?? throw new ArgumentNullException(nameof(sessionContextStore));
             _diagnosticsBuffer = diagnosticsBuffer ?? throw new ArgumentNullException(nameof(diagnosticsBuffer));
             _cleanupTracker = cleanupTracker ?? throw new ArgumentNullException(nameof(cleanupTracker));
+            _playerNameService = playerNameService;
             _localUserId = string.IsNullOrWhiteSpace(localUserId)
                 ? throw new ArgumentException("Value cannot be null or whitespace.", nameof(localUserId))
                 : localUserId;
@@ -233,6 +250,7 @@ namespace Runtime.GameModes.Wizard
             {
                 _sessionContextStore.SetDirectInviteSession(directInvite.SessionId, _localUserId, isHost: false);
                 TryApplyBufferedMatchConfig();
+                _ = TrySendLocalPlayerNameAsync(isHost: false);
 
                 MarkRunnerAllocated();
                 await _onlineSessionFlow.OnJoinSucceededAsync();
@@ -278,6 +296,7 @@ namespace Runtime.GameModes.Wizard
             _runtimeCts.Dispose();
             _gatewayLifecycleSubscription.Dispose();
             _transport.ReliableDataReceived -= OnReliableDataReceived;
+            _boundPlayerNamesStore = null;
             _cleanupTracker.OnSessionUnsubscribed();
 
             if (_reconnectTimerActive)
@@ -299,6 +318,27 @@ namespace Runtime.GameModes.Wizard
             {
                 GameLog.Warning("online.cleanup.unsatisfied");
             }
+        }
+
+        public void BindMatchPlayerNamesStore(IOnlinePlayerNamesStore store)
+        {
+            if (_isDisposed)
+                return;
+
+            _boundPlayerNamesStore = store ?? throw new ArgumentNullException(nameof(store));
+            TryFlushBufferedPlayerNamesToStore();
+        }
+
+        public void UnbindMatchPlayerNamesStore(IOnlinePlayerNamesStore store)
+        {
+            if (store == null)
+                throw new ArgumentNullException(nameof(store));
+
+            if (!ReferenceEquals(_boundPlayerNamesStore, store))
+                return;
+
+            _boundPlayerNamesStore = null;
+            ClearPendingPlayerNameBuffers();
         }
 
         private void OnGatewayLifecycleEvent(GatewayLifecycleEvent evt)
@@ -500,6 +540,8 @@ namespace Runtime.GameModes.Wizard
                 return false;
             }
 
+            _ = TrySendLocalPlayerNameAsync(isHost: true);
+
             if (!await TrySendHostMatchConfigAsync(config))
             {
                 _lastHostPrepareFailureCode = OnlineErrorCode.NetworkUnavailable;
@@ -654,6 +696,20 @@ namespace Runtime.GameModes.Wizard
             if (_isDisposed || evt.Payload == null || evt.Payload.Length == 0)
                 return;
 
+            if (!PlayerLoopHelper.IsMainThread)
+            {
+                var payloadCopy = (byte[])evt.Payload.Clone();
+                UniTask.Post(() => OnReliableDataReceived(new PhotonReliableDataEvent(payloadCopy)));
+                return;
+            }
+
+            if (OnlinePlayerNamePayload.TryDeserialize(evt.Payload, out var namePayload))
+            {
+                ApplyPlayerNameToStoreOrBuffer(namePayload.IsHost, namePayload.CustomName);
+                TrackDiagnostic(namePayload.IsHost ? "host_name_received" : "guest_name_received");
+                return;
+            }
+
             if (OnlinePayloadSerialization.TryDeserializeMatchConfig(evt.Payload, out var payload))
             {
                 if (_sessionContextStore.Snapshot.IsOnlineDirectInvite)
@@ -724,6 +780,85 @@ namespace Runtime.GameModes.Wizard
         {
             _pendingMatchConfigBuffer = null;
             _pendingCountdownTargetNetworkTimeSeconds = null;
+            ClearPendingPlayerNameBuffers();
+        }
+
+        private void ApplyPlayerNameToStoreOrBuffer(bool isHost, string? customName)
+        {
+            if (_sessionContextStore.Snapshot.IsOnlineDirectInvite && _boundPlayerNamesStore != null)
+            {
+                if (isHost)
+                    _boundPlayerNamesStore.TrySetHostCustomNameOnce(customName);
+                else
+                    _boundPlayerNamesStore.TrySetGuestCustomNameOnce(customName);
+                return;
+            }
+
+            if (isHost)
+            {
+                _hasPendingHostNameBuffer = true;
+                _pendingHostCustomNameBuffer = customName;
+            }
+            else
+            {
+                _hasPendingGuestNameBuffer = true;
+                _pendingGuestCustomNameBuffer = customName;
+            }
+        }
+
+        private void TryFlushBufferedPlayerNamesToStore()
+        {
+            if (_boundPlayerNamesStore == null)
+                return;
+
+            if (_hasPendingHostNameBuffer)
+            {
+                _boundPlayerNamesStore.TrySetHostCustomNameOnce(_pendingHostCustomNameBuffer);
+                _hasPendingHostNameBuffer = false;
+                _pendingHostCustomNameBuffer = null;
+            }
+
+            if (_hasPendingGuestNameBuffer)
+            {
+                _boundPlayerNamesStore.TrySetGuestCustomNameOnce(_pendingGuestCustomNameBuffer);
+                _hasPendingGuestNameBuffer = false;
+                _pendingGuestCustomNameBuffer = null;
+            }
+        }
+
+        private void ClearPendingPlayerNameBuffers()
+        {
+            _hasPendingHostNameBuffer = false;
+            _pendingHostCustomNameBuffer = null;
+            _hasPendingGuestNameBuffer = false;
+            _pendingGuestCustomNameBuffer = null;
+        }
+
+        private async UniTask<bool> TrySendLocalPlayerNameAsync(bool isHost)
+        {
+            if (_playerNameService == null)
+                return true;
+
+            var customName = _playerNameService.Snapshot.CurrentValue.CustomName;
+
+            try
+            {
+                var payload = OnlinePlayerNamePayload.Serialize(isHost, customName);
+                await _transport.SendReliableDataAsync(payload);
+                return true;
+            }
+            catch (ArgumentException ex)
+            {
+                GameLog.Warning($"[OnlineSessionLauncher] Local player name payload is invalid and will not be sent. IsHost={isHost}, Message={ex.Message}");
+                TrackDiagnostic("local_name_send_invalid", reason: ex.Message);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                GameLog.Exception(ex);
+                TrackDiagnostic("local_name_send_failed", reason: ex.Message, errorCode: OnlineErrorCode.NetworkUnavailable);
+                return false;
+            }
         }
 
         private static WizardError ToWizardError(OnlineErrorCode errorCode)

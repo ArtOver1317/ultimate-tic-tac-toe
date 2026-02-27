@@ -115,6 +115,7 @@ namespace Runtime.UI.MainMenu
                 return;
             
             // Close overlays before starting game
+            _uiService.Close<PlayerNameEditView>();
             _uiService.Close<LanguageSelectionView>();
             _uiService.Close<SettingsView>();
             
@@ -181,6 +182,17 @@ namespace Runtime.UI.MainMenu
                 .TakeUntil(vm.OnCloseRequested)
                 .Subscribe(_ => OpenLanguageSelection())
                 .AddTo(_disposables);
+
+            vm.PlayerNameEditRequest
+                .TakeUntil(vm.OnCloseRequested)
+                .Subscribe(_ => OpenPlayerNameEditAsync(_lifecycleCts.Token).Forget(ex =>
+                {
+                    if (ex is OperationCanceledException)
+                        return;
+
+                    Log.Exception(ex, LogTags.UI);
+                }))
+                .AddTo(_disposables);
         }
 
         private void OpenLanguageSelection()
@@ -191,6 +203,21 @@ namespace Runtime.UI.MainMenu
                 Log.Error(LogTags.UI, "Failed to open LanguageSelectionView");
 
             // Back navigation handled by RequestClose -> UIService auto-close
+        }
+
+        private async UniTask OpenPlayerNameEditAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var view = await _uiService.OpenWithLocalizationPreloadAsync<PlayerNameEditView, PlayerNameEditViewModel>(
+                _localization,
+                cancellationToken,
+                new TextTableId("Settings"),
+                new TextTableId("Common"),
+                TextTableId.Errors);
+
+            if (view == null)
+                Log.Error(LogTags.UI, "Failed to open PlayerNameEditView");
         }
 
         public void Dispose()

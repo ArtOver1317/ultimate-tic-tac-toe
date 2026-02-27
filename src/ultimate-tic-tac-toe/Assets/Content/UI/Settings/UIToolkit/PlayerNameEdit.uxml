@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:app="Runtime.UI.Components" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="SettingsStyles.uss" />
+    <Style src="../../GameModes/Wizard/UIToolkit/WizardErrorOverlayStyles.uss" />
+    <ui:VisualElement name="Root" class="root">
+        <ui:VisualElement name="Panel" class="panel">
+            <ui:Label text="..." name="Title" class="title" />
+            <ui:TextField name="NameInput" class="name-input" />
+            <ui:Button text="..." name="ConfirmButton" class="menu-button" />
+            <ui:Button text="..." name="CancelButton" class="menu-button" />
+        </ui:VisualElement>
+
+        <app:WizardErrorOverlay name="ErrorOverlay" class="gmw-error-overlay" />
+    </ui:VisualElement>
+</ui:UXML>

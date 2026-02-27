@@ -10,11 +10,14 @@ namespace Runtime.UI.Settings
     {
         private readonly ILocalizationService _localizationService;
         private readonly Subject<Unit> _languageRequest = new();
+        private readonly Subject<Unit> _playerNameEditRequest = new();
 
         public Observable<Unit> LanguageRequest => _languageRequest;
+        public Observable<Unit> PlayerNameEditRequest => _playerNameEditRequest;
         
         // Reactive properties for localized strings
         public Observable<string> LanguageButtonText { get; }
+        public Observable<string> EditPlayerNameButtonText { get; }
         public Observable<string> BackButtonText { get; }
         public Observable<string> TitleText { get; }
 
@@ -23,6 +26,7 @@ namespace Runtime.UI.Settings
             _localizationService = localizationService;
             
             LanguageButtonText = _localizationService.Observe("Settings", "Settings.Language");
+            EditPlayerNameButtonText = _localizationService.Observe("Settings", "Settings.EditPlayerName");
             BackButtonText = _localizationService.Observe("Settings", "Settings.Back");
             TitleText = _localizationService.Observe("Settings", "Settings.Title");
         }
@@ -44,12 +48,16 @@ namespace Runtime.UI.Settings
 
         public void OpenLanguageSelection() => _languageRequest.OnNext(Unit.Default);
 
+        public void OpenPlayerNameEdit() => _playerNameEditRequest.OnNext(Unit.Default);
+
         public void Close() => RequestClose();
 
         protected override void OnDispose()
         {
             _languageRequest.OnCompleted();
             _languageRequest.Dispose();
+            _playerNameEditRequest.OnCompleted();
+            _playerNameEditRequest.Dispose();
         }
     }
 }

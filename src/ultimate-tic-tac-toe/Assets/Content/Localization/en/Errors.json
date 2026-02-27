@@ -46,6 +46,10 @@
     "Errors.Online.SessionAlreadyInGame": "Session already in game",
     "Errors.Online.SessionFull": "Session is full",
     "Errors.Online.SessionNotFound": "Session not found",
+    "Errors.PlayerProfile.NameEmpty": "Name cannot be empty",
+    "Errors.PlayerProfile.NameInvalidChars": "Name contains invalid characters",
+    "Errors.PlayerProfile.NameTooLong": "Name is too long",
+    "Errors.PlayerProfile.SaveFailed": "Failed to save player name",
     "Errors.System.FileNotFound": "File not found: {fileName}",
     "Errors.System.OutOfMemory": "Out of memory",
     "Errors.System.PermissionDenied": "Permission denied"

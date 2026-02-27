@@ -170,6 +170,8 @@ namespace Runtime.Games.TicTacToe
         {
             _player1Panel = scoreboard.Q<VisualElement>("Player1Panel");
             _player2Panel = scoreboard.Q<VisualElement>("Player2Panel");
+            _player1NameLabel = scoreboard.Q<Label>("Player1Name");
+            _player2NameLabel = scoreboard.Q<Label>("Player2Name");
             _player1ScoreLabel = scoreboard.Q<Label>("Player1Score");
             _player2ScoreLabel = scoreboard.Q<Label>("Player2Score");
             _drawsScoreLabel = scoreboard.Q<Label>("DrawsScore");

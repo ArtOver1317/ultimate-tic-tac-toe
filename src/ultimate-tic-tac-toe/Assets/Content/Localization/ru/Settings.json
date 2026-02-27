@@ -5,6 +5,7 @@
   "entries": {
     "Settings.Audio": "Звук",
     "Settings.Back": "Назад",
+    "Settings.EditPlayerName": "Изменить имя игрока",
     "Settings.Language": "Язык",
     "Settings.SelectLanguage": "Выберите язык",
     "Settings.Title": "Настройки",

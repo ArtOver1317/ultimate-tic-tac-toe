@@ -40,6 +40,7 @@ namespace Tests.EditMode
         private GameObject _modeSelectionPrefab;
         private GameObject _matchSetupPrefab;
         private GameObject _matchmakingPrefab;
+        private GameObject _playerNameEditPrefab;
 
         [SetUp]
         public void SetUp()
@@ -67,6 +68,7 @@ namespace Tests.EditMode
             _assetLibrary.MainMenuPrefab = new AssetReferenceGameObject("00000000000000000000000000000000");
             _assetLibrary.SettingsPrefab = new AssetReferenceGameObject("00000000000000000000000000000001");
             _assetLibrary.LanguageSelectionPrefab = new AssetReferenceGameObject("00000000000000000000000000000002");
+            _assetLibrary.PlayerNameEditPrefab = new AssetReferenceGameObject("00000000000000000000000000000007");
             _assetLibrary.ModeSelectionPrefab = new AssetReferenceGameObject("00000000000000000000000000000003");
             _assetLibrary.MatchSetupPrefab = new AssetReferenceGameObject("00000000000000000000000000000004");
             _assetLibrary.MatchmakingPrefab = new AssetReferenceGameObject("00000000000000000000000000000005");
@@ -75,6 +77,7 @@ namespace Tests.EditMode
             _mainMenuPrefab = new GameObject("MainMenuPrefab");
             var settingsPrefab = new GameObject("SettingsPrefab");
             var languagePrefab = new GameObject("LanguagePrefab");
+            _playerNameEditPrefab = new GameObject("PlayerNameEditPrefab");
             _modeSelectionPrefab = new GameObject("ModeSelectionPrefab");
             _matchSetupPrefab = new GameObject("MatchSetupPrefab");
             _matchmakingPrefab = new GameObject("MatchmakingPrefab");
@@ -94,6 +97,10 @@ namespace Tests.EditMode
             _assets
                 .LoadAsync<GameObject>(_assetLibrary.LanguageSelectionPrefab, Arg.Any<System.Threading.CancellationToken>())
                 .Returns(UniTask.FromResult(languagePrefab));
+
+            _assets
+                .LoadAsync<GameObject>(_assetLibrary.PlayerNameEditPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .Returns(UniTask.FromResult(_playerNameEditPrefab));
 
             _assets
                 .LoadAsync<GameObject>(_assetLibrary.ModeSelectionPrefab, Arg.Any<System.Threading.CancellationToken>())
@@ -143,6 +150,9 @@ namespace Tests.EditMode
 
             if (_matchmakingPrefab != null)
                 Object.DestroyImmediate(_matchmakingPrefab);
+
+            if (_playerNameEditPrefab != null)
+                Object.DestroyImmediate(_playerNameEditPrefab);
 
             if (_assetLibrary != null)
                 Object.DestroyImmediate(_assetLibrary);
@@ -212,6 +222,7 @@ namespace Tests.EditMode
             Received.InOrder(() =>
             {
                 _uiService.Close<Runtime.UI.Settings.LanguageSelectionView>();
+                _uiService.Close<Runtime.UI.Settings.PlayerNameEditView>();
                 _uiService.Close<Runtime.UI.Settings.SettingsView>();
                 _uiService.Close<MainMenuView>();
             });
@@ -229,6 +240,7 @@ namespace Tests.EditMode
                 // Assert
                 _uiService.Received(1).Close<Runtime.UI.Settings.SettingsView>();
                 _uiService.Received(1).Close<Runtime.UI.Settings.LanguageSelectionView>();
+                _uiService.Received(1).Close<Runtime.UI.Settings.PlayerNameEditView>();
             }
         [Test]
         public async Task WhenExit_ThenDisposesCoordinator()

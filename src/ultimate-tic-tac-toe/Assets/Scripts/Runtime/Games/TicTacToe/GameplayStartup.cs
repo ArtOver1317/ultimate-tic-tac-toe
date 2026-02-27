@@ -18,6 +18,7 @@ using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.PlayerProfile;
 using StripLog;
 using UnityEngine;
 using EcsRoundFinishedEvent = Runtime.Gameplay.ECS.RoundFinishedEvent;
@@ -40,6 +41,7 @@ namespace Runtime.Games.TicTacToe
         private readonly MoveTimerHudBinder _moveTimerHudBinder;
         private readonly WinLineRenderer _winLineRenderer;
         private readonly ISeriesService _seriesService;
+        private readonly IMatchPlayerNames _matchPlayerNames;
         private readonly IGameplayBackHandler _backHandler;
         private readonly IGameStateMachine _stateMachine;
         private readonly IBotTurnDriver _botDriver;
@@ -49,6 +51,8 @@ namespace Runtime.Games.TicTacToe
         private readonly IGameplayNetworkBridge _networkBridge;
         private readonly IOnlineGameplaySessionContextStore _onlineSessionContextStore;
         private readonly IOnlineSessionFlowService _onlineSessionFlow;
+        private readonly IOnlineSessionLauncher _onlineSessionLauncher;
+        private readonly IOnlinePlayerNamesStore _onlinePlayerNamesStore;
         private readonly IMatchStateProvider _matchStateProvider;
         private readonly IMoveTimerService _moveTimerService;
         private readonly ILocalizationService _localization;
@@ -70,6 +74,7 @@ namespace Runtime.Games.TicTacToe
         private bool _onlineRematchStarted;
         private bool _onlineTerminalResultShown;
         private bool _useHostAuthoritativeFilter;
+        private bool _onlinePlayerNamesStoreBound;
         private int _exitToMenuRequested;
         private string? _onlineLocalUserId;
         private string? _onlineRemoteUserId;
@@ -96,9 +101,12 @@ namespace Runtime.Games.TicTacToe
             IOnlineGameplaySessionContextStore onlineSessionContextStore = null,
             IMatchStateProvider matchStateProvider = null,
             IOnlineSessionFlowService onlineSessionFlow = null,
+            IOnlineSessionLauncher onlineSessionLauncher = null,
+            IOnlinePlayerNamesStore onlinePlayerNamesStore = null,
             ILocalizationService localization = null,
             IMoveTimerService moveTimerService = null,
-            MoveTimerHudBinder moveTimerHudBinder = null)
+            MoveTimerHudBinder moveTimerHudBinder = null,
+            IMatchPlayerNames matchPlayerNames = null)
         {
             _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));
             _gameService = gameService ?? throw new ArgumentNullException(nameof(gameService));
@@ -111,6 +119,7 @@ namespace Runtime.Games.TicTacToe
             _moveTimerHudBinder = moveTimerHudBinder;
             _winLineRenderer = winLineRenderer ?? throw new ArgumentNullException(nameof(winLineRenderer));
             _seriesService = seriesService ?? throw new ArgumentNullException(nameof(seriesService));
+            _matchPlayerNames = matchPlayerNames;
             _backHandler = backHandler ?? throw new ArgumentNullException(nameof(backHandler));
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             _botDriver = botDriver ?? throw new ArgumentNullException(nameof(botDriver));
@@ -121,6 +130,8 @@ namespace Runtime.Games.TicTacToe
             _onlineSessionContextStore = onlineSessionContextStore ?? new OnlineGameplaySessionContextStore();
             _matchStateProvider = matchStateProvider ?? commandSink as IMatchStateProvider;
             _onlineSessionFlow = onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance;
+            _onlineSessionLauncher = onlineSessionLauncher ?? NoOpOnlineSessionLauncher.Instance;
+            _onlinePlayerNamesStore = onlinePlayerNamesStore;
             _localization = localization;
             _moveTimerService = moveTimerService ?? NoOpMoveTimerService.Instance;
         }
@@ -143,6 +154,7 @@ namespace Runtime.Games.TicTacToe
             {
                 session = await _gameService.StartMatchAsync(config, ct);
                 await _fieldPresenter.BindAsync(session.FieldRenderSpec, ct);
+                BindOnlinePlayerNamesStoreIfNeeded();
 
                 _fieldSpec = session.FieldRenderSpec;
                 _seriesService.StartSeries();
@@ -185,6 +197,7 @@ namespace Runtime.Games.TicTacToe
 
             _subscriptions?.Dispose();
             _subscriptions = null;
+            UnbindOnlinePlayerNamesStoreIfNeeded();
             _botDriver.Dispose();
             _ultimateBotOrchestrator.Dispose();
             _movesBinder.Unbind();
@@ -297,6 +310,8 @@ namespace Runtime.Games.TicTacToe
                 .Subscribe(OnRoundFinished)
                 .AddTo(_subscriptions);
 
+            SubscribeScoreboardPlayerNames();
+
             // Phase 4: Input blocking while bot is thinking
             if (_classicBotStarted)
             {
@@ -372,6 +387,29 @@ namespace Runtime.Games.TicTacToe
             _onlineSessionFlow.Snapshot
                 .Where(ShouldExitToMenuByOnlineFlow)
                 .Subscribe(_ => ExitToMenuAsync().Forget())
+                .AddTo(_subscriptions);
+        }
+
+        private void SubscribeScoreboardPlayerNames()
+        {
+            if (_matchPlayerNames == null)
+                return;
+
+            var player1NameLabel = _fieldUiAdapter.Player1NameLabel;
+            var player2NameLabel = _fieldUiAdapter.Player2NameLabel;
+
+            if (player1NameLabel == null || player2NameLabel == null)
+                return;
+
+            var xMark = PlayerMark.X.ToUiText();
+            var oMark = PlayerMark.O.ToUiText();
+
+            _matchPlayerNames.GetSlotName(PlayerSlot.Slot1)
+                .Subscribe(name => player1NameLabel.text = PlayerLabelFormat.NameWithMark(name, xMark))
+                .AddTo(_subscriptions);
+
+            _matchPlayerNames.GetSlotName(PlayerSlot.Slot2)
+                .Subscribe(name => player2NameLabel.text = PlayerLabelFormat.NameWithMark(name, oMark))
                 .AddTo(_subscriptions);
         }
 
@@ -1029,6 +1067,7 @@ namespace Runtime.Games.TicTacToe
         {
             _subscriptions?.Dispose();
             _subscriptions = null;
+            UnbindOnlinePlayerNamesStoreIfNeeded();
             _botDriver.Dispose();
             _ultimateBotOrchestrator.Dispose();
             _movesBinder.Unbind();
@@ -1040,6 +1079,37 @@ namespace Runtime.Games.TicTacToe
             _ecsLifecycle.StopMatch();
             SetRoundFinishedVisualState(false);
             _fieldPresenter.Unbind();
+        }
+
+        private void BindOnlinePlayerNamesStoreIfNeeded()
+        {
+            var session = _onlineSessionContextStore.Snapshot;
+            if (!session.IsOnlineDirectInvite)
+                return;
+
+            if (_onlinePlayerNamesStoreBound)
+                return;
+
+            if (_onlinePlayerNamesStore == null)
+                return;
+
+            _onlineSessionLauncher.BindMatchPlayerNamesStore(_onlinePlayerNamesStore);
+            _onlinePlayerNamesStoreBound = true;
+        }
+
+        private void UnbindOnlinePlayerNamesStoreIfNeeded()
+        {
+            if (!_onlinePlayerNamesStoreBound)
+                return;
+
+            if (_onlinePlayerNamesStore == null)
+            {
+                _onlinePlayerNamesStoreBound = false;
+                return;
+            }
+
+            _onlineSessionLauncher.UnbindMatchPlayerNamesStore(_onlinePlayerNamesStore);
+            _onlinePlayerNamesStoreBound = false;
         }
 
         private static string NormalizeUltimateDifficultyId(string difficultyId)

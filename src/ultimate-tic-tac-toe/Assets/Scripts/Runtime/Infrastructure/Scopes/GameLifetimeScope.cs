@@ -7,11 +7,13 @@ using Runtime.Infrastructure.Save;
 using Runtime.Infrastructure.Save.Backends;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
+using Runtime.PlayerProfile;
 using Runtime.Services.Assets;
 using Runtime.Services.Scenes;
 using Runtime.Services.UI;
 using Runtime.Services.UI.Assets;
 using Runtime.UI.MainMenu;
+using Runtime.UI.Settings;
 using Runtime.UI.Core;
 using Runtime.UI.GameModes.Wizard;
 using UnityEngine;
@@ -91,6 +93,7 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<MatchmakingViewModel>(Lifetime.Transient);
             builder.Register<TicTacToeSettingsViewModel>(Lifetime.Transient);
             builder.Register<UltimateTicTacToeSettingsViewModel>(Lifetime.Transient);
+            builder.Register<PlayerNameEditViewModel>(Lifetime.Transient);
 
             builder.Register<Func<TicTacToeSettingsViewModel>>(
                 resolver => () => resolver.Resolve<TicTacToeSettingsViewModel>(),
@@ -130,7 +133,11 @@ namespace Runtime.Infrastructure.Scopes
             #endif
 
             builder.Register<SaveEncryptor>(Lifetime.Singleton);
-            builder.Register<SaveService>(Lifetime.Singleton).As<ISaveService>().As<IInitializable>().AsSelf();
+            builder.Register<SaveService>(Lifetime.Singleton)
+                .As<ISaveService>()
+                .As<ISaveServiceWithResult>()
+                .As<IInitializable>()
+                .AsSelf();
             builder.Register<SaveServiceLocaleStorage>(Lifetime.Singleton).As<ILocaleStorage>();
             builder.Register<ILocalizationCatalog, AddressablesLocalizationCatalog>(Lifetime.Singleton);
             builder.Register<ILocalizationLoader, AddressablesLocalizationLoader>(Lifetime.Singleton);
@@ -138,6 +145,7 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<ILocalizationStore, LocalizationStore>(Lifetime.Singleton);
             builder.Register<ITextFormatter, NamedArgsFormatter>(Lifetime.Singleton);
             builder.Register<ILocalizationService, LocalizationService>(Lifetime.Singleton);
+            builder.Register<PlayerNameService>(Lifetime.Singleton).As<IPlayerNameService>().As<IInitializable>().AsSelf();
         
             // State Machine
             builder.Register<IStateFactory, StateFactory>(Lifetime.Singleton);

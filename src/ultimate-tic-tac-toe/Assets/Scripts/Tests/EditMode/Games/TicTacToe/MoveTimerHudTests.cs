@@ -47,7 +47,9 @@ namespace Tests.EditMode.Games.TicTacToe
             public VisualElement Player1Panel { get; } = new();
             public VisualElement Player2Panel { get; } = new();
             public Label Player1ScoreLabel { get; } = new();
+            public Label Player1NameLabel { get; } = new();
             public Label Player2ScoreLabel { get; } = new();
+            public Label Player2NameLabel { get; } = new();
             public Label DrawsScoreLabel { get; } = new();
             public Label MoveTimerLabel { get; } = new();
 

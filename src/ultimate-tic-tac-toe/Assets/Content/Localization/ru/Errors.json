@@ -46,6 +46,10 @@
     "Errors.Online.SessionAlreadyInGame": "Сессия уже в игре",
     "Errors.Online.SessionFull": "Сессия заполнена",
     "Errors.Online.SessionNotFound": "Сессия не найдена",
+    "Errors.PlayerProfile.NameEmpty": "Имя не может быть пустым",
+    "Errors.PlayerProfile.NameInvalidChars": "Имя содержит недопустимые символы",
+    "Errors.PlayerProfile.NameTooLong": "Имя слишком длинное",
+    "Errors.PlayerProfile.SaveFailed": "Не удалось сохранить имя игрока",
     "Errors.System.FileNotFound": "Файл не найден: {fileName}",
     "Errors.System.OutOfMemory": "Недостаточно памяти",
     "Errors.System.PermissionDenied": "Доступ запрещён"
