@@ -48,7 +48,16 @@ namespace Runtime.PlayerProfile
 
             _isInitialized = true;
 
-            var loadedCustomName = _saveService.Load<string>(SaveSection, null);
+            string? loadedCustomName;
+            try
+            {
+                loadedCustomName = _saveService.Load<string>(SaveSection, null);
+            }
+            catch (Exception ex)
+            {
+                GameLog.Warning($"[PlayerNameService] Failed to load saved player name. Fallback to default. Error={ex.Message}");
+                loadedCustomName = null;
+            }
 
             if (loadedCustomName != null)
             {
@@ -85,7 +94,18 @@ namespace Runtime.PlayerProfile
                         error: validationError));
             }
 
-            var saveResult = _saveServiceWithResult.TrySave(SaveSection, confirmedInput);
+            SaveWriteResult saveResult;
+            try
+            {
+                saveResult = _saveServiceWithResult.TrySave(SaveSection, confirmedInput);
+            }
+            catch (Exception ex)
+            {
+                GameLog.Warning($"[PlayerNameService] Failed to save player name. Error={ex.Message}");
+                return UniTask.FromResult(
+                    PlayerNameChangeResult.FailedSave("Errors.PlayerProfile.SaveFailed"));
+            }
+
             if (!saveResult.IsSuccess)
             {
                 return UniTask.FromResult(

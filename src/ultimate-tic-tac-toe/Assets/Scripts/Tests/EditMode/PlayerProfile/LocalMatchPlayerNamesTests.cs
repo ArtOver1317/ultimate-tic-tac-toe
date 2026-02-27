@@ -71,5 +71,16 @@ namespace Tests.EditMode.PlayerProfile
 
             result.Should().Be("Player (X)");
         }
+
+        [Test]
+        public void WhenGetSlotNameCalledTwiceForSameSlot_ThenReturnsSameInstance()
+        {
+            using var sut = new LocalMatchPlayerNames(_playerNameService, _localizationService);
+
+            var first = sut.GetSlotName(PlayerSlot.Slot1);
+            var second = sut.GetSlotName(PlayerSlot.Slot1);
+
+            ReferenceEquals(first, second).Should().BeTrue();
+        }
     }
 }

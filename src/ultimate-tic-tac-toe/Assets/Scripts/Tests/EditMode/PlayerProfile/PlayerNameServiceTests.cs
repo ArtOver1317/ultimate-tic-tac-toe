@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using FluentAssertions;
 using NSubstitute;
@@ -102,6 +103,23 @@ namespace Tests.EditMode.PlayerProfile
         }
 
         [Test]
+        public void WhenTrySetOnConfirmAndTrySaveThrows_ThenReturnsFailedSaveAndKeepsPreviousName()
+        {
+            _saveService.Load<string>("player_name", null).Returns("Old");
+            _saveServiceWithResult.TrySave("player_name", "New")
+                .Returns(_ => throw new IOException("I/O failed"));
+            _sut.Initialize();
+
+            var result = _sut.TrySetOnConfirmAsync("New", CancellationToken.None).GetAwaiter().GetResult();
+
+            result.IsSuccess.Should().BeFalse();
+            result.ErrorMessageKey.Should().Be("Errors.PlayerProfile.SaveFailed");
+            result.ValidationError.Should().Be(PlayerNameValidationError.None);
+            _sut.Snapshot.CurrentValue.CustomName.Should().Be("Old");
+            _sut.Snapshot.CurrentValue.DisplayName.Should().Be("Old");
+        }
+
+        [Test]
         public void WhenTrySetOnConfirmAndSaveSucceeds_ThenSnapshotUpdates()
         {
             _saveService.Load<string>("player_name", null).Returns((string)null);
@@ -124,6 +142,73 @@ namespace Tests.EditMode.PlayerProfile
 
             _sut.Snapshot.CurrentValue.CustomName.Should().BeNull();
             _sut.Snapshot.CurrentValue.DisplayName.Should().Be("Игрок");
+        }
+
+        [Test]
+        public void WhenLocaleChangesAndCustomNameIsSet_ThenDisplayNameDoesNotChange()
+        {
+            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _sut.Initialize();
+
+            var setResult = _sut.TrySetOnConfirmAsync("Alex", CancellationToken.None).GetAwaiter().GetResult();
+            setResult.IsSuccess.Should().BeTrue();
+
+            _currentLocale.Value = LocaleId.Russian;
+
+            _sut.Snapshot.CurrentValue.CustomName.Should().Be("Alex");
+            _sut.Snapshot.CurrentValue.DisplayName.Should().Be("Alex");
+        }
+
+        [Test]
+        public void WhenInitializeAndLoadThrows_ThenFallsBackToDefaultWithoutThrowing()
+        {
+            _saveService.Load<string>("player_name", null)
+                .Returns(_ => throw new Exception("Load failed"));
+
+            var action = new Action(() => _sut.Initialize());
+
+            action.Should().NotThrow();
+            _sut.Snapshot.CurrentValue.CustomName.Should().BeNull();
+            _sut.Snapshot.CurrentValue.DisplayName.Should().Be("Player");
+        }
+
+        [Test]
+        public void WhenValidationFailsWithEmpty_ThenReturnsNameEmptyKey()
+        {
+            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _sut.Initialize();
+
+            var result = _sut.TrySetOnConfirmAsync(string.Empty, CancellationToken.None).GetAwaiter().GetResult();
+
+            result.IsSuccess.Should().BeFalse();
+            result.ValidationError.Should().Be(PlayerNameValidationError.Empty);
+            result.ErrorMessageKey.Should().Be("Errors.PlayerProfile.NameEmpty");
+        }
+
+        [Test]
+        public void WhenValidationFailsWithTooLong_ThenReturnsNameTooLongKey()
+        {
+            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _sut.Initialize();
+
+            var result = _sut.TrySetOnConfirmAsync("ABCDEFGHIJKLMN", CancellationToken.None).GetAwaiter().GetResult();
+
+            result.IsSuccess.Should().BeFalse();
+            result.ValidationError.Should().Be(PlayerNameValidationError.TooLong);
+            result.ErrorMessageKey.Should().Be("Errors.PlayerProfile.NameTooLong");
+        }
+
+        [Test]
+        public void WhenValidationFailsWithInvalidCharacters_ThenReturnsNameInvalidCharsKey()
+        {
+            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _sut.Initialize();
+
+            var result = _sut.TrySetOnConfirmAsync("Bad!", CancellationToken.None).GetAwaiter().GetResult();
+
+            result.IsSuccess.Should().BeFalse();
+            result.ValidationError.Should().Be(PlayerNameValidationError.InvalidCharacters);
+            result.ErrorMessageKey.Should().Be("Errors.PlayerProfile.NameInvalidChars");
         }
 
         [Test]

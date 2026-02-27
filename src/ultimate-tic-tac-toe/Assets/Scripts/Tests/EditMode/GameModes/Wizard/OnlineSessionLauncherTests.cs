@@ -271,6 +271,33 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenUnbindCalled_ThenBufferedNameIsClearedAndDoesNotLeakToNextBind()
+        {
+            using var harness = CreateHarness();
+            var store1 = new OnlinePlayerNamesStore();
+            var store2 = new OnlinePlayerNamesStore();
+
+            harness.Launcher.BindMatchPlayerNamesStore(store1);
+
+            harness.Transport.RaiseReliableData(Encoding.UTF8.GetBytes("N|1|H|1|StaleHost"));
+            store1.Snapshot.CurrentValue.HostCustomName.Should().BeNull();
+            store1.Snapshot.CurrentValue.GuestCustomName.Should().BeNull();
+
+            harness.Launcher.UnbindMatchPlayerNamesStore(store1);
+
+            harness.ContextStore.SetDirectInviteSession("ABCDEF", harness.LocalUserId, isHost: false);
+
+            harness.Launcher.BindMatchPlayerNamesStore(store2);
+            store2.Snapshot.CurrentValue.HostCustomName.Should().BeNull();
+            store2.Snapshot.CurrentValue.GuestCustomName.Should().BeNull();
+
+            harness.Transport.RaiseReliableData(Encoding.UTF8.GetBytes("N|1|G|1|FreshGuest"));
+
+            store2.Snapshot.CurrentValue.HostCustomName.Should().BeNull();
+            store2.Snapshot.CurrentValue.GuestCustomName.Should().Be("FreshGuest");
+        }
+
+        [Test]
         public async Task WhenHostCreateFailsWithKnownErrorCode_ThenFlowTransitionsToFailedWithCorrectErrorCode()
         {
             // Arrange

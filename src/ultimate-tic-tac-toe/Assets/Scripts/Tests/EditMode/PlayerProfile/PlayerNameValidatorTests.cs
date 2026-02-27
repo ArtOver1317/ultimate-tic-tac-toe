@@ -55,5 +55,30 @@ namespace Tests.EditMode.PlayerProfile
 
             result.Should().Be(PlayerNameValidationError.None);
         }
+
+        [Test]
+        public void WhenInputIsExactlyMinLength_ThenReturnsNone()
+        {
+            var result = PlayerNameValidator.ValidateOnConfirm("A");
+
+            result.Should().Be(PlayerNameValidationError.None);
+        }
+
+        [TestCase("A ")]
+        [TestCase(" A")]
+        public void WhenInputHasLeadingOrTrailingSpace_ThenReturnsInvalidCharacters(string input)
+        {
+            var result = PlayerNameValidator.ValidateOnConfirm(input);
+
+            result.Should().Be(PlayerNameValidationError.InvalidCharacters);
+        }
+
+        [Test]
+        public void WhenInputIsExactlyMaxLength_ThenReturnsNone()
+        {
+            var result = PlayerNameValidator.ValidateOnConfirm("ABCDEFGHIJKLM");
+
+            result.Should().Be(PlayerNameValidationError.None);
+        }
     }
 }

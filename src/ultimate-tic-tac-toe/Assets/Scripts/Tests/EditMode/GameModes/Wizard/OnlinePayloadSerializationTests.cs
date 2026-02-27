@@ -172,6 +172,93 @@ namespace Tests.EditMode.GameModes.Wizard
             action.Should().Throw<ArgumentException>();
         }
 
+        [Test]
+        public void WhenDeserializeWithWrongTypeMarker_ThenReturnsFalse()
+        {
+            var payload = Encoding.UTF8.GetBytes("X|1|H|1|Alice");
+
+            var ok = OnlinePlayerNamePayload.TryDeserialize(payload, out var actual);
+
+            ok.Should().BeFalse();
+            actual.Should().Be(default(OnlinePlayerNamePayloadData));
+        }
+
+        [Test]
+        public void WhenDeserializeWithUnknownVersion_ThenReturnsFalse()
+        {
+            var payload = Encoding.UTF8.GetBytes("N|99|H|1|Alice");
+
+            var ok = OnlinePlayerNamePayload.TryDeserialize(payload, out var actual);
+
+            ok.Should().BeFalse();
+            actual.Should().Be(default(OnlinePlayerNamePayloadData));
+        }
+
+        [Test]
+        public void WhenDeserializeWithUnknownRoleMarker_ThenReturnsFalse()
+        {
+            var payload = Encoding.UTF8.GetBytes("N|1|X|1|Alice");
+
+            var ok = OnlinePlayerNamePayload.TryDeserialize(payload, out var actual);
+
+            ok.Should().BeFalse();
+            actual.Should().Be(default(OnlinePlayerNamePayloadData));
+        }
+
+        [Test]
+        public void WhenDeserializeWithHasCustomZeroButNonEmptyName_ThenReturnsFalse()
+        {
+            var payload = Encoding.UTF8.GetBytes("N|1|H|0|Alice");
+
+            var ok = OnlinePlayerNamePayload.TryDeserialize(payload, out var actual);
+
+            ok.Should().BeFalse();
+            actual.Should().Be(default(OnlinePlayerNamePayloadData));
+        }
+
+        [Test]
+        public void WhenDeserializeWithWrongPartCount_ThenReturnsFalse()
+        {
+            var invalidPayloads = new[]
+            {
+                Encoding.UTF8.GetBytes("N|1|H|1"),
+                Encoding.UTF8.GetBytes("garbage"),
+                Encoding.UTF8.GetBytes("N|1|H|1|Bad|Name"),
+                Array.Empty<byte>()
+            };
+
+            foreach (var payload in invalidPayloads)
+            {
+                var ok = OnlinePlayerNamePayload.TryDeserialize(payload, out var actual);
+                var payloadText = payload.Length == 0 ? "<empty>" : Encoding.UTF8.GetString(payload);
+
+                ok.Should().BeFalse($"payload '{payloadText}' must be rejected");
+                actual.Should().Be(default(OnlinePlayerNamePayloadData), $"payload '{payloadText}' must not produce parsed data");
+            }
+        }
+
+        [Test]
+        public void WhenDeserializeWithHasCustomOneButEmptyName_ThenReturnsFalse()
+        {
+            var payload = Encoding.UTF8.GetBytes("N|1|H|1|");
+
+            var ok = OnlinePlayerNamePayload.TryDeserialize(payload, out var actual);
+
+            ok.Should().BeFalse();
+            actual.Should().Be(default(OnlinePlayerNamePayloadData));
+        }
+
+        [Test]
+        public void WhenDeserializeWithUnsupportedHasCustomMarker_ThenReturnsFalse()
+        {
+            var payload = Encoding.UTF8.GetBytes("N|1|H|2|Alice");
+
+            var ok = OnlinePlayerNamePayload.TryDeserialize(payload, out var actual);
+
+            ok.Should().BeFalse();
+            actual.Should().Be(default(OnlinePlayerNamePayloadData));
+        }
+
     }
 }
 

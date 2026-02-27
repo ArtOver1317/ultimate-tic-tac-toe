@@ -109,5 +109,91 @@ namespace Tests.EditMode.PlayerProfile
             sut.GetSlotName(PlayerSlot.Slot1).CurrentValue.Should().Be("HostPlayer");
             sut.GetSlotName(PlayerSlot.Slot2).CurrentValue.Should().Be("Alice");
         }
+
+        [Test]
+        public void WhenLocalUserIsGuestAndHostNameNotReceived_ThenSlot1UsesPlaceholder()
+        {
+            _sessionContextStore.Snapshot.Returns(new OnlineGameplaySessionSnapshot(
+                true,
+                "ABCD",
+                "guest",
+                false,
+                null));
+
+            using var sut = new OnlineMatchPlayerNames(
+                _sessionContextStore,
+                _playerNameService,
+                _onlinePlayerNamesStore,
+                _localizationService);
+
+            sut.GetSlotName(PlayerSlot.Slot1).CurrentValue.Should().Be("Player 1");
+        }
+
+        [Test]
+        public void WhenRemoteNameWasSetAndThenBecomesNull_ThenRemoteSlotRevertsToPlaceholder()
+        {
+            _sessionContextStore.Snapshot.Returns(new OnlineGameplaySessionSnapshot(
+                true,
+                "ABCD",
+                "host",
+                true,
+                null));
+
+            using var sut = new OnlineMatchPlayerNames(
+                _sessionContextStore,
+                _playerNameService,
+                _onlinePlayerNamesStore,
+                _localizationService);
+
+            _onlineNamesSnapshot.Value = new OnlinePlayerNamesSnapshot(null, "Bob");
+            sut.GetSlotName(PlayerSlot.Slot2).CurrentValue.Should().Be("Bob");
+
+            _onlineNamesSnapshot.Value = new OnlinePlayerNamesSnapshot(null, null);
+
+            sut.GetSlotName(PlayerSlot.Slot2).CurrentValue.Should().Be("Player 2");
+        }
+
+        [Test]
+        public void WhenLocalUserIsHostAndStoreUpdatesHostName_ThenLocalSlotRemainsFixed()
+        {
+            _sessionContextStore.Snapshot.Returns(new OnlineGameplaySessionSnapshot(
+                true,
+                "ABCD",
+                "host",
+                true,
+                null));
+
+            using var sut = new OnlineMatchPlayerNames(
+                _sessionContextStore,
+                _playerNameService,
+                _onlinePlayerNamesStore,
+                _localizationService);
+
+            _onlineNamesSnapshot.Value = new OnlinePlayerNamesSnapshot("Intruder", null);
+
+            sut.GetSlotName(PlayerSlot.Slot1).CurrentValue.Should().Be("Alice");
+        }
+
+        [Test]
+        public void WhenOnlineMatchGetSlotNameCalledTwice_ThenReturnsSameInstance()
+        {
+            _sessionContextStore.Snapshot.Returns(new OnlineGameplaySessionSnapshot(
+                true,
+                "ABCD",
+                "host",
+                true,
+                null));
+
+            using var sut = new OnlineMatchPlayerNames(
+                _sessionContextStore,
+                _playerNameService,
+                _onlinePlayerNamesStore,
+                _localizationService);
+
+            var first = sut.GetSlotName(PlayerSlot.Slot1);
+            var second = sut.GetSlotName(PlayerSlot.Slot1);
+
+            ReferenceEquals(first, second).Should().BeTrue();
+        }
     }
 }

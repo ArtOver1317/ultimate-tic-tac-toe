@@ -33,5 +33,40 @@ namespace Tests.EditMode.PlayerProfile
             second.Should().BeFalse();
             sut.Snapshot.CurrentValue.GuestCustomName.Should().Be("GuestName");
         }
+
+        [Test]
+        public void WhenHostNameSetToNullFirstTime_ThenSnapshotHostNameIsNullAndReturnsTrue()
+        {
+            using var sut = new OnlinePlayerNamesStore();
+
+            var result = sut.TrySetHostCustomNameOnce(null);
+
+            result.Should().BeTrue();
+            sut.Snapshot.CurrentValue.HostCustomName.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenGuestNameSetToNullFirstTime_ThenSnapshotGuestNameIsNullAndReturnsTrue()
+        {
+            using var sut = new OnlinePlayerNamesStore();
+
+            var result = sut.TrySetGuestCustomNameOnce(null);
+
+            result.Should().BeTrue();
+            sut.Snapshot.CurrentValue.GuestCustomName.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenHostNameAlreadySetToNull_ThenSubsequentCallWithRealNameIsIgnored()
+        {
+            using var sut = new OnlinePlayerNamesStore();
+
+            var first = sut.TrySetHostCustomNameOnce(null);
+            var second = sut.TrySetHostCustomNameOnce("Alice");
+
+            first.Should().BeTrue();
+            second.Should().BeFalse();
+            sut.Snapshot.CurrentValue.HostCustomName.Should().BeNull();
+        }
     }
 }
