@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Infrastructure.Save;
+using Runtime.PlayerStatistics;
 using UnityEngine;
 using UnityEngine.TestTools;
 using JsonNode = SimpleJSON.JSONNode;
@@ -354,6 +355,54 @@ namespace Tests.EditMode.Infrastructure.Save
             var result = service.Load("tutorial_done", true);
 
             result.Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenSaveAndLoadStatisticsEntryDtoArray_ThenRoundTripPreservesEntries()
+        {
+            var backend = new TestSaveBackend();
+            var service = CreateService(backend);
+            service.Initialize();
+
+            var payload = new[]
+            {
+                new StatisticsEntryDto
+                {
+                    gameId = "tic-tac-toe",
+                    opponentType = "Bot",
+                    botDifficultyId = "Hard",
+                    wins = 7,
+                    losses = 2,
+                    draws = 1,
+                },
+                new StatisticsEntryDto
+                {
+                    gameId = "ultimate-tic-tac-toe",
+                    opponentType = "Online",
+                    botDifficultyId = null,
+                    wins = 3,
+                    losses = 4,
+                    draws = 0,
+                },
+            };
+
+            service.Save("player_statistics", payload);
+            var loaded = service.Load("player_statistics", Array.Empty<StatisticsEntryDto>());
+
+            loaded.Should().HaveCount(2);
+            loaded[0].gameId.Should().Be("tic-tac-toe");
+            loaded[0].opponentType.Should().Be("Bot");
+            loaded[0].botDifficultyId.Should().Be("Hard");
+            loaded[0].wins.Should().Be(7);
+            loaded[0].losses.Should().Be(2);
+            loaded[0].draws.Should().Be(1);
+
+            loaded[1].gameId.Should().Be("ultimate-tic-tac-toe");
+            loaded[1].opponentType.Should().Be("Online");
+            loaded[1].botDifficultyId.Should().BeNull();
+            loaded[1].wins.Should().Be(3);
+            loaded[1].losses.Should().Be(4);
+            loaded[1].draws.Should().Be(0);
         }
 
         private static SaveService CreateService(ISaveBackend backend, IEnumerable<ISaveMigration> migrations = null)

@@ -1,0 +1,11 @@
+﻿{
+  "version": "1.0",
+  "locale": "ru-RU",
+  "table": "PlayerStatistics",
+  "entries": {
+    "PlayerStatistics.Back": "Назад",
+    "PlayerStatistics.Empty": "Пока нет статистики",
+    "PlayerStatistics.Opponent.Online": "Онлайн",
+    "PlayerStatistics.Title": "Статистика игрока"
+  }
+}

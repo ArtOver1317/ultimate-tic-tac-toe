@@ -414,6 +414,8 @@ namespace Tests.PlayMode.GameModes.Wizard
                 new GameSettingsPresentation($"ui/mode-settings/{GameId}", _viewModel);
 
             public IReadOnlyList<ValidationError> ValidateConfig(IGameConfig? config) => Array.Empty<ValidationError>();
+
+            public IEnumerable<string> GetSupportedBotDifficultyIds() => Array.Empty<string>();
         }
 
         private sealed class TestSettingsViewModel : BaseViewModel, IGameSettingsViewModel

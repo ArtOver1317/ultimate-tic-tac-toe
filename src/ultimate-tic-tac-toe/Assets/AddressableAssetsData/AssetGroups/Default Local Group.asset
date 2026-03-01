@@ -65,6 +65,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a4a0ed45a53140249248f379ef399fc7
+    m_Address: Assets/Content/UI/MainMenu/Prefabs/PlayerStatisticsUI.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: d68692a363ff45645a21fb2028d48b2a
     m_Address: Assets/Content/UI/Settings/Prefabs/LanguageSelectionUI.prefab
     m_ReadOnly: 0

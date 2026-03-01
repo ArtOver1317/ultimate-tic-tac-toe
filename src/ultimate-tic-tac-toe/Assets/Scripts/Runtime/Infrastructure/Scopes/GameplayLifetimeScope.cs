@@ -12,6 +12,7 @@ using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.Localization;
+using Runtime.PlayerStatistics;
 using Runtime.PlayerProfile;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -149,6 +150,9 @@ namespace Runtime.Infrastructure.Scopes
             .As<IMatchPlayerNames>()
             .As<IDisposable>();
             builder.Register<IGameplayBackHandler, GameplayBackHandler>(Lifetime.Scoped);
+            builder.Register<PlayerStatisticsMatchReporter>(Lifetime.Scoped)
+                .AsSelf()
+                .As<IDisposable>();
             builder.Register<GameplayStartup>(Lifetime.Scoped)
                 .As<IGameplayStartup>()
                 .As<IDisposable>();

@@ -7,6 +7,7 @@ using Runtime.Infrastructure.Save;
 using Runtime.Infrastructure.Save.Backends;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
+using Runtime.PlayerStatistics;
 using Runtime.PlayerProfile;
 using Runtime.Services.Assets;
 using Runtime.Services.Scenes;
@@ -146,6 +147,9 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<ITextFormatter, NamedArgsFormatter>(Lifetime.Singleton);
             builder.Register<ILocalizationService, LocalizationService>(Lifetime.Singleton);
             builder.Register<PlayerNameService>(Lifetime.Singleton).As<IPlayerNameService>().As<IInitializable>().AsSelf();
+            builder.Register<PlayerStatisticsService>(Lifetime.Singleton).As<IPlayerStatisticsService>().As<IInitializable>().AsSelf();
+            builder.Register<MatchOutcomeResolver>(Lifetime.Singleton).As<IMatchOutcomeResolver>().AsSelf();
+            builder.Register<MatchKeyMapper>(Lifetime.Singleton).AsSelf();
         
             // State Machine
             builder.Register<IStateFactory, StateFactory>(Lifetime.Singleton);

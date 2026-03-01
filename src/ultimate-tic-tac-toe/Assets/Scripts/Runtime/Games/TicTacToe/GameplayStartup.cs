@@ -18,6 +18,7 @@ using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.PlayerStatistics;
 using Runtime.PlayerProfile;
 using StripLog;
 using UnityEngine;
@@ -56,6 +57,7 @@ namespace Runtime.Games.TicTacToe
         private readonly IMatchStateProvider _matchStateProvider;
         private readonly IMoveTimerService _moveTimerService;
         private readonly ILocalizationService _localization;
+        private readonly PlayerStatisticsMatchReporter _statisticsReporter;
         private readonly HostAuthoritativeMoveProcessor _hostMoveProcessor = new();
         private readonly OnlineRoundCoordinator _onlineRoundCoordinator = new();
         private readonly MiniBoardStatus[] _ultimateMiniBoardBuffer = new MiniBoardStatus[9];
@@ -106,7 +108,8 @@ namespace Runtime.Games.TicTacToe
             ILocalizationService localization = null,
             IMoveTimerService moveTimerService = null,
             MoveTimerHudBinder moveTimerHudBinder = null,
-            IMatchPlayerNames matchPlayerNames = null)
+            IMatchPlayerNames matchPlayerNames = null,
+            PlayerStatisticsMatchReporter statisticsReporter = null)
         {
             _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));
             _gameService = gameService ?? throw new ArgumentNullException(nameof(gameService));
@@ -134,10 +137,16 @@ namespace Runtime.Games.TicTacToe
             _onlinePlayerNamesStore = onlinePlayerNamesStore;
             _localization = localization;
             _moveTimerService = moveTimerService ?? NoOpMoveTimerService.Instance;
+            _statisticsReporter = statisticsReporter;
         }
 
         public async UniTask StartAsync(CancellationToken ct)
         {
+            if (_statisticsReporter == null)
+            {
+                GameLog.Error("[GameplayStartup] PlayerStatisticsMatchReporter is not resolved. Statistics reporting is disabled for this match.");
+            }
+
             ct.ThrowIfCancellationRequested();
 
             if (!_configStore.TryConsume(out var config) || config == null)

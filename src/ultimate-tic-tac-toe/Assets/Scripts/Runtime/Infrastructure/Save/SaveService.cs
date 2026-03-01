@@ -362,6 +362,12 @@ namespace Runtime.Infrastructure.Save
             if (type == typeof(bool))
                 return new JSONBool((bool)(object)data).ToString();
 
+            if (type.IsArray)
+            {
+                var array = (Array)(object)data;
+                return SerializeArraySection(array);
+            }
+
             return JsonUtility.ToJson(data);
         }
 
@@ -408,6 +414,18 @@ namespace Runtime.Infrastructure.Save
                 return true;
             }
 
+            if (type.IsArray)
+            {
+                if (!TryDeserializeArraySection(type, json, out var arrayValue))
+                {
+                    value = default;
+                    return false;
+                }
+
+                value = (T)arrayValue;
+                return true;
+            }
+
             if (string.Equals(json, "null", StringComparison.OrdinalIgnoreCase))
             {
                 value = default;
@@ -422,6 +440,57 @@ namespace Runtime.Infrastructure.Save
             }
 
             value = deserialized;
+            return true;
+        }
+
+        private static string SerializeArraySection(Array array)
+        {
+            var jsonArray = new JSONArray();
+
+            for (var i = 0; i < array.Length; i++)
+            {
+                var item = array.GetValue(i);
+                if (item == null)
+                {
+                    jsonArray.Add(JSONNull.CreateOrGet());
+                    continue;
+                }
+
+                var itemJson = JsonUtility.ToJson(item);
+                jsonArray.Add(JsonNode.Parse(itemJson));
+            }
+
+            return jsonArray.ToString();
+        }
+
+        private static bool TryDeserializeArraySection(Type arrayType, string json, out object arrayValue)
+        {
+            arrayValue = null;
+
+            var parsed = JsonNode.Parse(json);
+            if (parsed is not JSONArray jsonArray)
+                return false;
+
+            var elementType = arrayType.GetElementType();
+            if (elementType == null)
+                return false;
+
+            var result = Array.CreateInstance(elementType, jsonArray.Count);
+            for (var i = 0; i < jsonArray.Count; i++)
+            {
+                var node = jsonArray[i];
+                if (node == null || node.IsNull)
+                    continue;
+
+                var itemJson = node.ToString();
+                var item = JsonUtility.FromJson(itemJson, elementType);
+                if (item == null)
+                    return false;
+
+                result.SetValue(item, i);
+            }
+
+            arrayValue = result;
             return true;
         }
 

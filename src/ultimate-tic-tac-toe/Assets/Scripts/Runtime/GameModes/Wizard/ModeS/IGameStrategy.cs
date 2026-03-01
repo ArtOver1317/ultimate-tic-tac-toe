@@ -18,5 +18,7 @@ namespace Runtime.GameModes.Wizard
 
         /// <summary>Validates mode-specific config in a type-safe manner.</summary>
         IReadOnlyList<ValidationError> ValidateConfig(IGameConfig? config);
+
+        IEnumerable<string> GetSupportedBotDifficultyIds();
     }
 }

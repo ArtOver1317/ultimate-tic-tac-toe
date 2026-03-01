@@ -8,6 +8,7 @@ namespace Runtime.Services.Assets
     {
         [Header("UI")] public AssetReferenceGameObject MainMenuPrefab;
         public AssetReferenceGameObject BackgroundPrefab;
+        public AssetReferenceGameObject PlayerStatisticsPrefab;
         public AssetReferenceGameObject SettingsPrefab;
         public AssetReferenceGameObject LanguageSelectionPrefab;
         public AssetReferenceGameObject PlayerNameEditPrefab;

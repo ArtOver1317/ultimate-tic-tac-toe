@@ -24,6 +24,12 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  PlayerStatisticsPrefab:
+    m_AssetGUID: a4a0ed45a53140249248f379ef399fc7
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
   SettingsPrefab:
     m_AssetGUID: 6b7c529509c1a554b82932de3c4dfbc6
     m_SubObjectName: 

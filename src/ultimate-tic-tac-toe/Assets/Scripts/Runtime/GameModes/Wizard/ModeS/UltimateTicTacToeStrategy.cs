@@ -68,5 +68,7 @@ namespace Runtime.GameModes.Wizard
                 ? _noErrors
                 : _configInvalidError;
         }
+
+        public IEnumerable<string> GetSupportedBotDifficultyIds() => Array.Empty<string>();
     }
 }

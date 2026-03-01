@@ -25,6 +25,9 @@ namespace Tests.EditMode.UI.MainMenu
             
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.StartButton"), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Start Game"));
+
+            _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.Statistics"), Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(Observable.Return("Statistics"));
             
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.Settings"), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Settings"));
@@ -51,6 +54,11 @@ namespace Tests.EditMode.UI.MainMenu
             _localizationMock.Received(1).Observe(
                 Arg.Is<TextTableId>(t => t.Name == "MainMenu"),
                 Arg.Is<TextKey>(k => k.Value == "MainMenu.StartButton"),
+                Arg.Any<IReadOnlyDictionary<string, object>>());
+
+            _localizationMock.Received(1).Observe(
+                Arg.Is<TextTableId>(t => t.Name == "MainMenu"),
+                Arg.Is<TextKey>(k => k.Value == "MainMenu.Statistics"),
                 Arg.Any<IReadOnlyDictionary<string, object>>());
 
             _localizationMock.Received(1).Observe(
@@ -103,6 +111,21 @@ namespace Tests.EditMode.UI.MainMenu
             startButton.Should().Be("Начать игру");
             
             localeSubject.Dispose();
+        }
+
+        [Test]
+        public void WhenStatisticsRequested_ThenPublishesStatisticsRequested()
+        {
+            var sut = new MainMenuViewModel(_localizationMock);
+            sut.Initialize();
+
+            var triggered = false;
+            using var _ = sut.StatisticsRequested.Subscribe(__ => triggered = true);
+
+            sut.RequestStatistics();
+
+            triggered.Should().BeTrue();
+            sut.Dispose();
         }
 
     }

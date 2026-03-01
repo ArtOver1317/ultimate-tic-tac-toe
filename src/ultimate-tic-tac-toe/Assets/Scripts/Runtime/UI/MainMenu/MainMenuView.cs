@@ -13,6 +13,8 @@ namespace Runtime.UI.MainMenu
         private Label _titleLabel;
         [Core.UxmlElementAttribute("StartButton")] 
         private Button _startButton;
+        [Core.UxmlElementAttribute("StatisticsButton")]
+        private Button _statisticsButton;
         [Core.UxmlElementAttribute("SettingsButton")]
         private Button _settingsButton;
         [Core.UxmlElementAttribute("ExitButton")] 
@@ -22,14 +24,17 @@ namespace Runtime.UI.MainMenu
         {
             BindText(ViewModel.Title, _titleLabel);
             BindText(ViewModel.StartButtonText, _startButton);
+            BindText(ViewModel.StatisticsButtonText, _statisticsButton);
             BindText(ViewModel.SettingsButtonText, _settingsButton);
             BindText(ViewModel.ExitButtonText, _exitButton);
 
             BindEnabled(ViewModel.IsInteractable, _startButton);
+            BindEnabled(ViewModel.IsInteractable, _statisticsButton);
             BindEnabled(ViewModel.IsInteractable, _settingsButton);
             BindEnabled(ViewModel.IsInteractable, _exitButton);
 
             AddDisposable(_startButton.OnClickAsObservable().Subscribe(_ => OnStartButtonClicked()));
+            AddDisposable(_statisticsButton.OnClickAsObservable().Subscribe(_ => OnStatisticsButtonClicked()));
             AddDisposable(_settingsButton.OnClickAsObservable().Subscribe(_ => OnSettingsButtonClicked()));
             AddDisposable(_exitButton.OnClickAsObservable().Subscribe(_ => OnExitButtonClicked()));
         }
@@ -44,6 +49,12 @@ namespace Runtime.UI.MainMenu
         {
             Log.Debug(LogTags.UI, "[MainMenuView] Exit button clicked", this);
             ViewModel.RequestExit();
+        }
+
+        internal void OnStatisticsButtonClicked()
+        {
+            Log.Debug(LogTags.UI, "[MainMenuView] Statistics button clicked", this);
+            ViewModel.RequestStatistics();
         }
 
         private void OnSettingsButtonClicked()

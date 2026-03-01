@@ -72,6 +72,16 @@ namespace Runtime.UI.MainMenu
                 }))
                 .AddTo(_disposables);
 
+            _viewModel.StatisticsRequested
+                .Subscribe(_ => OpenStatisticsAsync(_lifecycleCts.Token).Forget(ex =>
+                {
+                    if (ex is OperationCanceledException)
+                        return;
+
+                    Log.Exception(ex, LogTags.UI);
+                }))
+                .AddTo(_disposables);
+
             _viewModel.ExitRequested
                 .Subscribe(_ => OnExit())
                 .AddTo(_disposables);
@@ -118,6 +128,7 @@ namespace Runtime.UI.MainMenu
             _uiService.Close<PlayerNameEditView>();
             _uiService.Close<LanguageSelectionView>();
             _uiService.Close<SettingsView>();
+            _uiService.Close<PlayerStatisticsView>();
             
             _viewModel.SetInteractable(false);
 
@@ -193,6 +204,21 @@ namespace Runtime.UI.MainMenu
                     Log.Exception(ex, LogTags.UI);
                 }))
                 .AddTo(_disposables);
+        }
+
+        private async UniTask OpenStatisticsAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var view = await _uiService.OpenWithLocalizationPreloadAsync<PlayerStatisticsView, PlayerStatisticsViewModel>(
+                _localization,
+                cancellationToken,
+                new TextTableId("PlayerStatistics"),
+                new TextTableId("Game"),
+                new TextTableId("GameWizard"));
+
+            if (view == null)
+                Log.Error(LogTags.UI, "Failed to open PlayerStatisticsView");
         }
 
         private void OpenLanguageSelection()

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Runtime.PlayerStatistics;
 
 namespace Runtime.Infrastructure.Save
 {
@@ -10,6 +11,7 @@ namespace Runtime.Infrastructure.Save
             typeof(string),
             typeof(int),
             typeof(bool),
+            typeof(StatisticsEntryDto[]),
         };
 
         public static bool IsRegistered(Type type)

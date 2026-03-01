@@ -1,0 +1,11 @@
+﻿{
+  "version": "1.0",
+  "locale": "en-US",
+  "table": "PlayerStatistics",
+  "entries": {
+    "PlayerStatistics.Back": "Back",
+    "PlayerStatistics.Empty": "No statistics yet",
+    "PlayerStatistics.Opponent.Online": "Online",
+    "PlayerStatistics.Title": "Player Statistics"
+  }
+}

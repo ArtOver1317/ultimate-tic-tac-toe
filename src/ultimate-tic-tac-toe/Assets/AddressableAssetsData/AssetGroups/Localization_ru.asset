@@ -90,6 +90,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5e4384254307e014f9ef7727ee14b587
+    m_Address: loc_ru_playerstatistics
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: c0f3088e8bfb29e43acd1eafbe5e59a5, type: 2}
   m_SchemaSet:

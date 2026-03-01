@@ -2024,6 +2024,8 @@ namespace Tests.EditMode.GameModes.Wizard
             }
 
             public IReadOnlyList<ValidationError> ValidateConfig(IGameConfig? config) => Array.Empty<ValidationError>();
+
+            public IEnumerable<string> GetSupportedBotDifficultyIds() => Array.Empty<string>();
         }
 
         private sealed class TestSettingsViewModel : BaseViewModel, IGameSettingsViewModel

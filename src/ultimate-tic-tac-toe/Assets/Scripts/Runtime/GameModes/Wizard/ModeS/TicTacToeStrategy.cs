@@ -16,6 +16,13 @@ namespace Runtime.GameModes.Wizard
 
         private const string _settingsUxmlKey = "ui/mode-settings/tic-tac-toe";
 
+        private static readonly IReadOnlyList<string> _supportedBotDifficultyIds = Array.AsReadOnly(new[]
+        {
+            "Easy",
+            "Normal",
+            "Hard",
+        });
+
         private static readonly IReadOnlyList<ValidationError> _noErrors = Array.Empty<ValidationError>();
 
         private static readonly ReadOnlyCollection<ValidationError> _configRequiredError =
@@ -107,5 +114,7 @@ namespace Runtime.GameModes.Wizard
 
             return _noErrors;
         }
+
+        public IEnumerable<string> GetSupportedBotDifficultyIds() => _supportedBotDifficultyIds;
     }
 }

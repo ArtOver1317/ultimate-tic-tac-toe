@@ -1,0 +1,11 @@
+﻿{
+  "version": "1.0",
+  "locale": "ja-JP",
+  "table": "PlayerStatistics",
+  "entries": {
+    "PlayerStatistics.Back": "戻る",
+    "PlayerStatistics.Empty": "統計はまだありません",
+    "PlayerStatistics.Opponent.Online": "オンライン",
+    "PlayerStatistics.Title": "プレイヤー統計"
+  }
+}

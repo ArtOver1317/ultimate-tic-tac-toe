@@ -3,6 +3,7 @@ MainMenu.Title,Ultimate Tic-Tac-Toe,Ультимативные крестики-
 MainMenu.Play,Play,Играть,プレイ,Start game button (legacy)
 MainMenu.StartButton,Play,Играть,プレイ,Start game button (current)
 MainMenu.Settings,Settings,Настройки,設定,Settings button
+MainMenu.Statistics,Statistics,Статистика,統計,Statistics button
 MainMenu.Exit,Exit,Выход,終了,Exit button (legacy)
 MainMenu.ExitButton,Exit,Выход,終了,Exit button (current)
 MainMenu.CreateRoom,Create Room,Создать комнату,ルームを作成,Create room button
@@ -163,4 +164,8 @@ Errors.Online.RegionMismatchOrUnavailable,Region is unavailable or mismatched,Р
 Errors.Online.InvalidSessionIdFormat,Invalid session ID format,Некорректный формат ID сессии,セッションIDの形式が無効です,Online direct invite: invalid session id format
 Errors.Online.DisconnectTimeout,Reconnect timeout exceeded,Превышено время на переподключение,再接続のタイムアウトを超えました,Online reconnect: timeout exceeded
 Errors.Online.OpponentLeft,Opponent left the match,Соперник покинул матч,対戦相手がマッチを退出しました,Online match: opponent left
+PlayerStatistics.Title,Player Statistics,Статистика игрока,プレイヤー統計,Statistics screen title
+PlayerStatistics.Back,Back,Назад,戻る,Statistics screen back button
+PlayerStatistics.Empty,No statistics yet,Пока нет статистики,統計はまだありません,Statistics empty state
+PlayerStatistics.Opponent.Online,Online,Онлайн,オンライン,Online opponent label in statistics
 

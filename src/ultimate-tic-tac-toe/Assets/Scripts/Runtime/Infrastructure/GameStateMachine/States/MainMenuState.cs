@@ -132,6 +132,18 @@ namespace Runtime.Infrastructure.GameStateMachine.States
                 "[MainMenuState] SettingsPrefab is missing or invalid in AssetLibrary. Settings feature will be disabled.",
                 cancellationToken);
 
+            if (_assetLibrary.PlayerStatisticsPrefab == null || !_assetLibrary.PlayerStatisticsPrefab.RuntimeKeyIsValid())
+            {
+                Log.Warning(LogTags.Scenes, "[MainMenuState] PlayerStatisticsPrefab is missing or invalid in AssetLibrary. Statistics feature will be disabled.");
+            }
+            else
+            {
+                await TryRegisterWindowPrefabAsync<PlayerStatisticsView>(
+                    _assetLibrary.PlayerStatisticsPrefab,
+                    "[MainMenuState] PlayerStatisticsPrefab is missing or invalid in AssetLibrary. Statistics feature will be disabled.",
+                    cancellationToken);
+            }
+
             await TryRegisterWindowPrefabAsync<UI.Settings.LanguageSelectionView>(
                 _assetLibrary.LanguageSelectionPrefab,
                 "[MainMenuState] LanguageSelectionPrefab is missing or invalid. Language selection will be disabled.",
@@ -171,6 +183,13 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             }
 
             var prefab = await _assets.LoadAsync<UnityEngine.GameObject>(prefabReference, cancellationToken);
+
+            if (prefab == null)
+            {
+                Log.Error(LogTags.Scenes, $"[MainMenuState] Failed to load prefab for window {typeof(TView).Name}. Registration skipped.");
+                return false;
+            }
+
             _uiService.RegisterWindowPrefab<TView>(prefab);
             return true;
         }
@@ -187,6 +206,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             _uiService.Close<UI.Settings.LanguageSelectionView>();
             _uiService.Close<UI.Settings.PlayerNameEditView>();
             _uiService.Close<UI.Settings.SettingsView>();
+            _uiService.Close<PlayerStatisticsView>();
             _uiService.Close<MainMenuView>();
             
             _coordinator.Dispose();

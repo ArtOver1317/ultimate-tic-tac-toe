@@ -3,6 +3,7 @@
     <ui:VisualElement name="VisualElement" class="menu-root">
         <ui:Label text="..." name="Title" class="menu-title" />
         <ui:Button text="..." name="StartButton" class="menu-button" />
+        <ui:Button text="..." name="StatisticsButton" class="menu-button" />
         <ui:Button text="..." name="SettingsButton" class="menu-button" />
         <ui:Button text="..." name="ExitButton" class="menu-button" />
     </ui:VisualElement>
