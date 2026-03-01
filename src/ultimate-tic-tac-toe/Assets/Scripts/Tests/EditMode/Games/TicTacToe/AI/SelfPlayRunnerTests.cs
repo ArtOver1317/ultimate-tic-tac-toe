@@ -48,10 +48,17 @@ namespace Tests.EditMode.Games.TicTacToe.AI
         [UnityTest]
         public IEnumerator WhenRunWithSingleMatch_ThenReturnsValidReport() => UniTask.ToCoroutine(async () =>
         {
+            var fastProfile = MakeProfile(
+                timeBudgetMs: 1500,
+                minDepth: 1,
+                maxDepth: 3,
+                topN: 1,
+                noise: 0f);
+
             var config = new SelfPlayConfig(
                 boardSize: 3,
-                profile1: MakeProfile(),
-                profile2: MakeProfile(),
+                profile1: fastProfile,
+                profile2: fastProfile,
                 matchCount: 1,
                 baseSeed: 42);
 
