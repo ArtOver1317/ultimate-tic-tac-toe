@@ -19,6 +19,7 @@ using Runtime.Games.TicTacToe.Series;
 using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
+using Runtime.PlayerStatistics;
 using CellId = Runtime.Games.TicTacToe.Moves.CellId;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -99,6 +100,11 @@ namespace Tests.EditMode.Games.TicTacToe
                 callInfo[0] = _config;
                 return true;
             });
+            _configStore.TryPeek(out Arg.Any<GameLaunchConfig>()).Returns(callInfo =>
+            {
+                callInfo[0] = _config;
+                return true;
+            });
 
             _gameService.StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(_session));
@@ -119,8 +125,9 @@ namespace Tests.EditMode.Games.TicTacToe
             _ultimateBotOrchestrator.IsThinking.Returns(new ReactiveProperty<bool>(false));
             _ultimateBotOrchestrator.MoveFailed.Returns(new Subject<BotMoveFailedEvent>());
             var matchFailSafeGateway = Substitute.For<IMatchFailSafeGateway>();
+            var statisticsReporter = CreateStatisticsReporter(_configStore, _eventStream);
 
-            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _fieldUiAdapter, _ecsLifecycle, _eventStream, _commandSink, _movesBinder, _winLineRenderer, _seriesService, _backHandler, _stateMachine, _botDriver, _ultimateBotOrchestrator, matchFailSafeGateway);
+            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _fieldUiAdapter, _ecsLifecycle, _eventStream, _commandSink, _movesBinder, _winLineRenderer, _seriesService, _backHandler, _stateMachine, _botDriver, _ultimateBotOrchestrator, matchFailSafeGateway, statisticsReporter: statisticsReporter);
         }
 
         [TearDown]
@@ -400,7 +407,8 @@ namespace Tests.EditMode.Games.TicTacToe
                 networkBridge: networkBridge,
                 onlineSessionContextStore: onlineSessionStore,
                 matchStateProvider: matchStateProvider,
-                onlineSessionFlow: onlineFlow);
+                onlineSessionFlow: onlineFlow,
+                statisticsReporter: CreateStatisticsReporter(_configStore, _eventStream));
 
             await sut.StartAsync(CancellationToken.None);
 
@@ -453,7 +461,8 @@ namespace Tests.EditMode.Games.TicTacToe
                 networkBridge: networkBridge,
                 onlineSessionContextStore: onlineSessionStore,
                 matchStateProvider: matchStateProvider,
-                onlineSessionFlow: onlineFlow);
+                onlineSessionFlow: onlineFlow,
+                statisticsReporter: CreateStatisticsReporter(_configStore, _eventStream));
 
             await sut.StartAsync(CancellationToken.None);
 
@@ -508,7 +517,8 @@ namespace Tests.EditMode.Games.TicTacToe
                 networkBridge: networkBridge,
                 onlineSessionContextStore: onlineSessionStore,
                 matchStateProvider: matchStateProvider,
-                onlineSessionFlow: new TestOnlineSessionFlow());
+                onlineSessionFlow: new TestOnlineSessionFlow(),
+                statisticsReporter: CreateStatisticsReporter(_configStore, _eventStream));
 
             await sut.StartAsync(CancellationToken.None);
 
@@ -559,7 +569,8 @@ namespace Tests.EditMode.Games.TicTacToe
                 networkBridge: networkBridge,
                 onlineSessionContextStore: onlineSessionStore,
                 matchStateProvider: matchStateProvider,
-                onlineSessionFlow: new TestOnlineSessionFlow());
+                onlineSessionFlow: new TestOnlineSessionFlow(),
+                statisticsReporter: CreateStatisticsReporter(_configStore, _eventStream));
 
             await sut.StartAsync(CancellationToken.None);
 
@@ -606,6 +617,24 @@ namespace Tests.EditMode.Games.TicTacToe
                 regex.IsMatch(messages[i]).Should().BeTrue(
                     $"expected failing log #{i + 1} to match regex '{regex}', but was: {messages[i]}");
             }
+        }
+
+        private static PlayerStatisticsMatchReporter CreateStatisticsReporter(
+            IGameLaunchConfigStore configStore,
+            IGameplayEventStream eventStream)
+        {
+            var outcomeResolver = Substitute.For<IMatchOutcomeResolver>();
+            var statisticsService = Substitute.For<IPlayerStatisticsService>();
+            var contextStore = Substitute.For<IOnlineGameplaySessionContextStore>();
+            contextStore.Snapshot.Returns(OnlineGameplaySessionSnapshot.Empty());
+
+            return new PlayerStatisticsMatchReporter(
+                configStore,
+                eventStream,
+                outcomeResolver,
+                statisticsService,
+                contextStore,
+                new MatchKeyMapper());
         }
 
         private sealed class TestOnlineSessionFlow : IOnlineSessionFlowService

@@ -5,7 +5,7 @@ using Runtime.GameModes.Wizard;
 
 namespace Runtime.PlayerStatistics
 {
-    internal sealed class MatchKeyMapper
+    public sealed class MatchKeyMapper
     {
         public bool TryMap(GameLaunchConfig config, out MatchKey key)
         {

@@ -20,6 +20,7 @@ using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
+using Runtime.PlayerStatistics;
 using UnityEngine.UIElements;
 using CellId = Runtime.Games.TicTacToe.Moves.CellId;
 using EcsGameStatus = Runtime.Gameplay.ECS.GameStatus;
@@ -101,6 +102,11 @@ namespace Tests.EditMode.Games.TicTacToe
                 callInfo[0] = config;
                 return true;
             });
+            _configStore.TryPeek(out Arg.Any<GameLaunchConfig>()).Returns(callInfo =>
+            {
+                callInfo[0] = config;
+                return true;
+            });
             _gameService.StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(session));
             _fieldPresenter.BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>())
@@ -116,12 +122,24 @@ namespace Tests.EditMode.Games.TicTacToe
             ultimateBotOrchestrator.IsThinking.Returns(new ReactiveProperty<bool>(false));
             ultimateBotOrchestrator.MoveFailed.Returns(new Subject<BotMoveFailedEvent>());
             var matchFailSafeGateway = Substitute.For<IMatchFailSafeGateway>();
+            var outcomeResolver = Substitute.For<IMatchOutcomeResolver>();
+            var statisticsService = Substitute.For<IPlayerStatisticsService>();
+            var contextStore = Substitute.For<IOnlineGameplaySessionContextStore>();
+            contextStore.Snapshot.Returns(OnlineGameplaySessionSnapshot.Empty());
+            var statisticsReporter = new PlayerStatisticsMatchReporter(
+                _configStore,
+                eventStream,
+                outcomeResolver,
+                statisticsService,
+                contextStore,
+                new MatchKeyMapper());
 
             _sut = new GameplayStartup(
                 _configStore, _gameService, _fieldPresenter, _fieldUiAdapter,
                 _ecsLifecycle, eventStream, _commandSink,
                 movesBinder, winLineRenderer, _seriesService, _backHandler, _stateMachine,
-                botDriver, ultimateBotOrchestrator, matchFailSafeGateway);
+                botDriver, ultimateBotOrchestrator, matchFailSafeGateway,
+                statisticsReporter: statisticsReporter);
         }
 
         [TearDown]

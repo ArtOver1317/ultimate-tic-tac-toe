@@ -144,7 +144,7 @@ namespace Runtime.Games.TicTacToe
         {
             if (_statisticsReporter == null)
             {
-                GameLog.Error("[GameplayStartup] PlayerStatisticsMatchReporter is not resolved. Statistics reporting is disabled for this match.");
+                GameLog.Warning("[GameplayStartup] PlayerStatisticsMatchReporter is not resolved. Statistics reporting is disabled for this match.");
             }
 
             ct.ThrowIfCancellationRequested();

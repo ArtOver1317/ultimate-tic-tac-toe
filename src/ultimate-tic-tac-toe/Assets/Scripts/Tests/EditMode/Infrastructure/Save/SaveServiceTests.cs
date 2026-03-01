@@ -399,7 +399,7 @@ namespace Tests.EditMode.Infrastructure.Save
 
             loaded[1].gameId.Should().Be("ultimate-tic-tac-toe");
             loaded[1].opponentType.Should().Be("Online");
-            loaded[1].botDifficultyId.Should().BeNull();
+            loaded[1].botDifficultyId.Should().BeEmpty();
             loaded[1].wins.Should().Be(3);
             loaded[1].losses.Should().Be(4);
             loaded[1].draws.Should().Be(0);
