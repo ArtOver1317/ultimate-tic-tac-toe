@@ -19,6 +19,7 @@ namespace Runtime.GameModes.Wizard
     {
         private readonly ILocalizationService _localization;
         private readonly IMatchmakingService _service;
+        private readonly IMatchmakingConfig _config;
 
         private readonly ReactiveProperty<MatchmakingState> _stateFallback = new(MatchmakingState.Idle);
         private readonly ReactiveProperty<TimeSpan> _elapsedTime = new(TimeSpan.Zero);
@@ -26,6 +27,7 @@ namespace Runtime.GameModes.Wizard
         private readonly ReactiveProperty<string?> _errorMessage = new(null);
         private readonly ReactiveProperty<string?> _errorMessageKey = new(null);
         private readonly ReactiveProperty<MatchmakingResult?> _result = new(null);
+        private readonly ReactiveProperty<MatchmakingFailure?> _failure = new(null);
 
         private readonly Subject<Unit> _cancelRequested = new();
         private readonly Subject<Unit> _backRequested = new();
@@ -42,6 +44,7 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<int> PlayersWithDifferentParams => _playersWithDifferentParams;
         public ReadOnlyReactiveProperty<string?> ErrorMessage => _errorMessage;
         public ReadOnlyReactiveProperty<MatchmakingResult?> Result => _result;
+        public ReadOnlyReactiveProperty<MatchmakingFailure?> Failure => _failure;
 
         public Observable<Unit> CancelRequested => _cancelRequested;
         public Observable<Unit> BackRequested => _backRequested;
@@ -57,10 +60,11 @@ namespace Runtime.GameModes.Wizard
         public Observable<string> BackButtonText { get; }
         public Observable<string> HintText { get; }
 
-        public MatchmakingViewModel(ILocalizationService localization, IMatchmakingService service)
+        public MatchmakingViewModel(ILocalizationService localization, IMatchmakingService service, IMatchmakingConfig? config = null)
         {
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
             _service = service ?? throw new ArgumentNullException(nameof(service));
+            _config = config ?? MatchmakingConfigDefaults.Instance;
 
             var table = new TextTableId("GameWizard");
             TitleText = _localization.Observe(table, new TextKey("GameWizard.Matchmaking.Title"));
@@ -93,10 +97,28 @@ namespace Runtime.GameModes.Wizard
             StartSearchAsync(request, ct).Forget();
         }
 
+        public UniTask<bool> TryBeginSearchAsync(MatchmakingRequest request, CancellationToken ct)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            EnsureWired();
+            return StartSearchAsync(request, ct);
+        }
+
+        public UniTask<bool> TryBeginSearchFromQueueEntryAsync(QueueEntry queueEntry, CancellationToken ct)
+        {
+            if (queueEntry == null)
+                throw new ArgumentNullException(nameof(queueEntry));
+
+            EnsureWired();
+            return StartSearchAsync(queueEntry, ct);
+        }
+
         public void RequestCancel()
         {
             _cancelRequested.OnNext(Unit.Default);
-            CancelSearch();
+            RequestCancelInternalAsync().Forget();
         }
 
         public void RequestBack()
@@ -106,6 +128,10 @@ namespace Runtime.GameModes.Wizard
         }
 
         public void RequestRetry() => _retryRequested.OnNext(Unit.Default);
+
+        public void AcknowledgeTerminalModal() => _fsm?.AcknowledgeTerminalModal();
+
+        public void NotifySessionStartFailed() => _fsm?.NotifySessionStartFailed();
 
         protected override void OnReset()
         {
@@ -136,6 +162,7 @@ namespace Runtime.GameModes.Wizard
             _errorMessage.Dispose();
             _errorMessageKey.Dispose();
             _result.Dispose();
+            _failure.Dispose();
 
             _cancelRequested.OnCompleted();
             _cancelRequested.Dispose();
@@ -153,10 +180,14 @@ namespace Runtime.GameModes.Wizard
             if (Interlocked.Exchange(ref _isWired, 1) != 0)
                 return;
 
-            _fsm = new MatchmakingFsm(_service);
+            _fsm = new MatchmakingFsm(_service, _config);
 
             AddDisposable(_fsm.State.Subscribe(ApplyState));
-            AddDisposable(_fsm.Failure.Subscribe(ApplyFailure));
+            AddDisposable(_fsm.Failure.Subscribe(failure =>
+            {
+                _failure.Value = failure;
+                ApplyFailure(failure);
+            }));
             AddDisposable(_fsm.Result.Subscribe(result => _result.Value = result));
 
             AddDisposable(Observable.CombineLatest(
@@ -166,40 +197,80 @@ namespace Runtime.GameModes.Wizard
                 .Subscribe(key => _errorMessage.Value = ResolveMessageKey(key ?? string.Empty)));
         }
 
-        private async UniTask StartSearchAsync(MatchmakingRequest request, CancellationToken ct)
+        private async UniTask<bool> StartSearchAsync(MatchmakingRequest request, CancellationToken ct)
         {
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
 
             if (_fsm == null)
-                return;
+                return false;
 
             CancelSearch();
 
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             _searchCts = cts;
+            var started = false;
 
             try
             {
-                await _fsm.TryStartSearchAsync(request, cts.Token);
+                started = await _fsm.TryStartSearchAsync(request, cts.Token);
+                return started;
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
             catch (Exception ex)
             {
                 GameLog.Exception(ex);
                 _errorMessageKey.Value = "Errors.GameWizard.MatchmakingFailed";
                 _stateFallback.Value = MatchmakingState.Failed;
+                return false;
             }
             finally
             {
-                try
+                if (!started)
                 {
-                    cts.Dispose();
+                    ReleaseSearchCts(cts, cancel: false);
                 }
-                finally
+            }
+        }
+
+        private async UniTask<bool> StartSearchAsync(QueueEntry queueEntry, CancellationToken ct)
+        {
+            if (queueEntry == null)
+                throw new ArgumentNullException(nameof(queueEntry));
+
+            if (_fsm == null)
+                return false;
+
+            CancelSearch();
+
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            _searchCts = cts;
+            var started = false;
+
+            try
+            {
+                started = await _fsm.TryStartSearchFromQueueEntryAsync(queueEntry, cts.Token);
+                return started;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                GameLog.Exception(ex);
+                _errorMessageKey.Value = "Errors.GameWizard.MatchmakingFailed";
+                _stateFallback.Value = MatchmakingState.Failed;
+                return false;
+            }
+            finally
+            {
+                if (!started)
                 {
-                    if (ReferenceEquals(_searchCts, cts))
-                        _searchCts = null;
+                    ReleaseSearchCts(cts, cancel: false);
                 }
             }
         }
@@ -208,27 +279,13 @@ namespace Runtime.GameModes.Wizard
         {
             _fsm?.Cancel();
 
-            if (_searchCts == null)
-                return;
-
             var cts = Interlocked.Exchange(ref _searchCts, null);
-            
-            if (cts == null)
-                return;
-
-            try
-            {
-                cts.Cancel();
-            }
-            finally
-            {
-                cts.Dispose();
-            }
+            ReleaseSearchCts(cts, cancel: true);
         }
 
         private void CancelSearchIfSearching()
         {
-            if (_stateFallback.Value != MatchmakingState.Searching)
+            if (!IsSearchActiveState(_stateFallback.Value))
                 return;
 
             CancelSearch();
@@ -238,12 +295,15 @@ namespace Runtime.GameModes.Wizard
         {
             _stateFallback.Value = state;
 
-            if (state == MatchmakingState.Searching)
+            if (IsSearchActiveState(state))
                 StartTimer();
             else
+            {
                 StopTimer(resetElapsed: true);
+                ReleaseSearchCts(Interlocked.Exchange(ref _searchCts, null), cancel: false);
+            }
 
-            if (state != MatchmakingState.Failed)
+            if (state is not MatchmakingState.Failed and not MatchmakingState.TerminalModal)
                 _errorMessageKey.Value = null;
         }
 
@@ -258,6 +318,21 @@ namespace Runtime.GameModes.Wizard
             }
 
             _errorMessageKey.Value = failure.MessageKey;
+        }
+
+        private async UniTaskVoid RequestCancelInternalAsync()
+        {
+            if (_fsm == null)
+                return;
+
+            try
+            {
+                await _fsm.RequestCancelAsync();
+            }
+            catch (Exception ex)
+            {
+                GameLog.Exception(ex);
+            }
         }
 
         private void StartTimer()
@@ -333,6 +408,25 @@ namespace Runtime.GameModes.Wizard
 
             var tableName = messageKey[..dotIndex];
             return _localization.Resolve(new TextTableId(tableName), new TextKey(messageKey));
+        }
+
+        private static bool IsSearchActiveState(MatchmakingState state) =>
+            state is MatchmakingState.Searching or MatchmakingState.CancelPending;
+
+        private void ReleaseSearchCts(CancellationTokenSource? cts, bool cancel)
+        {
+            if (cts == null)
+                return;
+
+            try
+            {
+                if (cancel)
+                    cts.Cancel();
+            }
+            finally
+            {
+                cts.Dispose();
+            }
         }
     }
 }

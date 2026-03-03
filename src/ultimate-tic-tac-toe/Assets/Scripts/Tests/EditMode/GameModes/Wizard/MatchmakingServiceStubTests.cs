@@ -29,10 +29,21 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
-        public async Task WhenFindMatchAsyncCalledWithValidRequest_ThenThrowsNotSupportedException()
+        public async Task WhenEnterQueueAsyncCalledWithValidRequest_ThenThrowsNotSupportedException()
         {
             // Arrange
-            Func<Task> act = async () => await _sut.FindMatchAsync(_request, CancellationToken.None);
+            Func<Task> act = async () => await _sut.EnterQueueAsync(_request, CancellationToken.None);
+
+            // Act / Assert
+            await act.Should().ThrowAsync<NotSupportedException>();
+        }
+
+        [Test]
+        public async Task WhenWaitForMatchAsyncCalledWithValidEntry_ThenThrowsNotSupportedException()
+        {
+            // Arrange
+            var entry = new QueueEntry("room-1", immediateResult: null);
+            Func<Task> act = async () => await _sut.WaitForMatchAsync(entry, CancellationToken.None);
 
             // Act / Assert
             await act.Should().ThrowAsync<NotSupportedException>();

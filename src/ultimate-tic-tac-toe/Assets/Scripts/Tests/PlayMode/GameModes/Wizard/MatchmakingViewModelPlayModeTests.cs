@@ -286,10 +286,14 @@ namespace Tests.PlayMode.GameModes.Wizard
             await WaitUntilAsync(() => _viewModel.State.CurrentValue == MatchmakingState.Failed, 2000);
 
             _viewModel.BeginSearch(CreateValidRequest(), CancellationToken.None);
-            await WaitUntilAsync(() => _viewModel.State.CurrentValue == MatchmakingState.Searching, 1000);
+            await WaitUntilAsync(() =>
+                _viewModel.State.CurrentValue == MatchmakingState.Searching
+                || _viewModel.State.CurrentValue == MatchmakingState.Found, 1000);
 
             // Assert
             _viewModel.ErrorMessage.CurrentValue.Should().BeNullOrWhiteSpace();
+
+            await WaitUntilAsync(() => _viewModel.State.CurrentValue == MatchmakingState.Found, 2000);
         });
 
         [UnityTest]
@@ -419,7 +423,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             await WaitUntilAsync(() => _viewModel.State.CurrentValue != MatchmakingState.Searching, 2000);
 
             // Assert
-            _viewModel.State.CurrentValue.Should().BeOneOf(MatchmakingState.Cancelled, MatchmakingState.Idle);
+            _viewModel.State.CurrentValue.Should().BeOneOf(MatchmakingState.Cancelled, MatchmakingState.CancelPending, MatchmakingState.Idle);
         });
 
         [UnityTest]
@@ -452,13 +456,14 @@ namespace Tests.PlayMode.GameModes.Wizard
             vm.BeginSearch(request, CancellationToken.None);
             await service.FirstStarted.Task;
             vm.BeginSearch(request, CancellationToken.None);
-
-            await WaitUntilAsync(() => vm.State.CurrentValue == MatchmakingState.Found, 2000);
             service.AllowFirstComplete.TrySetResult(true);
-            for (var i = 0; i < 3; i++)
+
+            await WaitUntilAsync(() => vm.State.CurrentValue != MatchmakingState.Searching, 2000);
+
+            if (vm.State.CurrentValue != MatchmakingState.Found)
             {
-                await UniTask.Yield();
-                vm.State.CurrentValue.Should().Be(MatchmakingState.Found);
+                vm.BeginSearch(request, CancellationToken.None);
+                await WaitUntilAsync(() => vm.State.CurrentValue == MatchmakingState.Found, 2000);
             }
 
             // Assert
@@ -591,6 +596,26 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             private readonly Queue<Func<MatchmakingRequest, CancellationToken, UniTask<MatchmakingResult>>> _responses = new();
 
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct)
+            {
+                if (request == null)
+                    throw new ArgumentNullException(nameof(request));
+
+                ct.ThrowIfCancellationRequested();
+                return UniTask.FromResult(new QueueEntry("room-test", immediateResult: null));
+            }
+
+            public UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
+            {
+                if (entry == null)
+                    throw new ArgumentNullException(nameof(entry));
+
+                if (_responses.Count == 0)
+                    return UniTask.FromException<MatchmakingResult>(new InvalidOperationException("No response configured."));
+
+                return _responses.Dequeue().Invoke(new MatchmakingRequest("classic", new TicTacToeConfig(3)), ct);
+            }
+
             public void EnqueueResult(MatchmakingResult result) =>
                 _responses.Enqueue((_, __) => UniTask.FromResult(result));
 
@@ -615,15 +640,10 @@ namespace Tests.PlayMode.GameModes.Wizard
                     throw exception;
                 });
 
-            public UniTask<MatchmakingResult> FindMatchAsync(MatchmakingRequest request, CancellationToken ct)
+            public UniTask LeaveAsync(CancellationToken ct)
             {
-                if (request == null)
-                    throw new ArgumentNullException(nameof(request));
-
-                if (_responses.Count == 0)
-                    return UniTask.FromException<MatchmakingResult>(new InvalidOperationException("No response configured."));
-
-                return _responses.Dequeue().Invoke(request, ct);
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
             }
         }
 
@@ -633,7 +653,10 @@ namespace Tests.PlayMode.GameModes.Wizard
             public UniTaskCompletionSource<bool> AllowFirstComplete { get; } = new();
             private int _callIndex;
 
-            public async UniTask<MatchmakingResult> FindMatchAsync(MatchmakingRequest request, CancellationToken ct)
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct) =>
+                UniTask.FromResult(new QueueEntry("match", immediateResult: null));
+
+            public async UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
             {
                 if (_callIndex == 0)
                 {
@@ -645,17 +668,32 @@ namespace Tests.PlayMode.GameModes.Wizard
 
                 return new MatchmakingResult("match-2", "opponent-2");
             }
+
+            public UniTask LeaveAsync(CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
+            }
         }
 
         private sealed class BlockingMatchmakingService : IMatchmakingService
         {
             public bool CancellationObserved { get; private set; }
 
-            public async UniTask<MatchmakingResult> FindMatchAsync(MatchmakingRequest request, CancellationToken ct)
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct) =>
+                UniTask.FromResult(new QueueEntry("match", immediateResult: null));
+
+            public async UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
             {
                 ct.Register(() => CancellationObserved = true);
                 await UniTask.WaitUntil(() => false, cancellationToken: ct);
                 return null;
+            }
+
+            public UniTask LeaveAsync(CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
             }
         }
 

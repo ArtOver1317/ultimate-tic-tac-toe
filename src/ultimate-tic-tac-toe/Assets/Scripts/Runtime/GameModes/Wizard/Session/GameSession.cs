@@ -161,7 +161,7 @@ namespace Runtime.GameModes.Wizard
                         return null;
                     }
 
-                    return new MatchmakingConfig(snapshot.MatchmakingMatchId, snapshot.MatchmakingOpponentId);
+                    return new MatchmakingConfig(snapshot.MatchmakingMatchId, snapshot.MatchmakingOpponentId, snapshot.MatchmakingIsHost);
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(snapshot.HumanOpponentKind), snapshot.HumanOpponentKind, null);

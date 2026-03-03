@@ -27,6 +27,7 @@ namespace Runtime.Infrastructure.Scopes
     {
         [SerializeField] private AssetLibrary _assetLibrary;
         [SerializeField] private MoveTimerPresetsConfig _moveTimerPresetsConfig;
+        [SerializeField] private MatchmakingConfigAsset _matchmakingConfigAsset;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -39,6 +40,12 @@ namespace Runtime.Infrastructure.Scopes
             {
                 GameLog.Warning("[GameLifetimeScope] MoveTimerPresetsConfig is not assigned. Runtime defaults will be used.");
                 _moveTimerPresetsConfig = MoveTimerPresetsConfig.CreateRuntimeDefault();
+            }
+
+            if (_matchmakingConfigAsset == null)
+            {
+                GameLog.Warning("[GameLifetimeScope] MatchmakingConfigAsset is not assigned. Runtime defaults will be used.");
+                _matchmakingConfigAsset = MatchmakingConfigAsset.CreateRuntimeDefault();
             }
             
             // Services
@@ -69,7 +76,8 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<IGameWizardNavigator, GameWizardNavigator>(Lifetime.Singleton);
             builder.Register<IGameCatalog, GameCatalog>(Lifetime.Singleton);
             builder.Register<IBotDifficultyCatalog, BotDifficultyCatalog>(Lifetime.Singleton);
-            builder.Register<IMatchmakingService, MatchmakingServiceStub>(Lifetime.Singleton);
+            builder.Register<IMatchmakingConfig>(_ => _matchmakingConfigAsset, Lifetime.Singleton);
+            builder.Register<IMatchmakingService, PhotonMatchmakingService>(Lifetime.Singleton);
             builder.Register(_ => new OnlineSessionIdLifecycle(), Lifetime.Singleton);
             builder.Register<IOnlineSessionFlowService, OnlineSessionFlowService>(Lifetime.Singleton);
             builder.Register<IOnlineCountdownSyncService, OnlineCountdownSyncService>(Lifetime.Singleton);
@@ -84,7 +92,8 @@ namespace Runtime.Infrastructure.Scopes
                     return go.AddComponent<FusionSessionTransport>();
                 },
                 Lifetime.Singleton);
-            builder.Register<IPhotonSessionGateway, PhotonSessionGateway>(Lifetime.Singleton);
+            builder.Register<PhotonSessionGateway>(Lifetime.Singleton);
+            builder.Register<IPhotonSessionGateway>(resolver => resolver.Resolve<PhotonSessionGateway>(), Lifetime.Singleton);
             builder.Register<IOnlineSessionLauncher, OnlineSessionLauncher>(Lifetime.Singleton);
 
             builder.Register<Gameplay.IGameplayScopeAccessor, Gameplay.GameplayScopeAccessor>(Lifetime.Singleton);

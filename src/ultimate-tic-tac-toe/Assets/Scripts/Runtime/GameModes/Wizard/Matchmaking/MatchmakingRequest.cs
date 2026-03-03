@@ -11,8 +11,14 @@ namespace Runtime.GameModes.Wizard
     {
         public string GameId { get; }
         public IGameConfig GameConfig { get; }
+        public int MoveTimeLimitSeconds { get; }
 
         public MatchmakingRequest(string gameId, IGameConfig gameConfig)
+            : this(gameId, gameConfig, 0)
+        {
+        }
+
+        public MatchmakingRequest(string gameId, IGameConfig gameConfig, int moveTimeLimitSeconds)
         {
             if (string.IsNullOrWhiteSpace(gameId))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(gameId));
@@ -20,6 +26,7 @@ namespace Runtime.GameModes.Wizard
             GameConfig = gameConfig ?? throw new ArgumentNullException(nameof(gameConfig));
 
             GameId = gameId;
+            MoveTimeLimitSeconds = moveTimeLimitSeconds >= 0 ? moveTimeLimitSeconds : 0;
         }
     }
 }

@@ -10,9 +10,8 @@ namespace Runtime.GameModes.Wizard
     /// </summary>
     public interface IMatchmakingService
     {
-        /// <summary>
-        /// Finds a match for the provided request.
-        /// </summary>
-        UniTask<MatchmakingResult> FindMatchAsync(MatchmakingRequest request, CancellationToken ct);
+        UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct);
+        UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct);
+        UniTask LeaveAsync(CancellationToken ct);
     }
 }

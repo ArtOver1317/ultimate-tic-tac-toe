@@ -172,7 +172,7 @@ namespace Runtime.UI.GameModes.Wizard
             if (viewModel == null)
                 return;
 
-            if (viewModel.State.CurrentValue == MatchmakingState.Searching)
+            if (viewModel.State.CurrentValue is MatchmakingState.Searching or MatchmakingState.CancelPending)
                 viewModel.RequestCancel();
             else
                 viewModel.RequestBack();
@@ -205,13 +205,13 @@ namespace Runtime.UI.GameModes.Wizard
             MatchmakingSpinner spinner,
             MatchmakingState state)
         {
-            SetVisible(searchingState, state == MatchmakingState.Searching);
+            SetVisible(searchingState, state is MatchmakingState.Searching or MatchmakingState.CancelPending);
             SetVisible(foundState, state == MatchmakingState.Found);
-            SetVisible(failedState, state == MatchmakingState.Failed);
+            SetVisible(failedState, state is MatchmakingState.Failed or MatchmakingState.TerminalModal);
             SetVisible(cancelledState, state == MatchmakingState.Cancelled);
 
-            var isSearching = state == MatchmakingState.Searching;
-            var isFailed = state == MatchmakingState.Failed;
+            var isSearching = state is MatchmakingState.Searching or MatchmakingState.CancelPending;
+            var isFailed = state is MatchmakingState.Failed or MatchmakingState.TerminalModal;
             var isCancelled = state == MatchmakingState.Cancelled;
 
             SetVisible(cancelButton, isSearching || isFailed || isCancelled);
@@ -229,7 +229,7 @@ namespace Runtime.UI.GameModes.Wizard
             if (button == null)
                 return;
 
-            button.text = state == MatchmakingState.Searching
+            button.text = state is MatchmakingState.Searching or MatchmakingState.CancelPending
                 ? _cancelLabel
                 : _backLabel;
         }

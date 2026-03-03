@@ -61,10 +61,17 @@
     height: 72px;
     align-items: center;
     justify-content: center;
-    background-image: url("Assets/Content/UI/Common/LoadingIcon.png");
+    background-image: url("../../../Common/LoadingIcon.png");
     -unity-background-scale-mode: scale-to-fit;
     background-repeat: no-repeat;
     background-position: center;
+}
+
+.matchmaking-spinner__glyph {
+    -unity-text-align: middle-center;
+    font-size: 42px;
+    color: rgba(255, 255, 255, 0.95);
+    -unity-font-style: bold;
 }
 
 .matchmaking-timer {

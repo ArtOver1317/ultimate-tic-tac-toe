@@ -18,6 +18,7 @@ namespace Tests.PlayMode.GameModes.Wizard
     {
         private SpyWizardNavigator _navigator;
         private SessionFactorySpy _sessionFactory;
+        private PreflightMatchmakingService _preflightService;
         private GameWizardCoordinator _sut;
 
         [SetUp]
@@ -25,7 +26,8 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             _navigator = new SpyWizardNavigator();
             _sessionFactory = new SessionFactorySpy();
-            _sut = new GameWizardCoordinator(_navigator, _sessionFactory.Create);
+            _preflightService = new PreflightMatchmakingService();
+            _sut = new GameWizardCoordinator(_navigator, _sessionFactory.Create, onlineSessionFlow: null, matchmakingService: _preflightService);
         }
 
         [TearDown]
@@ -135,15 +137,52 @@ namespace Tests.PlayMode.GameModes.Wizard
                 service.AllowFirstComplete.TrySetResult(true);
                 await WaitUntilAsync(() => viewModel.State.CurrentValue == MatchmakingState.Found, 2000);
 
-                // Force a second Found emission before auto-close delay elapses.
-                viewModel.BeginSearch(new MatchmakingRequest(TicTacToeStrategy.DefaultGameId, new TicTacToeConfig(3)), CancellationToken.None);
-
-                await WaitUntilAsync(() => _navigator.CloseMatchmakingCalls == 1 && _navigator.CloseAllCalls == 1, 4000);
+                await WaitUntilAsync(() => _navigator.CloseMatchmakingCalls == 1, 4000);
 
                 // Assert
                 launchCount.Should().Be(1);
                 _navigator.CloseMatchmakingCalls.Should().Be(1);
-                _navigator.CloseAllCalls.Should().Be(1);
+                _navigator.CloseAllCalls.Should().Be(0);
+            }
+            finally
+            {
+                launchSub.Dispose();
+                viewModel.Dispose();
+                localization.Dispose();
+            }
+        });
+
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenQueueEntryIsImmediatelyPaired_ThenAutoClosesAndStarts() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            var immediateService = new ImmediatePairMatchmakingService();
+            using var sut = new GameWizardCoordinator(_navigator, _sessionFactory.Create, onlineSessionFlow: null, matchmakingService: immediateService);
+
+            await sut.StartWizardAsync(CancellationToken.None);
+            sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
+            await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1, 2000);
+
+            var session = _sessionFactory.CreatedSessions[0];
+            session.SetSnapshot(CreateMatchmakingSnapshot());
+
+            var localization = new StubLocalizationService();
+            var viewModel = new MatchmakingViewModel(localization, immediateService);
+            _navigator.ReplaceMatchSetupWithMatchmakingImpl = _ => UniTask.FromResult(viewModel);
+
+            var launchCount = 0;
+            var launchSub = sut.GameLaunchRequested.Subscribe(_ => launchCount++);
+
+            try
+            {
+                // Act
+                sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
+                await WaitUntilAsync(() => _navigator.CloseMatchmakingCalls == 1, 4000);
+
+                // Assert
+                launchCount.Should().Be(1);
+                _navigator.CloseMatchmakingCalls.Should().Be(1);
             }
             finally
             {
@@ -196,6 +235,37 @@ namespace Tests.PlayMode.GameModes.Wizard
             }
         });
 
+        [UnityTest]
+        [Timeout(10000)]
+        public IEnumerator WhenEnterQueueFails_ThenMatchmakingWindowDoesNotOpenAndInlineErrorIsShown() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            var failingService = new FailingEnterQueueMatchmakingService();
+            using var sut = new GameWizardCoordinator(_navigator, _sessionFactory.Create, onlineSessionFlow: null, matchmakingService: failingService);
+
+            await sut.StartWizardAsync(CancellationToken.None);
+
+            sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
+            await WaitUntilAsync(() => _navigator.ReplaceModeSelectionWithMatchSetupCalls == 1, 2000);
+
+            var session = _sessionFactory.CreatedSessions[0];
+            session.SetSnapshot(CreateMatchmakingSnapshot());
+
+            // Act
+            sut.TryPublishIntent(WizardIntent.Start).Should().BeTrue();
+
+            await WaitUntilAsync(() =>
+                sut.CurrentError.CurrentValue != null
+                || _navigator.ReplaceMatchSetupWithMatchmakingCalls > 0,
+                2000);
+
+            // Assert
+            _navigator.ReplaceMatchSetupWithMatchmakingCalls.Should().Be(0);
+            sut.CurrentError.CurrentValue.Should().NotBeNull();
+            sut.CurrentError.CurrentValue!.DisplayType.Should().Be(ErrorDisplayType.Inline);
+            sut.CurrentError.CurrentValue!.Code.Should().Be("wizard.matchmaking_start_failed");
+        });
+
         private async UniTask MoveToMatchSetupAsync()
         {
             _sut.TryPublishIntent(WizardIntent.Continue).Should().BeTrue();
@@ -221,11 +291,20 @@ namespace Tests.PlayMode.GameModes.Wizard
             public UniTaskCompletionSource<bool> SearchStarted { get; } = new();
             public UniTaskCompletionSource<bool> AllowComplete { get; } = new();
 
-            public async UniTask<MatchmakingResult> FindMatchAsync(MatchmakingRequest request, CancellationToken ct)
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct) =>
+                UniTask.FromResult(new QueueEntry("match-1", immediateResult: null));
+
+            public async UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
             {
                 SearchStarted.TrySetResult(true);
                 await AllowComplete.Task.AttachExternalCancellation(ct);
                 return new MatchmakingResult("match-1", "opponent-1");
+            }
+
+            public UniTask LeaveAsync(CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
             }
         }
 
@@ -235,7 +314,10 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             public UniTaskCompletionSource<bool> AllowFirstComplete { get; } = new();
 
-            public async UniTask<MatchmakingResult> FindMatchAsync(MatchmakingRequest request, CancellationToken ct)
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct) =>
+                UniTask.FromResult(new QueueEntry("match", immediateResult: null));
+
+            public async UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
             {
                 var call = Interlocked.Increment(ref _callCount);
 
@@ -246,6 +328,76 @@ namespace Tests.PlayMode.GameModes.Wizard
                 }
 
                 return new MatchmakingResult("match-2", "opponent-2");
+            }
+
+            public UniTask LeaveAsync(CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
+            }
+        }
+
+        private sealed class FailingEnterQueueMatchmakingService : IMatchmakingService
+        {
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.FromException<QueueEntry>(new InvalidOperationException("enter queue failed"));
+            }
+
+            public UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.FromException<MatchmakingResult>(new InvalidOperationException("not expected"));
+            }
+
+            public UniTask LeaveAsync(CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
+            }
+        }
+
+        private sealed class PreflightMatchmakingService : IMatchmakingService
+        {
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.FromResult(new QueueEntry("preflight-room", immediateResult: null));
+            }
+
+            public UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.FromException<MatchmakingResult>(new InvalidOperationException("Coordinator preflight service must not be used for wait."));
+            }
+
+            public UniTask LeaveAsync(CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
+            }
+        }
+
+        private sealed class ImmediatePairMatchmakingService : IMatchmakingService
+        {
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                var result = new MatchmakingResult("match-immediate", "opponent-1", isHost: false);
+                return UniTask.FromResult(new QueueEntry("match-immediate", result));
+            }
+
+            public UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.FromException<MatchmakingResult>(new InvalidOperationException("Immediate pair should not wait."));
+            }
+
+            public UniTask LeaveAsync(CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
             }
         }
     }

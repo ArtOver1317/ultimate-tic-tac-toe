@@ -1,5 +1,14 @@
-﻿namespace Runtime.GameModes.Wizard
+﻿using System.Collections.Generic;
+
+namespace Runtime.GameModes.Wizard
 {
-    /// <summary>Marker interface for mode-specific configuration.</summary>
-    public interface IGameConfig { }
+    /// <summary>
+    /// Mode-specific configuration used by Wizard and matchmaking.
+    /// Returned collection must contain deterministic key-value pairs in sorted key order.
+    /// All values needed for matchmaking must have explicit defaults (no implicit omitted fields).
+    /// </summary>
+    public interface IGameConfig
+    {
+        IReadOnlyList<KeyValuePair<string, string>> GetMatchmakingParams();
+    }
 }

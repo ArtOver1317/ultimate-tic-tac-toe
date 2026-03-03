@@ -35,6 +35,7 @@ namespace Runtime.GameModes.Wizard
         private readonly IGameWizardNavigator _navigator;
         private readonly Func<IGameSession> _sessionFactory;
         private readonly IOnlineSessionFlowService _onlineSessionFlow;
+        private readonly IMatchmakingService? _matchmakingService;
 
         private readonly ReactiveProperty<bool> _isTransitioning = new(false);
         private readonly ReactiveProperty<bool> _isSubmitting = new(false);
@@ -67,6 +68,7 @@ namespace Runtime.GameModes.Wizard
         private MatchmakingViewModel? _matchmakingViewModel;
         private CompositeDisposable? _matchmakingSubscriptions;
         private int _matchmakingCloseInProgress;
+        private int _matchmakingTerminalModalPendingAck;
 
         private int _isActiveFlag;
 
@@ -93,6 +95,7 @@ namespace Runtime.GameModes.Wizard
             if (PlayerLoopHelper.IsMainThread)
             {
                 _currentError.Value = null;
+                TryHandleMatchmakingTerminalModalAcknowledge();
                 return;
             }
 
@@ -117,11 +120,13 @@ namespace Runtime.GameModes.Wizard
         public GameWizardCoordinator(
             IGameWizardNavigator navigator,
             Func<IGameSession> sessionFactory,
-            IOnlineSessionFlowService? onlineSessionFlow = null)
+            IOnlineSessionFlowService? onlineSessionFlow = null,
+            IMatchmakingService? matchmakingService = null)
         {
             _navigator = navigator ?? throw new ArgumentNullException(nameof(navigator));
             _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
             _onlineSessionFlow = onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance;
+            _matchmakingService = matchmakingService;
         }
 
         public async UniTask StartWizardAsync(CancellationToken ct)

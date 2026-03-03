@@ -782,10 +782,18 @@ namespace Tests.EditMode.GameModes.Wizard
             public IReadOnlyList<string> SentPayloads => _sentPayloads;
 
             public double NetworkTimeSeconds => 0d;
+            public bool IsInSession => true;
+            public bool IsServerRole => true;
 
             public UniTask CreateHostSessionAsync(OnlineSessionConfig config) => UniTask.CompletedTask;
 
             public UniTask JoinSessionAsync(SessionId sessionId, string region, string currentUserId) => UniTask.CompletedTask;
+
+            public UniTask<PhotonTransportMatchmakingResult> JoinRandomOrCreateSessionAsync(MatchmakingRoomOptions options, CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.FromResult(new PhotonTransportMatchmakingResult("room", 1, null, isHost: true));
+            }
 
             public UniTask LeaveSessionAsync() => UniTask.CompletedTask;
 

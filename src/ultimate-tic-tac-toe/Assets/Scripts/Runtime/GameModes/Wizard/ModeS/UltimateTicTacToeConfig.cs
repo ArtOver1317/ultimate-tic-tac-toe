@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Runtime.GameModes.Wizard
 {
     /// <summary>
@@ -5,8 +7,13 @@ namespace Runtime.GameModes.Wizard
     /// </summary>
     public sealed class UltimateTicTacToeConfig : IGameConfig
     {
+        private static readonly IReadOnlyList<KeyValuePair<string, string>> MatchmakingParams =
+            System.Array.Empty<KeyValuePair<string, string>>();
+
         public static readonly UltimateTicTacToeConfig Instance = new();
 
         private UltimateTicTacToeConfig() { }
+
+        public IReadOnlyList<KeyValuePair<string, string>> GetMatchmakingParams() => MatchmakingParams;
     }
 }

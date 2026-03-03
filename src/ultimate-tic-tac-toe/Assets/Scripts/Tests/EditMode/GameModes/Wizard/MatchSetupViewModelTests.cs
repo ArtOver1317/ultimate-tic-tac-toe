@@ -2072,6 +2072,9 @@ namespace Tests.EditMode.GameModes.Wizard
         {
             public TestGameModeConfig(string value) => Value = value;
             public string Value { get; }
+
+            public System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string, string>> GetMatchmakingParams() =>
+                System.Array.Empty<System.Collections.Generic.KeyValuePair<string, string>>();
         }
     }
 }

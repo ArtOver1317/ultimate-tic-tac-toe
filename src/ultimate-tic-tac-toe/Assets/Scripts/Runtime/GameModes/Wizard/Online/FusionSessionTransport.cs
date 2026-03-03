@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using Fusion;
 using Fusion.Photon.Realtime;
@@ -29,6 +30,8 @@ namespace Runtime.GameModes.Wizard
 
         public event Action<PhotonTransportLifecycleEvent>? LifecycleEvent;
         public event Action<PhotonReliableDataEvent>? ReliableDataReceived;
+        public bool IsInSession => _runner != null && _runner.IsRunning;
+        public bool IsServerRole => _runner != null && _runner.IsServer;
 
         public double NetworkTimeSeconds
         {
@@ -138,6 +141,53 @@ namespace Runtime.GameModes.Wizard
             RaiseLifecycle("join_succeeded", sessionId.Value, currentUserId);
         }
 
+        public async UniTask<PhotonTransportMatchmakingResult> JoinRandomOrCreateSessionAsync(MatchmakingRoomOptions options, CancellationToken ct)
+        {
+            EnsureNotDisposed();
+
+            if (options == null)
+                throw new ArgumentNullException(nameof(options));
+
+            ct.ThrowIfCancellationRequested();
+
+            await UniTask.SwitchToMainThread(ct);
+
+            TryApplyFixedRegion(options.Region);
+
+            var runner = await EnsureRunnerReadyAsync();
+            var args = new StartGameArgs
+            {
+                GameMode = GameMode.AutoHostOrClient,
+                EnableClientSessionCreation = true,
+                PlayerCount = options.MaxPlayers,
+                SessionProperties = BuildSessionProperties(options),
+            };
+
+            var result = await runner.StartGame(args);
+            if (!result.Ok)
+            {
+                throw new PhotonSessionTransportException(
+                    MapShutdownReason(result.ShutdownReason.ToString()),
+                    $"JoinRandomOrCreate failed: {result.ShutdownReason}");
+            }
+
+            _lastSessionName = runner.SessionInfo.Name;
+            if (string.IsNullOrWhiteSpace(_lastSessionName))
+            {
+                throw new PhotonSessionTransportException(
+                    OnlineErrorCode.NetworkUnavailable,
+                    "JoinRandomOrCreate succeeded but session name is empty.");
+            }
+
+            _lastGameMode = runner.IsServer ? GameMode.Host : GameMode.Client;
+
+            var remotePlayer = GetRemotePlayerId(runner);
+            var playerCount = CountPlayers(runner);
+
+            RaiseLifecycle("matchmaking_entered", _lastSessionName, remotePlayer);
+            return new PhotonTransportMatchmakingResult(_lastSessionName, playerCount, remotePlayer, runner.IsServer);
+        }
+
         public async UniTask LeaveSessionAsync()
         {
             if (_isDisposed)
@@ -145,7 +195,9 @@ namespace Runtime.GameModes.Wizard
 
             await UniTask.SwitchToMainThread();
 
+            var sessionName = _lastSessionName;
             await DisposeRunnerAsync();
+            RaiseLifecycle("left_room", sessionName, null);
         }
 
         public async UniTask ReconnectAsync(string region, string currentUserId)
@@ -283,6 +335,37 @@ namespace Runtime.GameModes.Wizard
             return _runner;
         }
 
+        private static Dictionary<string, SessionProperty> BuildSessionProperties(MatchmakingRoomOptions options)
+        {
+            return new Dictionary<string, SessionProperty>
+            {
+                ["gameId"] = options.GameId,
+                ["ph"] = options.ParamsHash,
+            };
+        }
+
+        private static int CountPlayers(NetworkRunner runner)
+        {
+            var count = 0;
+            foreach (var _ in runner.ActivePlayers)
+                count++;
+
+            return count;
+        }
+
+        private static string? GetRemotePlayerId(NetworkRunner runner)
+        {
+            foreach (var player in runner.ActivePlayers)
+            {
+                if (player == runner.LocalPlayer)
+                    continue;
+
+                return player.ToString();
+            }
+
+            return null;
+        }
+
         private static void TryApplyFixedRegion(string region)
         {
             if (string.IsNullOrWhiteSpace(region))
@@ -406,23 +489,23 @@ namespace Runtime.GameModes.Wizard
             if (player == runner.LocalPlayer)
                 return;
 
-            RaiseLifecycle("peer_joined", null, player.ToString());
+            RaiseLifecycle("peer_joined", _lastSessionName, player.ToString());
         }
 
         void INetworkRunnerCallbacks.OnPlayerLeft(NetworkRunner runner, PlayerRef player) =>
-            RaiseLifecycle("peer_left", null, player.ToString());
+            RaiseLifecycle("peer_left", _lastSessionName, player.ToString());
 
         void INetworkRunnerCallbacks.OnConnectedToServer(NetworkRunner runner) =>
-            RaiseLifecycle("connected", null, null);
+            RaiseLifecycle("connected", _lastSessionName, null);
 
         void INetworkRunnerCallbacks.OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason) =>
-            RaiseLifecycle("disconnected", null, reason.ToString());
+            RaiseLifecycle("disconnected", _lastSessionName, reason.ToString());
 
         void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason) =>
-            RaiseLifecycle("shutdown", null, shutdownReason.ToString());
+            RaiseLifecycle("shutdown", _lastSessionName, shutdownReason.ToString());
 
         void INetworkRunnerCallbacks.OnConnectFailed(NetworkRunner runner, NetAddress remoteAddress, NetConnectFailedReason reason) =>
-            RaiseLifecycle("connect_failed", null, reason.ToString());
+            RaiseLifecycle("connect_failed", _lastSessionName, reason.ToString());
 
         void INetworkRunnerCallbacks.OnObjectEnterAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }
         void INetworkRunnerCallbacks.OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }

@@ -24,11 +24,23 @@ namespace Tests.EditMode.GameModes.Wizard
         {
             // Arrange
             // Act
-            var request = new MatchmakingRequest("classic", _config);
+            var request = new MatchmakingRequest("classic", _config, 30);
 
             // Assert
             request.GameId.Should().Be("classic");
             request.GameConfig.Should().BeSameAs(_config);
+            request.MoveTimeLimitSeconds.Should().Be(30);
+        }
+
+        [Test]
+        public void WhenConstructedWithNegativeMoveTimeLimit_ThenClampsMoveTimeLimitToZero()
+        {
+            // Arrange
+            // Act
+            var request = new MatchmakingRequest("classic", _config, -1);
+
+            // Assert
+            request.MoveTimeLimitSeconds.Should().Be(0);
         }
 
         [Test]

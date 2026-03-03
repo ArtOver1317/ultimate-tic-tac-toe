@@ -59,6 +59,7 @@ namespace Tests.EditMode.Gameplay
                     matchConfig: matchConfig);
 
             public OnlineGameplaySessionSnapshot Snapshot => _snapshot;
+            public void SetOnlineSession(string sessionId, string localUserId, bool isHost) => throw new NotSupportedException();
             public void SetDirectInviteSession(string sessionId, string localUserId, bool isHost) => throw new NotSupportedException();
             public void SetMatchConfig(OnlineMatchConfigPayload matchConfig) => throw new NotSupportedException();
             public void Clear() => _snapshot = OnlineGameplaySessionSnapshot.Empty();

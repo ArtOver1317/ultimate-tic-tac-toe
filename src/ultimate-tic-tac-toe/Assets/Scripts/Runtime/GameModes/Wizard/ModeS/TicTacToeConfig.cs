@@ -1,4 +1,7 @@
-﻿namespace Runtime.GameModes.Wizard
+﻿using System.Collections.Generic;
+using System.Globalization;
+
+namespace Runtime.GameModes.Wizard
 {
     /// <summary>
     /// Configuration for Tic-Tac-Toe game (both classic and ultimate variants).
@@ -16,5 +19,12 @@
             BoardSize = boardSize;
             IsUltimate = isUltimate;
         }
+
+        public IReadOnlyList<KeyValuePair<string, string>> GetMatchmakingParams() =>
+            new[]
+            {
+                new KeyValuePair<string, string>("boardSize", BoardSize.ToString(CultureInfo.InvariantCulture)),
+                new KeyValuePair<string, string>("isUltimate", IsUltimate ? "true" : "false"),
+            };
     }
 }

@@ -6,8 +6,13 @@ namespace Runtime.Infrastructure.Save.Backends
 {
     internal sealed class FileSaveBackend : ISaveBackend
     {
+#if UNITY_EDITOR
+        private const string SaveFileName = "save.editor.dat";
+        private const string TempFileName = "save.editor.tmp";
+#else
         private const string SaveFileName = "save.dat";
         private const string TempFileName = "save.tmp";
+#endif
 
         private readonly string _saveFilePath;
         private readonly string _tempFilePath;

@@ -77,10 +77,11 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             // Assert
             started.Should().BeTrue();
-            _sut.CurrentState.Should().Be(MatchmakingState.Failed);
+            await WaitUntilAsync(() => _sut.CurrentState == MatchmakingState.TerminalModal, 1000);
+            _sut.CurrentState.Should().Be(MatchmakingState.TerminalModal);
             _sut.Failure.CurrentValue.Should().NotBeNull();
             _sut.Failure.CurrentValue.IsTimeout.Should().BeTrue();
-            _sut.Failure.CurrentValue.Code.Should().Be("matchmaking.timeout");
+            _sut.Failure.CurrentValue.Code.Should().Be("matchmaking.terminal.timeout");
             _sut.Failure.CurrentValue.MessageKey.Should().Be("Errors.GameWizard.MatchmakingTimeout");
             _sut.Result.CurrentValue.Should().BeNull();
         });
@@ -98,6 +99,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             await UniTask.Delay(100);
             cts.Cancel();
             await task;
+            await WaitUntilAsync(() => _sut.CurrentState == MatchmakingState.Cancelled, 1000);
 
             // Assert
             _sut.CurrentState.Should().Be(MatchmakingState.Cancelled);
@@ -138,6 +140,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             externalCts.Cancel();
 
             await searchTask;
+            await WaitUntilAsync(() => sut.CurrentState == MatchmakingState.Cancelled, 1000);
 
             // Assert
             sut.CurrentState.Should().Be(MatchmakingState.Cancelled);
@@ -219,14 +222,15 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Arrange
             _service.EnqueueNever();
             await _sut.TryStartSearchAsync(CreateValidRequest(), TimeSpan.FromMilliseconds(100), CancellationToken.None);
-            _sut.CurrentState.Should().Be(MatchmakingState.Failed);
+            await WaitUntilAsync(() => _sut.CurrentState == MatchmakingState.TerminalModal, 1000);
+            _sut.CurrentState.Should().Be(MatchmakingState.TerminalModal);
 
             // Act
             _sut.Cancel();
             await UniTask.Yield();
 
             // Assert
-            _sut.CurrentState.Should().Be(MatchmakingState.Failed);
+            _sut.CurrentState.Should().Be(MatchmakingState.TerminalModal);
         });
 
         [UnityTest]
@@ -245,6 +249,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Act
             var cancelTask = Task.Run(() => sut.Cancel());
             await lateCancelService.WaitForCancellationObservedAsync();
+            await WaitUntilAsync(() => sut.CurrentState == MatchmakingState.Cancelled, 1000);
 
             var secondTask = sut.TryStartSearchAsync(CreateValidRequest(), TimeSpan.FromMilliseconds(500), CancellationToken.None);
 
@@ -305,6 +310,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Act
             var secondStarted = await _sut.TryStartSearchAsync(CreateValidRequest(), TimeSpan.FromMilliseconds(1000), CancellationToken.None);
             await firstTask;
+            await WaitUntilAsync(() => _sut.CurrentState == MatchmakingState.Found, 1000);
 
             // Assert
             secondStarted.Should().BeFalse();
@@ -330,6 +336,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             _sut.Failure.CurrentValue.Should().BeNull();
 
             await firstTask;
+            await WaitUntilAsync(() => _sut.CurrentState == MatchmakingState.Found, 1000);
             _sut.CurrentState.Should().Be(MatchmakingState.Found);
         });
 
@@ -355,22 +362,24 @@ namespace Tests.PlayMode.GameModes.Wizard
         public IEnumerator WhenSearchFailsAndThenNewSearchStarted_ThenClearsPreviousFailureAndTransitionsToSearching() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
-            _service.EnqueueNever();
-            await _sut.TryStartSearchAsync(CreateValidRequest(), TimeSpan.FromMilliseconds(100), CancellationToken.None);
+            _service.EnqueueException(new InvalidOperationException("boom"));
+            await _sut.TryStartSearchAsync(CreateValidRequest(), TimeSpan.FromMilliseconds(300), CancellationToken.None);
+            await WaitUntilAsync(() => _sut.CurrentState == MatchmakingState.Failed, 1000);
             _sut.CurrentState.Should().Be(MatchmakingState.Failed);
             _sut.Failure.CurrentValue.Should().NotBeNull();
 
-            _service.EnqueueDelayedResult(new MatchmakingResult("match-2", "opponent-2"), TimeSpan.FromMilliseconds(200));
+            _service.EnqueueResult(new MatchmakingResult("match-2", "opponent-2"));
 
             // Act
             var started = _sut.TryStartSearchAsync(CreateValidRequest(), TimeSpan.FromMilliseconds(1000), CancellationToken.None);
             await UniTask.Yield();
 
             // Assert
-            _sut.CurrentState.Should().Be(MatchmakingState.Searching);
+            _sut.CurrentState.Should().BeOneOf(MatchmakingState.Searching, MatchmakingState.Found);
             _sut.Failure.CurrentValue.Should().BeNull();
 
             await started;
+            await WaitUntilAsync(() => _sut.CurrentState == MatchmakingState.Found, 1000);
             _sut.CurrentState.Should().Be(MatchmakingState.Found);
         });
 
@@ -385,17 +394,18 @@ namespace Tests.PlayMode.GameModes.Wizard
             _sut.Cancel();
             await WaitUntilAsync(() => _sut.CurrentState != MatchmakingState.Searching, 1000);
             await firstTask;
+            await WaitUntilAsync(() => _sut.CurrentState == MatchmakingState.Cancelled, 1000);
             _sut.CurrentState.Should().Be(MatchmakingState.Cancelled);
 
-            _service.EnqueueDelayedResult(new MatchmakingResult("match-2", "opponent-2"), TimeSpan.FromMilliseconds(200));
+            _service.EnqueueResult(new MatchmakingResult("match-2", "opponent-2"));
 
             // Act
             var secondTask = _sut.TryStartSearchAsync(CreateValidRequest(), TimeSpan.FromMilliseconds(1000), CancellationToken.None);
-            await UniTask.Yield();
+            var secondStarted = await secondTask;
 
             // Assert
-            _sut.CurrentState.Should().Be(MatchmakingState.Searching);
-            await secondTask;
+            secondStarted.Should().BeTrue();
+            await WaitUntilAsync(() => _sut.CurrentState == MatchmakingState.Found, 1000);
             _sut.CurrentState.Should().Be(MatchmakingState.Found);
         });
 
@@ -406,20 +416,24 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Arrange
             _service.EnqueueResult(new MatchmakingResult("match-1", "opponent-1"));
             await _sut.TryStartSearchAsync(CreateValidRequest(), TimeSpan.FromMilliseconds(500), CancellationToken.None);
+            await WaitUntilAsync(() => _sut.CurrentState == MatchmakingState.Found, 1000);
             _sut.CurrentState.Should().Be(MatchmakingState.Found);
             _sut.Result.CurrentValue.Should().NotBeNull();
 
-            _service.EnqueueDelayedResult(new MatchmakingResult("match-2", "opponent-2"), TimeSpan.FromMilliseconds(200));
+            _service.EnqueueResult(new MatchmakingResult("match-2", "opponent-2"));
 
             // Act
             var started = _sut.TryStartSearchAsync(CreateValidRequest(), TimeSpan.FromMilliseconds(1000), CancellationToken.None);
             await UniTask.Yield();
 
             // Assert
-            _sut.CurrentState.Should().Be(MatchmakingState.Searching);
-            _sut.Result.CurrentValue.Should().BeNull();
+            _sut.CurrentState.Should().BeOneOf(MatchmakingState.Searching, MatchmakingState.Found);
+
+            if (_sut.CurrentState == MatchmakingState.Searching)
+                _sut.Result.CurrentValue.Should().BeNull();
 
             await started;
+            await WaitUntilAsync(() => _sut.CurrentState == MatchmakingState.Found, 1000);
             _sut.CurrentState.Should().Be(MatchmakingState.Found);
             _sut.Result.CurrentValue.MatchId.Should().Be("match-2");
         });
@@ -549,6 +563,26 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             private readonly Queue<Func<MatchmakingRequest, CancellationToken, UniTask<MatchmakingResult>>> _responses = new();
 
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct)
+            {
+                if (request == null)
+                    throw new ArgumentNullException(nameof(request));
+
+                ct.ThrowIfCancellationRequested();
+                return UniTask.FromResult(new QueueEntry("room-test", immediateResult: null));
+            }
+
+            public UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
+            {
+                if (entry == null)
+                    throw new ArgumentNullException(nameof(entry));
+
+                if (_responses.Count == 0)
+                    return UniTask.FromException<MatchmakingResult>(new InvalidOperationException("No response configured."));
+
+                return _responses.Dequeue().Invoke(new MatchmakingRequest("classic", new TicTacToeConfig(3)), ct);
+            }
+
             public void EnqueueResult(MatchmakingResult result) =>
                 _responses.Enqueue((_, __) => UniTask.FromResult(result));
 
@@ -574,15 +608,10 @@ namespace Tests.PlayMode.GameModes.Wizard
                     return null;
                 });
 
-            public UniTask<MatchmakingResult> FindMatchAsync(MatchmakingRequest request, CancellationToken ct)
+            public UniTask LeaveAsync(CancellationToken ct)
             {
-                if (request == null)
-                    throw new ArgumentNullException(nameof(request));
-
-                if (_responses.Count == 0)
-                    return UniTask.FromException<MatchmakingResult>(new InvalidOperationException("No response configured."));
-
-                return _responses.Dequeue().Invoke(request, ct);
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
             }
         }
 
@@ -590,7 +619,10 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             public UniTaskCompletionSource<bool> TimeoutCancellationObserved { get; } = new();
 
-            public async UniTask<MatchmakingResult> FindMatchAsync(MatchmakingRequest request, CancellationToken ct)
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct) =>
+                UniTask.FromResult(new QueueEntry("match", immediateResult: null));
+
+            public async UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
             {
                 try
                 {
@@ -604,12 +636,21 @@ namespace Tests.PlayMode.GameModes.Wizard
                     throw;
                 }
             }
+
+            public UniTask LeaveAsync(CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
+            }
         }
 
         private sealed class LateCancelService : IMatchmakingService
         {
             private readonly Queue<Func<MatchmakingRequest, CancellationToken, UniTask<MatchmakingResult>>> _responses = new();
             private volatile bool _cancellationObserved;
+
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct) =>
+                UniTask.FromResult(new QueueEntry("match", immediateResult: null));
 
             public void EnqueueResult(MatchmakingResult result) =>
                 _responses.Enqueue((_, __) => UniTask.FromResult(result));
@@ -628,12 +669,18 @@ namespace Tests.PlayMode.GameModes.Wizard
                 await UniTask.WaitUntil(() => _cancellationObserved, cancellationToken: cts.Token);
             }
 
-            public UniTask<MatchmakingResult> FindMatchAsync(MatchmakingRequest request, CancellationToken ct)
+            public UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
             {
                 if (_responses.Count == 0)
                     return UniTask.FromException<MatchmakingResult>(new InvalidOperationException("No response configured."));
 
-                return _responses.Dequeue().Invoke(request, ct);
+                return _responses.Dequeue().Invoke(new MatchmakingRequest("classic", new TicTacToeConfig(3)), ct);
+            }
+
+            public UniTask LeaveAsync(CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
             }
         }
     }

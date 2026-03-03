@@ -83,6 +83,7 @@ namespace Runtime.GameModes.Wizard
     public interface IOnlineGameplaySessionContextStore
     {
         OnlineGameplaySessionSnapshot Snapshot { get; }
+        void SetOnlineSession(string sessionId, string localUserId, bool isHost);
         void SetDirectInviteSession(string sessionId, string localUserId, bool isHost);
         void SetMatchConfig(OnlineMatchConfigPayload matchConfig);
         void Clear();
@@ -115,6 +116,25 @@ namespace Runtime.GameModes.Wizard
                 _snapshot = new OnlineGameplaySessionSnapshot(
                     isOnlineDirectInvite: true,
                     sessionId: canonicalSessionId,
+                    localUserId: localUserId,
+                    isHost: isHost,
+                    matchConfig: null);
+            }
+        }
+
+        public void SetOnlineSession(string sessionId, string localUserId, bool isHost)
+        {
+            if (string.IsNullOrWhiteSpace(sessionId))
+                throw new ArgumentException("Value cannot be null or whitespace.", nameof(sessionId));
+
+            if (string.IsNullOrWhiteSpace(localUserId))
+                throw new ArgumentException("Value cannot be null or whitespace.", nameof(localUserId));
+
+            lock (_gate)
+            {
+                _snapshot = new OnlineGameplaySessionSnapshot(
+                    isOnlineDirectInvite: true,
+                    sessionId: sessionId,
                     localUserId: localUserId,
                     isHost: isHost,
                     matchConfig: null);

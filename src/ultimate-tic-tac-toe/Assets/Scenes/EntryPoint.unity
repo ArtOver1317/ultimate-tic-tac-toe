@@ -291,6 +291,7 @@ MonoBehaviour:
   autoInjectGameObjects: []
   _assetLibrary: {fileID: 11400000, guid: 2aa4fbeaf29886f43b1376b04fbdb2f8, type: 2}
   _moveTimerPresetsConfig: {fileID: 11400000, guid: ff266d0bfbe03ec44a98f7db9ebed386, type: 2}
+  _matchmakingConfigAsset: {fileID: 11400000, guid: 48f9f7b377b81324e9f12bc009994cb5, type: 2}
 --- !u!4 &2010739097
 Transform:
   m_ObjectHideFlags: 0

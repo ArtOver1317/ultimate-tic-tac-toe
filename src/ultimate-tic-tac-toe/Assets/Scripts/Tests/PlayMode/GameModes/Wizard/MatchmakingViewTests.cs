@@ -450,6 +450,26 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             private readonly Queue<Func<MatchmakingRequest, CancellationToken, UniTask<MatchmakingResult>>> _responses = new();
 
+            public UniTask<QueueEntry> EnterQueueAsync(MatchmakingRequest request, CancellationToken ct)
+            {
+                if (request == null)
+                    throw new ArgumentNullException(nameof(request));
+
+                ct.ThrowIfCancellationRequested();
+                return UniTask.FromResult(new QueueEntry("room-test", immediateResult: null));
+            }
+
+            public UniTask<MatchmakingResult> WaitForMatchAsync(QueueEntry entry, CancellationToken ct)
+            {
+                if (entry == null)
+                    throw new ArgumentNullException(nameof(entry));
+
+                if (_responses.Count == 0)
+                    return UniTask.FromException<MatchmakingResult>(new InvalidOperationException("No response configured."));
+
+                return _responses.Dequeue().Invoke(new MatchmakingRequest("classic", new TicTacToeConfig(3)), ct);
+            }
+
             public void EnqueueResult(MatchmakingResult result) =>
                 _responses.Enqueue((_, __) => UniTask.FromResult(result));
 
@@ -474,15 +494,10 @@ namespace Tests.PlayMode.GameModes.Wizard
                     throw exception;
                 });
 
-            public UniTask<MatchmakingResult> FindMatchAsync(MatchmakingRequest request, CancellationToken ct)
+            public UniTask LeaveAsync(CancellationToken ct)
             {
-                if (request == null)
-                    throw new ArgumentNullException(nameof(request));
-
-                if (_responses.Count == 0)
-                    return UniTask.FromException<MatchmakingResult>(new InvalidOperationException("No response configured."));
-
-                return _responses.Dequeue().Invoke(request, ct);
+                ct.ThrowIfCancellationRequested();
+                return UniTask.CompletedTask;
             }
         }
 

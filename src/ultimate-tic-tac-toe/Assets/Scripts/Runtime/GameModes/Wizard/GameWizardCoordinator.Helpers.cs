@@ -82,6 +82,13 @@ namespace Runtime.GameModes.Wizard
             if (!succeeded)
             {
                 SetIsSubmitting(false);
+
+                if (_step == WizardStep.Matchmaking || _matchmakingViewModel != null)
+                {
+                    _matchmakingViewModel?.NotifySessionStartFailed();
+                    return;
+                }
+
                 TrySetCurrentError(error ?? WizardError.FromException(new InvalidOperationException("Start failed.")));
                 return;
             }
@@ -374,6 +381,7 @@ namespace Runtime.GameModes.Wizard
             Interlocked.Exchange(ref _pendingError, null);
 
             _currentError.Value = null;
+            TryHandleMatchmakingTerminalModalAcknowledge();
         }
 
         private static async UniTask<bool> TrySwitchToMainThreadWithTimeoutAsync(TimeSpan timeout)

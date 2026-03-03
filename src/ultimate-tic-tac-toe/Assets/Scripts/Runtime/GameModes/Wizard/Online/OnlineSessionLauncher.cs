@@ -165,6 +165,28 @@ namespace Runtime.GameModes.Wizard
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
 
+            if (config.OpponentConfig is MatchmakingConfig matchmaking)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                if (!_transport.IsInSession)
+                {
+                    _sessionContextStore.Clear();
+                    ClearPendingPayloadBuffers();
+                    TrackDiagnostic("prepare_matchmaking_no_active_session", errorCode: OnlineErrorCode.NetworkUnavailable);
+                    return OnlineLaunchPreparationResult.Failed(ToWizardError(OnlineErrorCode.NetworkUnavailable));
+                }
+
+                _sessionContextStore.SetOnlineSession(matchmaking.MatchId, _localUserId, matchmaking.IsHost);
+
+                if (OnlineMatchConfigPayload.TryFromLaunchConfig(config, out var payload))
+                    _sessionContextStore.SetMatchConfig(payload);
+
+                _ = TrySendLocalPlayerNameAsync(isHost: matchmaking.IsHost);
+                TrackDiagnostic("prepare_matchmaking_completed", reason: matchmaking.MatchId);
+                return OnlineLaunchPreparationResult.Success();
+            }
+
             if (config.OpponentConfig is not DirectInviteConfig directInvite)
             {
                 _sessionContextStore.Clear();

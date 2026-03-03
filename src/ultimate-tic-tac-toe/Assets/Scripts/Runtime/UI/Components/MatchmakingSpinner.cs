@@ -9,6 +9,7 @@ namespace Runtime.UI.Components
     {
         private const float _rotationStep = 18f;
 
+        private readonly Label _glyph;
         private IVisualElementScheduledItem? _schedule;
         private float _angle;
         private bool _isRunning;
@@ -16,6 +17,9 @@ namespace Runtime.UI.Components
         public MatchmakingSpinner()
         {
             AddToClassList("matchmaking-spinner");
+            _glyph = new Label("!");
+            _glyph.AddToClassList("matchmaking-spinner__glyph");
+            Add(_glyph);
             _angle = 0f;
             style.rotate = new Rotate(new Angle(_angle, AngleUnit.Degree));
         }

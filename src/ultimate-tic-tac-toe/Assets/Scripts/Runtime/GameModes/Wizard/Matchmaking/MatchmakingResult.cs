@@ -11,8 +11,14 @@ namespace Runtime.GameModes.Wizard
     {
         public string MatchId { get; }
         public string OpponentId { get; }
+        public bool IsHost { get; }
 
         public MatchmakingResult(string matchId, string opponentId)
+            : this(matchId, opponentId, isHost: false)
+        {
+        }
+
+        public MatchmakingResult(string matchId, string opponentId, bool isHost)
         {
             if (string.IsNullOrWhiteSpace(matchId))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(matchId));
@@ -22,6 +28,7 @@ namespace Runtime.GameModes.Wizard
 
             MatchId = matchId;
             OpponentId = opponentId;
+            IsHost = isHost;
         }
     }
 }

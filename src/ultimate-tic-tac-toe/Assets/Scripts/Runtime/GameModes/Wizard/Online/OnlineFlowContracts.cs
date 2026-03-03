@@ -178,8 +178,9 @@ namespace Runtime.GameModes.Wizard
         public string Kind { get; }
         public string? SessionId { get; }
         public string? UserId { get; }
+        public int Sequence { get; }
 
-        public GatewayLifecycleEvent(string kind, string? sessionId, string? userId)
+        public GatewayLifecycleEvent(string kind, string? sessionId, string? userId, int sequence = 0)
         {
             if (string.IsNullOrWhiteSpace(kind))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(kind));
@@ -187,6 +188,7 @@ namespace Runtime.GameModes.Wizard
             Kind = kind;
             SessionId = sessionId;
             UserId = userId;
+            Sequence = sequence;
         }
     }
 
