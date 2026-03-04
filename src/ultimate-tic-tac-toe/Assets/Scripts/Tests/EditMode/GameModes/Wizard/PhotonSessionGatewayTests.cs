@@ -130,6 +130,76 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public async Task WhenJoinRandomOrCreateThrows_ThenGatewayWrapsIntoPhotonSessionTransportException()
+        {
+            // Arrange
+            var transport = new FakeTransport
+            {
+                JoinRandomOrCreateException = new InvalidOperationException("boom"),
+            };
+            var sut = new PhotonSessionGateway(transport);
+            var options = new MatchmakingRoomOptions("eu", "classic", "HASH1234", 2);
+
+            // Act
+            Func<Task> act = async () => await sut.JoinRandomOrCreateAsync(options, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<PhotonSessionTransportException>();
+        }
+
+        [Test]
+        public async Task WhenLeaveAsyncCalled_AndNotInSessionAndNoDisconnectEvent_ThenReturnsNoOp()
+        {
+            // Arrange
+            var transport = new FakeTransport { IsInSession = false };
+            var sut = new PhotonSessionGateway(transport);
+
+            // Act
+            Func<Task> act = async () => await sut.LeaveAsync(CancellationToken.None);
+
+            // Assert
+            await act.Should().NotThrowAsync();
+        }
+
+        [Test]
+        public async Task WhenLeaveAsyncCalled_AndLeftRoomEventArrives_ThenCompletesSuccessfully()
+        {
+            // Arrange
+            var transport = new FakeTransport { IsInSession = true };
+            transport.LeaveSession = () =>
+            {
+                transport.IsInSession = false;
+                transport.Raise(new PhotonTransportLifecycleEvent("left_room", "room-1", null));
+                return UniTask.CompletedTask;
+            };
+            var sut = new PhotonSessionGateway(transport);
+
+            // Act
+            Func<Task> act = async () => await sut.LeaveAsync(CancellationToken.None);
+
+            // Assert
+            await act.Should().NotThrowAsync();
+        }
+
+        [Test]
+        public async Task WhenLeaveAsyncCalled_AndTransportLeaveThrowsUnexpectedException_ThenThrowsConnectionLostException()
+        {
+            // Arrange
+            var transport = new FakeTransport
+            {
+                IsInSession = true,
+                LeaveSession = () => UniTask.FromException(new InvalidOperationException("leave failed")),
+            };
+            var sut = new PhotonSessionGateway(transport);
+
+            // Act
+            Func<Task> act = async () => await sut.LeaveAsync(CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<ConnectionLostException>();
+        }
+
+        [Test]
         public async Task WhenLifecycleHistoryExceedsCapacity_ThenGetLifecycleEventsSinceReturnsOrderedTail()
         {
             // Arrange
@@ -158,10 +228,13 @@ namespace Tests.EditMode.GameModes.Wizard
             public event Action<PhotonReliableDataEvent>? ReliableDataReceived;
 
             public Exception? JoinException { get; set; }
+            public Exception? JoinRandomOrCreateException { get; set; }
             public double NetworkTimeSecondsValue { get; set; }
             public bool IsInSession { get; set; }
             public bool IsServerRole { get; set; }
             public Func<UniTask>? LeaveSession { get; set; }
+            public PhotonTransportMatchmakingResult JoinRandomOrCreateResult { get; set; } =
+                new("room", 1, null, isHost: true);
 
             public double NetworkTimeSeconds => NetworkTimeSecondsValue;
 
@@ -178,7 +251,11 @@ namespace Tests.EditMode.GameModes.Wizard
             public UniTask<PhotonTransportMatchmakingResult> JoinRandomOrCreateSessionAsync(MatchmakingRoomOptions options, CancellationToken ct)
             {
                 ct.ThrowIfCancellationRequested();
-                return UniTask.FromResult(new PhotonTransportMatchmakingResult("room", 1, null, isHost: true));
+
+                if (JoinRandomOrCreateException != null)
+                    throw JoinRandomOrCreateException;
+
+                return UniTask.FromResult(JoinRandomOrCreateResult);
             }
 
             public UniTask LeaveSessionAsync()
