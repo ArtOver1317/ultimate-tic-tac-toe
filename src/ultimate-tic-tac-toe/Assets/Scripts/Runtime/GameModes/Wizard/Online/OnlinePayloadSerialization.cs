@@ -15,7 +15,8 @@ namespace Runtime.GameModes.Wizard
                 payload.GameId.Replace("|", string.Empty), "|",
                 payload.BoardSize.ToString(CultureInfo.InvariantCulture), "|",
                 payload.IsUltimate ? "1" : "0", "|",
-                payload.MoveTimeLimitSeconds.ToString(CultureInfo.InvariantCulture));
+                payload.MoveTimeLimitSeconds.ToString(CultureInfo.InvariantCulture), "|",
+                payload.PlacementTimeLimitSeconds.ToString(CultureInfo.InvariantCulture));
 
             return Encoding.UTF8.GetBytes(line);
         }
@@ -29,7 +30,7 @@ namespace Runtime.GameModes.Wizard
                 return false;
 
             var parts = line.Split('|');
-            if ((parts.Length != 4 && parts.Length != 5) || parts[0] != "C")
+            if ((parts.Length != 4 && parts.Length != 5 && parts.Length != 6) || parts[0] != "C")
                 return false;
 
             var gameId = parts[1];
@@ -41,13 +42,23 @@ namespace Runtime.GameModes.Wizard
 
             var isUltimate = parts[3] == "1";
             var moveTimeLimitSeconds = 0;
+            var placementTimeLimitSeconds = 0;
             if (parts.Length == 5)
             {
                 if (!int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out moveTimeLimitSeconds) || moveTimeLimitSeconds < 0)
                     return false;
             }
 
-            payload = new OnlineMatchConfigPayload(gameId, boardSize, isUltimate, moveTimeLimitSeconds);
+            if (parts.Length == 6)
+            {
+                if (!int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out moveTimeLimitSeconds) || moveTimeLimitSeconds < 0)
+                    return false;
+
+                if (!int.TryParse(parts[5], NumberStyles.Integer, CultureInfo.InvariantCulture, out placementTimeLimitSeconds) || placementTimeLimitSeconds < 0)
+                    return false;
+            }
+
+            payload = new OnlineMatchConfigPayload(gameId, boardSize, isUltimate, moveTimeLimitSeconds, placementTimeLimitSeconds);
             return true;
         }
 

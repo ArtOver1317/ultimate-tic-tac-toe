@@ -12,12 +12,14 @@ namespace Runtime.GameModes.Wizard
         public IGameConfig GameConfig { get; }
         public IOpponentConfig OpponentConfig { get; }
         public int MoveTimeLimitSeconds { get; }
+        public int? StartingPlayerSlotOverride { get; }
 
         public GameLaunchConfig(
             string gameId,
             IGameConfig gameConfig,
             IOpponentConfig opponentConfig,
-            int moveTimeLimitSeconds = 0)
+            int moveTimeLimitSeconds = 0,
+            int? startingPlayerSlotOverride = null)
         {
             if (string.IsNullOrWhiteSpace(gameId))
                 throw new System.ArgumentException("Value cannot be null or whitespace.", nameof(gameId));
@@ -27,6 +29,7 @@ namespace Runtime.GameModes.Wizard
 
             GameId = gameId;
             MoveTimeLimitSeconds = NormalizeMoveTimeLimitSeconds(moveTimeLimitSeconds);
+            StartingPlayerSlotOverride = startingPlayerSlotOverride;
         }
 
         private static int NormalizeMoveTimeLimitSeconds(int moveTimeLimitSeconds)

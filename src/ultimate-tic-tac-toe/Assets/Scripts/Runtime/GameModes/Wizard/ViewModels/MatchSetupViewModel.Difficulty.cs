@@ -113,6 +113,7 @@ namespace Runtime.GameModes.Wizard
             if (difficulties == null || difficulties.Count == 0)
             {
                 _difficultyItems.Value = Array.Empty<DifficultyChipItem>();
+                UpdateBotSettingsVisibility();
                 return;
             }
 
@@ -137,6 +138,7 @@ namespace Runtime.GameModes.Wizard
 
             _difficultyLocalizationSubscriptions = disposables;
             RequestDifficultyItemsRebuild();
+            UpdateBotSettingsVisibility();
         }
 
         private void SetDifficultyLabelSafe(string difficultyId, string? text)

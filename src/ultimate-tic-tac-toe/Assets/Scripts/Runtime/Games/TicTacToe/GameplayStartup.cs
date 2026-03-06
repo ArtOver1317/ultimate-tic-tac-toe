@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Games.Battleship;
 using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.ECS;
@@ -30,6 +32,8 @@ namespace Runtime.Games.TicTacToe
     public sealed class GameplayStartup : IGameplayStartup, IDisposable
     {
         private static readonly TimeSpan RestartEpochWaitTimeout = TimeSpan.FromSeconds(1);
+        private static readonly object BattleshipSeriesScoresGate = new();
+        private static readonly Dictionary<string, SeriesScore> BattleshipSeriesScores = new(StringComparer.Ordinal);
 
         private readonly IGameLaunchConfigStore _configStore;
         private readonly IGameService _gameService;
@@ -39,6 +43,7 @@ namespace Runtime.Games.TicTacToe
         private readonly IGameplayEventStream _eventStream;
         private readonly IGameplayCommandSink _commandSink;
         private readonly GameplayMovesBinder _movesBinder;
+        private readonly BattleshipBoardsBinder _battleshipBoardsBinder;
         private readonly MoveTimerHudBinder _moveTimerHudBinder;
         private readonly WinLineRenderer _winLineRenderer;
         private readonly ISeriesService _seriesService;
@@ -46,18 +51,27 @@ namespace Runtime.Games.TicTacToe
         private readonly IGameplayBackHandler _backHandler;
         private readonly IGameStateMachine _stateMachine;
         private readonly IBotTurnDriver _botDriver;
+        private readonly IBattleshipBotDriver _battleshipBotDriver;
         private readonly IBotTurnOrchestrator _ultimateBotOrchestrator;
         private readonly IMatchFailSafeGateway _matchFailSafeGateway;
         private readonly IUltimateGameplaySnapshotProvider _ultimateSnapshotProvider;
         private readonly IGameplayNetworkBridge _networkBridge;
+        private readonly IBattleshipNetworkBridge _battleshipNetworkBridge;
         private readonly IOnlineGameplaySessionContextStore _onlineSessionContextStore;
         private readonly IOnlineSessionFlowService _onlineSessionFlow;
         private readonly IOnlineSessionLauncher _onlineSessionLauncher;
         private readonly IOnlinePlayerNamesStore _onlinePlayerNamesStore;
         private readonly IMatchStateProvider _matchStateProvider;
         private readonly IMoveTimerService _moveTimerService;
+        private readonly IBattleshipPlacementTimerService _battleshipPlacementTimerService;
         private readonly ILocalizationService _localization;
         private readonly PlayerStatisticsMatchReporter _statisticsReporter;
+        private readonly IBattleshipPlacementUiController _battleshipPlacementUiController;
+        private readonly BattleshipPlacementTimerHudBinder _battleshipPlacementTimerHudBinder;
+        private readonly IBattleshipGameplaySnapshotProvider _battleshipSnapshotProvider;
+        private readonly IBattleshipGameplayEventStream _battleshipEventStream;
+        private readonly IBattleshipLayoutSerializer _battleshipLayoutSerializer;
+        private readonly IBattleshipRecoveryStateApplier _battleshipRecoveryStateApplier;
         private readonly HostAuthoritativeMoveProcessor _hostMoveProcessor = new();
         private readonly OnlineRoundCoordinator _onlineRoundCoordinator = new();
         private readonly MiniBoardStatus[] _ultimateMiniBoardBuffer = new MiniBoardStatus[9];
@@ -69,6 +83,7 @@ namespace Runtime.Games.TicTacToe
         private CompositeDisposable _subscriptions;
         private bool _restartInProgress;
         private bool _classicBotStarted;
+        private bool _battleshipBotStarted;
         private bool _ultimateBotStarted;
         private bool _isOnlineDirectInvite;
         private bool _onlineIsHost;
@@ -77,9 +92,14 @@ namespace Runtime.Games.TicTacToe
         private bool _onlineTerminalResultShown;
         private bool _useHostAuthoritativeFilter;
         private bool _onlinePlayerNamesStoreBound;
+        private bool _isBattleshipMatch;
+        private int _battleshipCurrentStartingSlot = -1;
+        private bool _battleshipRecoveryHeartbeatStarted;
         private int _exitToMenuRequested;
+        private GameLaunchConfig _activeLaunchConfig;
         private string? _onlineLocalUserId;
         private string? _onlineRemoteUserId;
+        private long _onlineAcceptedShotSequence;
         private bool _disposed;
 
         public GameplayStartup(
@@ -100,6 +120,7 @@ namespace Runtime.Games.TicTacToe
             IMatchFailSafeGateway matchFailSafeGateway,
             IUltimateGameplaySnapshotProvider ultimateSnapshotProvider = null,
             IGameplayNetworkBridge networkBridge = null,
+            IBattleshipNetworkBridge battleshipNetworkBridge = null,
             IOnlineGameplaySessionContextStore onlineSessionContextStore = null,
             IMatchStateProvider matchStateProvider = null,
             IOnlineSessionFlowService onlineSessionFlow = null,
@@ -107,9 +128,18 @@ namespace Runtime.Games.TicTacToe
             IOnlinePlayerNamesStore onlinePlayerNamesStore = null,
             ILocalizationService localization = null,
             IMoveTimerService moveTimerService = null,
+            IBattleshipPlacementTimerService battleshipPlacementTimerService = null,
             MoveTimerHudBinder moveTimerHudBinder = null,
+            BattleshipPlacementTimerHudBinder battleshipPlacementTimerHudBinder = null,
+            IBattleshipGameplaySnapshotProvider battleshipSnapshotProvider = null,
+            IBattleshipGameplayEventStream battleshipEventStream = null,
+            IBattleshipLayoutSerializer battleshipLayoutSerializer = null,
+            IBattleshipRecoveryStateApplier battleshipRecoveryStateApplier = null,
             IMatchPlayerNames matchPlayerNames = null,
-            PlayerStatisticsMatchReporter statisticsReporter = null)
+            PlayerStatisticsMatchReporter statisticsReporter = null,
+            IBattleshipBotDriver battleshipBotDriver = null,
+            IBattleshipPlacementUiController battleshipPlacementUiController = null,
+            BattleshipBoardsBinder battleshipBoardsBinder = null)
         {
             _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));
             _gameService = gameService ?? throw new ArgumentNullException(nameof(gameService));
@@ -119,6 +149,7 @@ namespace Runtime.Games.TicTacToe
             _eventStream = eventStream ?? throw new ArgumentNullException(nameof(eventStream));
             _commandSink = commandSink ?? throw new ArgumentNullException(nameof(commandSink));
             _movesBinder = movesBinder ?? throw new ArgumentNullException(nameof(movesBinder));
+            _battleshipBoardsBinder = battleshipBoardsBinder;
             _moveTimerHudBinder = moveTimerHudBinder;
             _winLineRenderer = winLineRenderer ?? throw new ArgumentNullException(nameof(winLineRenderer));
             _seriesService = seriesService ?? throw new ArgumentNullException(nameof(seriesService));
@@ -126,10 +157,12 @@ namespace Runtime.Games.TicTacToe
             _backHandler = backHandler ?? throw new ArgumentNullException(nameof(backHandler));
             _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             _botDriver = botDriver ?? throw new ArgumentNullException(nameof(botDriver));
+            _battleshipBotDriver = battleshipBotDriver;
             _ultimateBotOrchestrator = ultimateBotOrchestrator ?? throw new ArgumentNullException(nameof(ultimateBotOrchestrator));
             _matchFailSafeGateway = matchFailSafeGateway ?? throw new ArgumentNullException(nameof(matchFailSafeGateway));
             _ultimateSnapshotProvider = ultimateSnapshotProvider;
             _networkBridge = networkBridge ?? new NoOpGameplayNetworkBridge();
+            _battleshipNetworkBridge = battleshipNetworkBridge ?? NoOpBattleshipNetworkBridge.Instance;
             _onlineSessionContextStore = onlineSessionContextStore ?? new OnlineGameplaySessionContextStore();
             _matchStateProvider = matchStateProvider ?? commandSink as IMatchStateProvider;
             _onlineSessionFlow = onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance;
@@ -137,7 +170,14 @@ namespace Runtime.Games.TicTacToe
             _onlinePlayerNamesStore = onlinePlayerNamesStore;
             _localization = localization;
             _moveTimerService = moveTimerService ?? NoOpMoveTimerService.Instance;
+            _battleshipPlacementTimerService = battleshipPlacementTimerService ?? NoOpBattleshipPlacementTimerService.Instance;
+            _battleshipPlacementTimerHudBinder = battleshipPlacementTimerHudBinder;
+            _battleshipSnapshotProvider = battleshipSnapshotProvider ?? _matchStateProvider as IBattleshipGameplaySnapshotProvider;
+            _battleshipEventStream = battleshipEventStream ?? _matchStateProvider as IBattleshipGameplayEventStream;
+            _battleshipLayoutSerializer = battleshipLayoutSerializer ?? new BattleshipLayoutSerializer();
+            _battleshipRecoveryStateApplier = battleshipRecoveryStateApplier ?? _matchStateProvider as IBattleshipRecoveryStateApplier;
             _statisticsReporter = statisticsReporter;
+            _battleshipPlacementUiController = battleshipPlacementUiController;
         }
 
         public async UniTask StartAsync(CancellationToken ct)
@@ -157,22 +197,36 @@ namespace Runtime.Games.TicTacToe
             }
 
             config = ApplyOnlineMatchConfigOverrideIfNeeded(config);
+            _activeLaunchConfig = config;
+            _isBattleshipMatch = string.Equals(config.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal);
+            _battleshipCurrentStartingSlot = config.StartingPlayerSlotOverride ?? -1;
 
             IGameplaySession session = null;
             try
             {
                 session = await _gameService.StartMatchAsync(config, ct);
-                await _fieldPresenter.BindAsync(session.FieldRenderSpec, ct);
+                await _fieldPresenter.BindAsync(session.FieldRenderSpec, ct, config.GameId);
                 BindOnlinePlayerNamesStoreIfNeeded();
 
                 _fieldSpec = session.FieldRenderSpec;
                 _seriesService.StartSeries();
+                RestoreBattleshipSessionScoreIfNeeded(config);
 
                 _ecsLifecycle.StartMatch(config);
                 var activePlayerSlot = _matchStateProvider?.ActivePlayerSlot ?? 0;
-                _moveTimerService.StartOrResetForPlayer(activePlayerSlot);
+                if (_isBattleshipMatch)
+                    _battleshipPlacementTimerService.SyncFromSnapshot();
+                else
+                    _moveTimerService.StartOrResetForPlayer(activePlayerSlot);
                 _movesBinder.Bind();
-                _moveTimerHudBinder?.Bind();
+                if (_isBattleshipMatch)
+                {
+                    _battleshipBoardsBinder?.Bind();
+                    _battleshipPlacementUiController?.Bind();
+                    SyncBattleshipTimerHudBindings();
+                }
+                else
+                    _moveTimerHudBinder?.Bind();
                 BindUltimateUiIfNeeded();
                 SetRoundFinishedVisualState(false);
 
@@ -208,12 +262,18 @@ namespace Runtime.Games.TicTacToe
             _subscriptions = null;
             UnbindOnlinePlayerNamesStoreIfNeeded();
             _botDriver.Dispose();
+            _battleshipBotDriver?.Dispose();
             _ultimateBotOrchestrator.Dispose();
+            _battleshipPlacementUiController?.Unbind();
+            _battleshipBoardsBinder?.Unbind();
             _movesBinder.Unbind();
             _moveTimerHudBinder?.Unbind();
+            _battleshipPlacementTimerHudBinder?.Unbind();
             DisposeUltimateUiBinders();
+            _battleshipNetworkBridge.UnbindAsync().Forget();
             _networkBridge.UnbindAsync().Forget();
             _moveTimerService.Stop();
+            _battleshipPlacementTimerService.Stop();
             _ecsLifecycle.StopMatch();
             _winLineRenderer.Clear();
             _resultVM?.Dispose();
@@ -232,6 +292,25 @@ namespace Runtime.Games.TicTacToe
             public ReadOnlyReactiveProperty<bool> IsActive => _isActive;
 
             public void StartOrResetForPlayer(int playerSlot) { }
+            public void RestoreRemainingSeconds(float remainingSeconds, int activePlayerSlot) { }
+            public void Stop() { }
+            public void Freeze() { }
+            public void Unfreeze() { }
+            public void Dispose() { }
+        }
+
+        private sealed class NoOpBattleshipPlacementTimerService : IBattleshipPlacementTimerService
+        {
+            public static readonly NoOpBattleshipPlacementTimerService Instance = new();
+
+            private readonly ReactiveProperty<float> _remainingSeconds = new(0f);
+            private readonly ReactiveProperty<bool> _isActive = new(false);
+
+            public ReadOnlyReactiveProperty<float> RemainingSeconds => _remainingSeconds;
+            public ReadOnlyReactiveProperty<bool> IsActive => _isActive;
+
+            public void SyncFromSnapshot() { }
+            public void RestoreRemainingSeconds(float remainingSeconds) { }
             public void Stop() { }
             public void Freeze() { }
             public void Unfreeze() { }
@@ -250,6 +329,24 @@ namespace Runtime.Games.TicTacToe
         {
             if (config.OpponentConfig is not BotOpponentConfig botConfig)
                 return;
+
+            if (_isBattleshipMatch)
+            {
+                if (_battleshipBotDriver == null)
+                {
+                    Log.Warning(LogTags.Infrastructure, "[GameplayStartup] Battleship bot driver is not resolved.");
+                    return;
+                }
+
+                var battleshipBotStart = await _battleshipBotDriver.StartAsync(config, PlayerSlotMapping.SlotO, ct);
+                _battleshipBotStarted = battleshipBotStart.Status == BotStartStatus.Started;
+                if (_battleshipBotStarted)
+                    return;
+
+                Log.Warning(LogTags.Infrastructure,
+                    $"[GameplayStartup] Battleship bot driver not started: {battleshipBotStart.Status} — {battleshipBotStart.Error}");
+                return;
+            }
 
             if (IsUltimateConfig(config.GameConfig))
             {
@@ -295,7 +392,12 @@ namespace Runtime.Games.TicTacToe
             if (!string.Equals(payload.GameId, config.GameId, StringComparison.Ordinal))
                 return config;
 
-            return new GameLaunchConfig(config.GameId, payload.ToGameConfig(), config.OpponentConfig, payload.MoveTimeLimitSeconds);
+            return new GameLaunchConfig(
+                config.GameId,
+                payload.ToGameConfig(),
+                config.OpponentConfig,
+                payload.MoveTimeLimitSeconds,
+                config.StartingPlayerSlotOverride);
         }
 
         // -- Event wiring --
@@ -365,6 +467,33 @@ namespace Runtime.Games.TicTacToe
                     .AddTo(_subscriptions);
             }
 
+            if (_battleshipBotStarted && _battleshipBotDriver != null)
+            {
+                _battleshipBotDriver.IsThinking
+                    .Subscribe(thinking =>
+                    {
+                        var container = _fieldUiAdapter.FieldContainer;
+                        if (container != null)
+                            container.pickingMode = thinking || _matchFailSafeGateway.IsInputLocked
+                                ? UnityEngine.UIElements.PickingMode.Ignore
+                                : UnityEngine.UIElements.PickingMode.Position;
+                    })
+                    .AddTo(_subscriptions);
+
+                _eventStream.CurrentPlayerChanged
+                    .Subscribe(_ => UpdateMoveTimerStateForBattleshipBot())
+                    .AddTo(_subscriptions);
+
+                if (_battleshipEventStream != null)
+                {
+                    _battleshipEventStream.PhaseChanged
+                        .Subscribe(_ => UpdateMoveTimerStateForBattleshipBot())
+                        .AddTo(_subscriptions);
+                }
+
+                UpdateMoveTimerStateForBattleshipBot();
+            }
+
             // ADR-12: Surface bot disable error to user
             if (_classicBotStarted)
             {
@@ -397,6 +526,25 @@ namespace Runtime.Games.TicTacToe
                 .Where(ShouldExitToMenuByOnlineFlow)
                 .Subscribe(_ => ExitToMenuAsync().Forget())
                 .AddTo(_subscriptions);
+
+            if (_isBattleshipMatch && _battleshipEventStream != null && _battleshipSnapshotProvider != null)
+            {
+                _battleshipEventStream.PhaseChanged
+                    .Subscribe(_ => SyncBattleshipTimerHudBindings())
+                    .AddTo(_subscriptions);
+
+                _battleshipEventStream.PhaseChanged
+                    .Where(evt => evt.Phase == BattleshipPhase.Battle)
+                    .Subscribe(_ =>
+                    {
+                        var activeSlot = _battleshipSnapshotProvider.ActivePlayerSlot;
+                        if (activeSlot >= 0)
+                            _battleshipCurrentStartingSlot = activeSlot;
+                    })
+                    .AddTo(_subscriptions);
+
+                    SyncBattleshipTimerHudBindings();
+            }
         }
 
         private void SubscribeScoreboardPlayerNames()
@@ -449,13 +597,17 @@ namespace Runtime.Games.TicTacToe
             _isOnlineDirectInvite = false;
 
             _moveTimerService.Stop();
+            _battleshipPlacementTimerService.Stop();
             _movesBinder.Unbind();
+            _battleshipBoardsBinder?.Unbind();
             _moveTimerHudBinder?.Unbind();
+            _battleshipPlacementTimerHudBinder?.Unbind();
             _winLineRenderer.Clear();
 
             var winner = _onlineIsHost ? PlayerMark.X : PlayerMark.O;
             var gameResult = GameResult.Timeout(winner);
             _seriesService.RecordResult(gameResult);
+            PersistBattleshipSessionScoreIfNeeded();
             UpdateScoreLabels();
 
             SetRoundFinishedVisualState(true);
@@ -500,8 +652,11 @@ namespace Runtime.Games.TicTacToe
             _onlineLocalUserId = session.LocalUserId;
             _onlineRemoteUserId = null;
             _useHostAuthoritativeFilter = session.IsHost;
+            _onlineAcceptedShotSequence = 0;
 
             await _networkBridge.BindAsync(session.LocalUserId, session.IsHost);
+            if (_isBattleshipMatch)
+                await _battleshipNetworkBridge.BindAsync(session.LocalUserId, session.IsHost);
 
             _networkBridge.IncomingMoves
                 .Subscribe(OnIncomingOnlineMove)
@@ -514,12 +669,39 @@ namespace Runtime.Games.TicTacToe
             _networkBridge.IncomingTimeoutSignals
                 .Subscribe(OnIncomingOnlineTimeoutSignal)
                 .AddTo(_subscriptions);
+
+            if (_isBattleshipMatch)
+            {
+                _battleshipNetworkBridge.IncomingRecoverySnapshots
+                    .Subscribe(OnIncomingBattleshipRecoverySnapshot)
+                    .AddTo(_subscriptions);
+
+                if (_onlineIsHost)
+                {
+                    PublishBattleshipRecoverySnapshotAsync().Forget();
+
+                    if (!_battleshipRecoveryHeartbeatStarted)
+                    {
+                        _battleshipRecoveryHeartbeatStarted = true;
+                        RunBattleshipRecoveryHeartbeatAsync().Forget();
+                    }
+                }
+            }
         }
 
         private void OnIncomingOnlineTimeoutSignal(OnlineTimeoutSignal signal)
         {
             if (_disposed || !_ecsLifecycle.IsActive || _onlineIsHost)
                 return;
+
+            if (_isBattleshipMatch)
+            {
+                if (_battleshipSnapshotProvider == null)
+                    return;
+
+                if (_battleshipSnapshotProvider.Phase != BattleshipPhase.Battle)
+                    return;
+            }
 
             _matchStateProvider.SubmitCommand(new TimeoutCommand(signal.LoserSlot));
         }
@@ -529,8 +711,12 @@ namespace Runtime.Games.TicTacToe
             if (_disposed || !_ecsLifecycle.IsActive)
                 return;
 
-            if (_useHostAuthoritativeFilter && !TryValidateIncomingHostMove(move))
+            if (_useHostAuthoritativeFilter
+                && !_isBattleshipMatch
+                && !TryValidateIncomingHostMove(move))
+            {
                 return;
+            }
 
             var minorCount = OnlineMoveIndexCodec.ResolveMinorCount(_fieldSpec);
             CellId cellId;
@@ -542,6 +728,12 @@ namespace Runtime.Games.TicTacToe
             catch (Exception)
             {
                 return;
+            }
+
+            if (_isBattleshipMatch && _useHostAuthoritativeFilter)
+            {
+                if (!TryValidateIncomingBattleshipShot(move, cellId, minorCount))
+                    return;
             }
 
             _matchStateProvider.SubmitCommand(new MakeMoveCommand(cellId));
@@ -559,7 +751,7 @@ namespace Runtime.Games.TicTacToe
                 Guid.NewGuid(),
                 _onlineLocalUserId,
                 proposal.CellIndex,
-                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+                _isBattleshipMatch ? proposal.ClientTick : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
             try
             {
@@ -615,6 +807,85 @@ namespace Runtime.Games.TicTacToe
             return result.Status == MoveProcessStatus.Accepted;
         }
 
+        private bool TryValidateIncomingBattleshipShot(MoveCommand move, CellId cellId, int minorCount)
+        {
+            if (!_onlineIsHost || _battleshipSnapshotProvider == null)
+                return false;
+
+            if (_battleshipSnapshotProvider.Phase != BattleshipPhase.Battle)
+                return false;
+
+            if (string.IsNullOrWhiteSpace(_onlineRemoteUserId))
+                _onlineRemoteUserId = move.SenderUserId;
+
+            if (string.IsNullOrWhiteSpace(_onlineRemoteUserId)
+                || !string.Equals(move.SenderUserId, _onlineRemoteUserId, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var shooterSlot = PlayerSlotMapping.SlotO;
+            if (_matchStateProvider.ActivePlayerSlot != shooterSlot)
+                return false;
+
+            var cellIndex = OnlineMoveIndexCodec.ToCellIndex(cellId, minorCount);
+            var marks = _battleshipSnapshotProvider.GetOpponentMarks(shooterSlot);
+            if (marks == null || cellIndex < 0 || cellIndex >= marks.Count)
+                return false;
+
+            if (marks[cellIndex] != BattleshipCellMark.Unknown)
+                return false;
+
+            var sequence = move.ClientTick;
+            if (sequence <= 0)
+                return false;
+
+            var observedSequence = _networkBridge.Snapshot.CurrentValue?.ShotSequence ?? _onlineAcceptedShotSequence;
+            if (observedSequence < _onlineAcceptedShotSequence)
+                observedSequence = _onlineAcceptedShotSequence;
+
+            var expectedSequence = observedSequence + 1;
+            if (sequence != expectedSequence)
+                return false;
+
+            _onlineAcceptedShotSequence = sequence;
+            return true;
+        }
+
+        private void UpdateMoveTimerStateForBattleshipBot()
+        {
+            if (!_battleshipBotStarted || _battleshipSnapshotProvider == null)
+                return;
+
+            var freeze = _battleshipSnapshotProvider.Phase == BattleshipPhase.Battle
+                && _battleshipSnapshotProvider.ActivePlayerSlot == PlayerSlotMapping.SlotO;
+
+            if (freeze)
+                _moveTimerService.Freeze();
+            else
+                _moveTimerService.Unfreeze();
+
+            _moveTimerHudBinder?.SetVisibilityOverride(freeze ? false : null);
+        }
+
+        private void SyncBattleshipTimerHudBindings()
+        {
+            if (!_isBattleshipMatch)
+                return;
+
+            var phase = _battleshipSnapshotProvider?.Phase ?? BattleshipPhase.Placement;
+            var usePlacementTimer = phase == BattleshipPhase.Placement || phase == BattleshipPhase.Waiting;
+
+            // Both binders target one label, so keep only one bound at a time.
+            _moveTimerHudBinder?.Unbind();
+            _battleshipPlacementTimerHudBinder?.Unbind();
+
+            if (usePlacementTimer)
+                _battleshipPlacementTimerHudBinder?.Bind();
+            else
+                _moveTimerHudBinder?.Bind();
+        }
+
         private AuthoritativeMatchState BuildAuthoritativeState(
             System.Collections.Generic.IReadOnlyList<CellSnapshot> cells,
             string activeUserId,
@@ -668,6 +939,7 @@ namespace Runtime.Games.TicTacToe
                 // 1. Unbind binder (ADR-5 order: Unbind before Stop).
                 _movesBinder.Unbind();
                 _moveTimerHudBinder?.Unbind();
+                _battleshipPlacementTimerHudBinder?.Unbind();
 
                 // 2. Map ECS result to OOP GameResult for downstream consumers.
                 var gameResult = BuildGameResult(evt);
@@ -733,9 +1005,15 @@ namespace Runtime.Games.TicTacToe
             if (evt.WinLine.HasValue)
                 oopWinLine = MapEcsWinLine(evt.WinLine.Value);
 
-            return oopStatus == Rules.GameStatus.Win
-                ? GameResult.Win(winner, oopWinLine!.Value)
-                : oopStatus == Rules.GameStatus.Timeout
+            if (oopStatus == Rules.GameStatus.Win)
+            {
+                if (winner == PlayerMark.None)
+                    return GameResult.Draw();
+
+                return GameResult.Win(winner, oopWinLine ?? CreateFallbackWinLine());
+            }
+
+            return oopStatus == Rules.GameStatus.Timeout
                     ? GameResult.Timeout(winner)
                 : oopStatus == Rules.GameStatus.Draw
                     ? GameResult.Draw()
@@ -899,6 +1177,257 @@ namespace Runtime.Games.TicTacToe
                 StartOnlineRestartIfReady();
         }
 
+        private void OnIncomingBattleshipRecoverySnapshot(BattleshipRecoveryMessage message)
+        {
+            if (_disposed || !_isBattleshipMatch || _onlineIsHost || !_isOnlineDirectInvite)
+                return;
+
+            if (string.Equals(message.SenderUserId, _onlineLocalUserId, StringComparison.Ordinal))
+                return;
+
+            if (message.MatchRoundId != _onlineRoundCoordinator.MatchRoundId)
+                return;
+
+            if (!TryBuildRecoveryState(message, out var recoveryState))
+                return;
+
+            if (_battleshipRecoveryStateApplier?.TryApplyRecoveryState(recoveryState) != true)
+                return;
+
+            _battleshipPlacementTimerService.RestoreRemainingSeconds(recoveryState.PlacementTimerRemainingSeconds);
+            if (recoveryState.Phase == BattleshipPhase.Battle && recoveryState.ActivePlayerSlot >= 0)
+                _moveTimerService.RestoreRemainingSeconds(recoveryState.MoveTimerRemainingSeconds, recoveryState.ActivePlayerSlot);
+
+            SyncBattleshipTimerHudBindings();
+
+            if (recoveryState.FinishStatus != EcsGameStatus.InProgress && !_onlineRoundFinished)
+            {
+                _onlineRoundFinished = true;
+                _onlineRematchStarted = false;
+
+                var recoveredResult = BuildRecoveredGameResult(recoveryState.FinishStatus, recoveryState.WinnerSlot);
+                _seriesService.RecordResult(recoveredResult);
+                PersistBattleshipSessionScoreIfNeeded();
+                UpdateScoreLabels();
+                SetRoundFinishedVisualState(true);
+                _resultVM?.Show(recoveredResult, _seriesService.Score.CurrentValue);
+            }
+        }
+
+        private async UniTaskVoid RunBattleshipRecoveryHeartbeatAsync()
+        {
+            try
+            {
+                while (!_disposed && _isOnlineDirectInvite && _isBattleshipMatch && _onlineIsHost)
+                {
+                    await PublishBattleshipRecoverySnapshotAsync();
+                    await UniTask.Delay(TimeSpan.FromSeconds(1));
+                }
+            }
+            catch (Exception ex)
+            {
+                if (_disposed)
+                    return;
+
+                Log.Warning(LogTags.Infrastructure, $"[GameplayStartup] Battleship recovery heartbeat stopped: {ex.Message}");
+            }
+            finally
+            {
+                _battleshipRecoveryHeartbeatStarted = false;
+            }
+        }
+
+        private async UniTask PublishBattleshipRecoverySnapshotAsync()
+        {
+            if (_disposed || !_isOnlineDirectInvite || !_isBattleshipMatch || !_onlineIsHost)
+                return;
+
+            if (string.IsNullOrWhiteSpace(_onlineLocalUserId))
+                return;
+
+            if (!TryCreateBattleshipRecoveryMessage(out var message))
+                return;
+
+            try
+            {
+                await _battleshipNetworkBridge.SubmitRecoverySnapshotAsync(message);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(LogTags.Infrastructure, $"[GameplayStartup] Failed to publish Battleship recovery snapshot: {ex.Message}");
+            }
+        }
+
+        private bool TryCreateBattleshipRecoveryMessage(out BattleshipRecoveryMessage message)
+        {
+            message = default;
+
+            if (_battleshipSnapshotProvider == null || string.IsNullOrWhiteSpace(_onlineLocalUserId))
+                return false;
+
+            string player0LayoutPayload = string.Empty;
+            if (_battleshipSnapshotProvider.TryGetFleetLayout(PlayerSlotMapping.SlotX, out var player0Layout))
+            {
+                try
+                {
+                    player0LayoutPayload = _battleshipLayoutSerializer.Serialize(player0Layout);
+                }
+                catch
+                {
+                    player0LayoutPayload = string.Empty;
+                }
+            }
+
+            string player1LayoutPayload = string.Empty;
+            if (_battleshipSnapshotProvider.TryGetFleetLayout(PlayerSlotMapping.SlotO, out var player1Layout))
+            {
+                try
+                {
+                    player1LayoutPayload = _battleshipLayoutSerializer.Serialize(player1Layout);
+                }
+                catch
+                {
+                    player1LayoutPayload = string.Empty;
+                }
+            }
+
+            var player0MarksPayload = SerializeMarks(_battleshipSnapshotProvider.GetOpponentMarks(PlayerSlotMapping.SlotX));
+            var player1MarksPayload = SerializeMarks(_battleshipSnapshotProvider.GetOpponentMarks(PlayerSlotMapping.SlotO));
+
+            _battleshipSnapshotProvider.TryGetConsecutiveTimeouts(out var player0Timeouts, out var player1Timeouts);
+
+            var placementRemainingMs = (long)Math.Round(Math.Max(0f, _battleshipPlacementTimerService.RemainingSeconds.CurrentValue) * 1000f);
+            var moveRemainingMs = (long)Math.Round(Math.Max(0f, _moveTimerService.RemainingSeconds.CurrentValue) * 1000f);
+            var winnerSlot = _battleshipSnapshotProvider.WinnerSlot ?? -1;
+
+            message = new BattleshipRecoveryMessage(
+                Guid.NewGuid(),
+                _onlineLocalUserId,
+                _onlineRoundCoordinator.MatchRoundId,
+                (int)_battleshipSnapshotProvider.Phase,
+                _battleshipSnapshotProvider.ActivePlayerSlot,
+                placementRemainingMs,
+                moveRemainingMs,
+                player0Timeouts,
+                player1Timeouts,
+                winnerSlot,
+                (int)_battleshipSnapshotProvider.CurrentStatus,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                player0LayoutPayload,
+                player1LayoutPayload,
+                player0MarksPayload,
+                player1MarksPayload);
+
+            return true;
+        }
+
+        private bool TryBuildRecoveryState(BattleshipRecoveryMessage message, out BattleshipRecoveryState recoveryState)
+        {
+            recoveryState = default;
+
+            if (!Enum.IsDefined(typeof(BattleshipPhase), message.Phase))
+                return false;
+
+            if (!Enum.IsDefined(typeof(EcsGameStatus), message.FinishStatus))
+                return false;
+
+            FleetLayout? player0Layout = null;
+            if (!string.IsNullOrWhiteSpace(message.Player0LayoutPayload))
+            {
+                if (!_battleshipLayoutSerializer.TryDeserialize(message.Player0LayoutPayload, out var parsedLayout))
+                    return false;
+
+                player0Layout = parsedLayout;
+            }
+
+            FleetLayout? player1Layout = null;
+            if (!string.IsNullOrWhiteSpace(message.Player1LayoutPayload))
+            {
+                if (!_battleshipLayoutSerializer.TryDeserialize(message.Player1LayoutPayload, out var parsedLayout))
+                    return false;
+
+                player1Layout = parsedLayout;
+            }
+
+            if (!TryDeserializeMarks(message.Player0OpponentMarksPayload, out var player0Marks)
+                || !TryDeserializeMarks(message.Player1OpponentMarksPayload, out var player1Marks))
+            {
+                return false;
+            }
+
+            recoveryState = new BattleshipRecoveryState(
+                (BattleshipPhase)message.Phase,
+                message.ActivePlayerSlot,
+                (EcsGameStatus)message.FinishStatus,
+                message.WinnerSlot >= 0 ? message.WinnerSlot : null,
+                player0Layout,
+                player1Layout,
+                player0Marks,
+                player1Marks,
+                message.Player0ConsecutiveTimeouts,
+                message.Player1ConsecutiveTimeouts,
+                Math.Max(0f, message.PlacementTimerRemainingMs / 1000f),
+                Math.Max(0f, message.MoveTimerRemainingMs / 1000f));
+
+            return true;
+        }
+
+        private static string SerializeMarks(System.Collections.Generic.IReadOnlyList<BattleshipCellMark> marks)
+        {
+            if (marks == null || marks.Count == 0)
+                return string.Empty;
+
+            var chars = new char[marks.Count];
+            for (var i = 0; i < marks.Count; i++)
+                chars[i] = (char)('0' + (int)marks[i]);
+
+            return new string(chars);
+        }
+
+        private static bool TryDeserializeMarks(string payload, out BattleshipCellMark[] marks)
+        {
+            marks = Array.Empty<BattleshipCellMark>();
+            if (payload == null)
+                return false;
+
+            if (payload.Length == 0)
+                return true;
+
+            marks = new BattleshipCellMark[payload.Length];
+            for (var i = 0; i < payload.Length; i++)
+            {
+                var value = payload[i] - '0';
+                if (value < 0 || value > (int)BattleshipCellMark.Sunk)
+                    return false;
+
+                marks[i] = (BattleshipCellMark)value;
+            }
+
+            return true;
+        }
+
+        private static GameResult BuildRecoveredGameResult(EcsGameStatus status, int? winnerSlot)
+        {
+            var winner = winnerSlot.HasValue
+                ? PlayerSlotMapping.SlotToMark(winnerSlot.Value)
+                : PlayerMark.None;
+
+            return status switch
+            {
+                EcsGameStatus.Win => winner != PlayerMark.None
+                    ? GameResult.Win(winner, CreateFallbackWinLine())
+                    : GameResult.Draw(),
+                EcsGameStatus.Timeout => winner != PlayerMark.None
+                    ? GameResult.Timeout(winner)
+                    : GameResult.Draw(),
+                EcsGameStatus.Draw => GameResult.Draw(),
+                _ => GameResult.InProgress(),
+            };
+        }
+
+        private static WinLine CreateFallbackWinLine() =>
+            new(new CellId(0, 0), new CellId(0, 0), WinLineDirection.Horizontal, 1);
+
         private void StartOnlineRestartIfReady()
         {
             if (_onlineRematchStarted || _restartInProgress)
@@ -921,8 +1450,27 @@ namespace Runtime.Games.TicTacToe
                 _ultimateMiniBoardStatusBinder?.Unbind();
 
                 // 2. Alternate starting player.
-                var startingPlayer = _seriesService.NextRound();
-                var startingSlot = PlayerSlotMapping.MarkToSlot(startingPlayer);
+                var nextRoundStarterMark = _seriesService.NextRound();
+                var startingSlot = PlayerSlotMapping.MarkToSlot(nextRoundStarterMark);
+
+                if (_isBattleshipMatch)
+                {
+                    var previousStartingSlot = _battleshipCurrentStartingSlot;
+                    if (previousStartingSlot < 0 && _battleshipSnapshotProvider != null)
+                        previousStartingSlot = _battleshipSnapshotProvider.ActivePlayerSlot;
+
+                    if (previousStartingSlot < 0)
+                        previousStartingSlot = PlayerSlotMapping.SlotX;
+
+                    startingSlot = previousStartingSlot == PlayerSlotMapping.SlotX
+                        ? PlayerSlotMapping.SlotO
+                        : PlayerSlotMapping.SlotX;
+                    _battleshipCurrentStartingSlot = startingSlot;
+
+                    PersistBattleshipSessionScoreIfNeeded();
+                    await ReloadBattleshipGameplayScopeAsync(startingSlot);
+                    return;
+                }
 
                 // 3. Submit restart command — SubmitCommand auto-ticks.
                 var previousEpoch = _ultimateSnapshotProvider?.Epoch ?? 0UL;
@@ -949,11 +1497,20 @@ namespace Runtime.Games.TicTacToe
                 _matchFailSafeGateway.ResetAbortState();
 
                 _movesBinder.Bind();
-                _moveTimerHudBinder?.Bind();
+                if (_isBattleshipMatch)
+                {
+                    _battleshipBoardsBinder?.Bind();
+                    SyncBattleshipTimerHudBindings();
+                }
+                else
+                    _moveTimerHudBinder?.Bind();
                 _ultimateAllowedBinder?.Bind();
                 _ultimateMiniBoardStatusBinder?.Bind();
 
-                _moveTimerService.StartOrResetForPlayer(startingSlot);
+                if (_isBattleshipMatch)
+                    _battleshipPlacementTimerService.SyncFromSnapshot();
+                else
+                    _moveTimerService.StartOrResetForPlayer(startingSlot);
 
                 _onlineRoundFinished = false;
                 _onlineRematchStarted = false;
@@ -971,6 +1528,27 @@ namespace Runtime.Games.TicTacToe
             {
                 _restartInProgress = false;
             }
+        }
+
+        private async UniTask ReloadBattleshipGameplayScopeAsync(int nextStartingSlot)
+        {
+            if (_activeLaunchConfig == null)
+                throw new InvalidOperationException("Launch config is not available for Battleship rematch.");
+
+            var nextConfig = new GameLaunchConfig(
+                _activeLaunchConfig.GameId,
+                _activeLaunchConfig.GameConfig,
+                _activeLaunchConfig.OpponentConfig,
+                _activeLaunchConfig.MoveTimeLimitSeconds,
+                nextStartingSlot);
+
+            _activeLaunchConfig = nextConfig;
+
+            _onlineRoundFinished = false;
+            _onlineRematchStarted = false;
+            _onlineTerminalResultShown = false;
+
+            await _stateMachine.EnterAsync<LoadGameplayState, GameLaunchConfig>(nextConfig, CancellationToken.None);
         }
 
         private async UniTask<bool> WaitForEpochChangeAsync(ulong previousEpoch, TimeSpan timeout)
@@ -1078,10 +1656,18 @@ namespace Runtime.Games.TicTacToe
             _subscriptions = null;
             UnbindOnlinePlayerNamesStoreIfNeeded();
             _botDriver.Dispose();
+            _battleshipBotDriver?.Dispose();
             _ultimateBotOrchestrator.Dispose();
+            _battleshipPlacementUiController?.Unbind();
             _movesBinder.Unbind();
+            _battleshipBoardsBinder?.Unbind();
             _moveTimerHudBinder?.Unbind();
+            _battleshipPlacementTimerHudBinder?.Unbind();
             DisposeUltimateUiBinders();
+            _battleshipNetworkBridge.UnbindAsync().Forget();
+            _networkBridge.UnbindAsync().Forget();
+            _moveTimerService.Stop();
+            _battleshipPlacementTimerService.Stop();
             _winLineRenderer.Clear();
             _resultVM?.Dispose();
             _resultVM = null;
@@ -1146,6 +1732,69 @@ namespace Runtime.Games.TicTacToe
         {
             Log.Error(LogTags.Infrastructure, $"[GameplayStartup] {error.Code}: {error.Details}");
             await _stateMachine.EnterAsync<LoadMainMenuState>(ct);
+        }
+
+        private void RestoreBattleshipSessionScoreIfNeeded(GameLaunchConfig config)
+        {
+            if (!_isBattleshipMatch)
+                return;
+
+            var key = BuildBattleshipSessionKey(config);
+            if (string.IsNullOrWhiteSpace(key))
+                return;
+
+            if (!config.StartingPlayerSlotOverride.HasValue)
+            {
+                lock (BattleshipSeriesScoresGate)
+                    BattleshipSeriesScores.Remove(key);
+                return;
+            }
+
+            SeriesScore storedScore;
+            lock (BattleshipSeriesScoresGate)
+            {
+                if (!BattleshipSeriesScores.TryGetValue(key, out storedScore))
+                    return;
+            }
+
+            for (var i = 0; i < storedScore.Player1Wins; i++)
+                _seriesService.RecordResult(GameResult.Timeout(PlayerMark.X));
+
+            for (var i = 0; i < storedScore.Player2Wins; i++)
+                _seriesService.RecordResult(GameResult.Timeout(PlayerMark.O));
+
+            for (var i = 0; i < storedScore.Draws; i++)
+                _seriesService.RecordResult(GameResult.Draw());
+
+            for (var i = 0; i < storedScore.RoundIndex; i++)
+                _seriesService.NextRound();
+
+            UpdateScoreLabels();
+        }
+
+        private void PersistBattleshipSessionScoreIfNeeded()
+        {
+            if (!_isBattleshipMatch || _activeLaunchConfig == null)
+                return;
+
+            var key = BuildBattleshipSessionKey(_activeLaunchConfig);
+            if (string.IsNullOrWhiteSpace(key))
+                return;
+
+            lock (BattleshipSeriesScoresGate)
+                BattleshipSeriesScores[key] = _seriesService.Score.CurrentValue;
+        }
+
+        private string BuildBattleshipSessionKey(GameLaunchConfig config)
+        {
+            if (_onlineSessionContextStore.Snapshot.IsOnlineDirectInvite)
+            {
+                var sessionId = _onlineSessionContextStore.Snapshot.SessionId;
+                if (!string.IsNullOrWhiteSpace(sessionId))
+                    return $"online:{sessionId}";
+            }
+
+            return $"local:{config.GameId}";
         }
 
         private static GameplayError MapError(Exception ex) =>

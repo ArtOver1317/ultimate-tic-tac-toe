@@ -119,6 +119,25 @@ namespace Tests.EditMode.GameModes.Wizard
             actual.BoardSize.Should().Be(expected.BoardSize);
             actual.IsUltimate.Should().Be(expected.IsUltimate);
             actual.MoveTimeLimitSeconds.Should().Be(expected.MoveTimeLimitSeconds);
+            actual.PlacementTimeLimitSeconds.Should().Be(expected.PlacementTimeLimitSeconds);
+        }
+
+        [Test]
+        public void WhenBattleshipMatchConfigPayloadIncludesPlacementTimer_ThenTryDeserializeReturnsPlacementTimer()
+        {
+            // Arrange
+            var payload = Encoding.UTF8.GetBytes("C|battleship|10|0|30|45");
+
+            // Act
+            var ok = OnlinePayloadSerialization.TryDeserializeMatchConfig(payload, out var config);
+
+            // Assert
+            ok.Should().BeTrue();
+            config.GameId.Should().Be("battleship");
+            config.BoardSize.Should().Be(10);
+            config.IsUltimate.Should().BeFalse();
+            config.MoveTimeLimitSeconds.Should().Be(30);
+            config.PlacementTimeLimitSeconds.Should().Be(45);
         }
 
         [Test]

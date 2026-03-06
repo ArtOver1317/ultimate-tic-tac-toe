@@ -199,22 +199,28 @@ namespace Runtime.GameModes.Wizard
         public string? WinnerUserId { get; }
         public long AuthoritativeTick { get; }
         public long CountdownTargetTick { get; }
+        public long ShotSequence { get; }
 
         public GameplayNetworkSnapshot(
             int matchRoundId,
             bool isCompleted,
             string? winnerUserId,
             long authoritativeTick,
-            long countdownTargetTick)
+            long countdownTargetTick,
+            long shotSequence = 0)
         {
             if (matchRoundId < 1)
                 throw new ArgumentOutOfRangeException(nameof(matchRoundId), matchRoundId, "Value must be at least 1.");
+
+            if (shotSequence < 0)
+                throw new ArgumentOutOfRangeException(nameof(shotSequence), shotSequence, "Value cannot be negative.");
 
             MatchRoundId = matchRoundId;
             IsCompleted = isCompleted;
             WinnerUserId = winnerUserId;
             AuthoritativeTick = authoritativeTick;
             CountdownTargetTick = countdownTargetTick;
+            ShotSequence = shotSequence;
         }
     }
 

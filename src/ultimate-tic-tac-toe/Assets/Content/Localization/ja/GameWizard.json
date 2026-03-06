@@ -3,6 +3,7 @@
   "locale": "ja-JP",
   "table": "GameWizard",
   "entries": {
+    "GameWizard.Battleship.PlacementTimer.Label": "配置時間",
     "GameWizard.GameSelection.Cancel": "キャンセル",
     "GameWizard.GameSelection.Continue": "続行",
     "GameWizard.GameSelection.Title": "ゲームを選択",

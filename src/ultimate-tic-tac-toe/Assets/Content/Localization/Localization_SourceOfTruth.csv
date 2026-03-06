@@ -168,4 +168,23 @@ PlayerStatistics.Title,Player Statistics,Статистика игрока,プ�
 PlayerStatistics.Back,Back,Назад,戻る,Statistics screen back button
 PlayerStatistics.Empty,No statistics yet,Пока нет статистики,統計はまだありません,Statistics empty state
 PlayerStatistics.Opponent.Online,Online,Онлайн,オンライン,Online opponent label in statistics
+Game.Battleship.Name,Battleship,Морской бой,バトルシップ,Game catalog: Battleship display name
+Game.Battleship.Description,Place ships and sink enemy fleet,Расставьте корабли и потопите флот соперника,艦を配置して相手の艦隊を撃沈しよう,Game catalog: Battleship description
+Game.Battleship.OwnBoard,Your board,Ваше поле,自分のボード,Battleship gameplay: own board title
+Game.Battleship.OpponentBoard,Opponent board,Поле соперника,相手のボード,Battleship gameplay: opponent board title
+Game.Battleship.Placement.AutoButton,Auto place,Случайно,自動配置,Battleship placement panel: auto place button
+Game.Battleship.Placement.RotateButton,Rotate,Повернуть,回転,Battleship placement panel: rotate selected ship button
+Game.Battleship.Placement.RemoveButton,Remove,Убрать,削除,Battleship placement panel: remove selected ship button
+Game.Battleship.Placement.ReadyButton,Ready,Готово,準備完了,Battleship placement panel: confirm placement button
+Game.Battleship.Placement.Status.WaitingOpponent,Placement submitted. Waiting for opponent.,Расстановка отправлена. Ожидаем соперника.,配置を送信しました。対戦相手を待っています。,Battleship placement panel status: waiting for opponent
+Game.Battleship.Placement.Status.Unavailable,Placement is unavailable.,Расстановка недоступна.,配置は利用できません。,Battleship placement panel status: placement unavailable
+Game.Battleship.Placement.Status.PlaceAllShips,Place all ships.,Разместите все корабли.,すべての艦を配置してください。,Battleship placement panel status: fleet is incomplete
+Game.Battleship.Placement.Status.ConfirmReady,Press Ready to confirm placement.,"Нажмите «Готово», чтобы подтвердить расстановку.",「準備完了」を押して配置を確定してください。,Battleship placement panel status: fleet can be confirmed
+GameWizard.Battleship.PlacementTimer.Label,Placement time,Время на расстановку,配置時間,Battleship settings: placement timer label
+Errors.GameWizard.BattleshipConfigInvalid,Invalid Battleship settings,Некорректные настройки морского боя,バトルシップ設定が無効です,Wizard validation: battleship config invalid
+Errors.GameWizard.BattleshipMoveTimerRequired,Move timer is required for online Battleship,Для онлайн морского боя нужен таймер хода,オンラインのバトルシップでは手番タイマーが必要です,Wizard validation: battleship online move timer required
+Errors.GameWizard.BattleshipPlacementTimerRequired,Placement timer is required for online Battleship,Для онлайн морского боя нужен таймер расстановки,オンラインのバトルシップでは配置タイマーが必要です,Wizard validation: battleship online placement timer required
+Errors.GameWizard.BattleshipLocalHumanUnsupported,Local human mode is not supported for Battleship,Локальный режим для двух игроков не поддерживается в морском бое,バトルシップではローカル2人対戦は未対応です,Wizard validation: battleship local human unsupported
+Errors.Battleship.Layout.Invalid,Invalid ship placement,Некорректная расстановка кораблей,艦の配置が無効です,Battleship placement validation error
+Errors.Battleship.Layout.InvalidFleet,Fleet composition is invalid,Состав флота некорректен,艦隊構成が無効です,Battleship fleet composition validation error
 

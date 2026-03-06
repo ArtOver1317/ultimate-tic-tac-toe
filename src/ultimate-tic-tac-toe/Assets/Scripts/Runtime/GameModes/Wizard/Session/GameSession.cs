@@ -289,6 +289,16 @@ namespace Runtime.GameModes.Wizard
                 return;
             }
 
+            if (strategy is IGameStartValidator startValidator)
+            {
+                var startErrors = startValidator.ValidateForStart(snapshot);
+                if (startErrors != null && startErrors.Count > 0)
+                {
+                    errors ??= new List<ValidationError>(capacity: 4);
+                    errors.AddRange(startErrors);
+                }
+            }
+
             if (snapshot.GameConfig == null)
                 return;
 

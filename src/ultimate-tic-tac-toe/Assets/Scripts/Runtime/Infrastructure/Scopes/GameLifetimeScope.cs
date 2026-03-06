@@ -103,6 +103,7 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<MatchmakingViewModel>(Lifetime.Transient);
             builder.Register<TicTacToeSettingsViewModel>(Lifetime.Transient);
             builder.Register<UltimateTicTacToeSettingsViewModel>(Lifetime.Transient);
+            builder.Register<BattleshipSettingsViewModel>(Lifetime.Transient);
             builder.Register<PlayerNameEditViewModel>(Lifetime.Transient);
 
             builder.Register<Func<TicTacToeSettingsViewModel>>(
@@ -111,6 +112,10 @@ namespace Runtime.Infrastructure.Scopes
 
             builder.Register<Func<UltimateTicTacToeSettingsViewModel>>(
                 resolver => () => resolver.Resolve<UltimateTicTacToeSettingsViewModel>(),
+                Lifetime.Singleton);
+
+            builder.Register<Func<BattleshipSettingsViewModel>>(
+                resolver => () => resolver.Resolve<BattleshipSettingsViewModel>(),
                 Lifetime.Singleton);
 
             builder.Register(resolver =>
@@ -123,8 +128,14 @@ namespace Runtime.Infrastructure.Scopes
                     Lifetime.Singleton)
                 .As<IGameStrategy>();
 
+            builder.Register(resolver =>
+                        new BattleshipStrategy(resolver.Resolve<Func<BattleshipSettingsViewModel>>()),
+                    Lifetime.Singleton)
+                .As<IGameStrategy>();
+
             builder.Register<IGameSettingsBinder, TicTacToeSettingsBinder>(Lifetime.Singleton);
             builder.Register<IGameSettingsBinder, UltimateTicTacToeSettingsBinder>(Lifetime.Singleton);
+            builder.Register<IGameSettingsBinder, BattleshipSettingsBinder>(Lifetime.Singleton);
             
             // Localization Services
             // Note: Factory registration required - VContainer cannot auto-resolve constructors with optional parameters.

@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:app="Runtime.UI.Components" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <Style src="ModeSettingsStyles.uss" />
+    <ui:VisualElement name="BattleshipSettingsRoot" class="gmw-mode-settings">
+        <ui:Label text="" name="PlacementTimerTitle" class="gmw-mode-settings__label" />
+        <app:DifficultyChips name="PlacementTimerChips" class="gmw-difficulty-chips" />
+    </ui:VisualElement>
+</ui:UXML>

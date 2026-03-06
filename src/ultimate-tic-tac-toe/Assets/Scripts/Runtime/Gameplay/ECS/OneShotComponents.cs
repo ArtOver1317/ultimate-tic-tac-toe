@@ -28,6 +28,24 @@ namespace Runtime.Gameplay.ECS
     }
 
     /// <summary>
+    /// One-shot request: created by <see cref="ProcessCommandsSystem"/>, consumed by battleship placement system.
+    /// </summary>
+    public struct SubmitPlacementRequest : IComponent
+    {
+        public int PlayerSlot;
+        public Runtime.Games.Battleship.FleetLayout Layout;
+    }
+
+    /// <summary>
+    /// One-shot request: created by <see cref="ProcessCommandsSystem"/>, consumed by battleship placement system.
+    /// </summary>
+    public struct PlacementTimeoutRequest : IComponent
+    {
+        public int PlayerSlot;
+        public int AutoPlaceSeed;
+    }
+
+    /// <summary>
     /// One-shot event: placed on match entity by apply systems, consumed by <see cref="EventPublishSystem"/>.
     /// </summary>
     public struct MoveAppliedOneShot : IComponent

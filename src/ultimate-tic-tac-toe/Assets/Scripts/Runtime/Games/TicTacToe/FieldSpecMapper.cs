@@ -1,5 +1,6 @@
 using System;
 using Runtime.GameModes.Wizard;
+using Runtime.Games.Battleship;
 
 using Runtime.Gameplay;
 namespace Runtime.Games.TicTacToe
@@ -29,6 +30,10 @@ namespace Runtime.Games.TicTacToe
             if (string.Equals(config.GameId, TicTacToeStrategy.DefaultGameId, StringComparison.Ordinal)
                 && config.GameConfig is TicTacToeConfig tttConfig)
                 return FieldRenderSpec.Classic(tttConfig.BoardSize);
+
+            if (string.Equals(config.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal)
+                && config.GameConfig is BattleshipConfig)
+                return FieldRenderSpec.Classic(10);
 
             throw new InvalidOperationException(
                 $"Unsupported game config type: '{config.GameConfig?.GetType().Name ?? "null"}'.");

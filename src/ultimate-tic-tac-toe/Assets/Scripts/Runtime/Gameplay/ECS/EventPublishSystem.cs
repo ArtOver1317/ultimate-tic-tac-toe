@@ -1,5 +1,7 @@
 using System;
 using Runtime.Infrastructure.Logging;
+using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.ECS;
 using Runtime.Games.TicTacToe.Ultimate;
 using Scellecs.Morpeh;
 using StripLog;
@@ -30,6 +32,8 @@ namespace Runtime.Gameplay.ECS
         private Action<RoundFinishedEvent> _onRoundFinished;
         private Action<AllowedMajorsChangedEvent> _onAllowedMajorsChanged;
         private Action<MiniBoardStatusChangedEvent> _onMiniBoardStatusChanged;
+        private Action<BattleshipPhaseChangedEvent> _onBattleshipPhaseChanged;
+        private Action<BattleshipMarksChangedEvent> _onBattleshipMarksChanged;
 
         private Filter _matchFilter;
         private Stash<MoveAppliedOneShot> _moveAppliedStash;
@@ -37,6 +41,8 @@ namespace Runtime.Gameplay.ECS
         private Stash<RoundFinishedOneShot> _roundFinishedStash;
         private Stash<Runtime.Games.TicTacToe.ECS.UltimateAllowedMajorsChangedOneShot> _ultimateAllowedStash;
         private Stash<Runtime.Games.TicTacToe.ECS.UltimateMiniBoardStatusChangedOneShot> _ultimateMiniBoardStash;
+        private Stash<BattleshipPhaseChangedOneShot> _battleshipPhaseChangedStash;
+        private Stash<BattleshipMarksChangedOneShot> _battleshipMarksChangedStash;
         private Stash<PlayersComponent> _playersStash;
         private Stash<LastMoveComponent> _lastMoveStash;
         private Stash<RoundRestartedOneShot> _roundRestartedStash;
@@ -57,7 +63,9 @@ namespace Runtime.Gameplay.ECS
             Action<CommandRejectedEvent> onCommandRejected,
             Action<RoundFinishedEvent> onRoundFinished,
             Action<AllowedMajorsChangedEvent> onAllowedMajorsChanged = null,
-            Action<MiniBoardStatusChangedEvent> onMiniBoardStatusChanged = null)
+            Action<MiniBoardStatusChangedEvent> onMiniBoardStatusChanged = null,
+            Action<BattleshipPhaseChangedEvent> onBattleshipPhaseChanged = null,
+            Action<BattleshipMarksChangedEvent> onBattleshipMarksChanged = null)
         {
             _onCellChanged = onCellChanged;
             _onLastMoveChanged = onLastMoveChanged;
@@ -66,6 +74,8 @@ namespace Runtime.Gameplay.ECS
             _onRoundFinished = onRoundFinished;
             _onAllowedMajorsChanged = onAllowedMajorsChanged;
             _onMiniBoardStatusChanged = onMiniBoardStatusChanged;
+            _onBattleshipPhaseChanged = onBattleshipPhaseChanged;
+            _onBattleshipMarksChanged = onBattleshipMarksChanged;
         }
 
         internal void ClearCallbacks()
@@ -77,6 +87,8 @@ namespace Runtime.Gameplay.ECS
             _onRoundFinished = null;
             _onAllowedMajorsChanged = null;
             _onMiniBoardStatusChanged = null;
+            _onBattleshipPhaseChanged = null;
+            _onBattleshipMarksChanged = null;
         }
 
         /// <summary>
@@ -90,7 +102,9 @@ namespace Runtime.Gameplay.ECS
             _onCommandRejected != null ||
             _onRoundFinished != null ||
             _onAllowedMajorsChanged != null ||
-            _onMiniBoardStatusChanged != null;
+            _onMiniBoardStatusChanged != null ||
+            _onBattleshipPhaseChanged != null ||
+            _onBattleshipMarksChanged != null;
 
         public void OnAwake()
         {
@@ -100,6 +114,8 @@ namespace Runtime.Gameplay.ECS
             _roundFinishedStash = World.GetStash<RoundFinishedOneShot>();
             _ultimateAllowedStash = World.GetStash<Runtime.Games.TicTacToe.ECS.UltimateAllowedMajorsChangedOneShot>();
             _ultimateMiniBoardStash = World.GetStash<Runtime.Games.TicTacToe.ECS.UltimateMiniBoardStatusChangedOneShot>();
+            _battleshipPhaseChangedStash = World.GetStash<BattleshipPhaseChangedOneShot>();
+            _battleshipMarksChangedStash = World.GetStash<BattleshipMarksChangedOneShot>();
             _roundRestartedStash = World.GetStash<RoundRestartedOneShot>();
             _playersStash = World.GetStash<PlayersComponent>();
             _lastMoveStash = World.GetStash<LastMoveComponent>();
@@ -120,27 +136,18 @@ namespace Runtime.Gameplay.ECS
                 _moveRejectedStash.Remove(matchEntity);
 
                 _scheduler.Schedule(() => SafeInvoke(_onCommandRejected, evt, nameof(CommandRejectedEvent)));
-                return;
-            }
-
-            // Handle round restart — publish CurrentPlayerChanged so bot driver reacts
-            if (_roundRestartedStash.Has(matchEntity))
-            {
-                _roundRestartedStash.Remove(matchEntity);
-
-                if (_playersStash.Has(matchEntity))
-                {
-                    ref var players = ref _playersStash.Get(matchEntity);
-                    var playerEvt = new CurrentPlayerChangedEvent(players.ActivePlayerSlot);
-                    _scheduler.Schedule(() => SafeInvoke(_onCurrentPlayerChanged, playerEvt, nameof(CurrentPlayerChangedEvent)));
-                }
-
+                PublishBattleshipEvents(matchEntity);
                 return;
             }
 
             // Handle successful move — deterministic order (section 3)
             if (_moveAppliedStash.Has(matchEntity))
             {
+                // Move can co-exist with RoundRestartedOneShot (for example miss in Battleship).
+                // In this case move events must be published in the same tick; consume restart marker here.
+                if (_roundRestartedStash.Has(matchEntity))
+                    _roundRestartedStash.Remove(matchEntity);
+
                 ref var applied = ref _moveAppliedStash.Get(matchEntity);
                 var cellEvt = new CellChangedEvent(applied.CellId, applied.PlayerSlot);
 
@@ -202,6 +209,23 @@ namespace Runtime.Gameplay.ECS
                         SafeInvoke(_onMiniBoardStatusChanged, miniEvt.Value, nameof(MiniBoardStatusChangedEvent));
                 });
 
+                PublishBattleshipEvents(matchEntity);
+                return;
+            }
+
+            // Handle round restart without move application — publish CurrentPlayerChanged so bot driver reacts.
+            if (_roundRestartedStash.Has(matchEntity))
+            {
+                _roundRestartedStash.Remove(matchEntity);
+
+                if (_playersStash.Has(matchEntity))
+                {
+                    ref var players = ref _playersStash.Get(matchEntity);
+                    var playerEvt = new CurrentPlayerChangedEvent(players.ActivePlayerSlot);
+                    _scheduler.Schedule(() => SafeInvoke(_onCurrentPlayerChanged, playerEvt, nameof(CurrentPlayerChangedEvent)));
+                }
+
+                PublishBattleshipEvents(matchEntity);
                 return;
             }
 
@@ -213,6 +237,40 @@ namespace Runtime.Gameplay.ECS
                 _roundFinishedStash.Remove(matchEntity);
 
                 _scheduler.Schedule(() => SafeInvoke(_onRoundFinished, roundEvt, nameof(RoundFinishedEvent)));
+            }
+
+            PublishBattleshipEvents(matchEntity);
+        }
+
+        private void PublishBattleshipEvents(Entity matchEntity)
+        {
+            if (_battleshipPhaseChangedStash.Has(matchEntity))
+            {
+                var phase = _battleshipPhaseChangedStash.Get(matchEntity).Phase;
+                _battleshipPhaseChangedStash.Remove(matchEntity);
+
+                var evt = new BattleshipPhaseChangedEvent(phase);
+                _scheduler.Schedule(() => SafeInvoke(_onBattleshipPhaseChanged, evt, nameof(BattleshipPhaseChangedEvent)));
+            }
+
+            if (_battleshipMarksChangedStash.Has(matchEntity))
+            {
+                var payload = _battleshipMarksChangedStash.Get(matchEntity);
+                _battleshipMarksChangedStash.Remove(matchEntity);
+
+                _scheduler.Schedule(() =>
+                {
+                    SafeInvoke(_onBattleshipMarksChanged,
+                        new BattleshipMarksChangedEvent(payload.ViewerSlot),
+                        nameof(BattleshipMarksChangedEvent));
+
+                    if (payload.HasSecondaryViewer)
+                    {
+                        SafeInvoke(_onBattleshipMarksChanged,
+                            new BattleshipMarksChangedEvent(payload.SecondaryViewerSlot),
+                            nameof(BattleshipMarksChangedEvent));
+                    }
+                });
             }
         }
 

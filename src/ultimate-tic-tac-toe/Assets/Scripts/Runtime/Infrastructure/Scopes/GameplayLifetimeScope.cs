@@ -2,6 +2,8 @@ using System;
 using Runtime.GameModes.Wizard;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.ECS;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.AI.Ultimate;
@@ -11,6 +13,7 @@ using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Runtime.Games.TicTacToe.Series;
+using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.PlayerStatistics;
 using Runtime.PlayerProfile;
@@ -27,13 +30,21 @@ namespace Runtime.Infrastructure.Scopes
         [SerializeField] private BotProfileCatalog BotProfileCatalog;
         [SerializeField] private BotSearchSettings BotSearchSettings;
         [SerializeField] private UltimateBotProfileCatalog UltimateBotProfileCatalog;
+        [SerializeField] private BattleshipGameplaySettings BattleshipGameplaySettingsAsset;
 
         protected override void Configure(IContainerBuilder builder)
         {
             if (_gameplayDocument == null)
                 throw new System.InvalidOperationException("Gameplay UIDocument is not assigned.");
 
+            if (BattleshipGameplaySettingsAsset == null)
+            {
+                GameLog.Warning("[GameplayLifetimeScope] BattleshipGameplaySettings is not assigned. Runtime defaults will be used.");
+                BattleshipGameplaySettingsAsset = BattleshipGameplaySettings.CreateRuntimeDefault();
+            }
+
             builder.RegisterInstance(_gameplayDocument);
+            builder.RegisterInstance(BattleshipGameplaySettingsAsset);
             builder.Register<FieldSpecMapper>(Lifetime.Scoped);
             builder.Register<IGameService, LocalGameService>(Lifetime.Scoped);
 
@@ -46,8 +57,13 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<EventPublishSystem>(Lifetime.Scoped);
             builder.Register<IRulesEngine, ClassicRulesEngine>(Lifetime.Scoped);
             builder.Register<IUltimateRulesEngine, UltimateRulesEngine>(Lifetime.Scoped);
+            builder.Register<IBattleshipPlacementValidator, BattleshipPlacementValidator>(Lifetime.Scoped);
+            builder.Register<IBattleshipAutoPlacer, BattleshipAutoPlacer>(Lifetime.Scoped);
+            builder.Register<IBattleshipPlacementService, BattleshipPlacementService>(Lifetime.Scoped)
+                .As<IDisposable>();
             builder.Register<TicTacToeEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
             builder.Register<UltimateTicTacToeEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
+            builder.Register<BattleshipEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
             builder.Register<MatchEcsLifecycleService>(Lifetime.Scoped)
                 .AsSelf()
                 .As<IMatchEcsLifecycle>();
@@ -55,10 +71,30 @@ namespace Runtime.Infrastructure.Scopes
                 .As<IMatchStateProvider>()
                 .As<IGameplayEventStream>()
                 .As<IGameplaySnapshotProvider>()
+                .As<IBattleshipGameplayEventStream>()
+                .As<IBattleshipGameplaySnapshotProvider>()
+                .As<IBattleshipRecoveryStateApplier>()
                 .As<IUltimateGameplayEventStream>()
                 .As<IUltimateGameplaySnapshotProvider>();
             builder.Register<IGameplayNetworkBridge, FileGameplayNetworkBridge>(Lifetime.Scoped);
-            builder.Register<OnlineAwareGameplayCommandSink>(Lifetime.Scoped).As<IGameplayCommandSink>();
+            builder.Register<IBattleshipNetworkBridge, FileBattleshipNetworkBridge>(Lifetime.Scoped);
+            builder.Register<IBattleshipLayoutSerializer, BattleshipLayoutSerializer>(Lifetime.Scoped);
+            builder.Register<OnlineAwareGameplayCommandSink>(Lifetime.Scoped);
+            builder.Register<BattleshipOnlineCommandSink>(Lifetime.Scoped)
+                .AsSelf()
+                .As<IDisposable>();
+            builder.Register<IGameplayCommandSink>(resolver =>
+            {
+                var configStore = resolver.Resolve<IGameLaunchConfigStore>();
+                if (configStore.TryPeek(out var config)
+                    && config != null
+                    && string.Equals(config.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
+                {
+                    return resolver.Resolve<BattleshipOnlineCommandSink>();
+                }
+
+                return resolver.Resolve<OnlineAwareGameplayCommandSink>();
+            }, Lifetime.Scoped);
             builder.Register<ITimeSource>(resolver =>
             {
                 var session = resolver.Resolve<IOnlineGameplaySessionContextStore>().Snapshot;
@@ -87,6 +123,19 @@ namespace Runtime.Infrastructure.Scopes
             .As<IMoveTimerService>()
             .As<IDisposable>();
 
+            builder.Register<IBattleshipPlacementTimerService>(resolver =>
+                new BattleshipPlacementTimerService(
+                    resolver.Resolve<IGameLaunchConfigStore>(),
+                    resolver.Resolve<IBattleshipGameplayEventStream>(),
+                    resolver.Resolve<IBattleshipGameplaySnapshotProvider>(),
+                    resolver.Resolve<IMatchStateProvider>(),
+                    resolver.Resolve<IGameplayCommandSink>(),
+                    resolver.Resolve<ITimeSource>(),
+                    resolver.Resolve<IOnlineGameplaySessionContextStore>()),
+                Lifetime.Scoped)
+            .As<IBattleshipPlacementTimerService>()
+            .As<IDisposable>();
+
             // ── Bot AI ──
             if (BotProfileCatalog != null)
                 builder.RegisterInstance(BotProfileCatalog).As<IBotProfileCatalog>();
@@ -100,6 +149,9 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<ClassicWinLengthProvider>(Lifetime.Scoped).As<IClassicWinLengthProvider>();
             builder.Register<BotTurnDriver>(Lifetime.Scoped)
                 .As<IBotTurnDriver>()
+                .As<IDisposable>();
+            builder.Register<BattleshipBotDriver>(Lifetime.Scoped)
+                .As<IBattleshipBotDriver>()
                 .As<IDisposable>();
 
             if (UltimateBotProfileCatalog != null)
@@ -119,12 +171,23 @@ namespace Runtime.Infrastructure.Scopes
             // ── UI / Binders ──
             builder.Register<GameplayFieldPresenter>(Lifetime.Scoped)
                 .As<IGameplayFieldPresenter>()
-                .As<IGameplayFieldUiAdapter>();
+                .As<IGameplayFieldUiAdapter>()
+                .As<IBattleshipFieldUiAdapter>();
             builder.Register<GameplayMovesBinder>(Lifetime.Scoped);
+            builder.Register<BattleshipBoardsBinder>(Lifetime.Scoped);
+            builder.Register<BattleshipPlacementUiController>(Lifetime.Scoped)
+                .As<IBattleshipPlacementUiController>()
+                .As<IDisposable>();
             builder.Register<MoveTimerHudViewModel>(Lifetime.Scoped)
                 .As<IMoveTimerHudViewModel>()
                 .As<IDisposable>();
             builder.Register<MoveTimerHudBinder>(Lifetime.Scoped)
+                .AsSelf()
+                .As<IDisposable>();
+            builder.Register<BattleshipPlacementTimerHudViewModel>(Lifetime.Scoped)
+                .As<IBattleshipPlacementTimerHudViewModel>()
+                .As<IDisposable>();
+            builder.Register<BattleshipPlacementTimerHudBinder>(Lifetime.Scoped)
                 .AsSelf()
                 .As<IDisposable>();
             builder.Register<WinLineRenderer>(Lifetime.Scoped)

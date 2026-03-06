@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Runtime.Games.Battleship;
 
 namespace Runtime.GameModes.Wizard
 {
@@ -10,8 +11,14 @@ namespace Runtime.GameModes.Wizard
         public int BoardSize { get; }
         public bool IsUltimate { get; }
         public int MoveTimeLimitSeconds { get; }
+        public int PlacementTimeLimitSeconds { get; }
 
-        public OnlineMatchConfigPayload(string gameId, int boardSize, bool isUltimate, int moveTimeLimitSeconds)
+        public OnlineMatchConfigPayload(
+            string gameId,
+            int boardSize,
+            bool isUltimate,
+            int moveTimeLimitSeconds,
+            int placementTimeLimitSeconds = 0)
         {
             if (string.IsNullOrWhiteSpace(gameId))
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(gameId));
@@ -22,10 +29,14 @@ namespace Runtime.GameModes.Wizard
             if (moveTimeLimitSeconds < 0)
                 throw new ArgumentOutOfRangeException(nameof(moveTimeLimitSeconds), moveTimeLimitSeconds, "Value cannot be negative.");
 
+            if (placementTimeLimitSeconds < 0)
+                throw new ArgumentOutOfRangeException(nameof(placementTimeLimitSeconds), placementTimeLimitSeconds, "Value cannot be negative.");
+
             GameId = gameId;
             BoardSize = boardSize;
             IsUltimate = isUltimate;
             MoveTimeLimitSeconds = moveTimeLimitSeconds;
+            PlacementTimeLimitSeconds = placementTimeLimitSeconds;
         }
 
         public static bool TryFromLaunchConfig(GameLaunchConfig config, out OnlineMatchConfigPayload payload)
@@ -46,13 +57,29 @@ namespace Runtime.GameModes.Wizard
                 return true;
             }
 
+            if (config.GameConfig is BattleshipConfig battleshipConfig)
+            {
+                payload = new OnlineMatchConfigPayload(
+                    config.GameId,
+                    boardSize: 10,
+                    isUltimate: false,
+                    moveTimeLimitSeconds: config.MoveTimeLimitSeconds,
+                    placementTimeLimitSeconds: battleshipConfig.PlacementTimeLimitSeconds);
+                return true;
+            }
+
             return false;
         }
 
-        public IGameConfig ToGameConfig() =>
-            IsUltimate
+        public IGameConfig ToGameConfig()
+        {
+            if (string.Equals(GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
+                return new BattleshipConfig(PlacementTimeLimitSeconds);
+
+            return IsUltimate
                 ? UltimateTicTacToeConfig.Instance
                 : new TicTacToeConfig(BoardSize, isUltimate: false);
+        }
     }
 
     public readonly struct OnlineGameplaySessionSnapshot

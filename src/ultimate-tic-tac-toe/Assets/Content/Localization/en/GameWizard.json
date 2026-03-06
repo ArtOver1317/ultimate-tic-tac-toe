@@ -3,6 +3,7 @@
   "locale": "en-US",
   "table": "GameWizard",
   "entries": {
+    "GameWizard.Battleship.PlacementTimer.Label": "Placement time",
     "GameWizard.GameSelection.Cancel": "Cancel",
     "GameWizard.GameSelection.Continue": "Continue",
     "GameWizard.GameSelection.Title": "Select Game",

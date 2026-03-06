@@ -56,18 +56,31 @@ namespace Runtime.Games.TicTacToe
             _fieldContainer.Clear();
             _fieldContainer.RemoveFromClassList("field-container--classic");
             _fieldContainer.RemoveFromClassList("field-container--ultimate");
+            _fieldContainer.RemoveFromClassList("field-container--battleship");
 
             _cellById.Clear();
             _markById.Clear();
             _markLabelById.Clear();
+            _ownBoardCellById.Clear();
+            _ownBoardMarkById.Clear();
+            _ownBoardMarkLabelById.Clear();
             _miniBoardByMajor.Clear();
             _miniBoardCenterByMajor.Clear();
             _isCellIdCacheValid = true;
+            _battleshipBoardsRoot = null;
 
             if (_spec.Kind == FieldKind.Classic)
             {
-                _fieldContainer.AddToClassList("field-container--classic");
-                BuildClassic(_spec);
+                if (IsBattleshipDualBoardMode())
+                {
+                    _fieldContainer.AddToClassList("field-container--battleship");
+                    BuildBattleshipDualBoard(_spec);
+                }
+                else
+                {
+                    _fieldContainer.AddToClassList("field-container--classic");
+                    BuildClassic(_spec);
+                }
             }
             else
             {
@@ -256,6 +269,68 @@ namespace Runtime.Games.TicTacToe
             }
         }
 
+        private void BuildBattleshipDualBoard(FieldRenderSpec spec)
+        {
+            var size = spec.OuterSize;
+            var ownBoardTitle = ResolveGameTextOrFallback("Game.Battleship.OwnBoard", "Your Board");
+            var opponentBoardTitle = ResolveGameTextOrFallback("Game.Battleship.OpponentBoard", "Opponent Board");
+
+            _battleshipBoardsRoot = new VisualElement { name = "BattleshipBoardsRoot" };
+            _battleshipBoardsRoot.AddToClassList("battleship-boards");
+
+            var ownBoard = BuildBattleshipBoard(
+                title: ownBoardTitle,
+                boardClass: "battleship-board--own",
+                size,
+                createOwnBoardCells: true);
+
+            var opponentBoard = BuildBattleshipBoard(
+                title: opponentBoardTitle,
+                boardClass: "battleship-board--opponent",
+                size,
+                createOwnBoardCells: false);
+
+            _battleshipBoardsRoot.Add(ownBoard);
+            _battleshipBoardsRoot.Add(opponentBoard);
+            _fieldContainer.Add(_battleshipBoardsRoot);
+        }
+
+        private VisualElement BuildBattleshipBoard(string title, string boardClass, int size, bool createOwnBoardCells)
+        {
+            var boardRoot = new VisualElement();
+            boardRoot.AddToClassList("battleship-board");
+            boardRoot.AddToClassList(boardClass);
+
+            var titleLabel = new Label { text = title };
+            titleLabel.AddToClassList("battleship-board-title");
+            boardRoot.Add(titleLabel);
+
+            var grid = new VisualElement();
+            grid.AddToClassList("battleship-board-grid");
+
+            for (var y = 0; y < size; y++)
+            {
+                var row = new VisualElement();
+                row.AddToClassList("field-row");
+
+                for (var x = 0; x < size; x++)
+                {
+                    var cellId = new CellId(y, x);
+                    var cell = createOwnBoardCells
+                        ? CreateOwnBoardCell(x, y, cellId)
+                        : CreateCell(x, y, cellId);
+
+                    row.Add(cell);
+                    _cells.Add(cell);
+                }
+
+                grid.Add(row);
+            }
+
+            boardRoot.Add(grid);
+            return boardRoot;
+        }
+
         private void BuildUltimate(FieldRenderSpec spec)
         {
             var outer = spec.OuterSize;
@@ -365,6 +440,32 @@ namespace Runtime.Games.TicTacToe
             return cell;
         }
 
+        private VisualElement CreateOwnBoardCell(int x, int y, CellId cellId)
+        {
+            var cell = new VisualElement { name = $"OwnCell_{x}_{y}" };
+            cell.AddToClassList("cell");
+            cell.AddToClassList("cell--own-board");
+
+            cell.userData = new CellUserData(cellId);
+
+            cell.AddManipulator(new Clickable(() => OnOwnBoardCellClicked(cell)));
+
+            _ownBoardCellById[cellId] = cell;
+
+            var mark = new VisualElement { name = "OwnMark" };
+            mark.AddToClassList("cell-mark");
+            mark.AddToClassList("cell-mark--own-board");
+
+            var markLabel = new Label { name = "OwnMarkLabel" };
+            mark.Add(markLabel);
+            cell.Add(mark);
+
+            _ownBoardMarkById[cellId] = mark;
+            _ownBoardMarkLabelById[cellId] = markLabel;
+
+            return cell;
+        }
+
         internal void EmitCellClick(CellId cellId)
         {
             if (!_isBound || _disposed)
@@ -379,6 +480,14 @@ namespace Runtime.Games.TicTacToe
                 return;
 
             EmitCellClick(userData.CellId);
+        }
+
+        private void OnOwnBoardCellClicked(VisualElement cell)
+        {
+            if (!_isBound || _disposed || cell?.userData is not CellUserData userData)
+                return;
+
+            _ownBoardCellClicks.OnNext(userData.CellId);
         }
     }
 }

@@ -112,6 +112,10 @@ namespace Runtime.Games.TicTacToe.Moves
         private Label _timerLabel;
         private bool _isBound;
         private bool _disposed;
+        private bool _lastViewModelVisibility;
+        private bool? _visibilityOverride;
+
+        public bool IsBound => _isBound;
 
         public MoveTimerHudBinder(IGameplayFieldUiAdapter ui, IMoveTimerHudViewModel viewModel)
         {
@@ -172,8 +176,16 @@ namespace Runtime.Games.TicTacToe.Moves
                 _timerLabel.text = "00";
             }
 
+            _lastViewModelVisibility = false;
+            _visibilityOverride = null;
             _timerLabel = null;
             _isBound = false;
+        }
+
+        public void SetVisibilityOverride(bool? isVisible)
+        {
+            _visibilityOverride = isVisible;
+            ApplyVisibility();
         }
 
         public void Dispose()
@@ -195,9 +207,16 @@ namespace Runtime.Games.TicTacToe.Moves
 
         private void UpdateVisibility(bool isVisible)
         {
+            _lastViewModelVisibility = isVisible;
+            ApplyVisibility();
+        }
+
+        private void ApplyVisibility()
+        {
             if (_timerLabel == null)
                 return;
 
+            var isVisible = _visibilityOverride ?? _lastViewModelVisibility;
             _timerLabel.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
         }
 

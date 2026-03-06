@@ -9,6 +9,7 @@ namespace Runtime.Gameplay
         ReadOnlyReactiveProperty<bool> IsActive { get; }
 
         void StartOrResetForPlayer(int playerSlot);
+        void RestoreRemainingSeconds(float remainingSeconds, int activePlayerSlot);
         void Stop();
         void Freeze();
         void Unfreeze();

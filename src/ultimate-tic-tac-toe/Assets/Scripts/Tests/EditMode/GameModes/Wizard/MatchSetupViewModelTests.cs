@@ -1748,12 +1748,65 @@ namespace Tests.EditMode.GameModes.Wizard
             sut.CanCopySessionId.CurrentValue.Should().BeTrue();
         }
 
+        [Test]
+        public void WhenBattleshipSelectedAndHumanLocalInSnapshot_ThenHumanKindAutoNormalizedToDirectInvite()
+        {
+            // Arrange
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+            SetupStrategy(BattleshipStrategy.DefaultGameId, CreateBattleshipStrategy());
+
+            using var sut = CreateSut();
+            sut.DisablePlayerLoopForTests();
+            sut.Initialize();
+
+            // Act
+            session.EmitSnapshot(GameSessionSnapshot.Default
+                .WithSelectedGameId(BattleshipStrategy.DefaultGameId)
+                .WithGameConfig(new BattleshipConfig(30))
+                .WithOpponentType(OpponentType.Human)
+                .WithHumanOpponentKind(HumanOpponentKind.Local)
+                .WithVersion(1));
+
+            // Assert
+            sut.IsLocalHumanSupported.CurrentValue.Should().BeFalse();
+            session.Snapshot.CurrentValue.HumanOpponentKind.Should().Be(HumanOpponentKind.DirectInvite);
+        }
+
+        [Test]
+        public void WhenBattleshipSelectedInBotModeAndDifficultyMissing_ThenSelectsDefaultDifficultyAndHidesBotDifficultySection()
+        {
+            // Arrange
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+            SetupStrategy(BattleshipStrategy.DefaultGameId, CreateBattleshipStrategy());
+
+            using var sut = CreateSut();
+            sut.DisablePlayerLoopForTests();
+            sut.Initialize();
+
+            // Act
+            session.EmitSnapshot(GameSessionSnapshot.Default
+                .WithSelectedGameId(BattleshipStrategy.DefaultGameId)
+                .WithGameConfig(new BattleshipConfig(30))
+                .WithOpponentType(OpponentType.Bot)
+                .WithBotDifficultyId(null)
+                .WithVersion(1));
+
+            // Assert
+            sut.SelectedDifficultyId.CurrentValue.Should().Be(BattleshipStrategy.DefaultBotDifficultyId);
+            sut.IsBotSettingsVisible.CurrentValue.Should().BeFalse();
+        }
+
         private void SetupCoordinatorWithSession(FakeGameSession session) =>
             _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(callInfo =>
             {
                 callInfo[0] = session;
                 return true;
             });
+
+        private BattleshipStrategy CreateBattleshipStrategy() =>
+            new(() => new BattleshipSettingsViewModel(MoveTimerPresetsConfig.CreateRuntimeDefault(), _localization));
 
         private void SetupStrategy(string gameId, IGameStrategy strategy) =>
             _catalog.TryGetStrategy(gameId, out Arg.Any<IGameStrategy>()).Returns(callInfo =>

@@ -50,9 +50,11 @@ namespace Runtime.GameModes.Wizard
 
         private string? _localUserId;
         private bool _isBound;
+        private bool _isHost;
         private bool _isDisposed;
         private ulong _authoritativeTick;
         private int _currentMatchRoundId = 1;
+        private long _shotSequence;
 
         public FileGameplayNetworkBridge(IOnlineGameplaySessionContextStore contextStore, IPhotonSessionTransport transport)
         {
@@ -84,6 +86,9 @@ namespace Runtime.GameModes.Wizard
             _seenCommandOrder.Clear();
             _authoritativeTick = 0;
             _currentMatchRoundId = 1;
+            _shotSequence = 0;
+            _snapshot.Value = null;
+            _isHost = isHost;
             _isBound = true;
             _transport.ReliableDataReceived += OnReliableDataReceived;
         }
@@ -98,6 +103,9 @@ namespace Runtime.GameModes.Wizard
             _seenCommands.Clear();
             _seenCommandOrder.Clear();
             _currentMatchRoundId = 1;
+            _shotSequence = 0;
+            _isHost = false;
+            _snapshot.Value = null;
             await UniTask.CompletedTask;
         }
 
@@ -113,7 +121,9 @@ namespace Runtime.GameModes.Wizard
             await _transport.SendReliableDataAsync(payload);
 
             RememberCommandId(command.CommandId);
-            UpdateSnapshot(command.ClientTick);
+            // Sequence advances only on authoritative path:
+            // host submits accepted moves directly; guest waits for host echo.
+            UpdateSnapshot(command.ClientTick, updateShotSequence: _isHost);
         }
 
         public async UniTask SubmitRoundReadyAsync(RoundReadySignal signal)
@@ -125,8 +135,10 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             _currentMatchRoundId = signal.MatchRoundId;
+            _shotSequence = 0;
             var payload = SerializeRoundReady(signal);
             await _transport.SendReliableDataAsync(payload);
+            UpdateSnapshot(0);
         }
 
         public async UniTask SubmitTimeoutAsync(OnlineTimeoutSignal signal)
@@ -157,6 +169,8 @@ namespace Runtime.GameModes.Wizard
             _seenCommands.Clear();
             _seenCommandOrder.Clear();
             _currentMatchRoundId = 1;
+            _shotSequence = 0;
+            _isHost = false;
 
             _snapshot.Dispose();
             _incomingMoves.Dispose();
@@ -164,11 +178,37 @@ namespace Runtime.GameModes.Wizard
             _incomingTimeoutSignals.Dispose();
         }
 
-        private void UpdateSnapshot(long tick)
+        private void UpdateSnapshot(long tick, bool updateShotSequence = false)
         {
             _authoritativeTick++;
+            if (updateShotSequence)
+                TryUpdateShotSequence(tick);
+
             var targetTick = tick > 0 ? tick : (long)_authoritativeTick;
-            _snapshot.Value = new GameplayNetworkSnapshot(_currentMatchRoundId, isCompleted: false, winnerUserId: null, authoritativeTick: (long)_authoritativeTick, countdownTargetTick: targetTick);
+            _snapshot.Value = new GameplayNetworkSnapshot(
+                _currentMatchRoundId,
+                isCompleted: false,
+                winnerUserId: null,
+                authoritativeTick: (long)_authoritativeTick,
+                countdownTargetTick: targetTick,
+                shotSequence: _shotSequence);
+        }
+
+        private void TryUpdateShotSequence(long sequence)
+        {
+            if (sequence <= 0)
+                return;
+
+            if (_shotSequence == 0)
+            {
+                if (sequence == 1)
+                    _shotSequence = 1;
+
+                return;
+            }
+
+            if (sequence == _shotSequence + 1)
+                _shotSequence = sequence;
         }
 
         private void OnReliableDataReceived(PhotonReliableDataEvent evt)
@@ -184,7 +224,9 @@ namespace Runtime.GameModes.Wizard
                 if (!RememberCommandId(move.CommandId))
                     return;
 
-                UpdateSnapshot(move.ClientTick);
+                // Remote move updates sequence only for guest clients (authoritative host stream).
+                // Host receives guest proposals here; sequence advances after host accepts and re-broadcasts.
+                UpdateSnapshot(move.ClientTick, updateShotSequence: !_isHost);
                 _incomingMoves.OnNext(move);
                 return;
             }
@@ -206,6 +248,8 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             _currentMatchRoundId = signal.MatchRoundId;
+            _shotSequence = 0;
+            UpdateSnapshot(0);
             _incomingRoundReadySignals.OnNext(signal);
         }
 

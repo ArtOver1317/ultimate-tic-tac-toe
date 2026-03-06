@@ -18,6 +18,72 @@ namespace Tests.EditMode.GameModes.Wizard
     public class FileGameplayNetworkBridgeTests
     {
         [Test]
+        public async Task WhenRemoteMovesCarrySequentialTicks_ThenSnapshotTracksShotSequence()
+        {
+            var context = new OnlineGameplaySessionContextStore();
+            context.SetDirectInviteSession("ABCDEF", "local-user", isHost: false);
+
+            var transport = CreateTransportSubstitute();
+            var bridge = new FileGameplayNetworkBridge(context, transport);
+
+            await bridge.BindAsync("local-user", isHost: false);
+
+            RaiseReliableData(transport, $"M|{Guid.NewGuid():N}|remote-user|0|1");
+            bridge.Snapshot.CurrentValue.Should().NotBeNull();
+            bridge.Snapshot.CurrentValue!.Value.ShotSequence.Should().Be(1);
+
+            RaiseReliableData(transport, $"M|{Guid.NewGuid():N}|remote-user|1|2");
+            bridge.Snapshot.CurrentValue.Should().NotBeNull();
+            bridge.Snapshot.CurrentValue!.Value.ShotSequence.Should().Be(2);
+        }
+
+        [Test]
+        public async Task WhenGuestSubmitsMoveBeforeAuthoritativeEcho_ThenSnapshotShotSequenceIsNotAdvanced()
+        {
+            var context = new OnlineGameplaySessionContextStore();
+            context.SetDirectInviteSession("ABCDEF", "local-user", isHost: false);
+
+            var transport = CreateTransportSubstitute();
+            var bridge = new FileGameplayNetworkBridge(context, transport);
+
+            await bridge.BindAsync("local-user", isHost: false);
+
+            RaiseReliableData(transport, $"M|{Guid.NewGuid():N}|remote-user|0|1");
+            bridge.Snapshot.CurrentValue.Should().NotBeNull();
+            bridge.Snapshot.CurrentValue!.Value.ShotSequence.Should().Be(1);
+
+            await bridge.SubmitMoveAsync(new MoveCommand(Guid.NewGuid(), "local-user", cellIndex: 1, clientTick: 2));
+
+            bridge.Snapshot.CurrentValue.Should().NotBeNull();
+            bridge.Snapshot.CurrentValue!.Value.ShotSequence.Should().Be(1);
+
+            RaiseReliableData(transport, $"M|{Guid.NewGuid():N}|remote-user|1|2");
+            bridge.Snapshot.CurrentValue.Should().NotBeNull();
+            bridge.Snapshot.CurrentValue!.Value.ShotSequence.Should().Be(2);
+        }
+
+        [Test]
+        public async Task WhenRoundReadySignalReceived_ThenSnapshotResetsShotSequence()
+        {
+            var context = new OnlineGameplaySessionContextStore();
+            context.SetDirectInviteSession("ABCDEF", "local-user", isHost: false);
+
+            var transport = CreateTransportSubstitute();
+            var bridge = new FileGameplayNetworkBridge(context, transport);
+
+            await bridge.BindAsync("local-user", isHost: false);
+
+            RaiseReliableData(transport, $"M|{Guid.NewGuid():N}|remote-user|0|1");
+            bridge.Snapshot.CurrentValue.Should().NotBeNull();
+            bridge.Snapshot.CurrentValue!.Value.ShotSequence.Should().Be(1);
+
+            RaiseReliableData(transport, "R|remote-user|1|2|123");
+            bridge.Snapshot.CurrentValue.Should().NotBeNull();
+            bridge.Snapshot.CurrentValue!.Value.MatchRoundId.Should().Be(2);
+            bridge.Snapshot.CurrentValue!.Value.ShotSequence.Should().Be(0);
+        }
+
+        [Test]
         public async Task WhenRemoteTimeoutSignalReceived_ThenPublishesIncomingTimeoutSignal()
         {
             var context = new OnlineGameplaySessionContextStore();

@@ -106,6 +106,7 @@ namespace Runtime.UI.GameModes.Wizard
         private string _humanLocalLabel = string.Empty;
         private string _humanDirectInviteLabel = string.Empty;
         private string _humanMatchmakingLabel = string.Empty;
+        private bool _isLocalHumanSupported = true;
 
         [Inject]
         public void Construct(IViewAssetProvider assetProvider, IEnumerable<IGameSettingsBinder> binders, ILocalizationService localization)
@@ -253,6 +254,12 @@ namespace Runtime.UI.GameModes.Wizard
                 UpdateHumanKindOptions();
             }));
 
+            AddDisposable(ViewModel.IsLocalHumanSupported.Subscribe(isSupported =>
+            {
+                _isLocalHumanSupported = isSupported;
+                UpdateHumanKindOptions();
+            }));
+
             UpdateHumanKindOptions();
             humanKindRadio.SetSelectedKindWithoutNotify(ViewModel.HumanOpponentKind.CurrentValue);
 
@@ -345,7 +352,7 @@ namespace Runtime.UI.GameModes.Wizard
 
             var items = new[]
             {
-                new HumanKindRadioItem(HumanOpponentKind.Local, _humanLocalLabel),
+                new HumanKindRadioItem(HumanOpponentKind.Local, _humanLocalLabel, isEnabled: _isLocalHumanSupported),
                 new HumanKindRadioItem(HumanOpponentKind.DirectInvite, _humanDirectInviteLabel),
                 new HumanKindRadioItem(HumanOpponentKind.Matchmaking, _humanMatchmakingLabel, isEnabled: true)
             };

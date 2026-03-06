@@ -3,6 +3,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using Runtime.Gameplay;
+using Runtime.Games.Battleship;
 using Runtime.Games.TicTacToe;
 using Runtime.GameModes.Wizard;
 
@@ -104,6 +105,23 @@ namespace Tests.EditMode.Games.TicTacToe
             result.Kind.Should().Be(FieldKind.Ultimate);
             result.OuterSize.Should().Be(3);
             result.InnerSize.Should().Be(3);
+        }
+
+        [Test]
+        public void WhenConfigIsBattleship_ThenMapsToClassicTenByTenSpec()
+        {
+            // Arrange
+            var sut = new FieldSpecMapper();
+            var catalog = CreateCatalog(BattleshipStrategy.DefaultGameId);
+            var config = new GameLaunchConfig(BattleshipStrategy.DefaultGameId, new BattleshipConfig(90), new LocalHumanConfig());
+
+            // Act
+            var result = sut.Map(config, catalog);
+
+            // Assert
+            result.Kind.Should().Be(FieldKind.Classic);
+            result.OuterSize.Should().Be(10);
+            result.InnerSize.Should().Be(0);
         }
 
         [Test]

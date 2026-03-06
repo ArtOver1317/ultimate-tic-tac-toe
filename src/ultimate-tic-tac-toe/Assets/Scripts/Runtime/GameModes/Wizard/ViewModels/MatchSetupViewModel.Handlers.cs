@@ -56,6 +56,7 @@ namespace Runtime.GameModes.Wizard
             ApplyTargetPlayerIdFromSession(snapshot.TargetPlayerId);
             ApplyModeConfigFromSession(snapshot.GameConfig);
             ApplyMoveTimeLimitFromSession(snapshot.MoveTimeLimitSeconds);
+            ApplyModeSpecificConstraints(snapshot);
         }
 
         private void ApplySelectedMode(string? selectedGameId)
@@ -77,14 +78,20 @@ namespace Runtime.GameModes.Wizard
                 || !_catalog.TryGetStrategy(gameId, out var strategy) 
                 || strategy == null)
             {
+                _isLocalHumanSupported.Value = true;
+                _availableDifficulties.Value = _difficultyCatalog.Difficulties;
                 _modeTitleSubscription?.Dispose();
                 _modeTitleSubscription = null;
                 _modeTitleText.Value = string.Empty;
                 _modeIconKey.Value = string.Empty;
                 _activeSettings.Value = null;
+                UpdateBotSettingsVisibility();
                 UpdateCanStart();
                 return;
             }
+
+            _isLocalHumanSupported.Value = strategy.Metadata.SupportsLocal;
+            _availableDifficulties.Value = BuildAvailableDifficultiesForMode(strategy);
 
             _modeIconKey.Value = strategy.Metadata.IconAssetKey;
 
@@ -108,6 +115,116 @@ namespace Runtime.GameModes.Wizard
                 .Subscribe(ApplyModeConfig);
             
             ApplyModeConfig(presentation.ViewModel.Config.CurrentValue);
+            UpdateBotSettingsVisibility();
+        }
+
+        private IReadOnlyList<BotDifficulty> BuildAvailableDifficultiesForMode(IGameStrategy strategy)
+        {
+            if (strategy == null)
+                return _difficultyCatalog.Difficulties;
+
+            if (!string.Equals(strategy.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
+                return _difficultyCatalog.Difficulties;
+
+            var source = _difficultyCatalog.Difficulties;
+            var result = new List<BotDifficulty>(capacity: 1);
+
+            for (var i = 0; i < source.Count; i++)
+            {
+                var difficulty = source[i];
+
+                if (difficulty == null)
+                    continue;
+
+                if (!string.Equals(difficulty.Id, BattleshipStrategy.DefaultBotDifficultyId, StringComparison.Ordinal))
+                    continue;
+
+                result.Add(difficulty);
+                break;
+            }
+
+            return result.Count == 0
+                ? Array.Empty<BotDifficulty>()
+                : Array.AsReadOnly(result.ToArray());
+        }
+
+        private void ApplyModeSpecificConstraints(GameSessionSnapshot snapshot)
+        {
+            if (snapshot == null)
+                return;
+
+            if (!string.Equals(snapshot.SelectedGameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
+                return;
+
+            var session = _session;
+
+            if (session == null)
+                return;
+
+            if (snapshot.OpponentType == global::Runtime.GameModes.Wizard.OpponentType.Human
+                && snapshot.HumanOpponentKind == global::Runtime.GameModes.Wizard.HumanOpponentKind.Local)
+            {
+                try
+                {
+                    session.Update(s =>
+                    {
+                        if (!string.Equals(s.SelectedGameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
+                            return s;
+
+                        if (s.OpponentType != global::Runtime.GameModes.Wizard.OpponentType.Human
+                            || s.HumanOpponentKind != global::Runtime.GameModes.Wizard.HumanOpponentKind.Local)
+                            return s;
+
+                        return s.WithHumanOpponentKind(global::Runtime.GameModes.Wizard.HumanOpponentKind.DirectInvite);
+                    });
+                }
+                catch (ObjectDisposedException)
+                {
+                    LogDisposedOnce("ApplyModeSpecificConstraints.LocalHuman");
+                }
+
+                return;
+            }
+
+            if (snapshot.OpponentType != global::Runtime.GameModes.Wizard.OpponentType.Bot)
+                return;
+
+            if (!string.IsNullOrWhiteSpace(snapshot.BotDifficultyId))
+                return;
+
+            if (!IsDifficultyAvailable(BattleshipStrategy.DefaultBotDifficultyId))
+                return;
+
+            try
+            {
+                session.Update(s =>
+                {
+                    if (!string.Equals(s.SelectedGameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
+                        return s;
+
+                    if (s.OpponentType != global::Runtime.GameModes.Wizard.OpponentType.Bot)
+                        return s;
+
+                    if (!string.IsNullOrWhiteSpace(s.BotDifficultyId))
+                        return s;
+
+                    return s.WithBotDifficultyId(BattleshipStrategy.DefaultBotDifficultyId);
+                });
+            }
+            catch (ObjectDisposedException)
+            {
+                LogDisposedOnce("ApplyModeSpecificConstraints.BotDifficulty");
+            }
+        }
+
+        private void UpdateBotSettingsVisibility()
+        {
+            var isBot = _opponentType.Value == global::Runtime.GameModes.Wizard.OpponentType.Bot;
+            var hideDifficulty =
+                string.Equals(_activeModeId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal)
+                && _availableDifficulties.Value.Count <= 1;
+
+            _isBotSettingsVisible.Value = isBot && !hideDifficulty;
         }
 
         private void ApplyOpponentTypeFromSession(OpponentType opponentType)

@@ -29,16 +29,20 @@ namespace Runtime.Games.TicTacToe
             if (rect.width <= 0f || rect.height <= 0f)
                 return;
 
-            var columns = _spec.Kind == FieldKind.Classic
-                ? _spec.OuterSize
-                : _spec.OuterSize * _spec.InnerSize;
+            int cellSize;
 
-            if (columns <= 0)
-                return;
-
-            var cellSize = _spec.Kind == FieldKind.Classic
-                ? CalculateClassicCellSize(rect, _spec.OuterSize)
-                : CalculateUltimateCellSize(rect, _spec.OuterSize, _spec.InnerSize);
+            if (_spec.Kind == FieldKind.Ultimate)
+            {
+                cellSize = CalculateUltimateCellSize(rect, _spec.OuterSize, _spec.InnerSize);
+            }
+            else if (IsBattleshipDualBoardMode())
+            {
+                cellSize = CalculateBattleshipDualCellSize(rect, _spec.OuterSize);
+            }
+            else
+            {
+                cellSize = CalculateClassicCellSize(rect, _spec.OuterSize);
+            }
             
             if (cellSize <= 0)
                 return;
@@ -102,6 +106,14 @@ namespace Runtime.Games.TicTacToe
             var fontSize = Mathf.Max(1f, cellSize * scale);
 
             foreach (var label in _markLabelById.Values)
+            {
+                if (label == null)
+                    continue;
+
+                label.style.fontSize = fontSize;
+            }
+
+            foreach (var label in _ownBoardMarkLabelById.Values)
             {
                 if (label == null)
                     continue;
@@ -177,6 +189,29 @@ namespace Runtime.Games.TicTacToe
                 return 0;
 
             return Mathf.FloorToInt(Mathf.Min(cellAvailableWidth / inner, cellAvailableHeight / inner));
+        }
+
+        private int CalculateBattleshipDualCellSize(Rect rect, int size)
+        {
+            const float boardGap = 24f;
+            const float boardTitleHeight = 26f;
+
+            var totalMarginX = size * (_gridGapHalf * 2f);
+            var totalMarginY = size * (_gridGapHalf * 2f);
+
+            var perBoardAvailableWidth = (rect.width - boardGap) * 0.5f;
+            var availableHeight = rect.height - boardTitleHeight;
+
+            if (perBoardAvailableWidth <= 0f || availableHeight <= 0f)
+                return 0;
+
+            var cellAvailableWidth = perBoardAvailableWidth - totalMarginX;
+            var cellAvailableHeight = availableHeight - totalMarginY;
+
+            if (cellAvailableWidth <= 0f || cellAvailableHeight <= 0f)
+                return 0;
+
+            return Mathf.FloorToInt(Mathf.Min(cellAvailableWidth / size, cellAvailableHeight / size));
         }
 
         private void OnCustomStyleResolved(CustomStyleResolvedEvent evt) =>

@@ -44,6 +44,7 @@ namespace Runtime.GameModes.Wizard
         private readonly ReactiveProperty<string?> _selectedDifficultyId = new(null);
         private readonly ReactiveProperty<bool> _isBotSettingsVisible = new(true);
         private readonly ReactiveProperty<bool> _isHumanSettingsVisible = new(false);
+        private readonly ReactiveProperty<bool> _isLocalHumanSupported = new(true);
         private readonly ReactiveProperty<bool> _isPlayerIdInputVisible = new(false);
         private readonly ReactiveProperty<string> _targetPlayerId = new(string.Empty);
         private readonly ReactiveProperty<string?> _playerIdErrorText = new(null);
@@ -98,6 +99,7 @@ namespace Runtime.GameModes.Wizard
         public ReadOnlyReactiveProperty<string?> SelectedDifficultyId => _selectedDifficultyId;
         public ReadOnlyReactiveProperty<bool> IsBotSettingsVisible => _isBotSettingsVisible;
         public ReadOnlyReactiveProperty<bool> IsHumanSettingsVisible => _isHumanSettingsVisible;
+        public ReadOnlyReactiveProperty<bool> IsLocalHumanSupported => _isLocalHumanSupported;
         public ReadOnlyReactiveProperty<bool> IsPlayerIdInputVisible => _isPlayerIdInputVisible;
         public ReadOnlyReactiveProperty<string> TargetPlayerId => _targetPlayerId;
         public ReadOnlyReactiveProperty<string?> PlayerIdErrorText => _playerIdErrorText;
@@ -333,6 +335,7 @@ namespace Runtime.GameModes.Wizard
             _selectedDifficultyId.Value = null;
             _isBotSettingsVisible.Value = true;
             _isHumanSettingsVisible.Value = false;
+            _isLocalHumanSupported.Value = true;
             _isPlayerIdInputVisible.Value = false;
             _targetPlayerId.Value = string.Empty;
             _playerIdErrorText.Value = null;
@@ -382,6 +385,7 @@ namespace Runtime.GameModes.Wizard
             _selectedDifficultyId.Dispose();
             _isBotSettingsVisible.Dispose();
             _isHumanSettingsVisible.Dispose();
+            _isLocalHumanSupported.Dispose();
             _isPlayerIdInputVisible.Dispose();
             _targetPlayerId.Dispose();
             _playerIdErrorText.Dispose();
@@ -461,8 +465,7 @@ namespace Runtime.GameModes.Wizard
                 .Subscribe(OnCoordinatorErrorChanged));
 
             AddDisposable(_opponentType
-                .Select(type => type == global::Runtime.GameModes.Wizard.OpponentType.Bot)
-                .Subscribe(isBot => _isBotSettingsVisible.Value = isBot));
+                .Subscribe(_ => UpdateBotSettingsVisibility()));
 
             AddDisposable(_opponentType
                 .Select(type => type == global::Runtime.GameModes.Wizard.OpponentType.Human)

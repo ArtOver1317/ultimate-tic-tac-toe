@@ -69,6 +69,18 @@ namespace Runtime.Gameplay
             RunCountdownLoop(playerSlot, _countdownCts.Token).Forget();
         }
 
+        public void RestoreRemainingSeconds(float remainingSeconds, int activePlayerSlot)
+        {
+            StartOrResetForPlayer(activePlayerSlot);
+
+            if (_isDisposed || !_isActive.Value)
+                return;
+
+            var clamped = remainingSeconds < 0f ? 0f : remainingSeconds;
+            if (clamped < _remainingSeconds.Value)
+                _remainingSeconds.Value = clamped;
+        }
+
         public void Stop()
         {
             if (_isDisposed)

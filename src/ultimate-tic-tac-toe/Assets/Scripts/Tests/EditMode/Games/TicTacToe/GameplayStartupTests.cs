@@ -109,7 +109,7 @@ namespace Tests.EditMode.Games.TicTacToe
             _gameService.StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(_session));
 
-            _fieldPresenter.BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>())
+            _fieldPresenter.BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>())
                 .Returns(UniTask.CompletedTask);
 
             _stateMachine.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>())
@@ -151,7 +151,7 @@ namespace Tests.EditMode.Games.TicTacToe
             _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.DidNotReceive().StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
-            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
+            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>());
         }
 
         [Test]
@@ -176,7 +176,7 @@ namespace Tests.EditMode.Games.TicTacToe
             _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.DidNotReceive().StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
-            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
+            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>());
         }
 
         [Test]
@@ -191,7 +191,7 @@ namespace Tests.EditMode.Games.TicTacToe
             // Assert
             await act.Should().NotThrowAsync();
             await _gameService.Received(1).StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
-            await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
+            await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>());
             _ecsLifecycle.Received(1).StartMatch(Arg.Any<GameLaunchConfig>());
 
             _fieldPresenter.DidNotReceive().Unbind();
@@ -220,7 +220,7 @@ namespace Tests.EditMode.Games.TicTacToe
             _fieldPresenter.Received(1).Unbind();
             _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
-            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
+            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>());
         }
 
         [Test]
@@ -244,7 +244,7 @@ namespace Tests.EditMode.Games.TicTacToe
             _fieldPresenter.Received(1).Unbind();
             _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
-            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
+            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>());
         }
 
         [Test]
@@ -268,14 +268,14 @@ namespace Tests.EditMode.Games.TicTacToe
             _fieldPresenter.Received(1).Unbind();
             _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
-            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
+            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>());
         }
 
         [Test]
         public async Task WhenBindThrowsException_ThenUnbindDisposesAndReturnsToMainMenu()
         {
             // Arrange
-            _fieldPresenter.BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>())
+            _fieldPresenter.BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>())
                 .Returns(UniTask.FromException(new Exception("bind failed")));
 
             // Act
@@ -293,7 +293,7 @@ namespace Tests.EditMode.Games.TicTacToe
             _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.Received(1).StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
-            await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
+            await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>());
         }
 
         [Test]
@@ -312,7 +312,7 @@ namespace Tests.EditMode.Games.TicTacToe
             _fieldPresenter.Received(1).Unbind();
             _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
-            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
+            await _fieldPresenter.DidNotReceive().BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>());
         }
 
         [Test]
@@ -320,7 +320,7 @@ namespace Tests.EditMode.Games.TicTacToe
         {
             // Arrange
             using var cts = new CancellationTokenSource();
-            _fieldPresenter.BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>())
+            _fieldPresenter.BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>())
                 .Returns(UniTask.FromException(new OperationCanceledException(cts.Token)));
 
             // Act
@@ -332,7 +332,7 @@ namespace Tests.EditMode.Games.TicTacToe
             _ecsLifecycle.Received(1).StopMatch();
             await _stateMachine.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
             await _gameService.Received(1).StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
-            await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>());
+            await _fieldPresenter.Received(1).BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>());
         }
 
         [Test]
@@ -699,3 +699,4 @@ namespace Tests.EditMode.Games.TicTacToe
 
     }
 }
+

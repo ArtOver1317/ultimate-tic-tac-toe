@@ -6,7 +6,9 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
+using Runtime.GameModes.Wizard;
 using Runtime.Gameplay;
+using Runtime.Games.Battleship;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Moves;
 using UnityEngine;
@@ -345,9 +347,51 @@ namespace Tests.EditMode.Games.TicTacToe
             published[0].Should().Be(new CellId(2, 2));
         }
 
-        private void BindSync(FieldRenderSpec spec)
+        [Test]
+        [Category("Integration")]
+        public void WhenBindBattleshipClassic_ThenProvidesOwnBoardAdapterAndSeparateCells()
         {
-            var task = _presenter.BindAsync(spec, CancellationToken.None);
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(10), BattleshipStrategy.DefaultGameId);
+
+            var gameplayAdapter = (IGameplayFieldUiAdapter)_presenter;
+            var battleshipAdapter = (IBattleshipFieldUiAdapter)_presenter;
+
+            // Act
+            var hasOpponentCell = gameplayAdapter.TryGetCellView(new CellId(0, 0), out var opponentCell, out var opponentMark);
+            var hasOwnCell = battleshipAdapter.TryGetOwnCellView(new CellId(0, 0), out var ownCell, out var ownMark);
+
+            // Assert
+            battleshipAdapter.HasOwnBoard.Should().BeTrue();
+            hasOpponentCell.Should().BeTrue();
+            hasOwnCell.Should().BeTrue();
+            opponentCell.Should().NotBeNull();
+            ownCell.Should().NotBeNull();
+            ownMark.Should().NotBeNull();
+            opponentMark.Should().NotBeNull();
+            ownCell.Should().NotBeSameAs(opponentCell);
+        }
+
+        [Test]
+        [Category("Integration")]
+        public void WhenBindClassicNonBattleship_ThenOwnBoardAdapterIsUnavailable()
+        {
+            // Arrange
+            BindSync(FieldRenderSpec.Classic(3));
+            var battleshipAdapter = (IBattleshipFieldUiAdapter)_presenter;
+
+            // Act
+            var result = battleshipAdapter.TryGetOwnCell(new CellId(0, 0), out var ownCell);
+
+            // Assert
+            battleshipAdapter.HasOwnBoard.Should().BeFalse();
+            result.Should().BeFalse();
+            ownCell.Should().BeNull();
+        }
+
+        private void BindSync(FieldRenderSpec spec, string gameId = null)
+        {
+            var task = _presenter.BindAsync(spec, CancellationToken.None, gameId);
             var awaiter = task.GetAwaiter();
 
             awaiter.IsCompleted.Should().BeTrue(

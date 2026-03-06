@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using R3;
+using Runtime.GameModes.Wizard;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Games.Battleship;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Infrastructure.Logging;
 using UnityEngine.UIElements;
@@ -23,6 +25,7 @@ namespace Runtime.Games.TicTacToe.Moves
         private readonly IGameplayEventStream _eventStream;
         private readonly IGameplaySnapshotProvider _snapshotProvider;
         private readonly MovesVfxSettings _vfxSettings;
+        private readonly IOnlineGameplaySessionContextStore _sessionContextStore;
 
         // Binder owns VFX state storage (do not use VisualElement.userData).
         private readonly Dictionary<CellId, MarkAppearVfxState> _markAppearVfxByCellId = new();
@@ -37,13 +40,15 @@ namespace Runtime.Games.TicTacToe.Moves
             IGameplayFieldUiAdapter ui,
             IGameplayCommandSink commandSink,
             IGameplayEventStream eventStream,
-            IGameplaySnapshotProvider snapshotProvider)
+            IGameplaySnapshotProvider snapshotProvider,
+            IOnlineGameplaySessionContextStore sessionContextStore = null)
         {
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
             _commandSink = commandSink ?? throw new ArgumentNullException(nameof(commandSink));
             _eventStream = eventStream ?? throw new ArgumentNullException(nameof(eventStream));
             _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
             _vfxSettings = NormalizeVfxSettings(MovesVfxSettings.Default);
+            _sessionContextStore = sessionContextStore ?? new OnlineGameplaySessionContextStore();
         }
 
         public GameplayMovesBinder(
@@ -51,13 +56,15 @@ namespace Runtime.Games.TicTacToe.Moves
             IGameplayCommandSink commandSink,
             IGameplayEventStream eventStream,
             IGameplaySnapshotProvider snapshotProvider,
-            MovesVfxSettings vfxSettings)
+            MovesVfxSettings vfxSettings,
+            IOnlineGameplaySessionContextStore sessionContextStore = null)
         {
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
             _commandSink = commandSink ?? throw new ArgumentNullException(nameof(commandSink));
             _eventStream = eventStream ?? throw new ArgumentNullException(nameof(eventStream));
             _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
             _vfxSettings = NormalizeVfxSettings(vfxSettings);
+            _sessionContextStore = sessionContextStore ?? new OnlineGameplaySessionContextStore();
         }
 
         public void Bind()
@@ -96,9 +103,15 @@ namespace Runtime.Games.TicTacToe.Moves
 
             var ecsCells = _snapshotProvider.GetAllCells();
             var coldPathSnapshot = MapEcsCells(ecsCells);
+            var isBattleshipMode = IsBattleshipMode();
 
-            SetupMarkAppearVfx(coldPathSnapshot);
-            RenderColdPathSnapshot(coldPathSnapshot);
+            if (isBattleshipMode)
+                RefreshBattleshipOpponentInteractivity();
+            else
+            {
+                SetupMarkAppearVfx(coldPathSnapshot);
+                RenderColdPathSnapshot(coldPathSnapshot);
+            }
             // Show the correct starting player from ECS snapshot (handles restarts with O as starter)
             UpdateCurrentPlayerLabel(PlayerSlotMapping.SlotToMark(_snapshotProvider.ActivePlayerSlot));
         }
@@ -201,6 +214,17 @@ namespace Runtime.Games.TicTacToe.Moves
             }
         }
 
+        private void RenderColdPathInteractivitySnapshot(IReadOnlyList<CellValue> cells)
+        {
+            foreach (var cellValue in cells)
+            {
+                if (!_ui.TryGetCell(cellValue.CellId, out var cellRoot) || cellRoot == null)
+                    continue;
+
+                ApplyCellInteractivity(cellRoot, cellValue.Value);
+            }
+        }
+
         private void SetupMarkAppearVfx(IReadOnlyList<CellValue> cells)
         {
             _markAppearVfxByCellId.Clear();
@@ -236,6 +260,12 @@ namespace Runtime.Games.TicTacToe.Moves
             if (!_isBound || _disposed)
                 return;
 
+            if (TryGetBattleshipSnapshot(out var battleshipSnapshot)
+                && battleshipSnapshot.Phase != BattleshipPhase.Battle)
+            {
+                return;
+            }
+
             try
             {
                 _commandSink.SubmitCommand(new MakeMoveCommand(cellId));
@@ -260,13 +290,53 @@ namespace Runtime.Games.TicTacToe.Moves
             if (!_isBound || _disposed)
                 return;
 
+            if (IsBattleshipMode())
+            {
+                // Battleship has two 10x10 boards with shared CellId coordinates.
+                // Generic CellChanged/CellSnapshot events are board-agnostic, so use viewer-relative
+                // opponent marks instead of raw events to avoid cross-board interactivity bleed.
+                RefreshBattleshipOpponentInteractivity();
+
+                return;
+            }
+
             UpdateMark(evt.CellId, PlayerSlotMapping.SlotToMark(evt.NewSlot), animate: true);
+        }
+
+        private bool IsBattleshipMode() =>
+            TryGetBattleshipSnapshot(out _);
+
+        private bool TryGetBattleshipSnapshot(out IBattleshipGameplaySnapshotProvider snapshot)
+        {
+            snapshot = null;
+
+            if (_snapshotProvider is not IBattleshipGameplaySnapshotProvider battleshipSnapshot)
+                return false;
+
+            if (!battleshipSnapshot.TryGetConsecutiveTimeouts(out _, out _))
+                return false;
+
+            snapshot = battleshipSnapshot;
+            return true;
         }
 
         private void OnEcsLastMoveChanged(LastMoveChangedEvent evt)
         {
             if (!_isBound || _disposed)
                 return;
+
+            if (IsBattleshipMode())
+            {
+                // LastMoveChanged has no board context (own/opponent), so highlighting may end up
+                // on the wrong board in Battleship dual-board UI. Skip generic highlight here.
+                if (_lastMoveHighlightCell != null)
+                {
+                    SetLastMoveClass(_lastMoveHighlightCell.Value, enabled: false);
+                    _lastMoveHighlightCell = null;
+                }
+
+                return;
+            }
 
             // Track previous highlight locally (ECS event only has current CellId)
             if (_lastMoveHighlightCell != null)
@@ -396,6 +466,13 @@ namespace Runtime.Games.TicTacToe.Moves
         private static void ApplyCellInteractivity(VisualElement cellRoot, PlayerMark value)
         {
             var occupied = value != PlayerMark.None;
+            ApplyCellInteractivity(cellRoot, occupied);
+        }
+
+        private static void ApplyCellInteractivity(VisualElement cellRoot, bool occupied)
+        {
+            if (cellRoot == null)
+                return;
 
             // ADR-6: disable occupied cells (no hover/pressed, clicks do not pass)
             cellRoot.SetEnabled(!occupied);
@@ -405,6 +482,54 @@ namespace Runtime.Games.TicTacToe.Moves
                 cellRoot.AddToClassList(_disabledClass);
             else
                 cellRoot.RemoveFromClassList(_disabledClass);
+        }
+
+        private void RefreshBattleshipOpponentInteractivity()
+        {
+            if (!TryGetBattleshipSnapshot(out var snapshot))
+                return;
+
+            var localSlot = ResolveLocalSlot();
+            var marks = snapshot.GetOpponentMarks(localSlot);
+            if (marks == null || marks.Count == 0)
+                return;
+
+            var boardSize = ResolveBoardSize(marks.Count);
+            var count = marks.Count;
+            for (var index = 0; index < count; index++)
+            {
+                var row = index / boardSize;
+                var col = index % boardSize;
+                var cellId = new CellId(row, col);
+
+                if (!_ui.TryGetCell(cellId, out var cellRoot) || cellRoot == null)
+                    continue;
+
+                var occupied = marks[index] != BattleshipCellMark.Unknown;
+                ApplyCellInteractivity(cellRoot, occupied);
+            }
+        }
+
+        private int ResolveLocalSlot()
+        {
+            var session = _sessionContextStore.Snapshot;
+            if (!session.IsOnlineDirectInvite)
+                return PlayerSlotMapping.SlotX;
+
+            return session.IsHost
+                ? PlayerSlotMapping.SlotX
+                : PlayerSlotMapping.SlotO;
+        }
+
+        private static int ResolveBoardSize(int cellCount)
+        {
+            if (cellCount <= 0)
+                return 10;
+
+            var root = (int)Math.Sqrt(cellCount);
+            return root > 0 && root * root == cellCount
+                ? root
+                : 10;
         }
 
         private void UpdateCurrentPlayerLabel(PlayerMark mark)

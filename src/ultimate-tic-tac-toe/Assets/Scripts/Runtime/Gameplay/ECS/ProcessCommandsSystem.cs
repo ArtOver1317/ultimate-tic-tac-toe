@@ -22,6 +22,8 @@ namespace Runtime.Gameplay.ECS
         private Stash<MakeMoveRequest> _moveRequestStash;
         private Stash<RestartRoundRequest> _restartRequestStash;
         private Stash<TimeoutRequest> _timeoutRequestStash;
+        private Stash<SubmitPlacementRequest> _submitPlacementRequestStash;
+        private Stash<PlacementTimeoutRequest> _placementTimeoutRequestStash;
 
         public ProcessCommandsSystem(CommandQueue commandQueue)
         {
@@ -34,6 +36,8 @@ namespace Runtime.Gameplay.ECS
             _moveRequestStash = World.GetStash<MakeMoveRequest>();
             _restartRequestStash = World.GetStash<RestartRoundRequest>();
             _timeoutRequestStash = World.GetStash<TimeoutRequest>();
+            _submitPlacementRequestStash = World.GetStash<SubmitPlacementRequest>();
+            _placementTimeoutRequestStash = World.GetStash<PlacementTimeoutRequest>();
         }
 
         public void OnUpdate(float deltaTime)
@@ -47,6 +51,8 @@ namespace Runtime.Gameplay.ECS
             _moveRequestStash.Remove(matchEntity);
             _restartRequestStash.Remove(matchEntity);
             _timeoutRequestStash.Remove(matchEntity);
+            _submitPlacementRequestStash.Remove(matchEntity);
+            _placementTimeoutRequestStash.Remove(matchEntity);
 
             if (_commandQueue.Count == 0)
                 return;
@@ -71,6 +77,22 @@ namespace Runtime.Gameplay.ECS
                     _timeoutRequestStash.Set(matchEntity, new TimeoutRequest
                     {
                         LoserSlot = timeout.LoserSlot,
+                    });
+                    break;
+
+                case SubmitPlacementCommand submitPlacement:
+                    _submitPlacementRequestStash.Set(matchEntity, new SubmitPlacementRequest
+                    {
+                        PlayerSlot = submitPlacement.PlayerSlot,
+                        Layout = submitPlacement.Layout,
+                    });
+                    break;
+
+                case PlacementTimeoutCommand placementTimeout:
+                    _placementTimeoutRequestStash.Set(matchEntity, new PlacementTimeoutRequest
+                    {
+                        PlayerSlot = placementTimeout.PlayerSlot,
+                        AutoPlaceSeed = placementTimeout.AutoPlaceSeed,
                     });
                     break;
 

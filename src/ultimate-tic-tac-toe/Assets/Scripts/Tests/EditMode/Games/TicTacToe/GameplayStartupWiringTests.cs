@@ -109,7 +109,7 @@ namespace Tests.EditMode.Games.TicTacToe
             });
             _gameService.StartMatchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(session));
-            _fieldPresenter.BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>())
+            _fieldPresenter.BindAsync(Arg.Any<FieldRenderSpec>(), Arg.Any<CancellationToken>(), Arg.Any<string>())
                 .Returns(UniTask.CompletedTask);
             _stateMachine.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
@@ -198,3 +198,4 @@ namespace Tests.EditMode.Games.TicTacToe
         //   WhenResultActionRestartReceived_ThenCallsNextRoundAndSubmitsRestartRoundCommandWithMappedSlot
     }
 }
+

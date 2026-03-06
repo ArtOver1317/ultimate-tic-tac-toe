@@ -22,7 +22,7 @@ namespace Runtime.Gameplay
 
     public interface IGameplayFieldPresenter : IDisposable
     {
-        UniTask BindAsync(FieldRenderSpec spec, CancellationToken ct);
+        UniTask BindAsync(FieldRenderSpec spec, CancellationToken ct, string gameId = null);
         void Unbind();
     }
 }

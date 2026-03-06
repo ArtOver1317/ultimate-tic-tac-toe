@@ -3,6 +3,7 @@
   "locale": "ru-RU",
   "table": "GameWizard",
   "entries": {
+    "GameWizard.Battleship.PlacementTimer.Label": "Время на расстановку",
     "GameWizard.GameSelection.Cancel": "Отмена",
     "GameWizard.GameSelection.Continue": "Продолжить",
     "GameWizard.GameSelection.Title": "Выберите игру",

@@ -129,6 +129,44 @@
 .field-container--ultimate {
 }
 
+.field-container--battleship {
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.battleship-boards {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.battleship-board {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 12px 8px 12px;
+}
+
+.battleship-board-title {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.86);
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+}
+
+.battleship-board-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.battleship-board--own .cell {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
 .field-row,
 .mini-row,
 .mini-row-inner {
@@ -197,12 +235,40 @@
     -unity-text-align: middle-center;
 }
 
+.cell-mark #OwnMarkLabel {
+    width: 100%;
+    height: 100%;
+    -unity-text-align: middle-center;
+}
+
 .cell-mark #MarkLabel.mark-label--x {
     color: var(--mark-color-x);
 }
 
 .cell-mark #MarkLabel.mark-label--o {
     color: var(--mark-color-o);
+}
+
+.cell-mark #MarkLabel.battleship-mark--ship,
+.cell-mark #OwnMarkLabel.battleship-mark--ship {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.cell-mark #MarkLabel.battleship-mark--miss,
+.cell-mark #OwnMarkLabel.battleship-mark--miss {
+    color: rgba(190, 220, 255, 0.82);
+}
+
+.cell-mark #MarkLabel.battleship-mark--hit,
+.cell-mark #OwnMarkLabel.battleship-mark--hit {
+    color: rgba(255, 130, 130, 0.92);
+    -unity-font-style: bold;
+}
+
+.cell-mark #MarkLabel.battleship-mark--sunk,
+.cell-mark #OwnMarkLabel.battleship-mark--sunk {
+    color: rgba(255, 95, 95, 1);
+    -unity-font-style: bold;
 }
 
 .cell-mark.cell-mark--appearFrom {

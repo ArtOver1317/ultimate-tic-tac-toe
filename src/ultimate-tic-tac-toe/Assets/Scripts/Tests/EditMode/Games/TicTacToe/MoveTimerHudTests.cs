@@ -21,6 +21,7 @@ namespace Tests.EditMode.Games.TicTacToe
             public ReadOnlyReactiveProperty<bool> IsActive => _isActive;
 
             public void StartOrResetForPlayer(int playerSlot) { }
+            public void RestoreRemainingSeconds(float remainingSeconds, int activePlayerSlot) { }
             public void Stop() => _isActive.Value = false;
             public void Freeze() { }
             public void Unfreeze() { }
@@ -117,6 +118,30 @@ namespace Tests.EditMode.Games.TicTacToe
             timerService.SetState(isActive: false, remainingSeconds: 40f);
             ui.MoveTimerLabel.style.display.value.Should().Be(DisplayStyle.None);
             ui.MoveTimerLabel.ClassListContains("move-timer-label--warning").Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenVisibilityOverrideForcedHiddenAndCleared_ThenBinderUsesOverrideBeforeVmState()
+        {
+            using var timerService = new FakeMoveTimerService();
+            using var viewModel = new MoveTimerHudViewModel(timerService);
+
+            var ui = new FakeGameplayFieldUiAdapter();
+            using var binder = new MoveTimerHudBinder(ui, viewModel);
+
+            binder.Bind();
+            timerService.SetState(isActive: true, remainingSeconds: 8f);
+
+            ui.MoveTimerLabel.style.display.value.Should().Be(DisplayStyle.Flex);
+
+            binder.SetVisibilityOverride(false);
+            ui.MoveTimerLabel.style.display.value.Should().Be(DisplayStyle.None);
+
+            timerService.SetState(isActive: true, remainingSeconds: 6f);
+            ui.MoveTimerLabel.style.display.value.Should().Be(DisplayStyle.None);
+
+            binder.SetVisibilityOverride(null);
+            ui.MoveTimerLabel.style.display.value.Should().Be(DisplayStyle.Flex);
         }
 
         [Test]

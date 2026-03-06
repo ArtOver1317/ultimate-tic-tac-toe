@@ -3,6 +3,8 @@
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Gameplay.ECS;
+using Runtime.Games.Battleship;
+using Runtime.Games.TicTacToe.Moves;
 using Scellecs.Morpeh;
 
 namespace Tests.EditMode.Gameplay.ECS
@@ -55,6 +57,39 @@ namespace Tests.EditMode.Gameplay.ECS
             var timeoutRequestStash = _world.GetStash<TimeoutRequest>();
             timeoutRequestStash.Has(matchEntity).Should().BeTrue();
             timeoutRequestStash.Get(matchEntity).LoserSlot.Should().Be(0);
+        }
+
+        [Test]
+        public void WhenSubmitPlacementCommandEnqueued_ThenSubmitPlacementRequestAddedToMatchEntity()
+        {
+            // Arrange
+            var matchEntity = _world.CreateEntity();
+            _world.GetStash<MatchTag>().Set(matchEntity);
+            var ships = new ShipPlacement[FleetLayout.ExpectedShipCount]
+            {
+                new(ShipSize.Four, ShipOrientation.Horizontal, new CellId(0, 0)),
+                new(ShipSize.Three, ShipOrientation.Horizontal, new CellId(2, 0)),
+                new(ShipSize.Three, ShipOrientation.Horizontal, new CellId(4, 0)),
+                new(ShipSize.Two, ShipOrientation.Horizontal, new CellId(6, 0)),
+                new(ShipSize.Two, ShipOrientation.Horizontal, new CellId(8, 0)),
+                new(ShipSize.Two, ShipOrientation.Vertical, new CellId(0, 9)),
+                new(ShipSize.One, ShipOrientation.Horizontal, new CellId(9, 9)),
+                new(ShipSize.One, ShipOrientation.Horizontal, new CellId(9, 7)),
+                new(ShipSize.One, ShipOrientation.Horizontal, new CellId(9, 5)),
+                new(ShipSize.One, ShipOrientation.Horizontal, new CellId(9, 3)),
+            };
+            var layout = new FleetLayout(ships);
+            _commandQueue.Enqueue(new SubmitPlacementCommand(playerSlot: 0, layout));
+            _world.Commit();
+
+            // Act
+            _world.Update(0f);
+
+            // Assert
+            var submitRequestStash = _world.GetStash<SubmitPlacementRequest>();
+            submitRequestStash.Has(matchEntity).Should().BeTrue();
+            submitRequestStash.Get(matchEntity).PlayerSlot.Should().Be(0);
+            submitRequestStash.Get(matchEntity).Layout.IsInitialized.Should().BeTrue();
         }
     }
 }
