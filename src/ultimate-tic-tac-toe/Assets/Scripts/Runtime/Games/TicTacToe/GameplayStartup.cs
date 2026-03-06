@@ -881,9 +881,13 @@ namespace Runtime.Games.TicTacToe
             _battleshipPlacementTimerHudBinder?.Unbind();
 
             if (usePlacementTimer)
+            {
                 _battleshipPlacementTimerHudBinder?.Bind();
-            else
-                _moveTimerHudBinder?.Bind();
+                return;
+            }
+
+            _moveTimerHudBinder?.Bind();
+            UpdateMoveTimerStateForBattleshipBot();
         }
 
         private AuthoritativeMatchState BuildAuthoritativeState(
