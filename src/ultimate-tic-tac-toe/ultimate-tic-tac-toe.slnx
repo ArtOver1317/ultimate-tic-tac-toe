@@ -21,6 +21,7 @@
   <Project Path="Unity.2D.IK.Runtime.csproj" />
   <Project Path="Unity.Addressables.Editor.csproj" />
   <Project Path="Unity.MemoryProfiler.Editor.csproj" />
+  <Project Path="Unity.ProjectAuditor.Editor.csproj" />
   <Project Path="Runtime.csproj" />
   <Project Path="Scellecs.Morpeh.WorldBrowser.Editor.csproj" />
   <Project Path="Unity.VisualScripting.Core.Editor.csproj" />
@@ -41,6 +42,7 @@
   <Project Path="Unity.InputSystem.csproj" />
   <Project Path="Unity.VisualStudio.Editor.csproj" />
   <Project Path="MCPForUnity.Editor.csproj" />
+  <Project Path="Unity.ProjectAuditor.Editor.UI.Framework.csproj" />
   <Project Path="PPv2URPConverters.csproj" />
   <Project Path="Unity.2D.Animation.Editor.csproj" />
   <Project Path="UniTask.csproj" />
@@ -100,9 +102,11 @@
   <Project Path="Unity.2D.Animation.Runtime.csproj" />
   <Project Path="Unity.Mathematics.Editor.csproj" />
   <Project Path="Unity.VisualScripting.SettingsProvider.Editor.csproj" />
+  <Project Path="Unity.ProjectAuditor.Editor.Utils.csproj" />
   <Project Path="UnityEditor.UI.Analytics.csproj" />
   <Project Path="UniTask.TextMeshPro.csproj" />
   <Project Path="Unity.2D.Common.Runtime.csproj" />
+  <Project Path="Unity.ProjectAuditor.Editor.UI.csproj" />
   <Project Path="StripLog.Runtime.csproj" />
   <Project Path="Unity.Settings.Editor.csproj" />
   <Project Path="Unity.InputSystem.TestFramework.csproj" />
@@ -113,6 +117,7 @@
   <Project Path="Unity.2D.Aseprite.Common.csproj" />
   <Project Path="LitMotion.Editor.csproj" />
   <Project Path="Unity.EditorCoroutines.Editor.csproj" />
+  <Project Path="Domain_Reload.csproj" />
   <Project Path="Unity.CollabProxy.Editor.csproj" />
   <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
   <Project Path="StripLog.Tests.Editor.csproj" />
