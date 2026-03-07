@@ -205,6 +205,38 @@ namespace Tests.EditMode.Games.Battleship
         }
 
         [Test]
+        public void WhenRecoveryHeartbeatKeepsPlacementStateUnchanged_ThenBattleshipEventsAreNotRepublished()
+        {
+            _lifecycle.StartMatch(CreateConfig());
+
+            var phaseEvents = new List<BattleshipPhaseChangedEvent>();
+            var marksEvents = new List<BattleshipMarksChangedEvent>();
+            var stream = (IBattleshipGameplayEventStream)_stateProvider;
+            var recoveryApplier = (IBattleshipRecoveryStateApplier)_stateProvider;
+
+            using var phaseSub = stream.PhaseChanged.Subscribe(evt => phaseEvents.Add(evt));
+            using var marksSub = stream.MarksChanged.Subscribe(evt => marksEvents.Add(evt));
+
+            var applied = recoveryApplier.TryApplyRecoveryState(new BattleshipRecoveryState(
+                BattleshipPhase.Placement,
+                activePlayerSlot: -1,
+                GameStatus.InProgress,
+                winnerSlot: null,
+                player0Layout: null,
+                player1Layout: null,
+                player0OpponentMarks: CreateUnknownMarks(),
+                player1OpponentMarks: CreateUnknownMarks(),
+                player0ConsecutiveTimeouts: 0,
+                player1ConsecutiveTimeouts: 0,
+                placementTimerRemainingSeconds: 30f,
+                moveTimerRemainingSeconds: 0f));
+
+            applied.Should().BeTrue();
+            phaseEvents.Should().BeEmpty();
+            marksEvents.Should().BeEmpty();
+        }
+
+        [Test]
         public void WhenShotApplied_ThenMarksChangedPublishedForLocalViewerOncePerTick()
         {
             _lifecycle.StartMatch(CreateConfig());
@@ -398,6 +430,8 @@ namespace Tests.EditMode.Games.Battleship
                 player1Timeouts.Should().Be(expectedCount);
             }
         }
+
+        private static BattleshipCellMark[] CreateUnknownMarks() => new BattleshipCellMark[100];
 
         [Test]
         public void WhenDuplicatePlacementSubmitted_ThenSecondIsRejected()

@@ -457,6 +457,17 @@ namespace Runtime.Gameplay
             var boardSize = battleshipState.BoardSize > 0 ? battleshipState.BoardSize : BattleshipEcsBoard.DefaultBoardSize;
             var cellCount = boardSize * boardSize;
 
+            var previousPhase = battleshipState.Phase;
+            var previousActivePlayerSlot = players.ActivePlayerSlot;
+            var previousPlayer0Placed = battleshipState.Player0Placed;
+            var previousPlayer1Placed = battleshipState.Player1Placed;
+            var previousPlayer0Fleet = battleshipState.Player0Fleet;
+            var previousPlayer1Fleet = battleshipState.Player1Fleet;
+            var previousViewer0OpponentMarks = BuildMarks(boardSize, battleshipState.Player0Shots, battleshipState.Player1Ships, battleshipState.Player1Fleet);
+            var previousViewer0OwnMarks = BuildMarks(boardSize, battleshipState.Player1Shots, battleshipState.Player0Ships, battleshipState.Player0Fleet);
+            var previousViewer1OpponentMarks = BuildMarks(boardSize, battleshipState.Player1Shots, battleshipState.Player0Ships, battleshipState.Player0Fleet);
+            var previousViewer1OwnMarks = BuildMarks(boardSize, battleshipState.Player0Shots, battleshipState.Player1Ships, battleshipState.Player1Fleet);
+
             battleshipState.Player0Shots = BuildShotsFromMarks(state.Player0OpponentMarks, cellCount);
             battleshipState.Player1Shots = BuildShotsFromMarks(state.Player1OpponentMarks, cellCount);
 
@@ -496,11 +507,30 @@ namespace Runtime.Gameplay
             matchStatus.WinnerSlot = state.WinnerSlot;
             matchStatus.WinLine = null;
 
-            _battleshipPhaseChanged.OnNext(new BattleshipPhaseChangedEvent(state.Phase));
-            _battleshipMarksChanged.OnNext(new BattleshipMarksChangedEvent(PlayerSlotMapping.SlotX));
-            _battleshipMarksChanged.OnNext(new BattleshipMarksChangedEvent(PlayerSlotMapping.SlotO));
+            var viewer0OpponentMarks = BuildMarks(boardSize, battleshipState.Player0Shots, battleshipState.Player1Ships, battleshipState.Player1Fleet);
+            var viewer0OwnMarks = BuildMarks(boardSize, battleshipState.Player1Shots, battleshipState.Player0Ships, battleshipState.Player0Fleet);
+            var viewer1OpponentMarks = BuildMarks(boardSize, battleshipState.Player1Shots, battleshipState.Player0Ships, battleshipState.Player0Fleet);
+            var viewer1OwnMarks = BuildMarks(boardSize, battleshipState.Player0Shots, battleshipState.Player1Ships, battleshipState.Player1Fleet);
 
-            if (state.ActivePlayerSlot >= 0)
+            var viewer0Changed = previousPlayer0Placed != battleshipState.Player0Placed
+                || !AreShipPlacementsEqual(previousPlayer0Fleet, battleshipState.Player0Fleet)
+                || !AreMarksEqual(previousViewer0OpponentMarks, viewer0OpponentMarks)
+                || !AreMarksEqual(previousViewer0OwnMarks, viewer0OwnMarks);
+            var viewer1Changed = previousPlayer1Placed != battleshipState.Player1Placed
+                || !AreShipPlacementsEqual(previousPlayer1Fleet, battleshipState.Player1Fleet)
+                || !AreMarksEqual(previousViewer1OpponentMarks, viewer1OpponentMarks)
+                || !AreMarksEqual(previousViewer1OwnMarks, viewer1OwnMarks);
+
+            if (previousPhase != battleshipState.Phase)
+                _battleshipPhaseChanged.OnNext(new BattleshipPhaseChangedEvent(state.Phase));
+
+            if (viewer0Changed)
+                _battleshipMarksChanged.OnNext(new BattleshipMarksChangedEvent(PlayerSlotMapping.SlotX));
+
+            if (viewer1Changed)
+                _battleshipMarksChanged.OnNext(new BattleshipMarksChangedEvent(PlayerSlotMapping.SlotO));
+
+            if (state.ActivePlayerSlot >= 0 && previousActivePlayerSlot != state.ActivePlayerSlot)
                 _currentPlayerChanged.OnNext(new CurrentPlayerChangedEvent(state.ActivePlayerSlot));
 
             return true;
@@ -625,6 +655,44 @@ namespace Runtime.Gameplay
             }
 
             return shots;
+        }
+
+        private static bool AreMarksEqual(IReadOnlyList<BattleshipCellMark> left, IReadOnlyList<BattleshipCellMark> right)
+        {
+            if (ReferenceEquals(left, right))
+                return true;
+
+            if (left == null || right == null || left.Count != right.Count)
+                return false;
+
+            for (var i = 0; i < left.Count; i++)
+            {
+                if (left[i] != right[i])
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static bool AreShipPlacementsEqual(ShipPlacement[]? left, ShipPlacement[]? right)
+        {
+            if (ReferenceEquals(left, right))
+                return true;
+
+            if (left == null || right == null || left.Length != right.Length)
+                return false;
+
+            for (var i = 0; i < left.Length; i++)
+            {
+                if (left[i].Size != right[i].Size
+                    || left[i].Orientation != right[i].Orientation
+                    || !left[i].StartCell.Equals(right[i].StartCell))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static void ApplyFleetState(

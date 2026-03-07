@@ -10,6 +10,7 @@ using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Infrastructure.Logging;
 using StripLog;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Runtime.Games.Battleship
@@ -165,14 +166,30 @@ namespace Runtime.Games.Battleship
         {
             try
             {
+                var lastRealtime = Time.realtimeSinceStartupAsDouble;
+
                 while (!ct.IsCancellationRequested)
                 {
                     await UniTask.Yield(PlayerLoopTiming.Update, ct);
 
+                    if (_disposed || ct.IsCancellationRequested)
+                        return;
+
+                    float deltaTime;
+                    if (Application.isPlaying)
+                    {
+                        var nowRealtime = Time.realtimeSinceStartupAsDouble;
+                        deltaTime = (float)(nowRealtime - lastRealtime);
+                        lastRealtime = nowRealtime;
+                    }
+                    else
+                    {
+                        deltaTime = _timeSource.DeltaTime;
+                    }
+
                     if (_isFrozen || !_isActive.Value)
                         continue;
 
-                    var deltaTime = _timeSource.DeltaTime;
                     if (deltaTime <= 0f)
                         continue;
 
@@ -189,6 +206,9 @@ namespace Runtime.Games.Battleship
                 }
             }
             catch (OperationCanceledException)
+            {
+            }
+            catch (ObjectDisposedException) when (_disposed || ct.IsCancellationRequested)
             {
             }
             catch (Exception ex)
