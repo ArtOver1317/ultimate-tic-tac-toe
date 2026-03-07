@@ -117,6 +117,38 @@ namespace Tests.EditMode.GameModes.Wizard
             error.MessageKey.Should().Be("Errors.GameWizard.BattleshipPlacementTimerRequired");
         }
 
+        [Test]
+        public void WhenValidateConfigCalledWithNull_ThenReturnsConfigRequiredError()
+        {
+            // Arrange
+            _sut = CreateStrategy();
+
+            // Act
+            var error = _sut.ValidateConfig(null).Should().ContainSingle().Which;
+
+            // Assert
+            error.Field.Should().Be(WizardFieldNames.GameConfig);
+            error.MessageKey.Should().Be("Errors.GameWizard.ConfigRequired");
+        }
+
+        [Test]
+        public void WhenValidateForStartWithBotOpponent_ThenReturnsNoErrors()
+        {
+            // Arrange
+            _sut = CreateStrategy();
+            var snapshot = GameSessionSnapshot.Default
+                .WithSelectedGameId(BattleshipStrategy.DefaultGameId)
+                .WithGameConfig(new BattleshipConfig(0))
+                .WithOpponentType(OpponentType.Bot)
+                .WithMoveTimeLimitSeconds(0);
+
+            // Act
+            var errors = _sut.ValidateForStart(snapshot);
+
+            // Assert
+            errors.Should().BeEmpty();
+        }
+
         private static BattleshipStrategy CreateStrategy() =>
             new(() => new BattleshipSettingsViewModel(
                 MoveTimerPresetsConfig.CreateRuntimeDefault(),

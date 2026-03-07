@@ -150,5 +150,130 @@ namespace Tests.EditMode.Games.Battleship
             sut.CanEdit.Should().BeFalse();
             sut.IsReadyToConfirm.Should().BeTrue();
         }
+
+        [Test]
+        public void WhenRotatePlacedShipIntoInvalidPosition_ThenRotationIsRejectedAndShipRemainsPlaced()
+        {
+            var snapshot = new FakeSnapshotProvider();
+            var sink = new CapturingCommandSink();
+            var sessionStore = new OnlineGameplaySessionContextStore();
+
+            using var sut = new BattleshipPlacementService(
+                snapshot,
+                sink,
+                new BattleshipPlacementValidator(),
+                new BattleshipAutoPlacer(new BattleshipPlacementValidator()),
+                sessionStore);
+
+            var originalCell = new CellId(9, 0);
+
+            sut.TrySelectShip(0).Should().BeTrue();
+            sut.TryPlaceSelected(originalCell).Should().BeTrue();
+
+            var rotated = sut.TryToggleSelectedOrientation();
+
+            rotated.Should().BeFalse();
+            sut.Ships[0].IsPlaced.Should().BeTrue();
+            sut.Ships[0].StartCell.Should().Be(originalCell);
+            sut.Ships[0].Orientation.Should().Be(ShipOrientation.Horizontal);
+        }
+
+        [Test]
+        public void WhenRemovePlacedShip_ThenShipReturnsToDock()
+        {
+            var snapshot = new FakeSnapshotProvider();
+            var sink = new CapturingCommandSink();
+            var sessionStore = new OnlineGameplaySessionContextStore();
+
+            using var sut = new BattleshipPlacementService(
+                snapshot,
+                sink,
+                new BattleshipPlacementValidator(),
+                new BattleshipAutoPlacer(new BattleshipPlacementValidator()),
+                sessionStore);
+
+            sut.AutoPlace();
+            sut.TrySelectShip(0).Should().BeTrue();
+
+            var removed = sut.TryRemoveSelected();
+
+            removed.Should().BeTrue();
+            sut.Ships[0].IsPlaced.Should().BeFalse();
+            sut.IsReadyToConfirm.Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenNotAllShipsPlaced_ThenCannotConfirmReady()
+        {
+            var snapshot = new FakeSnapshotProvider();
+            var sink = new CapturingCommandSink();
+            var sessionStore = new OnlineGameplaySessionContextStore();
+
+            using var sut = new BattleshipPlacementService(
+                snapshot,
+                sink,
+                new BattleshipPlacementValidator(),
+                new BattleshipAutoPlacer(new BattleshipPlacementValidator()),
+                sessionStore);
+
+            var confirmed = sut.TryConfirmReady();
+
+            confirmed.Should().BeFalse();
+            sink.Commands.Should().BeEmpty();
+        }
+
+        [Test]
+        public void WhenPlacedShipMovedToAnotherCell_ThenOldFootprintReleasedAndNewPlacementPersists()
+        {
+            var snapshot = new FakeSnapshotProvider();
+            var sink = new CapturingCommandSink();
+            var sessionStore = new OnlineGameplaySessionContextStore();
+
+            using var sut = new BattleshipPlacementService(
+                snapshot,
+                sink,
+                new BattleshipPlacementValidator(),
+                new BattleshipAutoPlacer(new BattleshipPlacementValidator()),
+                sessionStore);
+
+            var oldCell = new CellId(0, 0);
+            var newCell = new CellId(5, 5);
+
+            sut.TrySelectShip(0).Should().BeTrue();
+            sut.TryPlaceSelected(oldCell).Should().BeTrue();
+            sut.TrySelectShip(0).Should().BeTrue();
+
+            var moved = sut.TryPlaceSelected(newCell);
+
+            moved.Should().BeTrue();
+            sut.TryGetShipAt(oldCell, out _).Should().BeFalse();
+            sut.TryGetShipAt(newCell, out var movedShipId).Should().BeTrue();
+            movedShipId.Should().Be(0);
+            sut.Ships[movedShipId].StartCell.Should().Be(newCell);
+        }
+
+        [Test]
+        public void WhenGuestConfirmsReady_ThenSubmitPlacementCommandUsesGuestSlot()
+        {
+            var snapshot = new FakeSnapshotProvider();
+            var sink = new CapturingCommandSink();
+            var sessionStore = new OnlineGameplaySessionContextStore();
+            sessionStore.SetDirectInviteSession("ABCDEF", "guest-user", isHost: false);
+
+            using var sut = new BattleshipPlacementService(
+                snapshot,
+                sink,
+                new BattleshipPlacementValidator(),
+                new BattleshipAutoPlacer(new BattleshipPlacementValidator()),
+                sessionStore);
+
+            sut.AutoPlace();
+            var confirmed = sut.TryConfirmReady();
+
+            confirmed.Should().BeTrue();
+            sink.Commands.Should().ContainSingle();
+            sink.Commands[0].Should().BeOfType<SubmitPlacementCommand>();
+            ((SubmitPlacementCommand)sink.Commands[0]).PlayerSlot.Should().Be(PlayerSlotMapping.SlotO);
+        }
     }
 }

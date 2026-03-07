@@ -202,6 +202,168 @@ namespace Tests.EditMode.Games.Battleship
             gameplayBridge.SubmittedMoves[0].ClientTick.Should().Be(11);
         }
 
+        [Test]
+        public void WhenIncomingPlacementPayloadIsInvalid_ThenCommandIsNotAppliedToLocalSink()
+        {
+            var sessionStore = new OnlineGameplaySessionContextStore();
+            sessionStore.SetDirectInviteSession("ABCDEF", "host-user", isHost: true);
+
+            var localSink = Substitute.For<IMatchStateProvider>();
+            var snapshotProvider = Substitute.For<IGameplaySnapshotProvider>();
+            snapshotProvider.GetAllCells().Returns(Array.Empty<CellSnapshot>());
+
+            var gameplayBridge = new SpyGameplayNetworkBridge();
+            var battleshipBridge = new SpyBattleshipNetworkBridge();
+
+            using var sut = new BattleshipOnlineCommandSink(
+                localSink,
+                snapshotProvider,
+                gameplayBridge,
+                battleshipBridge,
+                new BattleshipLayoutSerializer(),
+                sessionStore);
+
+            battleshipBridge.PlacementSubject.OnNext(new BattleshipPlacementMessage(
+                Guid.NewGuid(),
+                "guest-user",
+                "v1:garbage",
+                clientTick: 1));
+
+            localSink.DidNotReceive().SubmitCommand(Arg.Any<IGameplayCommand>());
+        }
+
+        [Test]
+        public void WhenIncomingPlacementTimeoutDeliveredTwiceWithSameCommandId_ThenSinkAppliesItOnce()
+        {
+            var sessionStore = new OnlineGameplaySessionContextStore();
+            sessionStore.SetDirectInviteSession("ABCDEF", "guest-user", isHost: false);
+
+            var localCommands = new List<IGameplayCommand>();
+            var localSink = Substitute.For<IMatchStateProvider>();
+            localSink.When(sink => sink.SubmitCommand(Arg.Any<IGameplayCommand>()))
+                .Do(callInfo => localCommands.Add(callInfo.Arg<IGameplayCommand>()));
+
+            var snapshotProvider = Substitute.For<IGameplaySnapshotProvider>();
+            snapshotProvider.GetAllCells().Returns(Array.Empty<CellSnapshot>());
+
+            var gameplayBridge = new SpyGameplayNetworkBridge();
+            var battleshipBridge = new SpyBattleshipNetworkBridge();
+
+            using var sut = new BattleshipOnlineCommandSink(
+                localSink,
+                snapshotProvider,
+                gameplayBridge,
+                battleshipBridge,
+                new BattleshipLayoutSerializer(),
+                sessionStore);
+
+            var commandId = Guid.NewGuid();
+            var message = new BattleshipPlacementTimeoutMessage(
+                commandId,
+                "host-user",
+                playerSlot: PlayerSlotMapping.SlotO,
+                autoPlaceSeed: 456,
+                clientTick: 789);
+
+            battleshipBridge.TimeoutSubject.OnNext(message);
+            battleshipBridge.TimeoutSubject.OnNext(message);
+
+            localCommands.Should().ContainSingle();
+            localCommands[0].Should().BeOfType<PlacementTimeoutCommand>();
+            ((PlacementTimeoutCommand)localCommands[0]).PlayerSlot.Should().Be(PlayerSlotMapping.SlotO);
+        }
+
+        [Test]
+        public void WhenSerializerSerializesSameFleetWithDifferentShipOrder_ThenPayloadIsCanonical()
+        {
+            var validator = new BattleshipPlacementValidator();
+            var autoPlacer = new BattleshipAutoPlacer(validator);
+            var serializer = new BattleshipLayoutSerializer();
+            var originalLayout = autoPlacer.Generate(97531);
+            var reversedShips = new ShipPlacement[FleetLayout.ExpectedShipCount];
+
+            for (var i = 0; i < FleetLayout.ExpectedShipCount; i++)
+                reversedShips[i] = originalLayout.Ships![FleetLayout.ExpectedShipCount - 1 - i];
+
+            var reversedLayout = new FleetLayout(Array.AsReadOnly(reversedShips));
+
+            serializer.Serialize(originalLayout).Should().Be(serializer.Serialize(reversedLayout));
+        }
+
+        [Test]
+        public async Task WhenBridgeReceivesOwnRecoveryPacket_ThenIgnoresSelfEcho()
+        {
+            var context = new OnlineGameplaySessionContextStore();
+            context.SetDirectInviteSession("ABCDEF", "host-user", isHost: true);
+
+            var transport = Substitute.For<IPhotonSessionTransport>();
+            transport.SendReliableDataAsync(Arg.Any<byte[]>()).Returns(UniTask.CompletedTask);
+
+            var bridge = new FileBattleshipNetworkBridge(context, transport);
+
+            var received = new List<BattleshipRecoveryMessage>();
+            using var subscription = bridge.IncomingRecoverySnapshots.Subscribe(message => received.Add(message));
+
+            await bridge.BindAsync("host-user", isHost: true);
+
+            var layoutPayload = "v1:4,H,0;3,H,20;3,H,40;2,H,60;2,H,80;2,V,9;1,H,99;1,H,97;1,H,95;1,H,93";
+            var marksPayload = new string('0', 100);
+            var payload = string.Join(
+                "|",
+                "BR",
+                "6d9fa5a67ec24f8aa209e49964be3594",
+                "host-user",
+                "1",
+                ((int)BattleshipPhase.Battle).ToString(),
+                PlayerSlotMapping.SlotO.ToString(),
+                "12000",
+                "9000",
+                "1",
+                "0",
+                "-1",
+                ((int)GameStatus.InProgress).ToString(),
+                "321",
+                EncodePayload(layoutPayload),
+                EncodePayload(layoutPayload),
+                EncodePayload(marksPayload),
+                EncodePayload(marksPayload));
+
+            RaiseReliableData(transport, payload);
+
+            received.Should().BeEmpty();
+        }
+
+        [Test]
+        public void WhenGuestReceivesPlacementTimeoutFromNonHostSender_ThenIgnoresIt()
+        {
+            var sessionStore = new OnlineGameplaySessionContextStore();
+            sessionStore.SetDirectInviteSession("ABCDEF", "guest-user", isHost: false);
+
+            var localSink = Substitute.For<IMatchStateProvider>();
+            var snapshotProvider = Substitute.For<IGameplaySnapshotProvider>();
+            snapshotProvider.GetAllCells().Returns(Array.Empty<CellSnapshot>());
+
+            var gameplayBridge = new SpyGameplayNetworkBridge();
+            var battleshipBridge = new SpyBattleshipNetworkBridge();
+
+            using var sut = new BattleshipOnlineCommandSink(
+                localSink,
+                snapshotProvider,
+                gameplayBridge,
+                battleshipBridge,
+                new BattleshipLayoutSerializer(),
+                sessionStore);
+
+            battleshipBridge.TimeoutSubject.OnNext(new BattleshipPlacementTimeoutMessage(
+                Guid.NewGuid(),
+                "guest-user",
+                playerSlot: PlayerSlotMapping.SlotO,
+                autoPlaceSeed: 777,
+                clientTick: 5));
+
+            localSink.DidNotReceive().SubmitCommand(Arg.Any<IGameplayCommand>());
+        }
+
         private static string EncodePayload(string payload) =>
             Convert.ToBase64String(Encoding.UTF8.GetBytes(payload));
 

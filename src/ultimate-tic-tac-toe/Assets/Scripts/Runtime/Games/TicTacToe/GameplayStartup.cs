@@ -513,7 +513,7 @@ namespace Runtime.Games.TicTacToe
             if (_resultVM != null)
             {
                 _resultVM.Actions
-                    .Subscribe(OnResultAction)
+                    .Subscribe(HandleResultAction)
                     .AddTo(_subscriptions);
             }
 
@@ -1106,7 +1106,7 @@ namespace Runtime.Games.TicTacToe
 
         // -- Result actions (Restart / Exit) --
 
-        private void OnResultAction(ResultAction action)
+        internal void HandleResultAction(ResultAction action)
         {
             switch (action)
             {

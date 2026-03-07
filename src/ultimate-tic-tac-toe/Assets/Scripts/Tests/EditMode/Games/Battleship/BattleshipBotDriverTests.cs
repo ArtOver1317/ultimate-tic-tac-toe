@@ -29,7 +29,7 @@ namespace Tests.EditMode.Games.Battleship
             public int? WinnerSlot { get; set; }
             public bool SlotXConfirmed { get; set; }
             public bool SlotOConfirmed { get; set; }
-            public IReadOnlyList<BattleshipCellMark> OpponentMarksForO { get; set; } = CreateUnknownMarks();
+            public BattleshipCellMark[] OpponentMarksForO { get; set; } = CreateUnknownMarks();
 
             public bool IsPlacementConfirmed(int playerSlot) =>
                 playerSlot == PlayerSlotMapping.SlotX
@@ -56,7 +56,7 @@ namespace Tests.EditMode.Games.Battleship
 
             public IReadOnlyList<BattleshipCellMark> GetOwnMarks(int viewerSlot) => Array.Empty<BattleshipCellMark>();
 
-            private static IReadOnlyList<BattleshipCellMark> CreateUnknownMarks()
+            private static BattleshipCellMark[] CreateUnknownMarks()
             {
                 var marks = new BattleshipCellMark[100];
                 for (var i = 0; i < marks.Length; i++)
@@ -123,6 +123,27 @@ namespace Tests.EditMode.Games.Battleship
             public void SubmitCommand(IGameplayCommand command)
             {
                 Commands.Add(command);
+            }
+        }
+
+        private sealed class CyclingCommandSink : IGameplayCommandSink
+        {
+            private readonly FakeBattleshipSnapshotProvider _snapshot;
+
+            public CyclingCommandSink(FakeBattleshipSnapshotProvider snapshot) => _snapshot = snapshot;
+
+            public List<IGameplayCommand> Commands { get; } = new();
+
+            public void SubmitCommand(IGameplayCommand command)
+            {
+                Commands.Add(command);
+
+                if (command is not MakeMoveCommand move)
+                    return;
+
+                var index = (move.CellId.Major * 10) + move.CellId.Minor;
+                _snapshot.OpponentMarksForO[index] = BattleshipCellMark.Miss;
+                _snapshot.ActivePlayerSlot = PlayerSlotMapping.SlotO;
             }
         }
 
@@ -195,7 +216,7 @@ namespace Tests.EditMode.Games.Battleship
             var result = await sut.StartAsync(config, PlayerSlotMapping.SlotO, CancellationToken.None);
             result.Status.Should().Be(BotStartStatus.Started);
 
-            await UniTask.DelayFrame(2);
+            await WaitUntilAsync(() => sink.Commands.Exists(command => command is MakeMoveCommand));
 
             sink.Commands.Should().Contain(command => command is MakeMoveCommand);
         }
@@ -236,7 +257,7 @@ namespace Tests.EditMode.Games.Battleship
             var result = await sut.StartAsync(config, PlayerSlotMapping.SlotO, CancellationToken.None);
             result.Status.Should().Be(BotStartStatus.Started);
 
-            await UniTask.DelayFrame(2);
+            await WaitUntilAsync(() => sink.Commands.Exists(command => command is MakeMoveCommand));
 
             var move = sink.Commands.Should().ContainSingle(command => command is MakeMoveCommand).Subject as MakeMoveCommand?;
             move.Should().NotBeNull();
@@ -252,6 +273,7 @@ namespace Tests.EditMode.Games.Battleship
                 ActivePlayerSlot = PlayerSlotMapping.SlotO,
                 SlotXConfirmed = true,
                 SlotOConfirmed = true,
+                OpponentMarksForO = CreateMarksWithFiveUnknownCells(),
             };
 
             var battleshipEvents = new FakeBattleshipEventStream();
@@ -285,7 +307,98 @@ namespace Tests.EditMode.Games.Battleship
             CountMoves(sink.Commands).Should().BeGreaterThan(1);
         }
 
-        private static IReadOnlyList<BattleshipCellMark> CreateMarksWithSingleFinishCandidate()
+        [Test]
+        public async Task WhenBotShootsMultipleTimes_ThenNoCellShotTwice()
+        {
+            var snapshot = new FakeBattleshipSnapshotProvider
+            {
+                Phase = BattleshipPhase.Battle,
+                ActivePlayerSlot = PlayerSlotMapping.SlotO,
+                SlotXConfirmed = true,
+                SlotOConfirmed = true,
+                OpponentMarksForO = CreateMarksWithFiveUnknownCells(),
+            };
+
+            var battleshipEvents = new FakeBattleshipEventStream();
+            var gameplayEvents = new FakeGameplayEventStream();
+            var sink = new CyclingCommandSink(snapshot);
+            var sessionStore = new OnlineGameplaySessionContextStore();
+            var autoPlacer = new BattleshipAutoPlacer(new BattleshipPlacementValidator());
+
+            using var sut = new BattleshipBotDriver(
+                snapshot,
+                battleshipEvents,
+                gameplayEvents,
+                sink,
+                autoPlacer,
+                sessionStore,
+                CreateSettings(botShotDelaySeconds: 0f));
+
+            var config = new GameLaunchConfig(
+                BattleshipStrategy.DefaultGameId,
+                new BattleshipConfig(placementTimeLimitSeconds: 30),
+                new BotOpponentConfig(BattleshipStrategy.DefaultBotDifficultyId),
+                moveTimeLimitSeconds: 30);
+
+            var result = await sut.StartAsync(config, PlayerSlotMapping.SlotO, CancellationToken.None);
+            result.Status.Should().Be(BotStartStatus.Started);
+
+            await WaitUntilAsync(() => CountMoves(sink.Commands) >= 5);
+
+            var moves = sink.Commands.FindAll(command => command is MakeMoveCommand).ConvertAll(command => ((MakeMoveCommand)command).CellId);
+            moves.Should().HaveCount(5);
+            moves.Should().OnlyHaveUniqueItems();
+            moves.Should().OnlyContain(cell => cell.Major == 0 && cell.Minor >= 0 && cell.Minor < 5);
+        }
+
+        [Test]
+        public async Task WhenGameEndsInBattlePhase_ThenBotStopsSubmittingCommands()
+        {
+            var snapshot = new FakeBattleshipSnapshotProvider
+            {
+                Phase = BattleshipPhase.Battle,
+                ActivePlayerSlot = PlayerSlotMapping.SlotO,
+                SlotXConfirmed = true,
+                SlotOConfirmed = true,
+            };
+
+            var battleshipEvents = new FakeBattleshipEventStream();
+            var gameplayEvents = new FakeGameplayEventStream();
+            var sink = new CyclingCommandSink(snapshot);
+            var sessionStore = new OnlineGameplaySessionContextStore();
+            var autoPlacer = new BattleshipAutoPlacer(new BattleshipPlacementValidator());
+
+            using var sut = new BattleshipBotDriver(
+                snapshot,
+                battleshipEvents,
+                gameplayEvents,
+                sink,
+                autoPlacer,
+                sessionStore,
+                CreateSettings(botShotDelaySeconds: 0f));
+
+            var config = new GameLaunchConfig(
+                BattleshipStrategy.DefaultGameId,
+                new BattleshipConfig(placementTimeLimitSeconds: 30),
+                new BotOpponentConfig(BattleshipStrategy.DefaultBotDifficultyId),
+                moveTimeLimitSeconds: 30);
+
+            var result = await sut.StartAsync(config, PlayerSlotMapping.SlotO, CancellationToken.None);
+            result.Status.Should().Be(BotStartStatus.Started);
+
+            await WaitUntilAsync(() => CountMoves(sink.Commands) >= 1);
+            var moveCountBeforeFinish = CountMoves(sink.Commands);
+
+            snapshot.Phase = BattleshipPhase.Finished;
+            snapshot.CurrentStatus = GameStatus.Win;
+            battleshipEvents.PublishPhase(BattleshipPhase.Finished);
+
+            await UniTask.Yield();
+
+            CountMoves(sink.Commands).Should().Be(moveCountBeforeFinish);
+        }
+
+        private static BattleshipCellMark[] CreateMarksWithSingleFinishCandidate()
         {
             var marks = new BattleshipCellMark[100];
             for (var i = 0; i < marks.Length; i++)
@@ -295,7 +408,19 @@ namespace Tests.EditMode.Games.Battleship
             marks[0] = BattleshipCellMark.Hit;
             marks[10] = BattleshipCellMark.Miss;
 
-            return Array.AsReadOnly(marks);
+            return marks;
+        }
+
+        private static BattleshipCellMark[] CreateMarksWithFiveUnknownCells()
+        {
+            var marks = new BattleshipCellMark[100];
+            for (var i = 0; i < marks.Length; i++)
+                marks[i] = BattleshipCellMark.Miss;
+
+            for (var i = 0; i < 5; i++)
+                marks[i] = BattleshipCellMark.Unknown;
+
+            return marks;
         }
 
         private static BattleshipGameplaySettings CreateSettings(float botShotDelaySeconds)
@@ -313,6 +438,19 @@ namespace Tests.EditMode.Games.Battleship
             }
 
             return count;
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> condition, int maxFrames = 20)
+        {
+            for (var frame = 0; frame < maxFrames; frame++)
+            {
+                if (condition())
+                    return;
+
+                await UniTask.Yield();
+            }
+
+            Assert.Fail("Expected condition to become true within the allotted frames.");
         }
     }
 }

@@ -513,6 +513,7 @@ namespace Runtime.Games.Battleship
     public sealed class BattleshipPlacementUiController : IBattleshipPlacementUiController
     {
         private const string PanelName = "BattleshipPlacementPanel";
+        private const string StatusLabelName = "BattleshipPlacementStatusLabel";
         private const string ShipButtonPrefix = "ShipButton_";
         private const string AutoButtonKey = "Game.Battleship.Placement.AutoButton";
         private const string RotateButtonKey = "Game.Battleship.Placement.RotateButton";
@@ -695,7 +696,7 @@ namespace Runtime.Games.Battleship
                 shipsRow.Add(button);
             }
 
-            _statusLabel = new Label();
+            _statusLabel = new Label { name = StatusLabelName };
             _panel.Add(_statusLabel);
 
             var insertIndex = fieldRoot.IndexOf(fieldContainer);

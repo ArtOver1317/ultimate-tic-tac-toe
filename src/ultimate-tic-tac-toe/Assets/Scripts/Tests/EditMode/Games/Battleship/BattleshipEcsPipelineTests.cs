@@ -300,8 +300,282 @@ namespace Tests.EditMode.Games.Battleship
             snapshot.ActivePlayerSlot.Should().Be(secondRoundStarter);
         }
 
+        [Test]
+        public void WhenAllShipsSunk_ThenRoundFinishedWithWinStatus()
+        {
+            _lifecycle.StartMatch(CreateConfig());
+
+            var xLayout = _autoPlacer.Generate(12001);
+            var oLayout = _autoPlacer.Generate(22002);
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, xLayout));
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotO, oLayout));
+
+            var shooterSlot = _stateProvider.ActivePlayerSlot;
+            var targetLayout = GetTargetLayout(shooterSlot, xLayout, oLayout);
+            var roundFinished = new List<RoundFinishedEvent>();
+            using var sub = _stateProvider.RoundFinished.Subscribe(evt => roundFinished.Add(evt));
+
+            foreach (var cell in FindShipCells(targetLayout))
+                _stateProvider.SubmitCommand(new MakeMoveCommand(cell));
+
+            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            roundFinished.Should().ContainSingle();
+            roundFinished[0].Status.Should().Be(GameStatus.Win);
+            roundFinished[0].WinnerSlot.Should().Be(shooterSlot);
+            snapshot.Phase.Should().Be(BattleshipPhase.Finished);
+            snapshot.CurrentStatus.Should().Be(GameStatus.Win);
+            snapshot.WinnerSlot.Should().Be(shooterSlot);
+        }
+
+        [Test]
+        public void WhenHitApplied_ThenActivePlayerSlotDoesNotChange()
+        {
+            _lifecycle.StartMatch(CreateConfig());
+
+            var xLayout = _autoPlacer.Generate(13001);
+            var oLayout = _autoPlacer.Generate(23002);
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, xLayout));
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotO, oLayout));
+
+            var shooterSlot = _stateProvider.ActivePlayerSlot;
+            var hitCell = FindFirstShipCell(GetTargetLayout(shooterSlot, xLayout, oLayout));
+
+            _stateProvider.SubmitCommand(new MakeMoveCommand(hitCell));
+
+            _stateProvider.ActivePlayerSlot.Should().Be(shooterSlot);
+        }
+
+        [Test]
+        public void WhenTimeoutAfterValidShot_ThenConsecutiveCounterWasReset()
+        {
+            _lifecycle.StartMatch(CreateConfig());
+
+            var xLayout = _autoPlacer.Generate(14001);
+            var oLayout = _autoPlacer.Generate(24002);
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, xLayout));
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotO, oLayout));
+
+            var timedOutPlayerSlot = _stateProvider.ActivePlayerSlot;
+            var opponentSlot = GetOtherPlayerSlot(timedOutPlayerSlot);
+            var timedOutPlayerMisses = FindWaterCells(GetTargetLayout(timedOutPlayerSlot, xLayout, oLayout), count: 2);
+            var opponentMisses = FindWaterCells(GetTargetLayout(opponentSlot, xLayout, oLayout), count: 4);
+            var roundFinished = new List<RoundFinishedEvent>();
+            using var sub = _stateProvider.RoundFinished.Subscribe(evt => roundFinished.Add(evt));
+
+            _stateProvider.SubmitCommand(new TimeoutCommand(timedOutPlayerSlot));
+            AssertTimeoutCounter(timedOutPlayerSlot, 1);
+
+            _stateProvider.SubmitCommand(new MakeMoveCommand(opponentMisses[0]));
+            AssertTimeoutCounter(timedOutPlayerSlot, 1);
+
+            _stateProvider.SubmitCommand(new MakeMoveCommand(timedOutPlayerMisses[0]));
+            AssertTimeoutCounter(timedOutPlayerSlot, 0);
+
+            _stateProvider.SubmitCommand(new MakeMoveCommand(opponentMisses[1]));
+            _stateProvider.SubmitCommand(new TimeoutCommand(timedOutPlayerSlot));
+            _stateProvider.SubmitCommand(new MakeMoveCommand(opponentMisses[2]));
+            _stateProvider.SubmitCommand(new MakeMoveCommand(timedOutPlayerMisses[1]));
+            _stateProvider.SubmitCommand(new MakeMoveCommand(opponentMisses[3]));
+            _stateProvider.SubmitCommand(new TimeoutCommand(timedOutPlayerSlot));
+
+            roundFinished.Should().BeEmpty();
+            AssertTimeoutCounter(timedOutPlayerSlot, 1);
+        }
+
+        private void AssertTimeoutCounter(int timedOutPlayerSlot, int expectedCount)
+        {
+            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            snapshot.TryGetConsecutiveTimeouts(out var player0Timeouts, out var player1Timeouts).Should().BeTrue();
+
+            if (timedOutPlayerSlot == PlayerSlotMapping.SlotX)
+            {
+                player0Timeouts.Should().Be(expectedCount);
+                player1Timeouts.Should().Be(0);
+            }
+            else
+            {
+                player0Timeouts.Should().Be(0);
+                player1Timeouts.Should().Be(expectedCount);
+            }
+        }
+
+        [Test]
+        public void WhenDuplicatePlacementSubmitted_ThenSecondIsRejected()
+        {
+            _lifecycle.StartMatch(CreateConfig());
+
+            var layout = _autoPlacer.Generate(15001);
+            var rejections = new List<CommandRejectedEvent>();
+            using var sub = _stateProvider.CommandRejected.Subscribe(evt => rejections.Add(evt));
+
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, layout));
+            var sequenceAfterFirstSubmit = _stateProvider.CommandSequence;
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, layout));
+
+            _stateProvider.CommandSequence.Should().Be(sequenceAfterFirstSubmit);
+            rejections.Should().ContainSingle();
+            rejections[0].CommandType.Should().Be(GameplayCommandType.SubmitPlacement);
+            rejections[0].Rejection.Reason.Should().Be(GameplayRejectionReason.ForbiddenMove);
+        }
+
+        [Test]
+        public void WhenShotDuringPlacementPhase_ThenMoveIsRejected()
+        {
+            _lifecycle.StartMatch(CreateConfig());
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, _autoPlacer.Generate(16001)));
+
+            var rejections = new List<CommandRejectedEvent>();
+            using var sub = _stateProvider.CommandRejected.Subscribe(evt => rejections.Add(evt));
+
+            _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 0)));
+
+            rejections.Should().ContainSingle();
+            rejections[0].CommandType.Should().Be(GameplayCommandType.MakeMove);
+            rejections[0].Rejection.Reason.Should().Be(GameplayRejectionReason.ForbiddenMove);
+        }
+
+        [Test]
+        public void WhenMultiDeckShipIsSunk_ThenAllShipCellsAndNeighborsAreMarkedMiss()
+        {
+            _lifecycle.StartMatch(CreateConfig());
+
+            var layout = CreateKnownValidLayout();
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, layout));
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotO, layout));
+
+            var shooterSlot = _stateProvider.ActivePlayerSlot;
+            _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 0)));
+            _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 1)));
+            _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 2)));
+
+            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            var marks = snapshot.GetOpponentMarks(shooterSlot);
+            marks[0].Should().Be(BattleshipCellMark.Sunk);
+            marks[1].Should().Be(BattleshipCellMark.Sunk);
+            marks[2].Should().Be(BattleshipCellMark.Sunk);
+
+            var neighborIndexes = FindWaterNeighborIndexes(layout, new ShipPlacement(ShipSize.Three, ShipOrientation.Horizontal, new CellId(0, 0)));
+            neighborIndexes.Should().NotBeEmpty();
+            for (var i = 0; i < neighborIndexes.Count; i++)
+                marks[neighborIndexes[i]].Should().Be(BattleshipCellMark.Miss);
+        }
+
+        [Test]
+        public void WhenOutOfBoundsShotSubmitted_ThenRejectedWithInvalidCell()
+        {
+            _lifecycle.StartMatch(CreateConfig());
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, _autoPlacer.Generate(17001)));
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotO, _autoPlacer.Generate(27002)));
+
+            var rejections = new List<CommandRejectedEvent>();
+            using var sub = _stateProvider.CommandRejected.Subscribe(evt => rejections.Add(evt));
+
+            _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(10, 0)));
+
+            rejections.Should().ContainSingle();
+            rejections[0].CommandType.Should().Be(GameplayCommandType.MakeMove);
+            rejections[0].Rejection.Reason.Should().Be(GameplayRejectionReason.InvalidCell);
+        }
+
+        [Test]
+        public void WhenSubmitArrivesBeforePlacementTimeout_ThenSubmittedLayoutIsUsed()
+        {
+            _lifecycle.StartMatch(CreateConfig());
+
+            var knownLayout = CreateKnownValidLayout();
+            var otherLayout = _autoPlacer.Generate(28002);
+            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+
+            _commandQueue.Enqueue(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, knownLayout));
+            _commandQueue.Enqueue(new PlacementTimeoutCommand(PlayerSlotMapping.SlotX, autoPlaceSeed: 9999));
+            _lifecycle.Tick();
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotO, otherLayout));
+
+            snapshot.TryGetFleetLayout(PlayerSlotMapping.SlotX, out var actualLayout).Should().BeTrue();
+            SerializeLayout(actualLayout).Should().Be(SerializeLayout(knownLayout));
+        }
+
+        [Test]
+        public void WhenPlacementTimeoutArrivesBeforeSubmit_ThenTimeoutLayoutIsUsed()
+        {
+            _lifecycle.StartMatch(CreateConfig());
+
+            var knownLayout = CreateKnownValidLayout();
+            var autoLayout = _autoPlacer.Generate(1234);
+            var otherLayout = _autoPlacer.Generate(29002);
+            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            var rejections = new List<CommandRejectedEvent>();
+            using var sub = _stateProvider.CommandRejected.Subscribe(evt => rejections.Add(evt));
+
+            _commandQueue.Enqueue(new PlacementTimeoutCommand(PlayerSlotMapping.SlotX, autoPlaceSeed: 1234));
+            _commandQueue.Enqueue(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, knownLayout));
+            _lifecycle.Tick();
+            _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotO, otherLayout));
+
+            snapshot.TryGetFleetLayout(PlayerSlotMapping.SlotX, out var actualLayout).Should().BeTrue();
+            SerializeLayout(actualLayout).Should().Be(SerializeLayout(autoLayout));
+            rejections.Should().ContainSingle();
+            rejections[0].CommandType.Should().Be(GameplayCommandType.SubmitPlacement);
+            rejections[0].Rejection.Reason.Should().Be(GameplayRejectionReason.ForbiddenMove);
+        }
+
         private static GameLaunchConfig CreateConfig() =>
             new(BattleshipStrategy.DefaultGameId, new BattleshipConfig(90), new LocalHumanConfig());
+
+        private static FleetLayout CreateKnownValidLayout()
+        {
+            return new FleetLayout(System.Array.AsReadOnly(new[]
+            {
+                new ShipPlacement(ShipSize.Four, ShipOrientation.Horizontal, new CellId(0, 5)),
+                new ShipPlacement(ShipSize.Three, ShipOrientation.Horizontal, new CellId(0, 0)),
+                new ShipPlacement(ShipSize.Three, ShipOrientation.Vertical, new CellId(2, 0)),
+                new ShipPlacement(ShipSize.Two, ShipOrientation.Horizontal, new CellId(2, 3)),
+                new ShipPlacement(ShipSize.Two, ShipOrientation.Vertical, new CellId(3, 7)),
+                new ShipPlacement(ShipSize.Two, ShipOrientation.Horizontal, new CellId(6, 0)),
+                new ShipPlacement(ShipSize.One, ShipOrientation.Horizontal, new CellId(6, 4)),
+                new ShipPlacement(ShipSize.One, ShipOrientation.Horizontal, new CellId(6, 7)),
+                new ShipPlacement(ShipSize.One, ShipOrientation.Horizontal, new CellId(8, 0)),
+                new ShipPlacement(ShipSize.One, ShipOrientation.Horizontal, new CellId(8, 3)),
+            }));
+        }
+
+        private static FleetLayout GetTargetLayout(int shooterSlot, FleetLayout xLayout, FleetLayout oLayout) =>
+            shooterSlot == PlayerSlotMapping.SlotX ? oLayout : xLayout;
+
+        private static int GetOtherPlayerSlot(int playerSlot) =>
+            playerSlot == PlayerSlotMapping.SlotX
+                ? PlayerSlotMapping.SlotO
+                : PlayerSlotMapping.SlotX;
+
+        private static string SerializeLayout(FleetLayout layout) => new BattleshipLayoutSerializer().Serialize(layout);
+
+        private static CellId FindFirstShipCell(FleetLayout layout)
+        {
+            foreach (var cell in FindShipCells(layout))
+                return cell;
+
+            throw new AssertionException("Expected at least one occupied ship cell on board.");
+        }
+
+        private static IReadOnlyList<CellId> FindShipCells(FleetLayout layout)
+        {
+            var cells = new List<CellId>(20);
+            var ships = layout.Ships!;
+
+            for (var shipIndex = 0; shipIndex < ships.Count; shipIndex++)
+            {
+                var ship = ships[shipIndex];
+                var deckCount = (int)ship.Size;
+                for (var deck = 0; deck < deckCount; deck++)
+                {
+                    var major = ship.StartCell.Major + (ship.Orientation == ShipOrientation.Vertical ? deck : 0);
+                    var minor = ship.StartCell.Minor + (ship.Orientation == ShipOrientation.Horizontal ? deck : 0);
+                    cells.Add(new CellId(major, minor));
+                }
+            }
+
+            return cells;
+        }
 
         private static CellId FindFirstWaterCell(FleetLayout layout)
         {
@@ -377,6 +651,37 @@ namespace Tests.EditMode.Games.Battleship
             throw new AssertionException("Expected at least one single-deck ship in fleet.");
         }
 
+        private static IReadOnlyList<int> FindWaterNeighborIndexes(FleetLayout layout, ShipPlacement ship)
+        {
+            var occupied = BuildOccupiedMap(layout);
+            var indexes = new List<int>(16);
+            var visited = new HashSet<int>();
+            var deckCount = (int)ship.Size;
+
+            for (var deck = 0; deck < deckCount; deck++)
+            {
+                var major = ship.StartCell.Major + (ship.Orientation == ShipOrientation.Vertical ? deck : 0);
+                var minor = ship.StartCell.Minor + (ship.Orientation == ShipOrientation.Horizontal ? deck : 0);
+
+                for (var neighborMajor = major - 1; neighborMajor <= major + 1; neighborMajor++)
+                {
+                    for (var neighborMinor = minor - 1; neighborMinor <= minor + 1; neighborMinor++)
+                    {
+                        if (neighborMajor < 0 || neighborMajor >= 10 || neighborMinor < 0 || neighborMinor >= 10)
+                            continue;
+
+                        var index = (neighborMajor * 10) + neighborMinor;
+                        if (occupied[index] || !visited.Add(index))
+                            continue;
+
+                        indexes.Add(index);
+                    }
+                }
+            }
+
+            return indexes;
+        }
+
         private static IReadOnlyList<int> FindWaterNeighborIndexes(FleetLayout layout, CellId center)
         {
             var occupied = new bool[100];
@@ -414,6 +719,26 @@ namespace Tests.EditMode.Games.Battleship
             }
 
             return neighbors;
+        }
+
+        private static bool[] BuildOccupiedMap(FleetLayout layout)
+        {
+            var occupied = new bool[100];
+            var ships = layout.Ships!;
+
+            for (var shipIndex = 0; shipIndex < ships.Count; shipIndex++)
+            {
+                var ship = ships[shipIndex];
+                var deckCount = (int)ship.Size;
+                for (var deck = 0; deck < deckCount; deck++)
+                {
+                    var major = ship.StartCell.Major + (ship.Orientation == ShipOrientation.Vertical ? deck : 0);
+                    var minor = ship.StartCell.Minor + (ship.Orientation == ShipOrientation.Horizontal ? deck : 0);
+                    occupied[major * 10 + minor] = true;
+                }
+            }
+
+            return occupied;
         }
     }
 }

@@ -19,6 +19,7 @@ using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.Infrastructure.GameStateMachine;
+using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.PlayerStatistics;
 using UnityEngine.UIElements;
 
@@ -33,11 +34,22 @@ namespace Tests.EditMode.Games.Battleship
             private readonly ReactiveProperty<float> _remainingSeconds = new(0f);
             private readonly ReactiveProperty<bool> _isActive = new(false);
 
+            public int RestoreCallCount { get; private set; }
+            public float LastRestoreRemainingSeconds { get; private set; }
+            public int LastRestoreActivePlayerSlot { get; private set; } = -1;
+
             public ReadOnlyReactiveProperty<float> RemainingSeconds => _remainingSeconds;
             public ReadOnlyReactiveProperty<bool> IsActive => _isActive;
 
             public void StartOrResetForPlayer(int playerSlot) { }
-            public void RestoreRemainingSeconds(float remainingSeconds, int activePlayerSlot) { }
+            public void RestoreRemainingSeconds(float remainingSeconds, int activePlayerSlot)
+            {
+                RestoreCallCount++;
+                LastRestoreRemainingSeconds = remainingSeconds;
+                LastRestoreActivePlayerSlot = activePlayerSlot;
+                _remainingSeconds.Value = remainingSeconds;
+                _isActive.Value = true;
+            }
             public void Stop() => _isActive.Value = false;
             public void Freeze() { }
             public void Unfreeze() { }
@@ -55,10 +67,61 @@ namespace Tests.EditMode.Games.Battleship
             }
         }
 
+        private sealed class FakePlacementTimerService : IBattleshipPlacementTimerService
+        {
+            private readonly ReactiveProperty<float> _remainingSeconds = new(0f);
+            private readonly ReactiveProperty<bool> _isActive = new(false);
+
+            public int RestoreCallCount { get; private set; }
+            public float LastRestoreRemainingSeconds { get; private set; }
+
+            public ReadOnlyReactiveProperty<float> RemainingSeconds => _remainingSeconds;
+            public ReadOnlyReactiveProperty<bool> IsActive => _isActive;
+
+            public void SyncFromSnapshot() { }
+
+            public void RestoreRemainingSeconds(float remainingSeconds)
+            {
+                RestoreCallCount++;
+                LastRestoreRemainingSeconds = remainingSeconds;
+                _remainingSeconds.Value = remainingSeconds;
+                _isActive.Value = true;
+            }
+
+            public void Stop() => _isActive.Value = false;
+            public void Freeze() { }
+            public void Unfreeze() { }
+
+            public void Dispose()
+            {
+                _remainingSeconds.Dispose();
+                _isActive.Dispose();
+            }
+        }
+
+        private sealed class CapturingRecoveryStateApplier : IBattleshipRecoveryStateApplier
+        {
+            public bool ShouldApply { get; set; } = true;
+            public int CallCount { get; private set; }
+            public BattleshipRecoveryState? LastState { get; private set; }
+
+            public bool TryApplyRecoveryState(in BattleshipRecoveryState state)
+            {
+                CallCount++;
+                LastState = state;
+                return ShouldApply;
+            }
+        }
+
         [Test]
         public async Task WhenHostReceivesGuestShotSequenceWithGap_ThenRejectsSecondMove()
         {
             var context = CreateContext();
+            var forwardedCommands = new List<IGameplayCommand>();
+            context.MatchStateProvider
+                .When(provider => provider.SubmitCommand(Arg.Any<IGameplayCommand>()))
+                .Do(callInfo => forwardedCommands.Add(callInfo.Arg<IGameplayCommand>()));
+
             using var sut = context.CreateSut();
 
             await sut.StartAsync(CancellationToken.None);
@@ -69,14 +132,20 @@ namespace Tests.EditMode.Games.Battleship
             context.IncomingMoves.OnNext(new MoveCommand(Guid.NewGuid(), "guest-user", cellIndex: 1, clientTick: 3));
             await UniTask.DelayFrame(1);
 
-            context.MatchStateProvider.Received(1)
-                .SubmitCommand(Arg.Any<IGameplayCommand>());
+            var forwardedMoves = forwardedCommands.Should().ContainSingle(command => command is MakeMoveCommand).Subject;
+            forwardedMoves.Should().BeOfType<MakeMoveCommand>();
+            ((MakeMoveCommand)forwardedMoves).CellId.Should().Be(new CellId(0, 0));
         }
 
         [Test]
         public async Task WhenHostReceivesGuestShotSequenceStrictlyIncreasingByOne_ThenAcceptsBothMoves()
         {
             var context = CreateContext();
+            var forwardedCommands = new List<IGameplayCommand>();
+            context.MatchStateProvider
+                .When(provider => provider.SubmitCommand(Arg.Any<IGameplayCommand>()))
+                .Do(callInfo => forwardedCommands.Add(callInfo.Arg<IGameplayCommand>()));
+
             using var sut = context.CreateSut();
 
             await sut.StartAsync(CancellationToken.None);
@@ -87,8 +156,10 @@ namespace Tests.EditMode.Games.Battleship
             context.IncomingMoves.OnNext(new MoveCommand(Guid.NewGuid(), "guest-user", cellIndex: 1, clientTick: 2));
             await UniTask.DelayFrame(1);
 
-            context.MatchStateProvider.Received(2)
-                .SubmitCommand(Arg.Any<IGameplayCommand>());
+            forwardedCommands.Should().HaveCount(2);
+            forwardedCommands.Should().OnlyContain(command => command is MakeMoveCommand);
+            ((MakeMoveCommand)forwardedCommands[0]).CellId.Should().Be(new CellId(0, 0));
+            ((MakeMoveCommand)forwardedCommands[1]).CellId.Should().Be(new CellId(0, 1));
         }
 
         [Test]
@@ -347,9 +418,313 @@ namespace Tests.EditMode.Games.Battleship
             fieldPresenter.Received(1).Unbind();
         }
 
-        private static TestContext CreateContext()
+        [Test]
+        public async Task WhenRecoverySnapshotApplied_ThenRestoresPhaseAndActiveSlot()
         {
-            var config = new GameLaunchConfig(
+            using var context = CreateContext(isHost: false);
+            using var sut = context.CreateSut();
+
+            await sut.StartAsync(CancellationToken.None);
+
+            context.IncomingRecoverySnapshots.OnNext(CreateRecoveryMessage(
+                senderUserId: "host-user",
+                matchRoundId: 1,
+                phase: BattleshipPhase.Battle,
+                activePlayerSlot: PlayerSlotMapping.SlotO,
+                placementTimerRemainingMs: 12000,
+                moveTimerRemainingMs: 9000));
+            await UniTask.DelayFrame(1);
+
+            context.RecoveryStateApplier.CallCount.Should().Be(1);
+            context.RecoveryStateApplier.LastState.Should().NotBeNull();
+            context.RecoveryStateApplier.LastState!.Value.Phase.Should().Be(BattleshipPhase.Battle);
+            context.RecoveryStateApplier.LastState!.Value.ActivePlayerSlot.Should().Be(PlayerSlotMapping.SlotO);
+        }
+
+        [Test]
+        public async Task WhenRecoverySnapshotApplied_ThenRestoresBothTimers()
+        {
+            using var context = CreateContext(isHost: false);
+            using var sut = context.CreateSut();
+
+            await sut.StartAsync(CancellationToken.None);
+
+            context.IncomingRecoverySnapshots.OnNext(CreateRecoveryMessage(
+                senderUserId: "host-user",
+                matchRoundId: 1,
+                phase: BattleshipPhase.Battle,
+                activePlayerSlot: PlayerSlotMapping.SlotO,
+                placementTimerRemainingMs: 12000,
+                moveTimerRemainingMs: 9000));
+            await UniTask.DelayFrame(1);
+
+            context.PlacementTimerService.RestoreCallCount.Should().Be(1);
+            context.PlacementTimerService.LastRestoreRemainingSeconds.Should().Be(12f);
+            context.MoveTimerService.RestoreCallCount.Should().Be(1);
+            context.MoveTimerService.LastRestoreRemainingSeconds.Should().Be(9f);
+            context.MoveTimerService.LastRestoreActivePlayerSlot.Should().Be(PlayerSlotMapping.SlotO);
+        }
+
+        [Test]
+        public async Task WhenHostBindsBattleshipOnlineSession_ThenPublishesInitialRecoverySnapshot()
+        {
+            using var context = CreateContext(isHost: true);
+            using var sut = context.CreateSut();
+
+            await sut.StartAsync(CancellationToken.None);
+
+            await context.BattleshipBridge.Received().SubmitRecoverySnapshotAsync(Arg.Any<BattleshipRecoveryMessage>());
+        }
+
+        [Test]
+        public async Task WhenRecoverySnapshotBelongsToDifferentMatchRound_ThenStartupIgnoresIt()
+        {
+            using var context = CreateContext(isHost: false);
+            using var sut = context.CreateSut();
+
+            await sut.StartAsync(CancellationToken.None);
+
+            context.IncomingRecoverySnapshots.OnNext(CreateRecoveryMessage(
+                senderUserId: "host-user",
+                matchRoundId: 2,
+                phase: BattleshipPhase.Battle,
+                activePlayerSlot: PlayerSlotMapping.SlotO,
+                placementTimerRemainingMs: 12000,
+                moveTimerRemainingMs: 9000));
+            await UniTask.DelayFrame(1);
+
+            context.RecoveryStateApplier.CallCount.Should().Be(0);
+            context.PlacementTimerService.RestoreCallCount.Should().Be(0);
+            context.MoveTimerService.RestoreCallCount.Should().Be(0);
+        }
+
+        [Test]
+        public async Task WhenHostReceivesShotOutOfTurn_ThenDoesNotForwardToLocalSink()
+        {
+            using var context = CreateContext(isHost: true, activePlayerSlot: PlayerSlotMapping.SlotX);
+            using var sut = context.CreateSut();
+
+            await sut.StartAsync(CancellationToken.None);
+
+            context.IncomingMoves.OnNext(new MoveCommand(Guid.NewGuid(), "guest-user", cellIndex: 0, clientTick: 1));
+            await UniTask.DelayFrame(1);
+
+            context.MatchStateProvider.DidNotReceive().SubmitCommand(Arg.Any<IGameplayCommand>());
+        }
+
+        [Test]
+        public async Task WhenHostReceivesDuplicateShotSequence_ThenSecondMoveIsIgnored()
+        {
+            using var context = CreateContext(isHost: true, activePlayerSlot: PlayerSlotMapping.SlotO);
+            var forwardedCommands = new List<IGameplayCommand>();
+            context.MatchStateProvider
+                .When(provider => provider.SubmitCommand(Arg.Any<IGameplayCommand>()))
+                .Do(callInfo => forwardedCommands.Add(callInfo.Arg<IGameplayCommand>()));
+
+            using var sut = context.CreateSut();
+
+            await sut.StartAsync(CancellationToken.None);
+
+            context.IncomingMoves.OnNext(new MoveCommand(Guid.NewGuid(), "guest-user", cellIndex: 0, clientTick: 1));
+            await UniTask.DelayFrame(1);
+
+            context.IncomingMoves.OnNext(new MoveCommand(Guid.NewGuid(), "guest-user", cellIndex: 1, clientTick: 1));
+            await UniTask.DelayFrame(1);
+
+            var forwardedMoves = forwardedCommands.Should().ContainSingle(command => command is MakeMoveCommand).Subject;
+            ((MakeMoveCommand)forwardedMoves).CellId.Should().Be(new CellId(0, 0));
+        }
+
+        [Test]
+        public async Task WhenHostReceivesStaleShotSequence_ThenMoveIsIgnored()
+        {
+            using var context = CreateContext(isHost: true, activePlayerSlot: PlayerSlotMapping.SlotO);
+            var forwardedCommands = new List<IGameplayCommand>();
+            context.MatchStateProvider
+                .When(provider => provider.SubmitCommand(Arg.Any<IGameplayCommand>()))
+                .Do(callInfo => forwardedCommands.Add(callInfo.Arg<IGameplayCommand>()));
+
+            using var sut = context.CreateSut();
+
+            await sut.StartAsync(CancellationToken.None);
+
+            context.IncomingMoves.OnNext(new MoveCommand(Guid.NewGuid(), "guest-user", cellIndex: 0, clientTick: 1));
+            await UniTask.DelayFrame(1);
+            context.IncomingMoves.OnNext(new MoveCommand(Guid.NewGuid(), "guest-user", cellIndex: 1, clientTick: 2));
+            await UniTask.DelayFrame(1);
+            context.IncomingMoves.OnNext(new MoveCommand(Guid.NewGuid(), "guest-user", cellIndex: 2, clientTick: 3));
+            await UniTask.DelayFrame(1);
+
+            context.IncomingMoves.OnNext(new MoveCommand(Guid.NewGuid(), "guest-user", cellIndex: 3, clientTick: 1));
+            await UniTask.DelayFrame(1);
+
+            forwardedCommands.Should().HaveCount(3);
+            forwardedCommands.Should().OnlyContain(command => command is MakeMoveCommand);
+            ((MakeMoveCommand)forwardedCommands[0]).CellId.Should().Be(new CellId(0, 0));
+            ((MakeMoveCommand)forwardedCommands[1]).CellId.Should().Be(new CellId(0, 1));
+            ((MakeMoveCommand)forwardedCommands[2]).CellId.Should().Be(new CellId(0, 2));
+        }
+
+        [Test]
+        public async Task WhenOnlyOnePlayerSignalsRoundReady_ThenRoundDoesNotRestart()
+        {
+            using var seriesService = new SeriesService();
+            using var context = CreateContext(isHost: true, seriesService: seriesService);
+            var localReadySubmitted = false;
+            RoundReadySignal? localReadySignal = null;
+            context.GameplayBridge
+                .SubmitRoundReadyAsync(Arg.Any<RoundReadySignal>())
+                .Returns(callInfo =>
+                {
+                    localReadySubmitted = true;
+                    localReadySignal = callInfo.Arg<RoundReadySignal>();
+                    return UniTask.CompletedTask;
+                });
+            using var sut = context.CreateSut();
+
+            await sut.StartAsync(CancellationToken.None);
+
+            context.RoundFinishedEvents.OnNext(new RoundFinishedEvent(GameStatus.Timeout, PlayerSlotMapping.SlotX, winLine: null));
+            await UniTask.DelayFrame(1);
+
+            sut.HandleResultAction(ResultAction.Restart);
+            await WaitUntilAsync(() => localReadySubmitted && localReadySignal.HasValue);
+
+            await context.StateMachine.DidNotReceive()
+                .EnterAsync<LoadGameplayState, GameLaunchConfig>(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>());
+        }
+
+        [Test]
+        public async Task WhenBothPlayersRestartRound_ThenSessionScorePersistsAndOldSubscriptionsDoNotLeak()
+        {
+            using var firstSeriesService = new SeriesService();
+            using var firstContext = CreateContext(isHost: true, seriesService: firstSeriesService);
+            GameLaunchConfig? restartedConfig = null;
+            var restartEnterCount = 0;
+            var localReadySubmitted = false;
+            RoundReadySignal? localReadySignal = null;
+            firstContext.GameplayBridge
+                .SubmitRoundReadyAsync(Arg.Any<RoundReadySignal>())
+                .Returns(callInfo =>
+                {
+                    localReadySubmitted = true;
+                    localReadySignal = callInfo.Arg<RoundReadySignal>();
+                    return UniTask.CompletedTask;
+                });
+            firstContext.StateMachine
+                .EnterAsync<LoadGameplayState, GameLaunchConfig>(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
+                .Returns(callInfo =>
+                {
+                    restartEnterCount++;
+                    restartedConfig = callInfo.Arg<GameLaunchConfig>();
+                    return UniTask.CompletedTask;
+                });
+
+            using var firstSut = firstContext.CreateSut();
+            await firstSut.StartAsync(CancellationToken.None);
+
+            firstContext.RoundFinishedEvents.OnNext(new RoundFinishedEvent(GameStatus.Timeout, PlayerSlotMapping.SlotX, winLine: null));
+            await UniTask.DelayFrame(1);
+            firstSeriesService.Score.CurrentValue.Player1Wins.Should().Be(1);
+
+            firstSut.HandleResultAction(ResultAction.Restart);
+            await WaitUntilAsync(() => localReadySubmitted && localReadySignal.HasValue);
+            await UniTask.DelayFrame(1);
+
+            firstContext.IncomingReadySignals.OnNext(new RoundReadySignal(
+                "guest-user",
+                isReady: true,
+                matchRoundId: localReadySignal!.Value.MatchRoundId,
+                clientTick: 123));
+            await WaitUntilAsync(() => restartEnterCount >= 1);
+            await UniTask.DelayFrame(2);
+
+            firstContext.IncomingReadySignals.OnNext(new RoundReadySignal(
+                "guest-user",
+                isReady: true,
+                matchRoundId: localReadySignal.Value.MatchRoundId,
+                clientTick: 124));
+            await UniTask.DelayFrame(2);
+
+            restartedConfig.Should().NotBeNull();
+            restartEnterCount.Should().Be(1);
+
+            using var secondSeriesService = new SeriesService();
+            using var secondContext = CreateContext(
+                isHost: true,
+                launchConfig: restartedConfig,
+                seriesService: secondSeriesService);
+            using var secondSut = secondContext.CreateSut();
+
+            await secondSut.StartAsync(CancellationToken.None);
+
+            firstSut.Dispose();
+            firstContext.IncomingReadySignals.OnNext(new RoundReadySignal("guest-user", isReady: true, matchRoundId: 1, clientTick: 125));
+            await UniTask.DelayFrame(2);
+
+            restartEnterCount.Should().Be(1);
+
+            secondSeriesService.Score.CurrentValue.Player1Wins.Should().Be(1);
+            secondSeriesService.Score.CurrentValue.Player2Wins.Should().Be(0);
+            secondSeriesService.Score.CurrentValue.Draws.Should().Be(0);
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> condition, int maxFrames = 20)
+        {
+            for (var frame = 0; frame < maxFrames; frame++)
+            {
+                if (condition())
+                    return;
+
+                await UniTask.DelayFrame(1);
+            }
+
+            Assert.Fail("Expected condition to become true within the allotted frames.");
+        }
+
+        private static BattleshipRecoveryMessage CreateRecoveryMessage(
+            string senderUserId,
+            int matchRoundId,
+            BattleshipPhase phase,
+            int activePlayerSlot,
+            long placementTimerRemainingMs,
+            long moveTimerRemainingMs)
+        {
+            var serializer = new BattleshipLayoutSerializer();
+            var validator = new BattleshipPlacementValidator();
+            var autoPlacer = new BattleshipAutoPlacer(validator);
+            var layoutPayload = serializer.Serialize(autoPlacer.Generate(24680));
+            var marksPayload = new string('0', 100);
+
+            return new BattleshipRecoveryMessage(
+                Guid.NewGuid(),
+                senderUserId,
+                matchRoundId,
+                (int)phase,
+                activePlayerSlot,
+                placementTimerRemainingMs,
+                moveTimerRemainingMs,
+                player0ConsecutiveTimeouts: 1,
+                player1ConsecutiveTimeouts: 0,
+                winnerSlot: -1,
+                finishStatus: (int)GameStatus.InProgress,
+                clientTick: 321,
+                player0LayoutPayload: layoutPayload,
+                player1LayoutPayload: layoutPayload,
+                player0OpponentMarksPayload: marksPayload,
+                player1OpponentMarksPayload: marksPayload);
+        }
+
+        private static TestContext CreateContext(
+            bool isHost = true,
+            int activePlayerSlot = PlayerSlotMapping.SlotO,
+            GameLaunchConfig? launchConfig = null,
+            ISeriesService? seriesService = null,
+            FakeMoveTimerService? moveTimerService = null,
+            FakePlacementTimerService? placementTimerService = null,
+            CapturingRecoveryStateApplier? recoveryStateApplier = null)
+        {
+            var config = launchConfig ?? new GameLaunchConfig(
                 BattleshipStrategy.DefaultGameId,
                 new BattleshipConfig(placementTimeLimitSeconds: 30),
                 new LocalHumanConfig(),
@@ -386,13 +761,22 @@ namespace Tests.EditMode.Games.Battleship
             fieldUiAdapter.Player2Panel.Returns(new VisualElement());
             fieldUiAdapter.Player1ScoreLabel.Returns(new Label());
             fieldUiAdapter.Player2ScoreLabel.Returns(new Label());
+            fieldUiAdapter.Player1NameLabel.Returns(new Label());
+            fieldUiAdapter.Player2NameLabel.Returns(new Label());
+            fieldUiAdapter.DrawsScoreLabel.Returns(new Label());
+            fieldUiAdapter.MoveTimerLabel.Returns(new Label());
 
             var eventStream = Substitute.For<IGameplayEventStream>();
-            eventStream.CellChanged.Returns(new Subject<CellChangedEvent>());
-            eventStream.LastMoveChanged.Returns(new Subject<LastMoveChangedEvent>());
-            eventStream.CurrentPlayerChanged.Returns(new Subject<CurrentPlayerChangedEvent>());
-            eventStream.CommandRejected.Returns(new Subject<CommandRejectedEvent>());
-            eventStream.RoundFinished.Returns(new Subject<RoundFinishedEvent>());
+            var cellChanged = new Subject<CellChangedEvent>();
+            var lastMoveChanged = new Subject<LastMoveChangedEvent>();
+            var currentPlayerChanged = new Subject<CurrentPlayerChangedEvent>();
+            var commandRejected = new Subject<CommandRejectedEvent>();
+            var roundFinished = new Subject<RoundFinishedEvent>();
+            eventStream.CellChanged.Returns(cellChanged);
+            eventStream.LastMoveChanged.Returns(lastMoveChanged);
+            eventStream.CurrentPlayerChanged.Returns(currentPlayerChanged);
+            eventStream.CommandRejected.Returns(commandRejected);
+            eventStream.RoundFinished.Returns(roundFinished);
 
             var commandSink = Substitute.For<IGameplayCommandSink>();
             var snapshotProvider = Substitute.For<IGameplaySnapshotProvider>();
@@ -403,8 +787,12 @@ namespace Tests.EditMode.Games.Battleship
             ecsLifecycle.IsActive.Returns(true);
 
             var stateMachine = Substitute.For<IGameStateMachine>();
-            var seriesService = Substitute.For<ISeriesService>();
-            seriesService.Score.Returns(new ReactiveProperty<SeriesScore>(default));
+            if (seriesService == null)
+            {
+                var seriesServiceSubstitute = Substitute.For<ISeriesService>();
+                seriesServiceSubstitute.Score.Returns(new ReactiveProperty<SeriesScore>(default));
+                seriesService = seriesServiceSubstitute;
+            }
             var backHandler = Substitute.For<IGameplayBackHandler>();
             backHandler.HandleBackAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
 
@@ -416,7 +804,7 @@ namespace Tests.EditMode.Games.Battleship
             ultimateBot.MoveFailed.Returns(new Subject<BotMoveFailedEvent>());
 
             var matchStateProvider = Substitute.For<IMatchStateProvider>();
-            matchStateProvider.ActivePlayerSlot.Returns(PlayerSlotMapping.SlotO);
+            matchStateProvider.ActivePlayerSlot.Returns(activePlayerSlot);
             matchStateProvider.GetAllCells().Returns(new List<CellSnapshot>());
 
             var marks = new BattleshipCellMark[100];
@@ -426,7 +814,7 @@ namespace Tests.EditMode.Games.Battleship
 
             var battleshipSnapshot = Substitute.For<IBattleshipGameplaySnapshotProvider>();
             battleshipSnapshot.Phase.Returns(BattleshipPhase.Battle);
-            battleshipSnapshot.ActivePlayerSlot.Returns(PlayerSlotMapping.SlotO);
+            battleshipSnapshot.ActivePlayerSlot.Returns(activePlayerSlot);
             battleshipSnapshot.CurrentStatus.Returns(GameStatus.InProgress);
             battleshipSnapshot.GetOpponentMarks(PlayerSlotMapping.SlotO).Returns(marksView);
 
@@ -437,6 +825,7 @@ namespace Tests.EditMode.Games.Battleship
             var incomingMoves = new Subject<MoveCommand>();
             var incomingReady = new Subject<RoundReadySignal>();
             var incomingTimeout = new Subject<OnlineTimeoutSignal>();
+            var incomingRecovery = new Subject<BattleshipRecoveryMessage>();
             var snapshot = new ReactiveProperty<GameplayNetworkSnapshot?>(null);
             long authoritativeTick = 0;
 
@@ -463,11 +852,16 @@ namespace Tests.EditMode.Games.Battleship
             gameplayBridge.SubmitTimeoutAsync(Arg.Any<OnlineTimeoutSignal>()).Returns(UniTask.CompletedTask);
 
             var battleshipBridge = Substitute.For<IBattleshipNetworkBridge>();
-            battleshipBridge.IncomingRecoverySnapshots.Returns(new Subject<BattleshipRecoveryMessage>());
+            battleshipBridge.IncomingRecoverySnapshots.Returns(incomingRecovery);
             battleshipBridge.BindAsync(Arg.Any<string>(), Arg.Any<bool>()).Returns(UniTask.CompletedTask);
+            battleshipBridge.SubmitRecoverySnapshotAsync(Arg.Any<BattleshipRecoveryMessage>()).Returns(UniTask.CompletedTask);
 
             var sessionStore = new OnlineGameplaySessionContextStore();
-            sessionStore.SetDirectInviteSession("ABCDEF", "host-user", isHost: true);
+            sessionStore.SetDirectInviteSession("ABCDEF", isHost ? "host-user" : "guest-user", isHost);
+
+            moveTimerService ??= new FakeMoveTimerService();
+            placementTimerService ??= new FakePlacementTimerService();
+            recoveryStateApplier ??= new CapturingRecoveryStateApplier();
 
             var statisticsReporter = CreateStatisticsReporter(configStore, eventStream);
 
@@ -492,7 +886,14 @@ namespace Tests.EditMode.Games.Battleship
                 battleshipBridge,
                 sessionStore,
                 statisticsReporter,
-                incomingMoves);
+                incomingMoves,
+                incomingReady,
+                roundFinished,
+                fieldContainer,
+                incomingRecovery,
+                moveTimerService,
+                placementTimerService,
+                recoveryStateApplier);
         }
 
         private static PlayerStatisticsMatchReporter CreateStatisticsReporter(
@@ -513,7 +914,7 @@ namespace Tests.EditMode.Games.Battleship
                 new MatchKeyMapper());
         }
 
-        private sealed class TestContext
+        private sealed class TestContext : IDisposable
         {
             private readonly IGameLaunchConfigStore _configStore;
             private readonly IGameService _gameService;
@@ -535,6 +936,10 @@ namespace Tests.EditMode.Games.Battleship
             private readonly IBattleshipNetworkBridge _battleshipBridge;
             private readonly OnlineGameplaySessionContextStore _sessionStore;
             private readonly PlayerStatisticsMatchReporter _statisticsReporter;
+            private readonly VisualElement _fieldContainer;
+            private readonly FakeMoveTimerService _moveTimerService;
+            private readonly FakePlacementTimerService _placementTimerService;
+            private readonly CapturingRecoveryStateApplier _recoveryStateApplier;
 
             public TestContext(
                 IGameLaunchConfigStore configStore,
@@ -557,7 +962,14 @@ namespace Tests.EditMode.Games.Battleship
                 IBattleshipNetworkBridge battleshipBridge,
                 OnlineGameplaySessionContextStore sessionStore,
                 PlayerStatisticsMatchReporter statisticsReporter,
-                Subject<MoveCommand> incomingMoves)
+                Subject<MoveCommand> incomingMoves,
+                Subject<RoundReadySignal> incomingReadySignals,
+                Subject<RoundFinishedEvent> roundFinishedEvents,
+                VisualElement fieldContainer,
+                Subject<BattleshipRecoveryMessage> incomingRecoverySnapshots,
+                FakeMoveTimerService moveTimerService,
+                FakePlacementTimerService placementTimerService,
+                CapturingRecoveryStateApplier recoveryStateApplier)
             {
                 _configStore = configStore;
                 _gameService = gameService;
@@ -579,11 +991,36 @@ namespace Tests.EditMode.Games.Battleship
                 _battleshipBridge = battleshipBridge;
                 _sessionStore = sessionStore;
                 _statisticsReporter = statisticsReporter;
+                _fieldContainer = fieldContainer;
+                _moveTimerService = moveTimerService;
+                _placementTimerService = placementTimerService;
+                _recoveryStateApplier = recoveryStateApplier;
                 IncomingMoves = incomingMoves;
+                IncomingReadySignals = incomingReadySignals;
+                RoundFinishedEvents = roundFinishedEvents;
+                IncomingRecoverySnapshots = incomingRecoverySnapshots;
             }
 
             public Subject<MoveCommand> IncomingMoves { get; }
+            public Subject<RoundReadySignal> IncomingReadySignals { get; }
+            public Subject<RoundFinishedEvent> RoundFinishedEvents { get; }
+            public Subject<BattleshipRecoveryMessage> IncomingRecoverySnapshots { get; }
             public IMatchStateProvider MatchStateProvider => _matchStateProvider;
+            public IGameplayNetworkBridge GameplayBridge => _gameplayBridge;
+            public IBattleshipNetworkBridge BattleshipBridge => _battleshipBridge;
+            public VisualElement FieldContainer => _fieldContainer;
+            public IGameStateMachine StateMachine => _stateMachine;
+            public FakeMoveTimerService MoveTimerService => _moveTimerService;
+            public FakePlacementTimerService PlacementTimerService => _placementTimerService;
+            public CapturingRecoveryStateApplier RecoveryStateApplier => _recoveryStateApplier;
+
+            public void Dispose()
+            {
+                IncomingMoves.Dispose();
+                IncomingReadySignals.Dispose();
+                RoundFinishedEvents.Dispose();
+                IncomingRecoverySnapshots.Dispose();
+            }
 
             public GameplayStartup CreateSut() => new(
                 _configStore,
@@ -605,8 +1042,11 @@ namespace Tests.EditMode.Games.Battleship
                 battleshipNetworkBridge: _battleshipBridge,
                 onlineSessionContextStore: _sessionStore,
                 matchStateProvider: _matchStateProvider,
+                moveTimerService: _moveTimerService,
+                battleshipPlacementTimerService: _placementTimerService,
                 battleshipSnapshotProvider: _battleshipSnapshot,
                 battleshipEventStream: _battleshipEvents,
+                battleshipRecoveryStateApplier: _recoveryStateApplier,
                 statisticsReporter: _statisticsReporter);
         }
     }

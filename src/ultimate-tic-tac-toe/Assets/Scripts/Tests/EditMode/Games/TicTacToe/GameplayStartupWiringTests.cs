@@ -182,20 +182,25 @@ namespace Tests.EditMode.Games.TicTacToe
                 "UpdateScoreLabels should reflect Score.Player2Wins after RecordResult");
         }
 
-        // ── TC-C2: RestartRound wiring via ResultAction ──────────
-        // ⚠️ RESIDUAL RISK — Not implemented as Unit test.
-        //
-        // GameResultViewModel is created internally by GameplayStartup and not injected.
-        // Testing ResultAction.Restart → NextRound + SubmitCommand requires a test seam
-        // (injectable IObservable<ResultAction> or public OnResultAction method).
-        //
-        // Coverage mitigation:
-        //   - SeriesService.NextRound() is covered by SeriesServiceTests.cs
-        //   - RestartRoundCommand processing is covered by EcsGameplayPipelineTests.cs
-        //   - The wiring path (RestartRound method) is simple delegation; low defect probability.
-        //
-        // If a test seam is added in the future, implement:
-        //   WhenResultActionRestartReceived_ThenCallsNextRoundAndSubmitsRestartRoundCommandWithMappedSlot
+        [Test]
+        public async Task WhenResultActionRestartReceived_ThenCallsNextRoundAndSubmitsRestartRoundCommandWithMappedSlot()
+        {
+            await _sut.StartAsync(CancellationToken.None);
+
+            var submittedCommands = new System.Collections.Generic.List<IGameplayCommand>();
+            _commandSink
+                .When(sink => sink.SubmitCommand(Arg.Any<IGameplayCommand>()))
+                .Do(callInfo => submittedCommands.Add(callInfo.Arg<IGameplayCommand>()));
+            _seriesService.NextRound().Returns(PlayerMark.O);
+
+            _sut.HandleResultAction(ResultAction.Restart);
+            await UniTask.DelayFrame(1);
+
+            _seriesService.Received(1).NextRound();
+            submittedCommands.Should().ContainSingle(command =>
+                command is RestartRoundCommand
+                && ((RestartRoundCommand)command).StartingPlayerSlot == PlayerSlotMapping.SlotO);
+        }
     }
 }
 

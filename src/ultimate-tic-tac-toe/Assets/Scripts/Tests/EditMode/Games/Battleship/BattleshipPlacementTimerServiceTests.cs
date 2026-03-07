@@ -129,7 +129,7 @@ namespace Tests.EditMode.Games.Battleship
                 sessionStore);
 
             sut.SyncFromSnapshot();
-            await UniTask.DelayFrame(3);
+            await WaitUntilAsync(() => sink.Commands.OfType<PlacementTimeoutCommand>().Count() == 2);
 
             var timeoutCommands = sink.Commands.OfType<PlacementTimeoutCommand>().ToArray();
             timeoutCommands.Should().HaveCount(2);
@@ -163,10 +163,89 @@ namespace Tests.EditMode.Games.Battleship
                 sessionStore);
 
             sut.SyncFromSnapshot();
-            await UniTask.DelayFrame(3);
+            await WaitUntilAsync(() => sut.RemainingSeconds.CurrentValue <= 0f);
 
             sink.Commands.Should().BeEmpty();
             sut.IsActive.CurrentValue.Should().BeTrue();
+        }
+
+        [Test]
+        public async Task WhenOnePlayerAlreadyConfirmed_ThenOnlyNonConfirmedPlayerGetTimeout()
+        {
+            var stream = new FakeBattleshipEventStream();
+            var snapshot = new FakeBattleshipSnapshotProvider
+            {
+                Phase = BattleshipPhase.Waiting,
+                Slot0Confirmed = true,
+                Slot1Confirmed = false,
+            };
+            var matchState = new FakeMatchStateProvider { IsMatchActive = true };
+            var sink = new CapturingCommandSink();
+            var time = new FakeTimeSource { DeltaTime = 0.55f };
+            var sessionStore = new OnlineGameplaySessionContextStore();
+
+            using var sut = new BattleshipPlacementTimerService(
+                CreateStoreWithPlacementLimit(1),
+                stream,
+                snapshot,
+                matchState,
+                sink,
+                time,
+                sessionStore);
+
+            sut.SyncFromSnapshot();
+            await WaitUntilAsync(() => sink.Commands.OfType<PlacementTimeoutCommand>().Any());
+
+            var timeoutCommands = sink.Commands.OfType<PlacementTimeoutCommand>().ToArray();
+            timeoutCommands.Should().ContainSingle();
+            timeoutCommands[0].PlayerSlot.Should().Be(PlayerSlotMapping.SlotO);
+        }
+
+        [Test]
+        public async Task WhenPhaseChangesToBattle_ThenTimerStopsAndNoMoreTimeoutsSubmitted()
+        {
+            var stream = new FakeBattleshipEventStream();
+            var snapshot = new FakeBattleshipSnapshotProvider
+            {
+                Phase = BattleshipPhase.Placement,
+                Slot0Confirmed = false,
+                Slot1Confirmed = false,
+            };
+            var matchState = new FakeMatchStateProvider { IsMatchActive = true };
+            var sink = new CapturingCommandSink();
+            var time = new FakeTimeSource { DeltaTime = 0.6f };
+            var sessionStore = new OnlineGameplaySessionContextStore();
+
+            using var sut = new BattleshipPlacementTimerService(
+                CreateStoreWithPlacementLimit(1),
+                stream,
+                snapshot,
+                matchState,
+                sink,
+                time,
+                sessionStore);
+
+            sut.SyncFromSnapshot();
+            snapshot.Phase = BattleshipPhase.Battle;
+            stream.PublishPhase(BattleshipPhase.Battle);
+
+            await WaitUntilAsync(() => !sut.IsActive.CurrentValue);
+
+            sink.Commands.Should().BeEmpty();
+            sut.IsActive.CurrentValue.Should().BeFalse();
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> condition, int maxFrames = 20)
+        {
+            for (var frame = 0; frame < maxFrames; frame++)
+            {
+                if (condition())
+                    return;
+
+                await UniTask.Yield();
+            }
+
+            Assert.Fail("Expected condition to become true within the allotted frames.");
         }
     }
 }
