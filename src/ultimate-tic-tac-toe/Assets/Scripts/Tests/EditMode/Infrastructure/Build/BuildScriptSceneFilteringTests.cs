@@ -1,5 +1,3 @@
-using System;
-using System.Reflection;
 using FluentAssertions;
 using NUnit.Framework;
 using UnityEditor;
@@ -9,31 +7,17 @@ namespace Tests.EditMode.Infrastructure.Build
     [TestFixture]
     public class BuildScriptSceneFilteringTests
     {
-        private EditorBuildSettingsScene[] _originalScenes;
-
-        [SetUp]
-        public void SetUp()
-        {
-            _originalScenes = EditorBuildSettings.scenes;
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            EditorBuildSettings.scenes = _originalScenes;
-        }
-
         [Test]
-        public void WhenBuildSettingsContainTestsDirectory_ThenGetProductionScenesExcludesTestScenes()
+        public void WhenScenesContainTestsDirectory_ThenGetProductionScenePathsExcludesTestScenes()
         {
-            EditorBuildSettings.scenes = new[]
+            var scenes = new[]
             {
                 new EditorBuildSettingsScene("Assets/Scenes/Contest/Main.unity", true),
                 new EditorBuildSettingsScene("Assets/Scenes/Tests/Gameplay.unity", true),
                 new EditorBuildSettingsScene("Assets/Scenes/Latest/Main.unity", true),
             };
 
-            var result = InvokeGetProductionScenes();
+            var result = BuildSceneFilter.GetProductionScenePaths(scenes);
 
             result.Should().BeEquivalentTo(new[]
             {
@@ -43,16 +27,16 @@ namespace Tests.EditMode.Infrastructure.Build
         }
 
         [Test]
-        public void WhenBuildSettingsContainTestScenesSegment_ThenGetProductionScenesKeepsNonMatchingPaths()
+        public void WhenScenesContainTestSegment_ThenGetProductionScenePathsKeepsNonMatchingPaths()
         {
-            EditorBuildSettings.scenes = new[]
+            var scenes = new[]
             {
                 new EditorBuildSettingsScene("Assets/TestScenes/Main.unity", true),
                 new EditorBuildSettingsScene("Assets/Scenes/Test/Main.unity", true),
                 new EditorBuildSettingsScene("Assets/Scenes/Prod/Main.unity", true),
             };
 
-            var result = InvokeGetProductionScenes();
+            var result = BuildSceneFilter.GetProductionScenePaths(scenes);
 
             result.Should().BeEquivalentTo(new[]
             {
@@ -62,16 +46,16 @@ namespace Tests.EditMode.Infrastructure.Build
         }
 
         [Test]
-        public void WhenBuildSettingsContainDisabledProductionScene_ThenGetProductionScenesReturnsOnlyEnabledScenes()
+        public void WhenScenesContainDisabledProductionScene_ThenGetProductionScenePathsReturnsOnlyEnabledScenes()
         {
-            EditorBuildSettings.scenes = new[]
+            var scenes = new[]
             {
                 new EditorBuildSettingsScene("Assets/Scenes/Main.unity", false),
                 new EditorBuildSettingsScene("Assets/Scenes/Production/Level.unity", true),
                 new EditorBuildSettingsScene("Assets/Scenes/Tests/Ignore.unity", true),
             };
 
-            var result = InvokeGetProductionScenes();
+            var result = BuildSceneFilter.GetProductionScenePaths(scenes);
 
             result.Should().BeEquivalentTo(new[]
             {
@@ -80,32 +64,41 @@ namespace Tests.EditMode.Infrastructure.Build
         }
 
         [Test]
-        public void WhenBuildSettingsContainMixedCaseTestsSegment_ThenGetProductionScenesExcludesCaseInsensitiveMatches()
+        public void WhenScenesContainMixedCaseTestsSegment_ThenGetProductionScenePathsExcludesCaseInsensitiveMatches()
         {
-            EditorBuildSettings.scenes = new[]
+            var scenes = new[]
             {
                 new EditorBuildSettingsScene("Assets/Scenes/TESTS/Alpha.unity", true),
                 new EditorBuildSettingsScene("Assets/Scenes/TeSt/Beta.unity", true),
                 new EditorBuildSettingsScene("Assets/Scenes/Contest/Main.unity", true),
             };
 
-            var result = InvokeGetProductionScenes();
+            var result = BuildSceneFilter.GetProductionScenePaths(scenes);
 
             result.Should().BeEquivalentTo(new[]
             {
                 "Assets/Scenes/Contest/Main.unity",
             });
         }
+    }
 
-        private static string[] InvokeGetProductionScenes()
+    [TestFixture]
+    public class BuildTargetSpecTests
+    {
+        [Test]
+        public void WhenDesktopTargetUsesCustomRoot_ThenGetOutputPathIncludesExecutableName()
         {
-            var method = typeof(global::BuildScript).GetMethod("GetProductionScenes", BindingFlags.NonPublic | BindingFlags.Static);
-            method.Should().NotBeNull();
+            var result = BuildTargetSpec.Desktop.GetOutputPath("CustomBuilds");
 
-            var result = method!.Invoke(null, null);
-            result.Should().BeOfType<string[]>();
+            result.Should().Be("CustomBuilds/Desktop/ultimate-tic-tac-toe.exe");
+        }
 
-            return (string[])result;
+        [Test]
+        public void WhenWebGlTargetUsesCustomRoot_ThenGetOutputPathReturnsFolderOnly()
+        {
+            var result = BuildTargetSpec.WebGl.GetOutputPath("CustomBuilds");
+
+            result.Should().Be("CustomBuilds/WebGL");
         }
     }
 }
