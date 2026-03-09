@@ -2,6 +2,7 @@
 
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Online;
 using Runtime.Infrastructure.Logging;
 using UnityEngine;
 
@@ -15,8 +16,8 @@ namespace Runtime.GameModes.Wizard
                     _opponentType,
                     _humanOpponentKind,
                     static (opponentType, humanKind) =>
-                        opponentType == global::Runtime.GameModes.Wizard.OpponentType.Human &&
-                        humanKind == global::Runtime.GameModes.Wizard.HumanOpponentKind.DirectInvite)
+                        opponentType == global::Runtime.GameModes.Wizard.Session.OpponentType.Human &&
+                        humanKind == global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.DirectInvite)
                 .Subscribe(isDirectInvite =>
                 {
                     _onlinePanelVisible.Value = isDirectInvite;

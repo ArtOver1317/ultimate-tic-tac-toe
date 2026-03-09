@@ -1,4 +1,6 @@
-namespace Runtime.GameModes.Wizard
+using Runtime.GameModes.Wizard.Online;
+
+namespace Runtime.GameModes.Wizard.Configs
 {
     public sealed class DirectInviteConfig : IOpponentConfig
     {

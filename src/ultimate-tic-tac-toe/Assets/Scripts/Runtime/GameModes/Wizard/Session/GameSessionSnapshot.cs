@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Session
 {
     /// <summary>
     /// Immutable snapshot of the current game mode wizard state.

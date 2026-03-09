@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     public enum PersonalizedMatchOutcome
     {

@@ -4,7 +4,7 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Matchmaking
 {
     /// <summary>
     /// Temporary stub matchmaking service.

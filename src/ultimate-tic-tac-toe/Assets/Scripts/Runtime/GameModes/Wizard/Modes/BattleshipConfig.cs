@@ -1,10 +1,9 @@
-using System;
+#nullable enable
+
 using System.Collections.Generic;
 using System.Globalization;
 
-#nullable enable
-
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Modes
 {
     public sealed class BattleshipConfig : IGameConfig
     {

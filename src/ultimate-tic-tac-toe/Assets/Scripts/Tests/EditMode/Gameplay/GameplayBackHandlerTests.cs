@@ -9,6 +9,7 @@ using Runtime.Infrastructure;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using R3;
+using Runtime.GameModes.Wizard.Online;
 
 namespace Tests.EditMode.Gameplay
 {

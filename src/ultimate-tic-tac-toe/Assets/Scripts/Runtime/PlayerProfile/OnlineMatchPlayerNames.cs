@@ -1,6 +1,7 @@
 using System;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Online;
 using Runtime.Localization;
 
 namespace Runtime.PlayerProfile

@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Cysharp.Threading.Tasks;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     public static class OnlineSessionIdFormatter
     {

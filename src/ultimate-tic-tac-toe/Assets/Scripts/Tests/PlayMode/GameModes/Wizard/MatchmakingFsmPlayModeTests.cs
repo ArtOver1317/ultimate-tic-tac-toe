@@ -7,6 +7,8 @@ using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Session;
 using UnityEngine;
 using UnityEngine.TestTools;
 

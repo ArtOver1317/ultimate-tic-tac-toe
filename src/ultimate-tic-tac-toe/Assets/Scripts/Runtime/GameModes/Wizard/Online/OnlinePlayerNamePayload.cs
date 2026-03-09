@@ -5,7 +5,7 @@ using System.Text;
 using Runtime.Infrastructure.Logging;
 using Runtime.PlayerProfile;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     internal readonly struct OnlinePlayerNamePayloadData
     {

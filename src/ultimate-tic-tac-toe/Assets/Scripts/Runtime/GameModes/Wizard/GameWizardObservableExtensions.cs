@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using R3;
+using Runtime.GameModes.Wizard.Session;
 
 namespace Runtime.GameModes.Wizard
 {

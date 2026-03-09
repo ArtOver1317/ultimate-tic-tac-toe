@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 
 namespace Runtime.GameModes.Wizard

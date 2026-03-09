@@ -6,8 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Matchmaking;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     public sealed class PhotonSessionTransportException : Exception
     {

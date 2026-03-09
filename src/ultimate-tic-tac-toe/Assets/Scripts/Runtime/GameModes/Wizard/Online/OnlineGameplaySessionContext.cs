@@ -1,9 +1,10 @@
 #nullable enable
 
 using System;
-using Runtime.Games.Battleship;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Modes;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     public readonly struct OnlineMatchConfigPayload
     {

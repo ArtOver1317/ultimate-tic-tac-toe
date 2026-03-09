@@ -6,6 +6,7 @@ using NSubstitute;
 using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
 using Runtime.Localization;
 using Runtime.PlayerStatistics;
 using Runtime.UI.MainMenu;

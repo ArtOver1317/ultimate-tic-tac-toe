@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Infrastructure.Logging;

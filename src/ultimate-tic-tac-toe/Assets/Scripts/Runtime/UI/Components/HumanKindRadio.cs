@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using UnityEngine.UIElements;
 

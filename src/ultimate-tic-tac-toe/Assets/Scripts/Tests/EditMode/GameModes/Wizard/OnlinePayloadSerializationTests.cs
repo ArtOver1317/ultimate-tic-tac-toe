@@ -5,6 +5,7 @@ using System.Text;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Online;
 
 namespace Tests.EditMode.GameModes.Wizard
 {

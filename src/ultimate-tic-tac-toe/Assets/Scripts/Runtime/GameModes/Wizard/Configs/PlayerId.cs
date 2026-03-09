@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Configs
 {
     /// <summary>
     /// Immutable value object for player identifiers used by direct invite flow.

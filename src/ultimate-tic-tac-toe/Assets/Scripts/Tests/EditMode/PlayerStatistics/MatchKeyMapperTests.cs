@@ -2,6 +2,8 @@ using System;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.PlayerStatistics;
 
 namespace Tests.EditMode.PlayerStatistics

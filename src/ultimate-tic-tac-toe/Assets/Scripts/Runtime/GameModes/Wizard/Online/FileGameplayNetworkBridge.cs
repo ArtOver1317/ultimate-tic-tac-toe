@@ -6,7 +6,7 @@ using System.Text;
 using Cysharp.Threading.Tasks;
 using R3;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     public sealed class NoOpGameplayNetworkBridge : IGameplayNetworkBridge
     {

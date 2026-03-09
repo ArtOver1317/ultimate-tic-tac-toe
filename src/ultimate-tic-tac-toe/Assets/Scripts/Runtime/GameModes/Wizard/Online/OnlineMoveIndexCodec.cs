@@ -4,7 +4,7 @@ using System;
 using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Moves;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     public static class OnlineMoveIndexCodec
     {

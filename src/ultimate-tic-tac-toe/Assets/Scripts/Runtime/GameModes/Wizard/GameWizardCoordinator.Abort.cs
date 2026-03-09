@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 
 namespace Runtime.GameModes.Wizard

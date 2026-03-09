@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Configs
 {
     /// <summary>
     /// Thread-safe store for passing <see cref="GameLaunchConfig"/> across scene loads.

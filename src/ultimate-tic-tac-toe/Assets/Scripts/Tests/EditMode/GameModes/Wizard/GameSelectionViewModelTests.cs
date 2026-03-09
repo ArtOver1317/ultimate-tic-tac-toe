@@ -11,6 +11,8 @@ using NUnit.Framework;
 using R3;
 using Runtime.Gameplay;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Session;
 using Runtime.Localization;
 using UnityEngine;
 using UnityEngine.TestTools;

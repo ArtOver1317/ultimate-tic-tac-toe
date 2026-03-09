@@ -10,6 +10,9 @@ using FluentAssertions;
 using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Online;
 using Runtime.PlayerProfile;
 
 namespace Tests.EditMode.GameModes.Wizard

@@ -4,6 +4,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Session;
 
 namespace Tests.EditMode.GameModes.Wizard
 {

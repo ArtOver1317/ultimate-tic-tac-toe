@@ -7,7 +7,7 @@ using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.Infrastructure.Logging;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     public sealed class OnlineSessionFlowService : IOnlineSessionFlowService
     {

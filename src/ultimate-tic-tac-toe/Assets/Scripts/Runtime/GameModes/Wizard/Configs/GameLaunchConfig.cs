@@ -1,6 +1,6 @@
 ﻿using GameLog = Runtime.Infrastructure.Logging.GameLog;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Configs
 {
     /// <summary>
     /// Final output built from a validated wizard session.

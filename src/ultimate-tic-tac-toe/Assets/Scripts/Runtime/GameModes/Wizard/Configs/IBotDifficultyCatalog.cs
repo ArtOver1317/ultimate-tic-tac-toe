@@ -1,8 +1,8 @@
-using System.Collections.Generic;
-
 #nullable enable
 
-namespace Runtime.GameModes.Wizard
+using System.Collections.Generic;
+
+namespace Runtime.GameModes.Wizard.Configs
 {
     /// <summary>
     /// Catalog of bot difficulties available in the wizard.

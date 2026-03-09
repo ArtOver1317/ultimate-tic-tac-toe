@@ -5,6 +5,9 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Online;
+using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Core;
@@ -37,8 +40,8 @@ namespace Runtime.GameModes.Wizard
         private readonly ReactiveProperty<string> _modeTitleText = new(string.Empty);
         private readonly ReactiveProperty<string> _modeIconKey = new(string.Empty);
         private readonly ReactiveProperty<GameSettingsPresentation?> _activeSettings = new(null);
-        private readonly ReactiveProperty<OpponentType> _opponentType = new(global::Runtime.GameModes.Wizard.OpponentType.Bot);
-        private readonly ReactiveProperty<HumanOpponentKind> _humanOpponentKind = new(global::Runtime.GameModes.Wizard.HumanOpponentKind.Local);
+        private readonly ReactiveProperty<OpponentType> _opponentType = new(global::Runtime.GameModes.Wizard.Session.OpponentType.Bot);
+        private readonly ReactiveProperty<HumanOpponentKind> _humanOpponentKind = new(global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.Local);
         private readonly ReactiveProperty<IReadOnlyList<BotDifficulty>> _availableDifficulties;
         private readonly ReactiveProperty<IReadOnlyList<DifficultyChipItem>> _difficultyItems = new(Array.Empty<DifficultyChipItem>());
         private readonly ReactiveProperty<string?> _selectedDifficultyId = new(null);
@@ -328,8 +331,8 @@ namespace Runtime.GameModes.Wizard
 
             _modeTitleText.Value = string.Empty;
             _modeIconKey.Value = string.Empty;
-            _opponentType.Value = global::Runtime.GameModes.Wizard.OpponentType.Bot;
-            _humanOpponentKind.Value = global::Runtime.GameModes.Wizard.HumanOpponentKind.Local;
+            _opponentType.Value = global::Runtime.GameModes.Wizard.Session.OpponentType.Bot;
+            _humanOpponentKind.Value = global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.Local;
             _availableDifficulties.Value = _difficultyCatalog.Difficulties;
             _difficultyItems.Value = Array.Empty<DifficultyChipItem>();
             _selectedDifficultyId.Value = null;
@@ -468,15 +471,15 @@ namespace Runtime.GameModes.Wizard
                 .Subscribe(_ => UpdateBotSettingsVisibility()));
 
             AddDisposable(_opponentType
-                .Select(type => type == global::Runtime.GameModes.Wizard.OpponentType.Human)
+                .Select(type => type == global::Runtime.GameModes.Wizard.Session.OpponentType.Human)
                 .Subscribe(isHuman => _isHumanSettingsVisible.Value = isHuman));
 
             AddDisposable(Observable.CombineLatest(
                     _opponentType,
                     _humanOpponentKind,
                     static (opponentType, humanKind) =>
-                        opponentType == global::Runtime.GameModes.Wizard.OpponentType.Human &&
-                        humanKind == global::Runtime.GameModes.Wizard.HumanOpponentKind.DirectInvite)
+                        opponentType == global::Runtime.GameModes.Wizard.Session.OpponentType.Human &&
+                        humanKind == global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.DirectInvite)
                 .Subscribe(isVisible => _isPlayerIdInputVisible.Value = isVisible));
         }
 

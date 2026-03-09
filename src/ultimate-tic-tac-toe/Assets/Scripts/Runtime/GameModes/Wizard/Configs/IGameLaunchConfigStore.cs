@@ -1,4 +1,4 @@
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Configs
 {
     /// <summary>
     /// Stores the latest game launch configuration between scene transitions.

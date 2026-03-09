@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe.Moves;

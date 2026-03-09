@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Runtime.Gameplay;
 using Runtime.Games.TicTacToe;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
 
 namespace Tests.EditMode.Games.TicTacToe
 {

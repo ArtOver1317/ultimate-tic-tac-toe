@@ -24,6 +24,8 @@ using CellId = Runtime.Games.TicTacToe.Moves.CellId;
 using UnityEngine;
 using UnityEngine.TestTools;
 using R3;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Online;
 using UnityEngine.UIElements;
 
 namespace Tests.EditMode.Games.TicTacToe

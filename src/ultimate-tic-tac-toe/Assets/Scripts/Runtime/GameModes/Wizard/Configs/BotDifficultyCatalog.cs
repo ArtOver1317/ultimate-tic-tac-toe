@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Configs
 {
     /// <summary>
     /// Default bot difficulty catalog.

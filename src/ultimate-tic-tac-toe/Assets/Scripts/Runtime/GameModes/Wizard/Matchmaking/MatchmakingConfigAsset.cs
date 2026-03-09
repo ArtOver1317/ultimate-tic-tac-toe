@@ -3,7 +3,7 @@
 using System;
 using UnityEngine;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Matchmaking
 {
     [CreateAssetMenu(
         fileName = "MatchmakingConfig",

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Session;
 
 #nullable enable
 

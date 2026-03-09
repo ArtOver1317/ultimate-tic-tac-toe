@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
 using Scellecs.Morpeh;
 using CellId = Runtime.Games.TicTacToe.Moves.CellId;
 

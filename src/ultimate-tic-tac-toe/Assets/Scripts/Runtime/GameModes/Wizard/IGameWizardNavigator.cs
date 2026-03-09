@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.GameModes.Wizard.Matchmaking;
 
 namespace Runtime.GameModes.Wizard
 {

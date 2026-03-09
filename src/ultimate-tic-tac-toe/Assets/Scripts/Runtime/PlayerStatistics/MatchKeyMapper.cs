@@ -2,6 +2,8 @@
 
 using System;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Matchmaking;
 
 namespace Runtime.PlayerStatistics
 {

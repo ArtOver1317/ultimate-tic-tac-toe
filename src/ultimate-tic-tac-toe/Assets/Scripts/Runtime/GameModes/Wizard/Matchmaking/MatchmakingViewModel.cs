@@ -5,11 +5,12 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Core;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Matchmaking
 {
     /// <summary>
     /// View-model for the matchmaking progress window.

@@ -6,7 +6,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Matchmaking
 {
     public static class MatchmakingParamsHasher
     {

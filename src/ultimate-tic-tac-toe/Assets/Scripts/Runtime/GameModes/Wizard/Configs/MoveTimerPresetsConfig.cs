@@ -1,10 +1,9 @@
 #nullable enable
 
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Configs
 {
     [CreateAssetMenu(fileName = "MoveTimerPresetsConfig", menuName = "Game/Wizard/Move Timer Presets")]
     public sealed class MoveTimerPresetsConfig : ScriptableObject
@@ -31,6 +30,7 @@ namespace Runtime.GameModes.Wizard
             for (var i = 0; i < values.Count; i++)
             {
                 var value = values[i];
+                
                 if (value < 0)
                     continue;
 

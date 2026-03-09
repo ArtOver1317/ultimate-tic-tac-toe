@@ -4,7 +4,7 @@ using System;
 using System.Diagnostics;
 using UnityEngine;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     public static class OnlineIdentityProvider
     {

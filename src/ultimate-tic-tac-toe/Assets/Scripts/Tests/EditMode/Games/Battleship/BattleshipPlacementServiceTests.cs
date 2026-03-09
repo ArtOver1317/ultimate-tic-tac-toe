@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.Battleship;
 using Runtime.Games.TicTacToe.Moves;

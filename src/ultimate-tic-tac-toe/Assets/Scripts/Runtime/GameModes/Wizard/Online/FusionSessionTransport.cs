@@ -7,9 +7,10 @@ using Cysharp.Threading.Tasks;
 using Fusion;
 using Fusion.Photon.Realtime;
 using Fusion.Sockets;
+using Runtime.GameModes.Wizard.Matchmaking;
 using UnityEngine;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     public sealed class FusionSessionTransport : MonoBehaviour, IPhotonSessionTransport, INetworkRunnerCallbacks
     {

@@ -4,7 +4,7 @@ using System;
 using Cysharp.Threading.Tasks;
 using R3;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     public enum OnlineFlowState
     {

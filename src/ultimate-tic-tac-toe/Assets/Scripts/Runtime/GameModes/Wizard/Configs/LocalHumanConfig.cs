@@ -1,4 +1,4 @@
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Configs
 {
     public sealed class LocalHumanConfig : IOpponentConfig { }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
 using Scellecs.Morpeh;
 
 namespace Runtime.Gameplay.ECS

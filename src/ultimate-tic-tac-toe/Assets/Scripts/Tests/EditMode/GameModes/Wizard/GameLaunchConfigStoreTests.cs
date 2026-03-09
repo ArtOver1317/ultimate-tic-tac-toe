@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
 
 namespace Tests.EditMode.GameModes.Wizard
 {

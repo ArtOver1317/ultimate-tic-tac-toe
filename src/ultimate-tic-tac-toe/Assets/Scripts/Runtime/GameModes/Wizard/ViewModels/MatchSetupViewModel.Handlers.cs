@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Core;
@@ -161,8 +163,8 @@ namespace Runtime.GameModes.Wizard
             if (session == null)
                 return;
 
-            if (snapshot.OpponentType == global::Runtime.GameModes.Wizard.OpponentType.Human
-                && snapshot.HumanOpponentKind == global::Runtime.GameModes.Wizard.HumanOpponentKind.Local)
+            if (snapshot.OpponentType == global::Runtime.GameModes.Wizard.Session.OpponentType.Human
+                && snapshot.HumanOpponentKind == global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.Local)
             {
                 try
                 {
@@ -171,11 +173,11 @@ namespace Runtime.GameModes.Wizard
                         if (!string.Equals(s.SelectedGameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
                             return s;
 
-                        if (s.OpponentType != global::Runtime.GameModes.Wizard.OpponentType.Human
-                            || s.HumanOpponentKind != global::Runtime.GameModes.Wizard.HumanOpponentKind.Local)
+                        if (s.OpponentType != global::Runtime.GameModes.Wizard.Session.OpponentType.Human
+                            || s.HumanOpponentKind != global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.Local)
                             return s;
 
-                        return s.WithHumanOpponentKind(global::Runtime.GameModes.Wizard.HumanOpponentKind.DirectInvite);
+                        return s.WithHumanOpponentKind(global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.DirectInvite);
                     });
                 }
                 catch (ObjectDisposedException)
@@ -186,7 +188,7 @@ namespace Runtime.GameModes.Wizard
                 return;
             }
 
-            if (snapshot.OpponentType != global::Runtime.GameModes.Wizard.OpponentType.Bot)
+            if (snapshot.OpponentType != global::Runtime.GameModes.Wizard.Session.OpponentType.Bot)
                 return;
 
             if (!string.IsNullOrWhiteSpace(snapshot.BotDifficultyId))
@@ -202,7 +204,7 @@ namespace Runtime.GameModes.Wizard
                     if (!string.Equals(s.SelectedGameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
                         return s;
 
-                    if (s.OpponentType != global::Runtime.GameModes.Wizard.OpponentType.Bot)
+                    if (s.OpponentType != global::Runtime.GameModes.Wizard.Session.OpponentType.Bot)
                         return s;
 
                     if (!string.IsNullOrWhiteSpace(s.BotDifficultyId))
@@ -219,7 +221,7 @@ namespace Runtime.GameModes.Wizard
 
         private void UpdateBotSettingsVisibility()
         {
-            var isBot = _opponentType.Value == global::Runtime.GameModes.Wizard.OpponentType.Bot;
+            var isBot = _opponentType.Value == global::Runtime.GameModes.Wizard.Session.OpponentType.Bot;
             var hideDifficulty =
                 string.Equals(_activeModeId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal)
                 && _availableDifficulties.Value.Count <= 1;
@@ -242,7 +244,7 @@ namespace Runtime.GameModes.Wizard
 
             _humanOpponentKind.Value = kind;
 
-            if (kind != global::Runtime.GameModes.Wizard.HumanOpponentKind.DirectInvite)
+            if (kind != global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.DirectInvite)
                 _playerIdErrorText.Value = null;
         }
 

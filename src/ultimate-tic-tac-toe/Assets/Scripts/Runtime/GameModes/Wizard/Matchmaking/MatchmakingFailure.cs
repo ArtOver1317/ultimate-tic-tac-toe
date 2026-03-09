@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Matchmaking
 {
     /// <summary>
     /// User-facing matchmaking failure information.

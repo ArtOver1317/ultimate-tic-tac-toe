@@ -4,6 +4,8 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.Battleship;

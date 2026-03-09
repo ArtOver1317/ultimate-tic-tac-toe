@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using Runtime.GameModes.Wizard.Online;
 using Runtime.Infrastructure.Logging;
 
 namespace Runtime.GameModes.Wizard
@@ -17,8 +18,8 @@ namespace Runtime.GameModes.Wizard
                 ? null
                 : OnlineSessionIdFormatter.Normalize(playerId);
 
-            if (_opponentType.CurrentValue != global::Runtime.GameModes.Wizard.OpponentType.Human ||
-                _humanOpponentKind.CurrentValue != global::Runtime.GameModes.Wizard.HumanOpponentKind.DirectInvite)
+            if (_opponentType.CurrentValue != global::Runtime.GameModes.Wizard.Session.OpponentType.Human ||
+                _humanOpponentKind.CurrentValue != global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.DirectInvite)
                 normalized = null;
 
             var current = string.IsNullOrWhiteSpace(_targetPlayerId.Value) ? null : _targetPlayerId.Value;
@@ -68,8 +69,8 @@ namespace Runtime.GameModes.Wizard
 
         private string? BuildPlayerIdErrorText(IReadOnlyList<ValidationError>? errors)
         {
-            if (_opponentType.Value != global::Runtime.GameModes.Wizard.OpponentType.Human ||
-                _humanOpponentKind.Value != global::Runtime.GameModes.Wizard.HumanOpponentKind.DirectInvite)
+            if (_opponentType.Value != global::Runtime.GameModes.Wizard.Session.OpponentType.Human ||
+                _humanOpponentKind.Value != global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.DirectInvite)
                 return null;
 
             if (errors == null || errors.Count == 0)

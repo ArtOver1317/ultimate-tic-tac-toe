@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using R3;
+using Runtime.GameModes.Wizard.Configs;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Session
 {
     /// <summary>
     /// Wizard session storing an immutable snapshot as a single source of truth.

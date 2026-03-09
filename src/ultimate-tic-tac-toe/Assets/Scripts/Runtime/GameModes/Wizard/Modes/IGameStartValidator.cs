@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Runtime.GameModes.Wizard.Session;
 
 #nullable enable
 

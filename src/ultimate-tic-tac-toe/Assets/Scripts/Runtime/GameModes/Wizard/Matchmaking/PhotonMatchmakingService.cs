@@ -5,8 +5,9 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Online;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Matchmaking
 {
     public sealed class PhotonMatchmakingService : IMatchmakingService, IDisposable
     {

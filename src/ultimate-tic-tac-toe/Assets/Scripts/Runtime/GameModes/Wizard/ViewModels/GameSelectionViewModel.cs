@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using R3;
+using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Core;

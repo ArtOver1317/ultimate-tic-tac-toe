@@ -3,11 +3,13 @@
 using System;
 using System.Collections.Generic;
 using R3;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.Localization;
 using Runtime.UI.Components;
 using Runtime.UI.Core;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.ViewModels
 {
     public interface IBattleshipSettingsViewModel : IGameSettingsViewModel
     {

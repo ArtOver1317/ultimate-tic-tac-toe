@@ -8,6 +8,7 @@ using R3;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
 using Runtime.Games.TicTacToe.Moves;
 using UnityEngine;
 

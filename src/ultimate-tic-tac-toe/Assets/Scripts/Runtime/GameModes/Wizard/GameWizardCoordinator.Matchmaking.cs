@@ -4,6 +4,8 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 
 namespace Runtime.GameModes.Wizard

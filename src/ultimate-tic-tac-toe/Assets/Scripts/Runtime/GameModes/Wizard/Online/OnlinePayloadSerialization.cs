@@ -1,10 +1,9 @@
 #nullable enable
 
-using System;
 using System.Globalization;
 using System.Text;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Online
 {
     internal static class OnlinePayloadSerialization
     {

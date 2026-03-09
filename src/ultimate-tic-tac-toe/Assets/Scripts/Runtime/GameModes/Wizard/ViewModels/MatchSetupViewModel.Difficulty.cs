@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Configs;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Components;
@@ -35,7 +36,7 @@ namespace Runtime.GameModes.Wizard
             if (!needsSanitize)
                 return;
 
-            if (_opponentType.Value != global::Runtime.GameModes.Wizard.OpponentType.Bot)
+            if (_opponentType.Value != global::Runtime.GameModes.Wizard.Session.OpponentType.Bot)
                 return;
 
             var session = _session;

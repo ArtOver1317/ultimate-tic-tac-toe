@@ -1,5 +1,7 @@
 using System;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.Battleship;

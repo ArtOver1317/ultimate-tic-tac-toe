@@ -1,5 +1,6 @@
 using System;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Configs;
 
 namespace Runtime.Gameplay.ECS
 {
