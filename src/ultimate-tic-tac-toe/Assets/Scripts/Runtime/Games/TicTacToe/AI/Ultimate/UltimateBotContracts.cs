@@ -417,6 +417,22 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate
         }
     }
 
+    public readonly struct UltimateSelfPlayProgress
+    {
+        public int MatchIndex { get; }
+        public int TotalMatches { get; }
+        public int TurnIndex { get; }
+        public int MaxTurns { get; }
+
+        public UltimateSelfPlayProgress(int matchIndex, int totalMatches, int turnIndex, int maxTurns)
+        {
+            MatchIndex = matchIndex;
+            TotalMatches = totalMatches;
+            TurnIndex = turnIndex;
+            MaxTurns = maxTurns;
+        }
+    }
+
     public readonly struct SelfPlaySeriesReport
     {
         public DateTimeOffset StartedAtUtc { get; }

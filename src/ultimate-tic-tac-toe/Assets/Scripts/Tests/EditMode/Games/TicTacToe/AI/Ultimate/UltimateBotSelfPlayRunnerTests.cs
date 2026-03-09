@@ -1,10 +1,13 @@
 #nullable enable
 
+using System.Collections;
 using System.Threading;
+using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
+using UnityEngine.TestTools;
 
 namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
 {
@@ -49,6 +52,28 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
             report.Matches.Should().Be(3);
             report.SeedRangeLabel.Should().Be("42..42");
         }
+
+        [UnityTest]
+        public IEnumerator WhenRunWithProgressCallback_ThenReportsMatchAndTurnProgress() => UniTask.ToCoroutine(async () =>
+        {
+            var profiles = new FakeProfiles();
+            var engine = new UltimateBotDecisionEngine(new UltimateRulesEngine());
+            var rngFactory = new BotRngSessionFactory();
+            var rules = new UltimateRulesEngine();
+            var runner = new UltimateBotSelfPlayRunner(profiles, engine, rngFactory, rules);
+
+            UltimateSelfPlayProgress? lastProgress = null;
+            var report = await runner.RunAsync(
+                new SelfPlaySeriesConfig("easy", "easy", matches: 2, baseSeed: 42, seedCount: 1),
+                CancellationToken.None,
+                progress => lastProgress = progress);
+
+            lastProgress.HasValue.Should().BeTrue();
+            lastProgress!.Value.TotalMatches.Should().Be(report.Matches);
+            lastProgress.Value.MaxTurns.Should().Be(81);
+            lastProgress.Value.MatchIndex.Should().BeGreaterOrEqualTo(0);
+            lastProgress.Value.TurnIndex.Should().BeGreaterOrEqualTo(0);
+        });
 
         [TestCase(0)]
         [TestCase(-10)]

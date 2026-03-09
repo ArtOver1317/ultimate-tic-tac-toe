@@ -13,6 +13,9 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate
 {
     public sealed class UltimateBotSelfPlayRunner : IBotSelfPlayRunner
     {
+        private const int MaxTurnsPerMatch = 81;
+        private const double ProgressYieldIntervalMs = 33d;
+
         private readonly IUltimateBotProfileCatalog _profiles;
         private readonly IUltimateBotDecisionEngine _engine;
         private readonly IBotRngSessionFactory _rngFactory;
@@ -30,7 +33,13 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
         }
 
-        public async UniTask<SelfPlaySeriesReport> RunAsync(SelfPlaySeriesConfig config, CancellationToken ct)
+        public UniTask<SelfPlaySeriesReport> RunAsync(SelfPlaySeriesConfig config, CancellationToken ct)
+            => RunAsync(config, ct, null);
+
+        public async UniTask<SelfPlaySeriesReport> RunAsync(
+            SelfPlaySeriesConfig config,
+            CancellationToken ct,
+            Action<UltimateSelfPlayProgress>? onProgress)
         {
             if (config.Matches <= 0)
             {
@@ -71,10 +80,12 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate
                     var seriesMatchIndex = seedIndex * config.Matches + matchInSeed;
                     var winnerSide = await PlayOneMatchAsync(
                         seriesMatchIndex,
+                        totalMatches,
                         seed,
                         left,
                         right,
                         moveTimes,
+                        onProgress,
                         ct,
                         onReason: reason =>
                         {
@@ -127,10 +138,12 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate
 
         private async UniTask<int> PlayOneMatchAsync(
             int seriesMatchIndex,
+            int totalMatches,
             int seed,
             UltimateBotDifficultyProfileData left,
             UltimateBotDifficultyProfileData right,
             List<float> moveTimes,
+            Action<UltimateSelfPlayProgress>? onProgress,
             CancellationToken ct,
             Action<BotFailureReason?> onReason)
         {
@@ -149,10 +162,18 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate
 
             var slotXRng = _rngFactory.Create($"selfplay-{seed}-m{seriesMatchIndex}", 0, slotXProfile);
             var slotORng = _rngFactory.Create($"selfplay-{seed}-m{seriesMatchIndex}", 1, slotOProfile);
+            var lastYieldTimestamp = Stopwatch.GetTimestamp();
 
-            for (var turn = 0; turn < 81; turn++)
+            for (var turn = 0; turn < MaxTurnsPerMatch; turn++)
             {
                 ct.ThrowIfCancellationRequested();
+                onProgress?.Invoke(new UltimateSelfPlayProgress(seriesMatchIndex, totalMatches, turn, MaxTurnsPerMatch));
+
+                if (ShouldYieldForProgress(onProgress, turn, lastYieldTimestamp))
+                {
+                    await YieldForProgressAsync(onProgress, ct);
+                    lastYieldTimestamp = Stopwatch.GetTimestamp();
+                }
 
                 var legal = BuildLegalMoves(cells, miniBoards, allowed);
                 if (legal.Count == 0)
@@ -224,6 +245,25 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate
             }
 
             return -1;
+        }
+
+        private static UniTask YieldForProgressAsync(Action<UltimateSelfPlayProgress>? onProgress, CancellationToken ct)
+            => onProgress == null ? UniTask.CompletedTask : UniTask.Yield(PlayerLoopTiming.Update, ct);
+
+        private static bool ShouldYieldForProgress(Action<UltimateSelfPlayProgress>? onProgress, int turn, long lastYieldTimestamp)
+        {
+            if (onProgress == null)
+            {
+                return false;
+            }
+
+            if (turn == 0)
+            {
+                return true;
+            }
+
+            var elapsedMs = (Stopwatch.GetTimestamp() - lastYieldTimestamp) * 1000d / Stopwatch.Frequency;
+            return elapsedMs >= ProgressYieldIntervalMs;
         }
 
         private static List<CellId> BuildLegalMoves(PlayerMark[] cells, MiniBoardStatus[] miniBoards, AllowedMajors allowed)
