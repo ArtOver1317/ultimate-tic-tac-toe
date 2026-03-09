@@ -724,13 +724,25 @@ namespace Tests.EditMode.GameModes.Wizard
             // Arrange
             await _sut.StartWizardAsync(CancellationToken.None);
             var session = _sessionFactory.CreatedSessions.Single();
+            var closeStarted = new UniTaskCompletionSource<bool>();
+            var closeGate = new UniTaskCompletionSource<bool>();
+
+            _navigator.CloseAllImpl = async ct =>
+            {
+                closeStarted.TrySetResult(true);
+                await closeGate.Task.AttachExternalCancellation(ct);
+            };
 
             // Act
-            var tasks = Enumerable.Range(0, 5)
-                .Select(_ => Task.Run(async () => await _sut.AbortWizardAsync(AbortReason.SceneChange)))
+            var firstAbortTask = _sut.AbortWizardAsync(AbortReason.SceneChange).AsTask();
+            await closeStarted.Task.AsTask();
+
+            var tasks = Enumerable.Range(0, 4)
+                .Select(_ => _sut.AbortWizardAsync(AbortReason.SceneChange).AsTask())
                 .ToArray();
 
-            await Task.WhenAll(tasks);
+            closeGate.TrySetResult(true);
+            await Task.WhenAll(tasks.Prepend(firstAbortTask));
 
             // Assert
             session.DisposeCallCount.Should().Be(1);

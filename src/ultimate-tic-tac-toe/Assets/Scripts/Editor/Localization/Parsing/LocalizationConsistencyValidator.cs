@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Editor.Localization;
 
 namespace Editor.Localization.Parsing
 {
@@ -22,46 +23,77 @@ namespace Editor.Localization.Parsing
 
             foreach (var (tableName, localeKeys) in allTables)
             {
-                // Check if table exists in all locales
-                if (localeKeys.Count < foundLocales.Count)
-                {
-                    var missingLocales = foundLocales.Except(localeKeys.Keys).ToList();
-                    result.Warnings.Add($"Table '{tableName}' is missing in locales: {string.Join(", ", missingLocales)}");
-                }
+                AddMissingTableWarning(result, tableName, localeKeys, foundLocales);
 
-                // Use first locale (or en if available) as reference
-                var referenceLocale = localeKeys.ContainsKey("en") ? "en" : localeKeys.Keys.First();
+                var referenceLocale = GetReferenceLocale(localeKeys);
                 var referenceKeys = localeKeys[referenceLocale];
-
                 result.TotalKeyCount += referenceKeys.Count;
 
-                foreach (var (locale, keys) in localeKeys)
-                {
-                    // Missing keys: what's in reference but not in this locale
-                    var missingKeys = referenceKeys.Except(keys).ToList();
-
-                    if (missingKeys.Count > 0)
-                    {
-                        result.MissingKeys.Add(new MissingKeyInfo
-                        {
-                            Locale = locale,
-                            Table = tableName,
-                            Keys = missingKeys,
-                        });
-                    }
-
-                    // Extra keys: what's in this locale but not in reference
-                    if (locale != referenceLocale)
-                    {
-                        var extraKeys = keys.Except(referenceKeys).ToList();
-
-                        if (extraKeys.Count > 0)
-                            result.Warnings.Add($"Extra keys in {locale}/{tableName}: {string.Join(", ", extraKeys)}");
-                    }
-                }
+                AddMissingKeyFindings(result, tableName, referenceLocale, referenceKeys, localeKeys);
+                AddExtraKeyWarnings(result, tableName, referenceLocale, referenceKeys, localeKeys);
             }
 
             return result;
+        }
+
+        private static void AddMissingTableWarning(
+            ValidationResult result,
+            string tableName,
+            Dictionary<string, HashSet<string>> localeKeys,
+            List<string> foundLocales)
+        {
+            if (localeKeys.Count >= foundLocales.Count)
+                return;
+
+            var missingLocales = foundLocales.Except(localeKeys.Keys).ToList();
+            result.Warnings.Add($"Table '{tableName}' is missing in locales: {string.Join(", ", missingLocales)}");
+        }
+
+        private static string GetReferenceLocale(Dictionary<string, HashSet<string>> localeKeys) =>
+            localeKeys.ContainsKey(LocalizationEditorConventions.PreferredReferenceLocale)
+                ? LocalizationEditorConventions.PreferredReferenceLocale
+                : localeKeys.Keys.First();
+
+        private static void AddMissingKeyFindings(
+            ValidationResult result,
+            string tableName,
+            string referenceLocale,
+            HashSet<string> referenceKeys,
+            Dictionary<string, HashSet<string>> localeKeys)
+        {
+            foreach (var (locale, keys) in localeKeys)
+            {
+                var missingKeys = referenceKeys.Except(keys).ToList();
+
+                if (missingKeys.Count == 0)
+                    continue;
+
+                result.MissingKeys.Add(new MissingKeyInfo
+                {
+                    Locale = locale,
+                    Table = tableName,
+                    Keys = missingKeys,
+                });
+            }
+        }
+
+        private static void AddExtraKeyWarnings(
+            ValidationResult result,
+            string tableName,
+            string referenceLocale,
+            HashSet<string> referenceKeys,
+            Dictionary<string, HashSet<string>> localeKeys)
+        {
+            foreach (var (locale, keys) in localeKeys)
+            {
+                if (locale == referenceLocale)
+                    continue;
+
+                var extraKeys = keys.Except(referenceKeys).ToList();
+
+                if (extraKeys.Count > 0)
+                    result.Warnings.Add($"Extra keys in {locale}/{tableName}: {string.Join(", ", extraKeys)}");
+            }
         }
 
         public sealed class ValidationResult

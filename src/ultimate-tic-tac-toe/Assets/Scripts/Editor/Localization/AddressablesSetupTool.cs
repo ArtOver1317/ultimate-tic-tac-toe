@@ -1,5 +1,7 @@
+using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using UnityEditor;
 using UnityEditor.AddressableAssets;
 using UnityEditor.AddressableAssets.Settings;
@@ -9,8 +11,6 @@ namespace Editor.Localization
 {
     public static class AddressablesSetupTool
     {
-        private const string _localizationRootPath = "Assets/Content/Localization";
-
         [MenuItem("Tools/Localization/Addressables/Setup Addressables")]
         private static void SetupAddressables()
         {
@@ -30,83 +30,20 @@ namespace Editor.Localization
                 return;
             }
 
-            if (!Directory.Exists(_localizationRootPath))
-            {
-                EditorUtility.DisplayDialog("Error", $"Localization directory not found: {_localizationRootPath}", "OK");
+            if (!TryGetLocaleDirectories(out var localeDirectories))
                 return;
-            }
-
-            var localeDirectories = Directory.GetDirectories(_localizationRootPath)
-                .Where(d => !Path.GetFileName(d).StartsWith("."))
-                .ToArray();
-
-            if (localeDirectories.Length == 0)
-            {
-                EditorUtility.DisplayDialog("Error", $"No locale directories found in {_localizationRootPath}", "OK");
-                return;
-            }
 
             var groupsCreated = 0;
             var assetsAdded = 0;
 
             foreach (var localeDir in localeDirectories)
             {
-                var locale = Path.GetFileName(localeDir).ToLowerInvariant();
-                var groupName = $"Localization_{locale}";
+                var locale = LocalizationEditorConventions.GetLanguageOnlyLocaleToken(Path.GetFileName(localeDir));
+                var group = GetOrCreateLocaleGroup(settings, locale, ref groupsCreated);
 
-                var group = settings.FindGroup(groupName);
-                
-                if (group == null)
+                foreach (var jsonAsset in GetLocaleJsonAssets(localeDir))
                 {
-                    // Create group first, then add schemas
-                    group = settings.CreateGroup(groupName, false, false, true, null);
-                    
-                    // Copy schemas from default group or add standard ones
-                    var defaultGroup = settings.DefaultGroup;
-                    
-                    if (defaultGroup != null && defaultGroup.Schemas.Count > 0)
-                    {
-                        foreach (var schema in defaultGroup.Schemas)
-                        {
-                            var schemaType = schema.GetType();
-                            group.AddSchema(schemaType);
-                        }
-                    }
-                    else
-                    {
-                        // Add standard schemas
-                        group.AddSchema<UnityEditor.AddressableAssets.Settings.GroupSchemas.BundledAssetGroupSchema>();
-                        group.AddSchema<UnityEditor.AddressableAssets.Settings.GroupSchemas.ContentUpdateGroupSchema>();
-                    }
-                    
-                    groupsCreated++;
-                    Debug.Log($"Created Addressables group: {groupName} with {group.Schemas.Count} schemas");
-                }
-
-                var jsonFiles = Directory.GetFiles(localeDir, "*.json");
-                
-                foreach (var jsonFile in jsonFiles)
-                {
-                    var assetPath = jsonFile.Replace("\\", "/");
-                    var guid = AssetDatabase.AssetPathToGUID(assetPath);
-
-                    if (string.IsNullOrEmpty(guid))
-                    {
-                        Debug.LogWarning($"Could not find GUID for: {assetPath}");
-                        continue;
-                    }
-
-                    var tableName = Path.GetFileNameWithoutExtension(jsonFile).ToLowerInvariant();
-                    var address = $"loc_{locale}_{tableName}";
-
-                    var entry = settings.CreateOrMoveEntry(guid, group, false, false);
-                    
-                    if (entry != null)
-                    {
-                        entry.address = address;
-                        assetsAdded++;
-                        Debug.Log($"Added: {assetPath} → {address}");
-                    }
+                    AddLocaleAsset(settings, group, jsonAsset, ref assetsAdded);
                 }
             }
 
@@ -134,23 +71,16 @@ namespace Editor.Localization
                 return;
             }
 
-            if (!Directory.Exists(_localizationRootPath))
-            {
-                EditorUtility.DisplayDialog("Error", $"Localization directory not found: {_localizationRootPath}", "OK");
-                return;
-            }
-
-            var issues = new System.Text.StringBuilder();
+            var issues = new StringBuilder();
             var issueCount = 0;
 
-            var localeDirectories = Directory.GetDirectories(_localizationRootPath)
-                .Where(d => !Path.GetFileName(d).StartsWith("."))
-                .ToArray();
+            if (!TryGetLocaleDirectories(out var localeDirectories))
+                return;
 
             foreach (var localeDir in localeDirectories)
             {
-                var locale = Path.GetFileName(localeDir).ToLowerInvariant();
-                var groupName = $"Localization_{locale}";
+                var locale = LocalizationEditorConventions.GetLanguageOnlyLocaleToken(Path.GetFileName(localeDir));
+                var groupName = LocalizationEditorConventions.BuildAddressablesGroupName(locale);
 
                 var group = settings.FindGroup(groupName);
                 
@@ -161,39 +91,9 @@ namespace Editor.Localization
                     continue;
                 }
 
-                var jsonFiles = Directory.GetFiles(localeDir, "*.json");
-                
-                foreach (var jsonFile in jsonFiles)
+                foreach (var jsonAsset in GetLocaleJsonAssets(localeDir))
                 {
-                    var assetPath = jsonFile.Replace("\\", "/");
-                    var guid = AssetDatabase.AssetPathToGUID(assetPath);
-
-                    if (string.IsNullOrEmpty(guid))
-                    {
-                        issues.AppendLine($"✗ Asset not found: {assetPath}");
-                        issueCount++;
-                        continue;
-                    }
-
-                    var entry = settings.FindAssetEntry(guid);
-                    
-                    if (entry == null)
-                    {
-                        issues.AppendLine($"✗ Not in Addressables: {assetPath}");
-                        issueCount++;
-                        continue;
-                    }
-
-                    var tableName = Path.GetFileNameWithoutExtension(jsonFile).ToLowerInvariant();
-                    var expectedAddress = $"loc_{locale}_{tableName}";
-
-                    if (entry.address != expectedAddress)
-                    {
-                        issues.AppendLine($"✗ Wrong address: {assetPath}");
-                        issues.AppendLine($"  Expected: {expectedAddress}");
-                        issues.AppendLine($"  Actual: {entry.address}");
-                        issueCount++;
-                    }
+                    ValidateLocaleAsset(settings, jsonAsset, issues, ref issueCount);
                 }
             }
 
@@ -206,6 +106,151 @@ namespace Editor.Localization
                     $"Found {issueCount} issues:\n\n{issues}",
                     "OK");
             }
+        }
+
+        private static bool TryGetLocaleDirectories(out string[] localeDirectories)
+        {
+            localeDirectories = Array.Empty<string>();
+
+            if (!Directory.Exists(LocalizationEditorConventions.LocalizationRootPath))
+            {
+                EditorUtility.DisplayDialog(
+                    "Error",
+                    $"Localization directory not found: {LocalizationEditorConventions.LocalizationRootPath}",
+                    "OK");
+
+                return false;
+            }
+
+            localeDirectories = LocalizationEditorConventions.GetLocaleDirectories(
+                LocalizationEditorConventions.LocalizationRootPath);
+
+            if (localeDirectories.Length > 0)
+                return true;
+
+            EditorUtility.DisplayDialog(
+                "Error",
+                $"No locale directories found in {LocalizationEditorConventions.LocalizationRootPath}",
+                "OK");
+
+            return false;
+        }
+
+        private static AddressableAssetGroup GetOrCreateLocaleGroup(
+            AddressableAssetSettings settings,
+            string locale,
+            ref int groupsCreated)
+        {
+            var groupName = LocalizationEditorConventions.BuildAddressablesGroupName(locale);
+            var group = settings.FindGroup(groupName);
+
+            if (group != null)
+                return group;
+
+            group = settings.CreateGroup(groupName, false, false, true, null);
+            CopySchemas(settings, group);
+            groupsCreated++;
+            Debug.Log($"Created Addressables group: {groupName} with {group.Schemas.Count} schemas");
+            return group;
+        }
+
+        private static void CopySchemas(AddressableAssetSettings settings, AddressableAssetGroup group)
+        {
+            var defaultGroup = settings.DefaultGroup;
+
+            if (defaultGroup != null && defaultGroup.Schemas.Count > 0)
+            {
+                foreach (var schema in defaultGroup.Schemas)
+                {
+                    group.AddSchema(schema.GetType());
+                }
+
+                return;
+            }
+
+            group.AddSchema<UnityEditor.AddressableAssets.Settings.GroupSchemas.BundledAssetGroupSchema>();
+            group.AddSchema<UnityEditor.AddressableAssets.Settings.GroupSchemas.ContentUpdateGroupSchema>();
+        }
+
+        private static LocalizationJsonAsset[] GetLocaleJsonAssets(string localeDirectory)
+        {
+            var locale = LocalizationEditorConventions.GetLanguageOnlyLocaleToken(Path.GetFileName(localeDirectory));
+
+            return LocalizationEditorConventions.GetLocalizationJsonFiles(localeDirectory)
+                .Select(jsonFile => new LocalizationJsonAsset(locale, jsonFile))
+                .ToArray();
+        }
+
+        private static void AddLocaleAsset(
+            AddressableAssetSettings settings,
+            AddressableAssetGroup group,
+            LocalizationJsonAsset jsonAsset,
+            ref int assetsAdded)
+        {
+            var guid = AssetDatabase.AssetPathToGUID(jsonAsset.AssetPath);
+
+            if (string.IsNullOrEmpty(guid))
+            {
+                Debug.LogWarning($"Could not find GUID for: {jsonAsset.AssetPath}");
+                return;
+            }
+
+            var entry = settings.CreateOrMoveEntry(guid, group, false, false);
+
+            if (entry == null)
+                return;
+
+            entry.address = jsonAsset.Address;
+            assetsAdded++;
+            Debug.Log($"Added: {jsonAsset.AssetPath} → {jsonAsset.Address}");
+        }
+
+        private static void ValidateLocaleAsset(
+            AddressableAssetSettings settings,
+            LocalizationJsonAsset jsonAsset,
+            StringBuilder issues,
+            ref int issueCount)
+        {
+            var guid = AssetDatabase.AssetPathToGUID(jsonAsset.AssetPath);
+
+            if (string.IsNullOrEmpty(guid))
+            {
+                issues.AppendLine($"✗ Asset not found: {jsonAsset.AssetPath}");
+                issueCount++;
+                return;
+            }
+
+            var entry = settings.FindAssetEntry(guid);
+
+            if (entry == null)
+            {
+                issues.AppendLine($"✗ Not in Addressables: {jsonAsset.AssetPath}");
+                issueCount++;
+                return;
+            }
+
+            if (entry.address == jsonAsset.Address)
+                return;
+
+            issues.AppendLine($"✗ Wrong address: {jsonAsset.AssetPath}");
+            issues.AppendLine($"  Expected: {jsonAsset.Address}");
+            issues.AppendLine($"  Actual: {entry.address}");
+            issueCount++;
+        }
+
+        private readonly struct LocalizationJsonAsset
+        {
+            public LocalizationJsonAsset(string locale, string jsonFile)
+            {
+                AssetPath = LocalizationEditorConventions.MakeProjectRelativePath(jsonFile);
+
+                Address = LocalizationEditorConventions.BuildAddressablesAddress(
+                    locale,
+                    Path.GetFileNameWithoutExtension(jsonFile));
+            }
+
+            public string AssetPath { get; }
+            public string Address { get; }
         }
     }
 }

@@ -6,13 +6,12 @@ using System.Text;
 using Editor.Localization.Parsing;
 using UnityEditor;
 using UnityEngine;
+using MissingKeyInfo = Editor.Localization.Parsing.LocalizationConsistencyValidator.MissingKeyInfo;
 
 namespace Editor.Localization
 {
     public sealed class LocalizationValidator : EditorWindow
     {
-        private const string _localizationRootPath = "Assets/Content/Localization";
-
         private Vector2 _scrollPosition;
         private ValidationReport _report;
 
@@ -51,88 +50,138 @@ namespace Editor.Localization
 
         private void Validate()
         {
-            _report = new ValidationReport();
+            _report = CreateValidationReport();
+            Repaint();
+        }
 
-            if (!Directory.Exists(_localizationRootPath))
+        private ValidationReport CreateValidationReport()
+        {
+            var report = new ValidationReport();
+
+            if (!Directory.Exists(LocalizationEditorConventions.LocalizationRootPath))
             {
-                _report.Errors.Add($"Localization root directory not found: {_localizationRootPath}");
-                return;
+                report.Errors.Add(
+                    $"Localization root directory not found: {LocalizationEditorConventions.LocalizationRootPath}");
+
+                return report;
             }
 
-            var localeDirectories = Directory.GetDirectories(_localizationRootPath)
-                .Where(d => !Path.GetFileName(d).StartsWith("."))
-                .ToArray();
+            var localeDirectories = LocalizationEditorConventions.GetLocaleDirectories(
+                LocalizationEditorConventions.LocalizationRootPath);
 
             if (localeDirectories.Length == 0)
             {
-                _report.Errors.Add($"No locale directories found in {_localizationRootPath}");
+                report.Errors.Add(
+                    $"No locale directories found in {LocalizationEditorConventions.LocalizationRootPath}");
+
+                return report;
+            }
+
+            report.FoundLocales.AddRange(localeDirectories.Select(Path.GetFileName));
+            var allTables = CollectLocalizationTables(report, localeDirectories);
+            ApplyConsistencyValidation(report, allTables);
+
+            // Option A contract: missing keys = error (blocks release)
+            report.IsValid = report.Errors.Count == 0 && report.MissingKeys.Count == 0;
+            return report;
+        }
+
+        private Dictionary<string, Dictionary<string, HashSet<string>>> CollectLocalizationTables(
+            ValidationReport report,
+            IReadOnlyList<string> localeDirectories)
+        {
+            var allTables = new Dictionary<string, Dictionary<string, HashSet<string>>>(StringComparer.Ordinal);
+
+            foreach (var localeDirectory in localeDirectories)
+            {
+                CollectLocaleTables(report, allTables, localeDirectory);
+            }
+
+            return allTables;
+        }
+
+        private void CollectLocaleTables(
+            ValidationReport report,
+            Dictionary<string, Dictionary<string, HashSet<string>>> allTables,
+            string localeDirectory)
+        {
+            var locale = Path.GetFileName(localeDirectory);
+            var jsonFiles = LocalizationEditorConventions.GetLocalizationJsonFiles(localeDirectory);
+
+            if (jsonFiles.Length == 0)
+            {
+                report.Warnings.Add($"Locale '{locale}' has no JSON files");
                 return;
             }
 
-            _report.FoundLocales = localeDirectories.Select(Path.GetFileName).ToList();
-
-            var allTables = new Dictionary<string, Dictionary<string, HashSet<string>>>();
-
-            foreach (var localeDir in localeDirectories)
+            foreach (var jsonFile in jsonFiles)
             {
-                var locale = Path.GetFileName(localeDir);
-                var jsonFiles = Directory.GetFiles(localeDir, "*.json");
+                CollectTableKeys(report, allTables, locale, jsonFile);
+            }
+        }
 
-                if (jsonFiles.Length == 0)
+        private void CollectTableKeys(
+            ValidationReport report,
+            Dictionary<string, Dictionary<string, HashSet<string>>> allTables,
+            string locale,
+            string jsonFile)
+        {
+            var tableName = Path.GetFileNameWithoutExtension(jsonFile);
+
+            try
+            {
+                var json = File.ReadAllText(jsonFile, Encoding.UTF8);
+                var keys = _keyParser.ParseKeys(json);
+
+                if (keys == null)
                 {
-                    _report.Warnings.Add($"Locale '{locale}' has no JSON files");
-                    continue;
+                    report.Errors.Add($"Invalid JSON format in {jsonFile}");
+                    return;
                 }
 
-                foreach (var jsonFile in jsonFiles)
+                var localeKeys = GetOrCreateLocaleKeys(allTables, tableName, locale);
+
+                foreach (var key in keys)
                 {
-                    var tableName = Path.GetFileNameWithoutExtension(jsonFile);
-
-                    try
-                    {
-                        var json = File.ReadAllText(jsonFile, Encoding.UTF8);
-                        var keys = _keyParser.ParseKeys(json);
-
-                        if (keys == null)
-                        {
-                            _report.Errors.Add($"Invalid JSON format in {jsonFile}");
-                            continue;
-                        }
-
-                        if (!allTables.ContainsKey(tableName)) 
-                            allTables[tableName] = new Dictionary<string, HashSet<string>>();
-
-                        if (!allTables[tableName].ContainsKey(locale)) 
-                            allTables[tableName][locale] = new HashSet<string>();
-
-                        foreach (var key in keys)
-                        {
-                            allTables[tableName][locale].Add(key);
-                        }
-
-                        _report.ProcessedFiles++;
-                    }
-                    catch (Exception ex)
-                    {
-                        _report.Errors.Add($"Failed to parse {jsonFile}: {ex.Message}");
-                    }
+                    localeKeys.Add(key);
                 }
+
+                report.ProcessedFiles++;
+            }
+            catch (Exception ex)
+            {
+                report.Errors.Add($"Failed to parse {jsonFile}: {ex.Message}");
+            }
+        }
+
+        private HashSet<string> GetOrCreateLocaleKeys(
+            Dictionary<string, Dictionary<string, HashSet<string>>> allTables,
+            string tableName,
+            string locale)
+        {
+            if (!allTables.TryGetValue(tableName, out var tableLocales))
+            {
+                tableLocales = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+                allTables[tableName] = tableLocales;
             }
 
-            var validationResult = _consistencyValidator.Validate(allTables, _report.FoundLocales);
-            _report.TotalKeyCount = validationResult.TotalKeyCount;
-            _report.Warnings.AddRange(validationResult.Warnings);
-            
-            _report.MissingKeys.AddRange(validationResult.MissingKeys.Select(mk => new MissingKeyInfo
+            if (!tableLocales.TryGetValue(locale, out var localeKeys))
             {
-                Locale = mk.Locale,
-                Table = mk.Table,
-                Keys = mk.Keys,
-            }));
+                localeKeys = new HashSet<string>(StringComparer.Ordinal);
+                tableLocales[locale] = localeKeys;
+            }
 
-            // Option A contract: missing keys = error (blocks release)
-            _report.IsValid = _report.Errors.Count == 0 && _report.MissingKeys.Count == 0;
-            Repaint();
+            return localeKeys;
+        }
+
+        private void ApplyConsistencyValidation(
+            ValidationReport report,
+            Dictionary<string, Dictionary<string, HashSet<string>>> allTables)
+        {
+            var validationResult = _consistencyValidator.Validate(allTables, report.FoundLocales);
+            report.TotalKeyCount = validationResult.TotalKeyCount;
+            report.Warnings.AddRange(validationResult.Warnings);
+            report.MissingKeys.AddRange(validationResult.MissingKeys);
         }
 
         private void DrawReport()
@@ -142,7 +191,7 @@ namespace Editor.Localization
             if (_report.IsValid)
                 EditorGUILayout.HelpBox("✓ All validations passed!", MessageType.Info);
             else
-                EditorGUILayout.HelpBox($"✗ Validation failed with {_report.Errors.Count} errors", MessageType.Error);
+                EditorGUILayout.HelpBox(BuildFailureSummaryMessage(), MessageType.Error);
 
             EditorGUILayout.Space();
 
@@ -154,62 +203,79 @@ namespace Editor.Localization
 
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition, GUILayout.ExpandHeight(true));
 
-            if (_report.Errors.Count > 0)
-            {
-                EditorGUILayout.LabelField("Errors:", EditorStyles.boldLabel);
-                
-                foreach (var error in _report.Errors)
-                {
-                    EditorGUILayout.HelpBox(error, MessageType.Error);
-                }
-                
-                EditorGUILayout.Space();
-            }
-
-            if (_report.MissingKeys.Count > 0)
-            {
-                EditorGUILayout.LabelField("Missing Keys:", EditorStyles.boldLabel);
-                
-                foreach (var missing in _report.MissingKeys)
-                {
-                    var message = $"{missing.Locale}/{missing.Table}: {missing.Keys.Count} missing keys\n" +
-                                  string.Join("\n", missing.Keys.Select(k => $"  - {k}"));
-                    
-                    EditorGUILayout.HelpBox(message, MessageType.Warning);
-                }
-                
-                EditorGUILayout.Space();
-            }
-
-            if (_report.Warnings.Count > 0)
-            {
-                EditorGUILayout.LabelField("Warnings:", EditorStyles.boldLabel);
-                
-                foreach (var warning in _report.Warnings)
-                {
-                    EditorGUILayout.HelpBox(warning, MessageType.Warning);
-                }
-            }
+            DrawErrors();
+            DrawMissingKeys();
+            DrawWarnings();
 
             EditorGUILayout.EndScrollView();
         }
 
-        private class ValidationReport
+        private void DrawErrors()
         {
-            public bool IsValid;
-            public List<string> FoundLocales = new();
-            public int ProcessedFiles;
-            public int TotalKeyCount;
-            public readonly List<string> Errors = new();
-            public readonly List<string> Warnings = new();
-            public readonly List<MissingKeyInfo> MissingKeys = new();
+            if (_report.Errors.Count == 0)
+                return;
+
+            EditorGUILayout.LabelField("Errors:", EditorStyles.boldLabel);
+
+            foreach (var error in _report.Errors)
+            {
+                EditorGUILayout.HelpBox(error, MessageType.Error);
+            }
+
+            EditorGUILayout.Space();
         }
 
-        private class MissingKeyInfo
+        private void DrawMissingKeys()
         {
-            public string Locale;
-            public string Table;
-            public List<string> Keys;
+            if (_report.MissingKeys.Count == 0)
+                return;
+
+            EditorGUILayout.LabelField("Missing Keys:", EditorStyles.boldLabel);
+
+            foreach (var missing in _report.MissingKeys)
+            {
+                EditorGUILayout.HelpBox(BuildMissingKeysMessage(missing), MessageType.Warning);
+            }
+
+            EditorGUILayout.Space();
+        }
+
+        private void DrawWarnings()
+        {
+            if (_report.Warnings.Count == 0)
+                return;
+
+            EditorGUILayout.LabelField("Warnings:", EditorStyles.boldLabel);
+
+            foreach (var warning in _report.Warnings)
+            {
+                EditorGUILayout.HelpBox(warning, MessageType.Warning);
+            }
+        }
+
+        private static string BuildMissingKeysMessage(MissingKeyInfo missingKeys) =>
+            $"{missingKeys.Locale}/{missingKeys.Table}: {missingKeys.Keys.Count} missing keys\n" +
+            string.Join("\n", missingKeys.Keys.Select(key => $"  - {key}"));
+
+        private string BuildFailureSummaryMessage()
+        {
+            if (_report.Errors.Count > 0 && _report.MissingKeys.Count > 0) 
+                return $"✗ Validation failed with {_report.Errors.Count} errors and {_report.MissingKeys.Count} missing key groups";
+
+            return _report.Errors.Count > 0 
+                ? $"✗ Validation failed with {_report.Errors.Count} errors" 
+                : $"✗ Validation failed with {_report.MissingKeys.Count} missing key groups";
+        }
+
+        private class ValidationReport
+        {
+            public bool IsValid { get; set; }
+            public List<string> FoundLocales { get; } = new();
+            public int ProcessedFiles { get; set; }
+            public int TotalKeyCount { get; set; }
+            public List<string> Errors { get; } = new();
+            public List<string> Warnings { get; } = new();
+            public List<MissingKeyInfo> MissingKeys { get; } = new();
         }
     }
 }
