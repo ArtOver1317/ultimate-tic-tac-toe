@@ -8,6 +8,7 @@ using Fusion;
 using Fusion.Photon.Realtime;
 using Fusion.Sockets;
 using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 using UnityEngine;
 
 namespace Runtime.GameModes.Wizard.Online

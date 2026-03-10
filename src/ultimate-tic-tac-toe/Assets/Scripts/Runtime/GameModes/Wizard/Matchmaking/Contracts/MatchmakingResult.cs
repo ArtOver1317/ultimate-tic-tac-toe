@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Runtime.GameModes.Wizard.Matchmaking
+namespace Runtime.GameModes.Wizard.Matchmaking.Contracts
 {
     /// <summary>
     /// Successful matchmaking output.
@@ -14,9 +14,7 @@ namespace Runtime.GameModes.Wizard.Matchmaking
         public bool IsHost { get; }
 
         public MatchmakingResult(string matchId, string opponentId)
-            : this(matchId, opponentId, isHost: false)
-        {
-        }
+            : this(matchId, opponentId, isHost: false) { }
 
         public MatchmakingResult(string matchId, string opponentId, bool isHost)
         {

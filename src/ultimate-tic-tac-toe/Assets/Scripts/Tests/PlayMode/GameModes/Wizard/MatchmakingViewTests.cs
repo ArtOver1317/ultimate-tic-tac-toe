@@ -12,6 +12,8 @@ using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Matchmaking.Contracts;
+using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Localization;
 using Runtime.UI.Components;

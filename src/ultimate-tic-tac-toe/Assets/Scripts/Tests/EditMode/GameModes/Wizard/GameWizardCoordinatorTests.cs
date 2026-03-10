@@ -11,6 +11,8 @@ using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Matchmaking.Config;
+using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.GameModes.Wizard.Session;
 using UnityEngine;

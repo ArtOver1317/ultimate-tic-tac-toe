@@ -5,9 +5,10 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 using Runtime.GameModes.Wizard.Online;
 
-namespace Runtime.GameModes.Wizard.Matchmaking
+namespace Runtime.GameModes.Wizard.Matchmaking.Services
 {
     public sealed class PhotonMatchmakingService : IMatchmakingService, IDisposable
     {
@@ -54,13 +55,13 @@ namespace Runtime.GameModes.Wizard.Matchmaking
 
             EnsureNotDisposed();
 
-            if (entry.IsPaired && entry.ImmediateResult != null)
+            if (entry is { IsPaired: true, ImmediateResult: not null })
                 return entry.ImmediateResult;
 
             _outcome = 0;
             var sequenceCursor = _eventSequenceFence;
             var bufferedDuringInit = new List<GatewayLifecycleEvent>(4);
-            var isInitializing = true;
+            var initializationState = new InitializationState();
 
             var tcs = new UniTaskCompletionSource<MatchmakingResult>();
 
@@ -99,7 +100,7 @@ namespace Runtime.GameModes.Wizard.Matchmaking
                 if (!evt.HasValue)
                     return;
 
-                if (isInitializing)
+                if (initializationState.IsActive)
                 {
                     bufferedDuringInit.Add(evt.Value);
                     return;
@@ -109,22 +110,30 @@ namespace Runtime.GameModes.Wizard.Matchmaking
             });
 
             var backlogBefore = _gateway.GetLifecycleEventsSince(sequenceCursor);
-            for (var i = 0; i < backlogBefore.Length; i++)
-                ProcessEvent(backlogBefore[i]);
+            
+            foreach (var lifecycleEvent in backlogBefore)
+            {
+                ProcessEvent(lifecycleEvent);
+            }
 
-            isInitializing = false;
+            initializationState.IsActive = false;
 
             if (bufferedDuringInit.Count > 1)
                 bufferedDuringInit.Sort((left, right) => left.Sequence.CompareTo(right.Sequence));
 
-            for (var i = 0; i < bufferedDuringInit.Count; i++)
-                ProcessEvent(bufferedDuringInit[i]);
+            foreach (var lifecycleEvent in bufferedDuringInit)
+            {
+                ProcessEvent(lifecycleEvent);
+            }
 
             var backlogAfter = _gateway.GetLifecycleEventsSince(sequenceCursor);
-            for (var i = 0; i < backlogAfter.Length; i++)
-                ProcessEvent(backlogAfter[i]);
+            
+            foreach (var lifecycleEvent in backlogAfter)
+            {
+                ProcessEvent(lifecycleEvent);
+            }
 
-            using var ctRegistration = ct.Register(() =>
+            await using var ctRegistration = ct.Register(() =>
             {
                 if (Interlocked.CompareExchange(ref _outcome, 3, 0) != 0)
                     return;
@@ -132,14 +141,7 @@ namespace Runtime.GameModes.Wizard.Matchmaking
                 tcs.TrySetCanceled(ct);
             });
 
-            try
-            {
-                return await tcs.Task;
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
+            return await tcs.Task;
         }
 
         public UniTask LeaveAsync(CancellationToken ct)
@@ -171,10 +173,13 @@ namespace Runtime.GameModes.Wizard.Matchmaking
             if (IsTerminalDisconnectKind(data.Kind) && string.IsNullOrWhiteSpace(data.SessionId))
                 return true;
 
-            if (string.IsNullOrWhiteSpace(data.SessionId))
-                return false;
+            return !string.IsNullOrWhiteSpace(data.SessionId) 
+                   && string.Equals(data.SessionId, roomName, StringComparison.OrdinalIgnoreCase);
+        }
 
-            return string.Equals(data.SessionId, roomName, StringComparison.OrdinalIgnoreCase);
+        private sealed class InitializationState
+        {
+            public bool IsActive { get; set; } = true;
         }
     }
 }

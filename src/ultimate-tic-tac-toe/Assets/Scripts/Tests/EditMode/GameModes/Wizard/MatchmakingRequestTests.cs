@@ -3,6 +3,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 
 namespace Tests.EditMode.GameModes.Wizard
 {

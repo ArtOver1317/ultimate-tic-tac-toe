@@ -5,6 +5,8 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Matchmaking.Contracts;
+using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 
@@ -20,104 +22,14 @@ namespace Runtime.GameModes.Wizard
             if (snapshot == null)
                 throw new ArgumentNullException(nameof(snapshot));
 
-            if (string.IsNullOrWhiteSpace(snapshot.SelectedGameId) || snapshot.GameConfig == null)
-            {
-                TrySetCurrentError(new WizardError(
-                    code: "wizard.mode_config_required",
-                    messageKey: "Errors.GameWizard.ConfigRequired",
-                    isBlocking: false,
-                    displayType: ErrorDisplayType.Inline));
-                
+            if (!TryCreateMatchmakingRequest(snapshot, out var request))
                 return;
-            }
 
-            var request = new MatchmakingRequest(snapshot.SelectedGameId, snapshot.GameConfig, snapshot.MoveTimeLimitSeconds);
-
-            if (_matchmakingService == null)
-            {
-                TrySetCurrentError(new WizardError(
-                    code: "wizard.matchmaking_start_failed",
-                    messageKey: "Errors.GameWizard.MatchmakingFailed",
-                    isBlocking: false,
-                    displayType: ErrorDisplayType.Inline));
-                return;
-            }
-
-            QueueEntry? preflightQueueEntry = null;
-            var shouldCleanupPreflightQueue = false;
-
-            try
-            {
-                preflightQueueEntry = await _matchmakingService.EnterQueueAsync(request, ct);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch (Exception)
-            {
-                TrySetCurrentError(new WizardError(
-                    code: "wizard.matchmaking_start_failed",
-                    messageKey: "Errors.GameWizard.MatchmakingFailed",
-                    isBlocking: false,
-                    displayType: ErrorDisplayType.Inline));
-                return;
-            }
-
+            var preflightQueueEntry = await TryEnterPreflightQueueAsync(request, ct);
             if (preflightQueueEntry == null)
-            {
-                TrySetCurrentError(new WizardError(
-                    code: "wizard.matchmaking_start_failed",
-                    messageKey: "Errors.GameWizard.MatchmakingFailed",
-                    isBlocking: false,
-                    displayType: ErrorDisplayType.Inline));
                 return;
-            }
 
-            shouldCleanupPreflightQueue = true;
-
-            try
-            {
-                await TransitionAsync(
-                    transition: async token =>
-                    {
-                        var viewModel = await _navigator.ReplaceMatchSetupWithMatchmakingAsync(token);
-                        
-                        if (viewModel == null)
-                            throw new InvalidOperationException("Matchmaking ViewModel is not available.");
-
-                        _step = WizardStep.Matchmaking;
-
-                        BindMatchmakingViewModel(viewModel, snapshot);
-
-                        var started = preflightQueueEntry != null
-                            ? await viewModel.TryBeginSearchFromQueueEntryAsync(preflightQueueEntry, token)
-                            : await viewModel.TryBeginSearchAsync(request, token);
-
-                        if (started)
-                        {
-                            shouldCleanupPreflightQueue = false;
-                            return;
-                        }
-
-                        await _navigator.ReplaceMatchmakingWithMatchSetupAsync(token);
-                        CleanupMatchmakingBindings();
-
-                        TrySetCurrentError(new WizardError(
-                            code: "wizard.matchmaking_start_failed",
-                            messageKey: "Errors.GameWizard.MatchmakingFailed",
-                            isBlocking: false,
-                            displayType: ErrorDisplayType.Inline));
-
-                        _step = WizardStep.MatchSetup;
-                    },
-                    ct: ct);
-            }
-            finally
-            {
-                if (shouldCleanupPreflightQueue)
-                    BestEffortLeavePreflightQueueAsync(_matchmakingService).Forget();
-            }
+            await OpenMatchmakingFromQueueEntryAsync(snapshot, preflightQueueEntry, ct);
         }
 
         private void BindMatchmakingViewModel(MatchmakingViewModel viewModel, GameSessionSnapshot snapshot)
@@ -161,30 +73,17 @@ namespace Runtime.GameModes.Wizard
             if (_matchmakingViewModel == null)
                 return;
 
-            if (string.IsNullOrWhiteSpace(snapshot.SelectedGameId) || snapshot.GameConfig == null)
+            if (!TryCreateMatchmakingRequest(snapshot, out var request))
             {
-                TrySetCurrentError(new WizardError(
-                    code: "wizard.mode_config_required",
-                    messageKey: "Errors.GameWizard.ConfigRequired",
-                    isBlocking: false,
-                    displayType: ErrorDisplayType.Inline));
-
                 CloseMatchmakingToSetupAsync(ct).Forget(LogForgetException);
                 return;
             }
 
-            var request = new MatchmakingRequest(snapshot.SelectedGameId, snapshot.GameConfig, snapshot.MoveTimeLimitSeconds);
             UpdateMatchmakingResult(null);
 
             var started = await _matchmakingViewModel.TryBeginSearchAsync(request, ct);
             if (!started)
-            {
-                TrySetCurrentError(new WizardError(
-                    code: "wizard.matchmaking_restart_failed",
-                    messageKey: "Errors.GameWizard.MatchmakingFailed",
-                    isBlocking: false,
-                    displayType: ErrorDisplayType.Inline));
-            }
+                ReportMatchmakingInlineError("wizard.matchmaking_restart_failed");
         }
 
         private async UniTask HandleMatchmakingStateChanged(MatchmakingState state, CancellationToken ct)
@@ -194,12 +93,8 @@ namespace Runtime.GameModes.Wizard
 
             switch (state)
             {
-                case MatchmakingState.CancelPending:
-                    break;
-
                 case MatchmakingState.Found:
-                    await UniTask.Delay(_matchmakingFoundAutoCloseDelay, cancellationToken: ct);
-                    await CloseMatchmakingAndStartAsync(ct);
+                    await HandleMatchmakingFoundAsync(ct);
                     break;
 
                 case MatchmakingState.Cancelled:
@@ -207,16 +102,144 @@ namespace Runtime.GameModes.Wizard
                     break;
 
                 case MatchmakingState.TerminalModal:
-                    Interlocked.Exchange(ref _matchmakingTerminalModalPendingAck, 1);
-                    var terminalFailureKey = _matchmakingViewModel?.Failure.CurrentValue?.MessageKey ?? "Errors.GameWizard.MatchmakingFailed";
-                    TrySetCurrentError(new WizardError(
-                        code: "wizard.matchmaking_terminal",
-                        messageKey: terminalFailureKey,
-                        isBlocking: true,
-                        displayType: ErrorDisplayType.Modal));
+                    ShowMatchmakingTerminalError();
                     break;
             }
         }
+
+        private async UniTask OpenMatchmakingFromQueueEntryAsync(
+            GameSessionSnapshot snapshot,
+            QueueEntry preflightQueueEntry,
+            CancellationToken ct)
+        {
+            var shouldCleanupPreflightQueue = true;
+
+            try
+            {
+                await TransitionAsync(
+                    transition: async token =>
+                    {
+                        var viewModel = await OpenBoundMatchmakingViewAsync(snapshot, token);
+                        if (await viewModel.TryBeginSearchFromQueueEntryAsync(preflightQueueEntry, token))
+                        {
+                            shouldCleanupPreflightQueue = false;
+                            return;
+                        }
+
+                        await ReturnToSetupAfterMatchmakingStartFailureAsync(token);
+                    },
+                    ct: ct);
+            }
+            finally
+            {
+                if (shouldCleanupPreflightQueue && _matchmakingService != null)
+                    BestEffortLeavePreflightQueueAsync(_matchmakingService).Forget();
+            }
+        }
+
+        private async UniTask<MatchmakingViewModel> OpenBoundMatchmakingViewAsync(GameSessionSnapshot snapshot, CancellationToken ct)
+        {
+            var viewModel = await _navigator.ReplaceMatchSetupWithMatchmakingAsync(ct);
+            if (viewModel == null)
+                throw new InvalidOperationException("Matchmaking ViewModel is not available.");
+
+            _step = WizardStep.Matchmaking;
+            BindMatchmakingViewModel(viewModel, snapshot);
+            return viewModel;
+        }
+
+        private async UniTask ReturnToSetupAfterMatchmakingStartFailureAsync(CancellationToken ct)
+        {
+            await _navigator.ReplaceMatchmakingWithMatchSetupAsync(ct);
+            CleanupMatchmakingBindings();
+            ReportMatchmakingInlineError("wizard.matchmaking_start_failed");
+            _step = WizardStep.MatchSetup;
+        }
+
+        private bool TryCreateMatchmakingRequest(GameSessionSnapshot snapshot, out MatchmakingRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(snapshot.SelectedGameId) || snapshot.GameConfig == null)
+            {
+                TrySetCurrentError(CreateConfigRequiredError());
+                request = null!;
+                return false;
+            }
+
+            request = new MatchmakingRequest(snapshot.SelectedGameId, snapshot.GameConfig, snapshot.MoveTimeLimitSeconds);
+            return true;
+        }
+
+        private async UniTask<QueueEntry?> TryEnterPreflightQueueAsync(MatchmakingRequest request, CancellationToken ct)
+        {
+            if (_matchmakingService == null)
+            {
+                ReportMatchmakingInlineError("wizard.matchmaking_start_failed");
+                return null;
+            }
+
+            try
+            {
+                var preflightQueueEntry = await _matchmakingService.EnterQueueAsync(request, ct);
+                if (preflightQueueEntry != null)
+                    return preflightQueueEntry;
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+            catch (Exception)
+            {
+                ReportMatchmakingInlineError("wizard.matchmaking_start_failed");
+                return null;
+            }
+
+            ReportMatchmakingInlineError("wizard.matchmaking_start_failed");
+            return null;
+        }
+
+        private async UniTask HandleMatchmakingFoundAsync(CancellationToken ct)
+        {
+            await UniTask.Delay(_matchmakingFoundAutoCloseDelay, cancellationToken: ct);
+            await CloseMatchmakingAndStartAsync(ct);
+        }
+
+        private void ShowMatchmakingTerminalError()
+        {
+            Interlocked.Exchange(ref _matchmakingTerminalModalPendingAck, 1);
+
+            var terminalFailureKey = _matchmakingViewModel?.Failure.CurrentValue?.MessageKey
+                ?? "Errors.GameWizard.MatchmakingFailed";
+
+            TrySetCurrentError(CreateMatchmakingError(
+                code: "wizard.matchmaking_terminal",
+                messageKey: terminalFailureKey,
+                isBlocking: true,
+                displayType: ErrorDisplayType.Modal));
+        }
+
+        private void ReportMatchmakingInlineError(string code) =>
+            TrySetCurrentError(CreateMatchmakingError(
+                code: code,
+                messageKey: "Errors.GameWizard.MatchmakingFailed",
+                isBlocking: false,
+                displayType: ErrorDisplayType.Inline));
+
+        private static WizardError CreateConfigRequiredError() => new(
+            code: "wizard.mode_config_required",
+            messageKey: "Errors.GameWizard.ConfigRequired",
+            isBlocking: false,
+            displayType: ErrorDisplayType.Inline);
+
+        private static WizardError CreateMatchmakingError(
+            string code,
+            string messageKey,
+            bool isBlocking,
+            ErrorDisplayType displayType) =>
+            new(
+                code: code,
+                messageKey: messageKey,
+                isBlocking: isBlocking,
+                displayType: displayType);
 
         private async UniTask CloseMatchmakingToSetupAsync(CancellationToken ct)
         {
@@ -271,7 +294,7 @@ namespace Runtime.GameModes.Wizard
 
                 SetIsSubmitting(true);
 
-                if (launchConfig != null) 
+                if (launchConfig != null)
                     PublishGameLaunchRequested(launchConfig);
             }
             finally
@@ -300,7 +323,8 @@ namespace Runtime.GameModes.Wizard
 
         private static async UniTask BestEffortLeavePreflightQueueAsync(IMatchmakingService matchmakingService)
         {
-            using var leaveCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var leaveTimeout = TimeSpan.FromSeconds(15);
+            using var leaveCts = new CancellationTokenSource(leaveTimeout);
 
             try
             {

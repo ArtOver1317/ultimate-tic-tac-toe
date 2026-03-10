@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
@@ -7,6 +6,9 @@ using FluentAssertions;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Matchmaking.Config;
+using Runtime.GameModes.Wizard.Matchmaking.Contracts;
+using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.Session;
 
 namespace Tests.EditMode.GameModes.Wizard
@@ -445,18 +447,10 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         private static int GetPrivateSearchEpoch(MatchmakingFsm fsm)
-        {
-            var field = typeof(MatchmakingFsm).GetField("_searchEpoch", BindingFlags.Instance | BindingFlags.NonPublic);
-            field.Should().NotBeNull();
-            return (int)field!.GetValue(fsm);
-        }
+            => fsm.SearchEpochForTests;
 
         private static void InvokeApplySearchSuccess(MatchmakingFsm fsm, int epoch, MatchmakingResult result)
-        {
-            var method = typeof(MatchmakingFsm).GetMethod("ApplySearchSuccess", BindingFlags.Instance | BindingFlags.NonPublic);
-            method.Should().NotBeNull();
-            method!.Invoke(fsm, new object[] { epoch, result });
-        }
+            => fsm.ApplySearchSuccessForTests(epoch, result);
 
         private sealed class ControlledMatchmakingService : IMatchmakingService
         {

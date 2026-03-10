@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Runtime.GameModes.Wizard.Matchmaking
+namespace Runtime.GameModes.Wizard.Matchmaking.Contracts
 {
     /// <summary>
     /// Parameters required for matchmaking search.
@@ -14,9 +14,7 @@ namespace Runtime.GameModes.Wizard.Matchmaking
         public int MoveTimeLimitSeconds { get; }
 
         public MatchmakingRequest(string gameId, IGameConfig gameConfig)
-            : this(gameId, gameConfig, 0)
-        {
-        }
+            : this(gameId, gameConfig, 0) { }
 
         public MatchmakingRequest(string gameId, IGameConfig gameConfig, int moveTimeLimitSeconds)
         {

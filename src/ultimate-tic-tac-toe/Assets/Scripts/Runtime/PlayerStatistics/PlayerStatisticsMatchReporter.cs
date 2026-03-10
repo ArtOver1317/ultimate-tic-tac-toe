@@ -5,6 +5,7 @@ using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Matchmaking.Config;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
 using Runtime.Infrastructure.Logging;

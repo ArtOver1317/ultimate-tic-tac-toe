@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Runtime.GameModes.Wizard.Matchmaking
+namespace Runtime.GameModes.Wizard.Matchmaking.Contracts
 {
     /// <summary>
     /// User-facing matchmaking failure information.
@@ -35,9 +35,8 @@ namespace Runtime.GameModes.Wizard.Matchmaking
         public static MatchmakingFailure Timeout() =>
             new("matchmaking.timeout", "Errors.GameWizard.MatchmakingTimeout", isTimeout: true);
 
-        public static MatchmakingFailure Terminal(MatchmakingTerminalReason reason)
-        {
-            return reason switch
+        public static MatchmakingFailure Terminal(MatchmakingTerminalReason reason) =>
+            reason switch
             {
                 MatchmakingTerminalReason.SearchTimedOut => new MatchmakingFailure(
                     "matchmaking.terminal.timeout",
@@ -65,7 +64,6 @@ namespace Runtime.GameModes.Wizard.Matchmaking
                     isTimeout: false,
                     terminalReason: MatchmakingTerminalReason.None),
             };
-        }
 
         public static MatchmakingFailure FromException(Exception ex)
         {

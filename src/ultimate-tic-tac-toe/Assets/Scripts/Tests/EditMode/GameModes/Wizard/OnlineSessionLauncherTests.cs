@@ -12,6 +12,7 @@ using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.PlayerProfile;
 

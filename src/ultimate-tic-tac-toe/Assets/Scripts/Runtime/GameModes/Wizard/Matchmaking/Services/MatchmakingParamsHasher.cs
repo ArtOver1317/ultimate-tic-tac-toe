@@ -5,13 +5,14 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 
-namespace Runtime.GameModes.Wizard.Matchmaking
+namespace Runtime.GameModes.Wizard.Matchmaking.Services
 {
     public static class MatchmakingParamsHasher
     {
-        private const string Base32Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-        private const int HashPrefixLength = 8;
+        private const string _base32Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        private const int _hashPrefixLength = 8;
 
         public static string Compute(MatchmakingRequest request)
         {
@@ -26,27 +27,24 @@ namespace Runtime.GameModes.Wizard.Matchmaking
             var canonical = BuildCanonicalString(normalizedGameId, request.MoveTimeLimitSeconds, orderedParameters);
             var bytes = Encoding.UTF8.GetBytes(canonical);
             byte[] hashBytes;
+            
             using (var sha256 = SHA256.Create())
+            {
                 hashBytes = sha256.ComputeHash(bytes);
+            }
 
-            return ToBase32Prefix(hashBytes, HashPrefixLength);
+            return ToBase32Prefix(hashBytes, _hashPrefixLength);
         }
 
-        public static string NormalizeGameId(string gameId)
-        {
-            if (gameId == null)
-                throw new ArgumentNullException(nameof(gameId));
-
-            return gameId.Trim().ToLowerInvariant();
-        }
+        public static string NormalizeGameId(string gameId) =>
+            gameId == null 
+                ? throw new ArgumentNullException(nameof(gameId)) 
+                : gameId.Trim().ToLowerInvariant();
 
         private static int CompareParams(KeyValuePair<string, string> left, KeyValuePair<string, string> right)
         {
             var keyComparison = string.Compare(left.Key, right.Key, StringComparison.Ordinal);
-            if (keyComparison != 0)
-                return keyComparison;
-
-            return string.Compare(left.Value, right.Value, StringComparison.Ordinal);
+            return keyComparison != 0 ? keyComparison : string.Compare(left.Value, right.Value, StringComparison.Ordinal);
         }
 
         private static string BuildCanonicalString(
@@ -95,7 +93,7 @@ namespace Runtime.GameModes.Wizard.Matchmaking
                 while (bitCount >= 5 && output.Length < maxChars)
                 {
                     var index = (bitBuffer >> (bitCount - 5)) & 31;
-                    output.Append(Base32Alphabet[index]);
+                    output.Append(_base32Alphabet[index]);
                     bitCount -= 5;
                 }
 
@@ -106,7 +104,7 @@ namespace Runtime.GameModes.Wizard.Matchmaking
             if (bitCount > 0 && output.Length < maxChars)
             {
                 var index = (bitBuffer << (5 - bitCount)) & 31;
-                output.Append(Base32Alphabet[index]);
+                output.Append(_base32Alphabet[index]);
             }
 
             return output.ToString();

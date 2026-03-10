@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using R3;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Matchmaking.Config;
 using Runtime.GameModes.Wizard.Online;
 
 namespace Runtime.GameModes.Wizard.Session

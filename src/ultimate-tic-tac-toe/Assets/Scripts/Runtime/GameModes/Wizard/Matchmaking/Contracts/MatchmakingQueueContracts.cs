@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Runtime.GameModes.Wizard.Matchmaking
+namespace Runtime.GameModes.Wizard.Matchmaking.Contracts
 {
     public sealed class MatchmakingRoomOptions
     {
@@ -67,41 +67,6 @@ namespace Runtime.GameModes.Wizard.Matchmaking
 
             RoomName = roomName;
             ImmediateResult = immediateResult;
-        }
-    }
-
-    public interface IMatchmakingConfig
-    {
-        TimeSpan SearchTimeout { get; }
-        TimeSpan CancelAckTimeout { get; }
-    }
-
-    public sealed class MatchmakingConfigDefaults : IMatchmakingConfig
-    {
-        public static readonly MatchmakingConfigDefaults Instance = new();
-
-        public TimeSpan SearchTimeout => TimeSpan.FromSeconds(60);
-        public TimeSpan CancelAckTimeout => TimeSpan.FromSeconds(15);
-    }
-
-    public sealed class MatchmakingCancelAckTimeoutException : TimeoutException
-    {
-        public MatchmakingCancelAckTimeoutException(string message)
-            : base(message)
-        {
-        }
-    }
-
-    public sealed class ConnectionLostException : Exception
-    {
-        public ConnectionLostException(string message)
-            : base(message)
-        {
-        }
-
-        public ConnectionLostException(string message, Exception innerException)
-            : base(message, innerException)
-        {
         }
     }
 }

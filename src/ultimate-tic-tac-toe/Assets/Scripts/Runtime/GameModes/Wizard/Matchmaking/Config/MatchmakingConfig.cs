@@ -1,7 +1,7 @@
 using System;
 using Runtime.GameModes.Wizard.Configs;
 
-namespace Runtime.GameModes.Wizard.Matchmaking
+namespace Runtime.GameModes.Wizard.Matchmaking.Config
 {
     public sealed class MatchmakingConfig : IOpponentConfig
     {

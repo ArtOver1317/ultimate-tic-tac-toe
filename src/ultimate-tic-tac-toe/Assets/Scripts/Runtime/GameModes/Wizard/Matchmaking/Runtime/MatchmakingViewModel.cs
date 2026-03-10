@@ -5,12 +5,14 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Matchmaking.Config;
+using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Core;
 
-namespace Runtime.GameModes.Wizard.Matchmaking
+namespace Runtime.GameModes.Wizard.Matchmaking.Runtime
 {
     /// <summary>
     /// View-model for the matchmaking progress window.
@@ -18,12 +20,15 @@ namespace Runtime.GameModes.Wizard.Matchmaking
     /// </summary>
     public sealed class MatchmakingViewModel : BaseViewModel
     {
+        private const string _genericMatchmakingFailureCode = "matchmaking.failed";
+        private const string _matchmakingFailedMessageKey = "Errors.GameWizard.MatchmakingFailed";
+
         private readonly ILocalizationService _localization;
         private readonly IMatchmakingService _service;
         private readonly IMatchmakingConfig _config;
+        private readonly MatchmakingElapsedTimer _elapsedTimer = new();
 
-        private readonly ReactiveProperty<MatchmakingState> _stateFallback = new(MatchmakingState.Idle);
-        private readonly ReactiveProperty<TimeSpan> _elapsedTime = new(TimeSpan.Zero);
+        private readonly ReactiveProperty<MatchmakingState> _state = new(MatchmakingState.Idle);
         private readonly ReactiveProperty<int> _playersWithDifferentParams = new(0);
         private readonly ReactiveProperty<string?> _errorMessage = new(null);
         private readonly ReactiveProperty<string?> _errorMessageKey = new(null);
@@ -36,12 +41,10 @@ namespace Runtime.GameModes.Wizard.Matchmaking
 
         private MatchmakingFsm? _fsm;
         private CancellationTokenSource? _searchCts;
-        private CancellationTokenSource? _timerCts;
-        private DateTime _searchStartUtc;
         private int _isWired;
 
-        public ReadOnlyReactiveProperty<MatchmakingState> State => _stateFallback;
-        public ReadOnlyReactiveProperty<TimeSpan> ElapsedTime => _elapsedTime;
+        public ReadOnlyReactiveProperty<MatchmakingState> State => _state;
+        public ReadOnlyReactiveProperty<TimeSpan> ElapsedTime => _elapsedTimer.ElapsedTime;
         public ReadOnlyReactiveProperty<int> PlayersWithDifferentParams => _playersWithDifferentParams;
         public ReadOnlyReactiveProperty<string?> ErrorMessage => _errorMessage;
         public ReadOnlyReactiveProperty<MatchmakingResult?> Result => _result;
@@ -95,7 +98,7 @@ namespace Runtime.GameModes.Wizard.Matchmaking
                 throw new ArgumentNullException(nameof(request));
 
             EnsureWired();
-            StartSearchAsync(request, ct).Forget();
+            TryStartSearchAsync(request, ct).Forget();
         }
 
         public UniTask<bool> TryBeginSearchAsync(MatchmakingRequest request, CancellationToken ct)
@@ -104,7 +107,7 @@ namespace Runtime.GameModes.Wizard.Matchmaking
                 throw new ArgumentNullException(nameof(request));
 
             EnsureWired();
-            return StartSearchAsync(request, ct);
+            return TryStartSearchAsync(request, ct);
         }
 
         public UniTask<bool> TryBeginSearchFromQueueEntryAsync(QueueEntry queueEntry, CancellationToken ct)
@@ -113,7 +116,7 @@ namespace Runtime.GameModes.Wizard.Matchmaking
                 throw new ArgumentNullException(nameof(queueEntry));
 
             EnsureWired();
-            return StartSearchAsync(queueEntry, ct);
+            return TryStartSearchAsync(queueEntry, ct);
         }
 
         public void RequestCancel()
@@ -139,26 +142,18 @@ namespace Runtime.GameModes.Wizard.Matchmaking
             Volatile.Write(ref _isWired, 0);
 
             CancelSearch();
-            StopTimer(resetElapsed: true);
-
-            _stateFallback.Value = MatchmakingState.Idle;
-            _elapsedTime.Value = TimeSpan.Zero;
-            _playersWithDifferentParams.Value = 0;
-            _errorMessage.Value = null;
-            _errorMessageKey.Value = null;
-            _result.Value = null;
-
+            _elapsedTimer.Stop(resetElapsed: true);
             DisposeFsm();
+            ResetReactiveState();
         }
 
         protected override void OnDispose()
         {
             CancelSearch();
-            StopTimer(resetElapsed: true);
+            _elapsedTimer.Dispose();
             DisposeFsm();
 
-            _stateFallback.Dispose();
-            _elapsedTime.Dispose();
+            _state.Dispose();
             _playersWithDifferentParams.Dispose();
             _errorMessage.Dispose();
             _errorMessageKey.Dispose();
@@ -181,41 +176,53 @@ namespace Runtime.GameModes.Wizard.Matchmaking
             if (Interlocked.Exchange(ref _isWired, 1) != 0)
                 return;
 
-            _fsm = new MatchmakingFsm(_service, _config);
+            var fsm = new MatchmakingFsm(_service, _config);
+            _fsm = fsm;
 
-            AddDisposable(_fsm.State.Subscribe(ApplyState));
-            AddDisposable(_fsm.Failure.Subscribe(failure =>
-            {
-                _failure.Value = failure;
-                ApplyFailure(failure);
-            }));
-            AddDisposable(_fsm.Result.Subscribe(result => _result.Value = result));
+            BindFsm(fsm);
+            BindLocalizedErrorMessage();
+        }
 
-            AddDisposable(Observable.CombineLatest(
-                    _errorMessageKey,
-                    _localization.CurrentLocale,
+        private void BindFsm(MatchmakingFsm fsm)
+        {
+            AddDisposable(fsm.State.Subscribe(ApplyState));
+            AddDisposable(fsm.Failure.Subscribe(ApplyFailureState));
+            AddDisposable(fsm.Result.Subscribe(result => _result.Value = result));
+        }
+
+        private void BindLocalizedErrorMessage() =>
+            AddDisposable(_errorMessageKey.CombineLatest(_localization.CurrentLocale,
                     static (key, _) => key)
                 .Subscribe(key => _errorMessage.Value = ResolveMessageKey(key ?? string.Empty)));
+
+        private void ApplyFailureState(MatchmakingFailure? failure)
+        {
+            _failure.Value = failure;
+            ApplyFailure(failure);
         }
 
-        private async UniTask<bool> StartSearchAsync(MatchmakingRequest request, CancellationToken ct)
-        {
-            if (request == null)
-                throw new ArgumentNullException(nameof(request));
+        private UniTask<bool> TryStartSearchAsync(MatchmakingRequest request, CancellationToken ct) =>
+            StartSearchCoreAsync(token => _fsm!.TryStartSearchAsync(request, token), ct);
 
+        private UniTask<bool> TryStartSearchAsync(QueueEntry queueEntry, CancellationToken ct) =>
+            StartSearchCoreAsync(token => _fsm!.TryStartSearchFromQueueEntryAsync(queueEntry, token), ct);
+
+        private async UniTask<bool> StartSearchCoreAsync(Func<CancellationToken, UniTask<bool>> startSearch, CancellationToken ct)
+        {
             if (_fsm == null)
                 return false;
 
             CancelSearch();
 
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            _searchCts = cts;
-            var started = false;
+            var searchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            _searchCts = searchCts;
 
             try
             {
-                started = await _fsm.TryStartSearchAsync(request, cts.Token);
-                return started;
+                var started = await startSearch(searchCts.Token);
+                
+                if (started)
+                    return true;
             }
             catch (OperationCanceledException)
             {
@@ -224,56 +231,11 @@ namespace Runtime.GameModes.Wizard.Matchmaking
             catch (Exception ex)
             {
                 GameLog.Exception(ex);
-                _errorMessageKey.Value = "Errors.GameWizard.MatchmakingFailed";
-                _stateFallback.Value = MatchmakingState.Failed;
-                return false;
+                ApplyGenericStartFailure();
             }
-            finally
-            {
-                if (!started)
-                {
-                    ReleaseSearchCts(cts, cancel: false);
-                }
-            }
-        }
 
-        private async UniTask<bool> StartSearchAsync(QueueEntry queueEntry, CancellationToken ct)
-        {
-            if (queueEntry == null)
-                throw new ArgumentNullException(nameof(queueEntry));
-
-            if (_fsm == null)
-                return false;
-
-            CancelSearch();
-
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            _searchCts = cts;
-            var started = false;
-
-            try
-            {
-                started = await _fsm.TryStartSearchFromQueueEntryAsync(queueEntry, cts.Token);
-                return started;
-            }
-            catch (OperationCanceledException)
-            {
-                return false;
-            }
-            catch (Exception ex)
-            {
-                GameLog.Exception(ex);
-                _errorMessageKey.Value = "Errors.GameWizard.MatchmakingFailed";
-                _stateFallback.Value = MatchmakingState.Failed;
-                return false;
-            }
-            finally
-            {
-                if (!started)
-                {
-                    ReleaseSearchCts(cts, cancel: false);
-                }
-            }
+            ReleaseCurrentSearchCts(searchCts, cancel: false);
+            return false;
         }
 
         private void CancelSearch()
@@ -286,7 +248,7 @@ namespace Runtime.GameModes.Wizard.Matchmaking
 
         private void CancelSearchIfSearching()
         {
-            if (!IsSearchActiveState(_stateFallback.Value))
+            if (!IsSearchActiveState(_state.Value))
                 return;
 
             CancelSearch();
@@ -294,13 +256,13 @@ namespace Runtime.GameModes.Wizard.Matchmaking
 
         private void ApplyState(MatchmakingState state)
         {
-            _stateFallback.Value = state;
+            _state.Value = state;
 
             if (IsSearchActiveState(state))
-                StartTimer();
+                _elapsedTimer.Start();
             else
             {
-                StopTimer(resetElapsed: true);
+                _elapsedTimer.Stop(resetElapsed: true);
                 ReleaseSearchCts(Interlocked.Exchange(ref _searchCts, null), cancel: false);
             }
 
@@ -312,13 +274,22 @@ namespace Runtime.GameModes.Wizard.Matchmaking
         {
             if (failure == null)
             {
-                if (_stateFallback.Value != MatchmakingState.Failed)
+                if (_state.Value != MatchmakingState.Failed)
                     _errorMessageKey.Value = null;
-                
+
                 return;
             }
 
             _errorMessageKey.Value = failure.MessageKey;
+        }
+
+        private void ApplyGenericStartFailure()
+        {
+            var failure = new MatchmakingFailure(_genericMatchmakingFailureCode, _matchmakingFailedMessageKey, isTimeout: false);
+            _failure.Value = failure;
+            _result.Value = null;
+            _errorMessageKey.Value = failure.MessageKey;
+            _state.Value = MatchmakingState.Failed;
         }
 
         private async UniTaskVoid RequestCancelInternalAsync()
@@ -330,58 +301,6 @@ namespace Runtime.GameModes.Wizard.Matchmaking
             {
                 await _fsm.RequestCancelAsync();
             }
-            catch (Exception ex)
-            {
-                GameLog.Exception(ex);
-            }
-        }
-
-        private void StartTimer()
-        {
-            if (_timerCts != null)
-                return;
-
-            _searchStartUtc = DateTime.UtcNow;
-
-            var cts = new CancellationTokenSource();
-            _timerCts = cts;
-
-            RunTimerAsync(cts.Token).Forget();
-        }
-
-        private void StopTimer(bool resetElapsed)
-        {
-            if (resetElapsed)
-                _elapsedTime.Value = TimeSpan.Zero;
-
-            var cts = Interlocked.Exchange(ref _timerCts, null);
-            
-            if (cts == null)
-                return;
-
-            try
-            {
-                cts.Cancel();
-            }
-            finally
-            {
-                cts.Dispose();
-            }
-        }
-
-        private async UniTaskVoid RunTimerAsync(CancellationToken ct)
-        {
-            try
-            {
-                await UniTask.SwitchToMainThread(ct);
-
-                while (!ct.IsCancellationRequested)
-                {
-                    _elapsedTime.Value = DateTime.UtcNow - _searchStartUtc;
-                    await UniTask.Delay(TimeSpan.FromSeconds(1), cancellationToken: ct);
-                }
-            }
-            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 GameLog.Exception(ex);
@@ -413,6 +332,24 @@ namespace Runtime.GameModes.Wizard.Matchmaking
 
         private static bool IsSearchActiveState(MatchmakingState state) =>
             state is MatchmakingState.Searching or MatchmakingState.CancelPending;
+
+        private void ResetReactiveState()
+        {
+            _state.Value = MatchmakingState.Idle;
+            _playersWithDifferentParams.Value = 0;
+            _errorMessage.Value = null;
+            _errorMessageKey.Value = null;
+            _result.Value = null;
+            _failure.Value = null;
+        }
+
+        private void ReleaseCurrentSearchCts(CancellationTokenSource cts, bool cancel)
+        {
+            if (Interlocked.CompareExchange(ref _searchCts, null, cts) != cts)
+                return;
+
+            ReleaseSearchCts(cts, cancel);
+        }
 
         private void ReleaseSearchCts(CancellationTokenSource? cts, bool cancel)
         {

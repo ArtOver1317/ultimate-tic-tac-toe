@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 
 namespace Runtime.GameModes.Wizard.Online
 {

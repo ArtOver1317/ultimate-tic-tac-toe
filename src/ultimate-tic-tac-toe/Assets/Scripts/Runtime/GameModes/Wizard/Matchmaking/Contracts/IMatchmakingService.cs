@@ -3,7 +3,7 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 
-namespace Runtime.GameModes.Wizard.Matchmaking
+namespace Runtime.GameModes.Wizard.Matchmaking.Contracts
 {
     /// <summary>
     /// Service responsible for finding online matches.

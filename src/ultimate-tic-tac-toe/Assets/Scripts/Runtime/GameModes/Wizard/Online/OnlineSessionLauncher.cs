@@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Matchmaking;
+using Runtime.GameModes.Wizard.Matchmaking.Config;
 using Runtime.Infrastructure.Logging;
 using Runtime.PlayerProfile;
 using VContainer;
