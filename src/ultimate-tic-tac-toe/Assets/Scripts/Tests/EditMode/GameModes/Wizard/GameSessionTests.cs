@@ -4,6 +4,7 @@ using NSubstitute;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
 
 namespace Tests.EditMode.GameModes.Wizard

@@ -8,6 +8,7 @@ using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Localization;
 using Runtime.Services.UI.Assets;

@@ -1,9 +1,9 @@
+#nullable enable
+
 using System.Collections.Generic;
 using Runtime.GameModes.Wizard.Session;
 
-#nullable enable
-
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Modes
 {
     /// <summary>
     /// Optional cross-field validator for wizard start constraints.

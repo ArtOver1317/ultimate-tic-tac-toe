@@ -1,5 +1,7 @@
 #nullable enable
 
+using Runtime.GameModes.Wizard.Modes;
+
 namespace Runtime.GameModes.Wizard.Session
 {
     /// <summary>

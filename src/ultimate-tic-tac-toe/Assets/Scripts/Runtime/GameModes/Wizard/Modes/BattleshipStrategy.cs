@@ -3,11 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.GameModes.Wizard.ViewModels;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Modes
 {
     public sealed class BattleshipStrategy : IGameStrategy, IGameStartValidator
     {
@@ -69,10 +68,9 @@ namespace Runtime.GameModes.Wizard
         {
             var vm = _createSettingsViewModel();
 
-            if (vm == null)
-                throw new InvalidOperationException("Battleship settings VM factory returned null.");
-
-            return new GameSettingsPresentation(_settingsUxmlKey, vm);
+            return vm == null 
+                ? throw new InvalidOperationException("Battleship settings VM factory returned null.") 
+                : new GameSettingsPresentation(_settingsUxmlKey, vm);
         }
 
         public IReadOnlyList<ValidationError> ValidateConfig(IGameConfig? config)
@@ -80,10 +78,7 @@ namespace Runtime.GameModes.Wizard
             if (config == null)
                 return _configRequiredError;
 
-            if (config is not BattleshipConfig)
-                return _configInvalidError;
-
-            return _noErrors;
+            return config is not BattleshipConfig ? _configInvalidError : _noErrors;
         }
 
         public IReadOnlyList<ValidationError> ValidateForStart(GameSessionSnapshot snapshot)
@@ -91,7 +86,7 @@ namespace Runtime.GameModes.Wizard
             if (snapshot == null)
                 throw new ArgumentNullException(nameof(snapshot));
 
-            if (snapshot.OpponentType == OpponentType.Human && snapshot.HumanOpponentKind == HumanOpponentKind.Local)
+            if (snapshot is { OpponentType: OpponentType.Human, HumanOpponentKind: HumanOpponentKind.Local })
                 return _localHumanNotSupportedError;
 
             if (snapshot.OpponentType != OpponentType.Human)

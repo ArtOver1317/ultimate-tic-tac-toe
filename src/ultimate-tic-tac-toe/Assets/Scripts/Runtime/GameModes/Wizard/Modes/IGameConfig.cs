@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Modes
 {
     /// <summary>
     /// Mode-specific configuration used by Wizard and matchmaking.

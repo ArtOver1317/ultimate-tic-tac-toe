@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Globalization;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Modes
 {
     /// <summary>
     /// Configuration for Tic-Tac-Toe game (both classic and ultimate variants).

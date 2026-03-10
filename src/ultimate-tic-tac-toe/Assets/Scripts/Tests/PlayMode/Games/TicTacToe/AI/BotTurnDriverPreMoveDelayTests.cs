@@ -13,6 +13,7 @@ using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.Moves;
 using UnityEditor;

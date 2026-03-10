@@ -6,6 +6,7 @@ using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Config;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
 
 namespace Tests.PlayMode.GameModes.Wizard

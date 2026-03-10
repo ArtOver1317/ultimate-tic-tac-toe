@@ -1,5 +1,6 @@
 ﻿using System;
 using R3;
+using Runtime.GameModes.Wizard.Modes;
 
 namespace Runtime.GameModes.Wizard
 {

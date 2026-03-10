@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Modes
 {
     public sealed class UltimateTicTacToeStrategy : IGameStrategy
     {
@@ -53,10 +53,9 @@ namespace Runtime.GameModes.Wizard
         {
             var vm = _createSettingsViewModel();
 
-            if (vm == null)
-                throw new InvalidOperationException("Ultimate Tic-Tac-Toe settings VM factory returned null.");
-
-            return new GameSettingsPresentation(_settingsUxmlKey, vm);
+            return vm == null 
+                ? throw new InvalidOperationException("Ultimate Tic-Tac-Toe settings VM factory returned null.") 
+                : new GameSettingsPresentation(_settingsUxmlKey, vm);
         }
 
         public IReadOnlyList<ValidationError> ValidateConfig(IGameConfig? config)

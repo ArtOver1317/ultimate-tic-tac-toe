@@ -13,6 +13,7 @@ using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Modes;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;

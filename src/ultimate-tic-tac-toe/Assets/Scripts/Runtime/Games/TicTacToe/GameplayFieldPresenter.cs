@@ -5,6 +5,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.Games.Battleship;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Infrastructure.Logging;

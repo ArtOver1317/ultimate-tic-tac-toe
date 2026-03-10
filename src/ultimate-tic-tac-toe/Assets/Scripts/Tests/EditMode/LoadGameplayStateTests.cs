@@ -8,6 +8,7 @@ using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.Services.Assets;
 using Runtime.Services.Scenes;
 using Runtime.Services.UI;

@@ -1,6 +1,7 @@
 #nullable enable
 
 using R3;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.UI.Core;
 
 namespace Runtime.GameModes.Wizard

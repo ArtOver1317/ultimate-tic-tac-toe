@@ -3,6 +3,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Gameplay;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.UI.GameModes.Wizard;
 using UnityEngine.UIElements;
 

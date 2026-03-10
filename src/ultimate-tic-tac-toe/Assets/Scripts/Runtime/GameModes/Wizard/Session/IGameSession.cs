@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using R3;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Modes;
 
 namespace Runtime.GameModes.Wizard.Session
 {

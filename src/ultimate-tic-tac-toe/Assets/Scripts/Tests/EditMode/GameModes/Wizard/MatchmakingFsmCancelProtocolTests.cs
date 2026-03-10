@@ -9,6 +9,7 @@ using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Config;
 using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
 
 namespace Tests.EditMode.GameModes.Wizard

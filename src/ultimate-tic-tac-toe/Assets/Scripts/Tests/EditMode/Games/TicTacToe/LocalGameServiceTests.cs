@@ -7,6 +7,7 @@ using Runtime.Gameplay;
 using Runtime.Games.TicTacToe;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Modes;
 
 namespace Tests.EditMode.Games.TicTacToe
 {

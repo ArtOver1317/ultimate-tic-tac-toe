@@ -7,6 +7,7 @@ using NSubstitute;
 using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
 using Runtime.Games.Battleship;
 using Runtime.Games.TicTacToe;

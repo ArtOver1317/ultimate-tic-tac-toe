@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
+﻿#nullable enable
 
-#nullable enable
+using System.Collections.Generic;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Modes
 {
     /// <summary>
     /// Catalog of available game modes.

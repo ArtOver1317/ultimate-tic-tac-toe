@@ -1,6 +1,6 @@
 ﻿#nullable enable
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Modes
 {
     /// <summary>
     /// Metadata describing an available game in the catalog.

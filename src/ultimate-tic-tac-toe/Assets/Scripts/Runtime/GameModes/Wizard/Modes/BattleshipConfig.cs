@@ -9,12 +9,10 @@ namespace Runtime.GameModes.Wizard.Modes
     {
         public int PlacementTimeLimitSeconds { get; }
 
-        public BattleshipConfig(int placementTimeLimitSeconds)
-        {
+        public BattleshipConfig(int placementTimeLimitSeconds) =>
             PlacementTimeLimitSeconds = placementTimeLimitSeconds < 0
                 ? 0
                 : placementTimeLimitSeconds;
-        }
 
         public IReadOnlyList<KeyValuePair<string, string>> GetMatchmakingParams() =>
             new[]

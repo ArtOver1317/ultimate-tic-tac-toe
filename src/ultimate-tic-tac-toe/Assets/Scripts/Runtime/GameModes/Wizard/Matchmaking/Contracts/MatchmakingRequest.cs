@@ -1,6 +1,7 @@
 ﻿#nullable enable
 
 using System;
+using Runtime.GameModes.Wizard.Modes;
 
 namespace Runtime.GameModes.Wizard.Matchmaking.Contracts
 {

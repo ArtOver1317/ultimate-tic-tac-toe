@@ -1,6 +1,7 @@
 ﻿#nullable enable
 
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Modes;
 using UnityEngine.UIElements;
 
 namespace Runtime.UI.GameModes.Wizard

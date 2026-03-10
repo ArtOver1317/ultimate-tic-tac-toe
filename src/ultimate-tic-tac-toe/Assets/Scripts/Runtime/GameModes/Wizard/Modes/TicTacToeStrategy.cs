@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Modes
 {
     public sealed class TicTacToeStrategy : IGameStrategy
     {
@@ -103,10 +103,7 @@ namespace Runtime.GameModes.Wizard
             if (config == null)
                 return _configRequiredError;
 
-            if (config is not TicTacToeConfig tttConfig)
-                return _configInvalidError;
-
-            if (tttConfig.IsUltimate)
+            if (config is not TicTacToeConfig tttConfig || tttConfig.IsUltimate)
                 return _configInvalidError;
 
             if (tttConfig.BoardSize < _minBoardSize || tttConfig.BoardSize > _maxBoardSize)

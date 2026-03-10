@@ -1,4 +1,5 @@
-﻿using GameLog = Runtime.Infrastructure.Logging.GameLog;
+﻿using Runtime.GameModes.Wizard.Modes;
+using GameLog = Runtime.Infrastructure.Logging.GameLog;
 
 namespace Runtime.GameModes.Wizard.Configs
 {

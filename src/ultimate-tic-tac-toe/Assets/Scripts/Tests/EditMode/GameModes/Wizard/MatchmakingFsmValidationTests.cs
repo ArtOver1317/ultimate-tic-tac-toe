@@ -8,6 +8,7 @@ using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
+using Runtime.GameModes.Wizard.Modes;
 
 namespace Tests.EditMode.GameModes.Wizard
 {
