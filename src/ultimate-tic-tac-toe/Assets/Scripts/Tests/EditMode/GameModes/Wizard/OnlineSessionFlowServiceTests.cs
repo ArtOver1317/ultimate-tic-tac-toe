@@ -7,6 +7,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
+using Runtime.GameModes.Wizard.Online.Flow;
 
 namespace Tests.EditMode.GameModes.Wizard
 {
@@ -134,6 +135,7 @@ namespace Tests.EditMode.GameModes.Wizard
             afterStale.State.Should().Be(OnlineFlowState.Reconnecting);
             afterCurrent.State.Should().Be(OnlineFlowState.Terminated);
             afterCurrent.ErrorCode.Should().Be(OnlineErrorCode.DisconnectTimeout);
+            afterCurrent.PreviousStableState.Should().BeNull();
         }
 
         [Test]
@@ -151,6 +153,7 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             snapshot.State.Should().Be(OnlineFlowState.Reconnecting);
             snapshot.GraceDeadlineUtc.Should().NotBeNull();
+            snapshot.PreviousStableState.Should().Be(sourceState);
         }
 
         [TestCaseSource(nameof(ActiveStableStates))]
@@ -169,6 +172,7 @@ namespace Tests.EditMode.GameModes.Wizard
             snapshot.State.Should().Be(sourceState);
             snapshot.GraceDeadlineUtc.Should().BeNull();
             snapshot.ErrorCode.Should().Be(OnlineErrorCode.None);
+            snapshot.PreviousStableState.Should().BeNull();
         }
 
         [Test]

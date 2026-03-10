@@ -18,7 +18,7 @@ namespace Runtime.GameModes.Wizard.Online
 
             checked
             {
-                return (cellId.Major * minorCount) + cellId.Minor;
+                return cellId.Major * minorCount + cellId.Minor;
             }
         }
 
@@ -49,5 +49,3 @@ namespace Runtime.GameModes.Wizard.Online
         }
     }
 }
-
-#nullable restore

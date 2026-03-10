@@ -51,5 +51,3 @@ namespace Runtime.GameModes.Wizard.Online
         public void Dispose() => _snapshot.Dispose();
     }
 }
-
-#nullable restore

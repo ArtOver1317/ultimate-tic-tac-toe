@@ -37,7 +37,7 @@ namespace Runtime.GameModes.Wizard.Online
 
     public sealed class FileGameplayNetworkBridge : IGameplayNetworkBridge
     {
-        private const int SeenCommandsWindowSize = 256;
+        private const int _seenCommandsWindowSize = 256;
 
         private readonly IOnlineGameplaySessionContextStore _contextStore;
         private readonly IPhotonSessionTransport _transport;
@@ -77,36 +77,21 @@ namespace Runtime.GameModes.Wizard.Online
 
             await UnbindAsync();
 
-            var session = _contextStore.Snapshot;
-            if (!session.IsOnlineDirectInvite || string.IsNullOrWhiteSpace(session.SessionId))
+            if (!CanBindToCurrentSession())
                 return;
 
             _localUserId = localUserId;
-            _seenCommands.Clear();
-            _seenCommandOrder.Clear();
-            _authoritativeTick = 0;
-            _currentMatchRoundId = 1;
-            _shotSequence = 0;
-            _snapshot.Value = null;
+            ResetRuntimeState();
             _isHost = isHost;
             _isBound = true;
             _transport.ReliableDataReceived += OnReliableDataReceived;
         }
 
-        public async UniTask UnbindAsync()
+        public UniTask UnbindAsync()
         {
-            if (_isBound)
-                _transport.ReliableDataReceived -= OnReliableDataReceived;
-
-            _isBound = false;
-            _localUserId = null;
-            _seenCommands.Clear();
-            _seenCommandOrder.Clear();
-            _currentMatchRoundId = 1;
-            _shotSequence = 0;
-            _isHost = false;
-            _snapshot.Value = null;
-            await UniTask.CompletedTask;
+            UnsubscribeFromTransportIfNeeded();
+            ResetBindingState();
+            return UniTask.CompletedTask;
         }
 
         public async UniTask SubmitMoveAsync(MoveCommand command)
@@ -117,7 +102,7 @@ namespace Runtime.GameModes.Wizard.Online
             if (!_isBound)
                 return;
 
-            var payload = SerializeMove(command);
+            var payload = GameplayNetworkBridgePayloadCodec.SerializeMove(command);
             await _transport.SendReliableDataAsync(payload);
 
             RememberCommandId(command.CommandId);
@@ -136,7 +121,7 @@ namespace Runtime.GameModes.Wizard.Online
 
             _currentMatchRoundId = signal.MatchRoundId;
             _shotSequence = 0;
-            var payload = SerializeRoundReady(signal);
+            var payload = GameplayNetworkBridgePayloadCodec.SerializeRoundReady(signal);
             await _transport.SendReliableDataAsync(payload);
             UpdateSnapshot(0);
         }
@@ -149,7 +134,7 @@ namespace Runtime.GameModes.Wizard.Online
             if (!_isBound)
                 return;
 
-            var payload = SerializeTimeout(signal);
+            var payload = GameplayNetworkBridgePayloadCodec.SerializeTimeout(signal);
             await _transport.SendReliableDataAsync(payload);
             UpdateSnapshot(signal.ClientTick);
         }
@@ -161,16 +146,8 @@ namespace Runtime.GameModes.Wizard.Online
 
             _isDisposed = true;
 
-            if (_isBound)
-                _transport.ReliableDataReceived -= OnReliableDataReceived;
-
-            _isBound = false;
-            _localUserId = null;
-            _seenCommands.Clear();
-            _seenCommandOrder.Clear();
-            _currentMatchRoundId = 1;
-            _shotSequence = 0;
-            _isHost = false;
+            UnsubscribeFromTransportIfNeeded();
+            ResetBindingState();
 
             _snapshot.Dispose();
             _incomingMoves.Dispose();
@@ -181,10 +158,12 @@ namespace Runtime.GameModes.Wizard.Online
         private void UpdateSnapshot(long tick, bool updateShotSequence = false)
         {
             _authoritativeTick++;
+            
             if (updateShotSequence)
                 TryUpdateShotSequence(tick);
 
             var targetTick = tick > 0 ? tick : (long)_authoritativeTick;
+            
             _snapshot.Value = new GameplayNetworkSnapshot(
                 _currentMatchRoundId,
                 isCompleted: false,
@@ -213,10 +192,10 @@ namespace Runtime.GameModes.Wizard.Online
 
         private void OnReliableDataReceived(PhotonReliableDataEvent evt)
         {
-            if (!_isBound || evt.Payload == null || evt.Payload.Length == 0)
+            if (!_isBound || evt.Payload.Length == 0)
                 return;
 
-            if (TryDeserializeMove(evt.Payload, out var move))
+            if (GameplayNetworkBridgePayloadCodec.TryDeserializeMove(evt.Payload, out var move))
             {
                 if (string.Equals(move.SenderUserId, _localUserId, StringComparison.Ordinal))
                     return;
@@ -231,7 +210,7 @@ namespace Runtime.GameModes.Wizard.Online
                 return;
             }
 
-            if (TryDeserializeTimeout(evt.Payload, out var timeoutSignal))
+            if (GameplayNetworkBridgePayloadCodec.TryDeserializeTimeout(evt.Payload, out var timeoutSignal))
             {
                 if (string.Equals(timeoutSignal.SenderUserId, _localUserId, StringComparison.Ordinal))
                     return;
@@ -241,7 +220,7 @@ namespace Runtime.GameModes.Wizard.Online
                 return;
             }
 
-            if (!TryDeserializeRoundReady(evt.Payload, out var signal))
+            if (!GameplayNetworkBridgePayloadCodec.TryDeserializeRoundReady(evt.Payload, out var signal))
                 return;
 
             if (string.Equals(signal.SenderUserId, _localUserId, StringComparison.Ordinal))
@@ -259,7 +238,8 @@ namespace Runtime.GameModes.Wizard.Online
                 return false;
 
             _seenCommandOrder.Enqueue(commandId);
-            while (_seenCommandOrder.Count > SeenCommandsWindowSize)
+            
+            while (_seenCommandOrder.Count > _seenCommandsWindowSize)
             {
                 var oldest = _seenCommandOrder.Dequeue();
                 _seenCommands.Remove(oldest);
@@ -268,23 +248,60 @@ namespace Runtime.GameModes.Wizard.Online
             return true;
         }
 
-        private static byte[] SerializeMove(MoveCommand command)
+        private bool CanBindToCurrentSession()
+        {
+            var session = _contextStore.Snapshot;
+            return session.IsOnlineDirectInvite && !string.IsNullOrWhiteSpace(session.SessionId);
+        }
+
+        private void ResetRuntimeState()
+        {
+            _seenCommands.Clear();
+            _seenCommandOrder.Clear();
+            _authoritativeTick = 0;
+            _currentMatchRoundId = 1;
+            _shotSequence = 0;
+            _snapshot.Value = null;
+        }
+
+        private void ResetBindingState()
+        {
+            _isBound = false;
+            _localUserId = null;
+            _isHost = false;
+            ResetRuntimeState();
+        }
+
+        private void UnsubscribeFromTransportIfNeeded()
+        {
+            if (_isBound)
+                _transport.ReliableDataReceived -= OnReliableDataReceived;
+        }
+    }
+
+    internal static class GameplayNetworkBridgePayloadCodec
+    {
+        private const string _movePrefix = "M";
+        private const string _roundReadyPrefix = "R";
+        private const string _timeoutPrefix = "X";
+
+        public static byte[] SerializeMove(MoveCommand command)
         {
             var line = string.Concat(
-                "M|",
+                _movePrefix, "|",
                 command.CommandId.ToString("N"), "|",
-                command.SenderUserId.Replace("|", string.Empty), "|",
+                Sanitize(command.SenderUserId), "|",
                 command.CellIndex.ToString(), "|",
                 command.ClientTick.ToString());
 
             return Encoding.UTF8.GetBytes(line);
         }
 
-        private static byte[] SerializeRoundReady(RoundReadySignal signal)
+        public static byte[] SerializeRoundReady(RoundReadySignal signal)
         {
             var line = string.Concat(
-                "R|",
-                signal.SenderUserId.Replace("|", string.Empty), "|",
+                _roundReadyPrefix, "|",
+                Sanitize(signal.SenderUserId), "|",
                 signal.IsReady ? "1" : "0", "|",
                 signal.MatchRoundId.ToString(), "|",
                 signal.ClientTick.ToString());
@@ -292,27 +309,29 @@ namespace Runtime.GameModes.Wizard.Online
             return Encoding.UTF8.GetBytes(line);
         }
 
-        private static byte[] SerializeTimeout(OnlineTimeoutSignal signal)
+        public static byte[] SerializeTimeout(OnlineTimeoutSignal signal)
         {
             var line = string.Concat(
-                "X|",
-                signal.SenderUserId.Replace("|", string.Empty), "|",
+                _timeoutPrefix, "|",
+                Sanitize(signal.SenderUserId), "|",
                 signal.LoserSlot.ToString(), "|",
                 signal.ClientTick.ToString());
 
             return Encoding.UTF8.GetBytes(line);
         }
 
-        private static bool TryDeserializeMove(byte[] payload, out MoveCommand command)
+        public static bool TryDeserializeMove(byte[] payload, out MoveCommand command)
         {
             command = default;
 
             var line = Encoding.UTF8.GetString(payload);
+            
             if (string.IsNullOrWhiteSpace(line))
                 return false;
 
             var parts = line.Split('|');
-            var moveOffset = parts.Length == 5 && parts[0] == "M" ? 1 : 0;
+            var moveOffset = parts.Length == 5 && parts[0] == _movePrefix ? 1 : 0;
+            
             if (parts.Length - moveOffset != 4)
                 return false;
 
@@ -320,6 +339,7 @@ namespace Runtime.GameModes.Wizard.Online
                 return false;
 
             var sender = parts[moveOffset + 1];
+            
             if (string.IsNullOrWhiteSpace(sender))
                 return false;
 
@@ -333,19 +353,22 @@ namespace Runtime.GameModes.Wizard.Online
             return true;
         }
 
-        private static bool TryDeserializeRoundReady(byte[] payload, out RoundReadySignal signal)
+        public static bool TryDeserializeRoundReady(byte[] payload, out RoundReadySignal signal)
         {
             signal = default;
 
             var line = Encoding.UTF8.GetString(payload);
+            
             if (string.IsNullOrWhiteSpace(line))
                 return false;
 
             var parts = line.Split('|');
-            if (parts.Length != 5 || parts[0] != "R")
+            
+            if (parts.Length != 5 || parts[0] != _roundReadyPrefix)
                 return false;
 
             var sender = parts[1];
+            
             if (string.IsNullOrWhiteSpace(sender))
                 return false;
 
@@ -361,19 +384,22 @@ namespace Runtime.GameModes.Wizard.Online
             return true;
         }
 
-        private static bool TryDeserializeTimeout(byte[] payload, out OnlineTimeoutSignal signal)
+        public static bool TryDeserializeTimeout(byte[] payload, out OnlineTimeoutSignal signal)
         {
             signal = default;
 
             var line = Encoding.UTF8.GetString(payload);
+            
             if (string.IsNullOrWhiteSpace(line))
                 return false;
 
             var parts = line.Split('|');
-            if (parts.Length != 4 || parts[0] != "X")
+            
+            if (parts.Length != 4 || parts[0] != _timeoutPrefix)
                 return false;
 
             var sender = parts[1];
+            
             if (string.IsNullOrWhiteSpace(sender))
                 return false;
 
@@ -386,7 +412,7 @@ namespace Runtime.GameModes.Wizard.Online
             signal = new OnlineTimeoutSignal(sender, loserSlot, clientTick);
             return true;
         }
+
+        private static string Sanitize(string value) => value.Replace("|", string.Empty);
     }
 }
-
-#nullable restore

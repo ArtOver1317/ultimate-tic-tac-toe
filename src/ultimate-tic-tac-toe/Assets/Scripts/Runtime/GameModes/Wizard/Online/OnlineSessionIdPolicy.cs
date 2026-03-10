@@ -10,7 +10,7 @@ namespace Runtime.GameModes.Wizard.Online
     public static class OnlineSessionIdFormatter
     {
         public const int CanonicalLength = 6;
-        private const string Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        private const string _alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
         public static string Normalize(string rawInput)
         {
@@ -42,7 +42,7 @@ namespace Runtime.GameModes.Wizard.Online
 
             for (var i = 0; i < canonical.Length; i++)
             {
-                if (Alphabet.IndexOf(canonical[i], StringComparison.Ordinal) < 0)
+                if (_alphabet.IndexOf(canonical[i], StringComparison.Ordinal) < 0)
                     return false;
             }
 
@@ -57,10 +57,7 @@ namespace Runtime.GameModes.Wizard.Online
         public string CandidateSessionId { get; private set; } = string.Empty;
         public string? ActiveSessionId { get; private set; }
 
-        public OnlineSessionIdLifecycle(Func<string>? candidateFactory = null)
-        {
-            _candidateFactory = candidateFactory ?? GenerateCandidate;
-        }
+        public OnlineSessionIdLifecycle(Func<string>? candidateFactory = null) => _candidateFactory = candidateFactory ?? GenerateCandidate;
 
         public void EnterHumanSetup()
         {
@@ -86,12 +83,9 @@ namespace Runtime.GameModes.Wizard.Online
             CandidateSessionId = canonical;
         }
 
-        public void InvalidateActiveSession() => ActiveSessionId = null;
+        private void InvalidateActiveSession() => ActiveSessionId = null;
 
-        public void RegenerateCandidateForIdle()
-        {
-            CandidateSessionId = CreateValidatedCandidate();
-        }
+        private void RegenerateCandidateForIdle() => CandidateSessionId = CreateValidatedCandidate();
 
         public void ResetToIdleAfterCancelledOrFailedFlow()
         {
@@ -103,10 +97,9 @@ namespace Runtime.GameModes.Wizard.Online
         {
             var raw = _candidateFactory();
 
-            if (!OnlineSessionIdFormatter.TryNormalizeToCanonical(raw, out var canonical))
-                throw new InvalidOperationException("Candidate factory returned invalid session id.");
-
-            return canonical;
+            return !OnlineSessionIdFormatter.TryNormalizeToCanonical(raw, out var canonical) 
+                ? throw new InvalidOperationException("Candidate factory returned invalid session id.") 
+                : canonical;
         }
 
         private static string GenerateCandidate()
@@ -117,7 +110,9 @@ namespace Runtime.GameModes.Wizard.Online
             Span<char> chars = stackalloc char[OnlineSessionIdFormatter.CanonicalLength];
 
             for (var i = 0; i < bytes.Length; i++)
+            {
                 chars[i] = AlphabetAt(bytes[i] % 32);
+            }
 
             return new string(chars);
         }
@@ -148,5 +143,3 @@ namespace Runtime.GameModes.Wizard.Online
         }
     }
 }
-
-#nullable restore

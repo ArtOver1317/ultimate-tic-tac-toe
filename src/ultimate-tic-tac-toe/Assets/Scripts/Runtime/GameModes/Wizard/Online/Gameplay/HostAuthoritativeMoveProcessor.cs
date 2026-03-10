@@ -111,13 +111,8 @@ namespace Runtime.GameModes.Wizard.Online
             return new MoveProcessResult(MoveProcessStatus.Accepted, MoveRejectReason.None);
         }
 
-        private bool IsDuplicate(MoveCommand command)
-        {
-            if (!_seenByPlayer.TryGetValue(command.SenderUserId, out var seen))
-                return false;
-
-            return seen.Contains(command.CommandId);
-        }
+        private bool IsDuplicate(MoveCommand command) => 
+            _seenByPlayer.TryGetValue(command.SenderUserId, out var seen) && seen.Contains(command.CommandId);
 
         private void Remember(MoveCommand command)
         {
@@ -146,5 +141,3 @@ namespace Runtime.GameModes.Wizard.Online
         }
     }
 }
-
-#nullable restore

@@ -25,14 +25,17 @@ namespace Runtime.GameModes.Wizard.Online
             payload = default;
 
             var line = Encoding.UTF8.GetString(payloadBytes);
+            
             if (string.IsNullOrWhiteSpace(line))
                 return false;
 
             var parts = line.Split('|');
+            
             if ((parts.Length != 4 && parts.Length != 5 && parts.Length != 6) || parts[0] != "C")
                 return false;
 
             var gameId = parts[1];
+            
             if (string.IsNullOrWhiteSpace(gameId))
                 return false;
 
@@ -42,6 +45,7 @@ namespace Runtime.GameModes.Wizard.Online
             var isUltimate = parts[3] == "1";
             var moveTimeLimitSeconds = 0;
             var placementTimeLimitSeconds = 0;
+            
             if (parts.Length == 5)
             {
                 if (!int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out moveTimeLimitSeconds) || moveTimeLimitSeconds < 0)
@@ -72,10 +76,12 @@ namespace Runtime.GameModes.Wizard.Online
             targetNetworkTimeSeconds = 0d;
 
             var line = Encoding.UTF8.GetString(payloadBytes);
+            
             if (string.IsNullOrWhiteSpace(line))
                 return false;
 
             var parts = line.Split('|');
+            
             if (parts.Length != 2 || parts[0] != "T")
                 return false;
 
@@ -83,5 +89,3 @@ namespace Runtime.GameModes.Wizard.Online
         }
     }
 }
-
-#nullable restore

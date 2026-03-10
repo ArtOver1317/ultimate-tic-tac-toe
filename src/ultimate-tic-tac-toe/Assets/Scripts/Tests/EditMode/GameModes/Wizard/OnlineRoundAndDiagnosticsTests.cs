@@ -66,12 +66,8 @@ namespace Tests.EditMode.GameModes.Wizard
                     DateTimeOffset.UtcNow,
                     eventName: $"event-{i}",
                     sessionId: "ABCDEF",
-                    region: "eu",
-                    localUserId: "host",
                     flowState: OnlineFlowState.InGame,
                     flowEpoch: 2,
-                    eventSequence: i,
-                    correlationId: Guid.NewGuid(),
                     reason: null,
                     errorCode: OnlineErrorCode.None));
             }
@@ -82,7 +78,11 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             events.Should().HaveCount(3);
             events[0].EventName.Should().Be("event-2");
+            events[0].SessionId.Should().Be("ABCDEF");
+            events[1].FlowState.Should().Be(OnlineFlowState.InGame);
+            events[1].FlowEpoch.Should().Be(2);
             events[2].EventName.Should().Be("event-4");
+            events[2].ErrorCode.Should().Be(OnlineErrorCode.None);
             buffer.Count.Should().Be(0);
         }
 

@@ -40,9 +40,10 @@ namespace Runtime.GameModes.Wizard.Online
             PlacementTimeLimitSeconds = placementTimeLimitSeconds;
         }
 
-        public static bool TryFromLaunchConfig(GameLaunchConfig config, out OnlineMatchConfigPayload payload)
+        public static bool TryFromLaunchConfig(GameLaunchConfig? config, out OnlineMatchConfigPayload payload)
         {
             payload = default;
+            
             if (config == null)
                 return false;
 
@@ -66,6 +67,7 @@ namespace Runtime.GameModes.Wizard.Online
                     isUltimate: false,
                     moveTimeLimitSeconds: config.MoveTimeLimitSeconds,
                     placementTimeLimitSeconds: battleshipConfig.PlacementTimeLimitSeconds);
+
                 return true;
             }
 
@@ -127,7 +129,9 @@ namespace Runtime.GameModes.Wizard.Online
             get
             {
                 lock (_gate)
+                {
                     return _snapshot;
+                }
             }
         }
 
@@ -188,9 +192,9 @@ namespace Runtime.GameModes.Wizard.Online
         public void Clear()
         {
             lock (_gate)
+            {
                 _snapshot = OnlineGameplaySessionSnapshot.Empty();
+            }
         }
     }
 }
-
-#nullable restore

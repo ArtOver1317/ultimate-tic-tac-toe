@@ -18,7 +18,7 @@ namespace Runtime.GameModes.Wizard.Online
         Result,
         Reconnecting,
         Failed,
-        Terminated
+        Terminated,
     }
 
     public enum OnlineErrorCode
@@ -32,7 +32,7 @@ namespace Runtime.GameModes.Wizard.Online
         NetworkUnavailable,
         RegionMismatchOrUnavailable,
         DisconnectTimeout,
-        OpponentLeft
+        OpponentLeft,
     }
 
     public readonly struct SessionId
@@ -81,21 +81,15 @@ namespace Runtime.GameModes.Wizard.Online
             int? countdownRemainingSeconds,
             DateTimeOffset? graceDeadlineUtc)
         {
-            if (candidateSessionId == null)
-                throw new ArgumentNullException(nameof(candidateSessionId));
-
-            if (region == null)
-                throw new ArgumentNullException(nameof(region));
-
             if (flowEpoch < 1)
                 throw new ArgumentOutOfRangeException(nameof(flowEpoch), flowEpoch, "Value must be at least 1.");
 
             State = state;
             PreviousStableState = previousStableState;
-            CandidateSessionId = candidateSessionId;
+            CandidateSessionId = candidateSessionId ?? throw new ArgumentNullException(nameof(candidateSessionId));
             ActiveSessionId = activeSessionId;
             FlowEpoch = flowEpoch;
-            Region = region;
+            Region = region ?? throw new ArgumentNullException(nameof(region));
             CanStart = canStart;
             IsBusy = isBusy;
             ErrorCode = errorCode;
@@ -164,13 +158,10 @@ namespace Runtime.GameModes.Wizard.Online
 
         public static GatewayOperationResult Success() => new(true, OnlineErrorCode.None);
 
-        public static GatewayOperationResult Failed(OnlineErrorCode errorCode)
-        {
-            if (errorCode == OnlineErrorCode.None)
-                throw new ArgumentException("Failure result cannot use OnlineErrorCode.None.", nameof(errorCode));
-
-            return new GatewayOperationResult(false, errorCode);
-        }
+        public static GatewayOperationResult Failed(OnlineErrorCode errorCode) =>
+            errorCode == OnlineErrorCode.None 
+                ? throw new ArgumentException("Failure result cannot use OnlineErrorCode.None.", nameof(errorCode)) 
+                : new GatewayOperationResult(false, errorCode);
     }
 
     public readonly struct GatewayLifecycleEvent
@@ -190,6 +181,16 @@ namespace Runtime.GameModes.Wizard.Online
             UserId = userId;
             Sequence = sequence;
         }
+    }
+
+    internal static class OnlineGatewayEventKinds
+    {
+        public const string PeerJoined = "peer_joined";
+        public const string PeerLeft = "peer_left";
+        public const string LeftRoom = "left_room";
+        public const string Disconnected = "disconnected";
+        public const string Shutdown = "shutdown";
+        public const string ConnectFailed = "connect_failed";
     }
 
     public readonly struct GameplayNetworkSnapshot
@@ -343,5 +344,3 @@ namespace Runtime.GameModes.Wizard.Online
         };
     }
 }
-
-#nullable restore

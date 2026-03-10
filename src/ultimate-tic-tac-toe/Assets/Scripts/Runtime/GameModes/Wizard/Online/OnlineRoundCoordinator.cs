@@ -15,11 +15,10 @@ namespace Runtime.GameModes.Wizard.Online
     {
         private bool _hostReady;
         private bool _guestReady;
-        private bool _isHostFirst = true;
 
         public int MatchRoundId { get; private set; } = 1;
 
-        public bool IsHostFirstTurn => _isHostFirst;
+        public bool IsHostFirstTurn { get; private set; } = true;
 
         public PersonalizedMatchOutcome ResolveOutcome(string localUserId, string? winnerUserId)
         {
@@ -45,7 +44,7 @@ namespace Runtime.GameModes.Wizard.Online
                 return false;
 
             MatchRoundId++;
-            _isHostFirst = !_isHostFirst;
+            IsHostFirstTurn = !IsHostFirstTurn;
             _hostReady = false;
             _guestReady = false;
             return true;
@@ -54,7 +53,7 @@ namespace Runtime.GameModes.Wizard.Online
         public void ResetSession()
         {
             MatchRoundId = 1;
-            _isHostFirst = true;
+            IsHostFirstTurn = true;
             _hostReady = false;
             _guestReady = false;
         }
@@ -67,22 +66,17 @@ namespace Runtime.GameModes.Wizard.Online
             if (currentState == OnlineFlowState.WaitingForPlayer)
                 return isLocalHost ? OnlineFlowState.Idle : OnlineFlowState.Terminated;
 
-            if (currentState == OnlineFlowState.Failed)
-                return OnlineFlowState.Idle;
-
-            if (currentState == OnlineFlowState.Idle || currentState == OnlineFlowState.HostIntentConfirmed)
-                return OnlineFlowState.Idle;
-
-            return OnlineFlowState.Terminated;
+            return currentState is OnlineFlowState.Failed or OnlineFlowState.Idle or OnlineFlowState.HostIntentConfirmed 
+                ? OnlineFlowState.Idle 
+                : OnlineFlowState.Terminated;
         }
 
         public static OnlineFlowState ResolveExit(OnlineFlowState currentState) =>
-            currentState == OnlineFlowState.Failed
-                ? OnlineFlowState.Failed
-                : currentState == OnlineFlowState.Idle || currentState == OnlineFlowState.HostIntentConfirmed
-                    ? OnlineFlowState.Idle
-                    : OnlineFlowState.Terminated;
+            currentState switch
+            {
+                OnlineFlowState.Failed => OnlineFlowState.Failed,
+                OnlineFlowState.Idle or OnlineFlowState.HostIntentConfirmed => OnlineFlowState.Idle,
+                _ => OnlineFlowState.Terminated,
+            };
     }
 }
-
-#nullable restore

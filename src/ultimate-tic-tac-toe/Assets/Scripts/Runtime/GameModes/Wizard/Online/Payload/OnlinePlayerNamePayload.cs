@@ -21,8 +21,8 @@ namespace Runtime.GameModes.Wizard.Online
 
     internal static class OnlinePlayerNamePayload
     {
-        private const string TypeMarker = "N";
-        private const string VersionMarker = "1";
+        private const string _typeMarker = "N";
+        private const string _versionMarker = "1";
 
         public static byte[] Serialize(bool isHost, string? customName)
         {
@@ -31,14 +31,12 @@ namespace Runtime.GameModes.Wizard.Online
 
             if (!string.IsNullOrEmpty(customName) &&
                 PlayerNameValidator.ValidateOnConfirm(customName) != PlayerNameValidationError.None)
-            {
                 throw new ArgumentException("Custom name does not satisfy player-name validator.", nameof(customName));
-            }
 
             var role = isHost ? "H" : "G";
             var hasCustom = string.IsNullOrEmpty(customName) ? "0" : "1";
             var safeCustomName = hasCustom == "1" ? customName! : string.Empty;
-            var line = string.Concat(TypeMarker, "|", VersionMarker, "|", role, "|", hasCustom, "|", safeCustomName);
+            var line = string.Concat(_typeMarker, "|", _versionMarker, "|", role, "|", hasCustom, "|", safeCustomName);
             return Encoding.UTF8.GetBytes(line);
         }
 
@@ -47,14 +45,16 @@ namespace Runtime.GameModes.Wizard.Online
             payload = default;
 
             var line = Encoding.UTF8.GetString(payloadBytes);
+            
             if (string.IsNullOrWhiteSpace(line))
                 return false;
 
             var parts = line.Split('|');
-            if (parts.Length != 5 || !string.Equals(parts[0], TypeMarker, StringComparison.Ordinal))
+            
+            if (parts.Length != 5 || !string.Equals(parts[0], _typeMarker, StringComparison.Ordinal))
                 return false;
 
-            if (!string.Equals(parts[1], VersionMarker, StringComparison.Ordinal))
+            if (!string.Equals(parts[1], _versionMarker, StringComparison.Ordinal))
             {
                 GameLog.Warning($"[OnlinePlayerNamePayload] Unsupported payload version: '{parts[1]}'.");
                 return false;
@@ -63,7 +63,6 @@ namespace Runtime.GameModes.Wizard.Online
             var isHost = parts[2] switch
             {
                 "H" => true,
-                "G" => false,
                 _ => false,
             };
 
@@ -89,6 +88,7 @@ namespace Runtime.GameModes.Wizard.Online
             }
 
             var customName = parts[4];
+            
             if (string.IsNullOrWhiteSpace(customName))
                 return false;
 
@@ -100,5 +100,3 @@ namespace Runtime.GameModes.Wizard.Online
         }
     }
 }
-
-#nullable restore

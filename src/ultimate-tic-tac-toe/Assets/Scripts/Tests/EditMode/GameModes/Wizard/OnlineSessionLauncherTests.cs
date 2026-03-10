@@ -15,6 +15,7 @@ using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
+using Runtime.GameModes.Wizard.Online.Flow;
 using Runtime.PlayerProfile;
 
 namespace Tests.EditMode.GameModes.Wizard
@@ -34,12 +35,16 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Act
             var result = await harness.Launcher.PrepareForLaunchAsync(config, CancellationToken.None);
+            var diagnostics = harness.DiagnosticsBuffer.Flush();
 
             // Assert
             result.IsSuccess.Should().BeFalse();
             result.Error.Should().NotBeNull();
             result.Error!.MessageKey.Should().Be("Errors.Online.CannotJoinSelf");
             harness.Gateway.JoinCallCount.Should().Be(0);
+            diagnostics.Should().Contain(evt =>
+                evt.EventName == "cannot_join_self" &&
+                evt.ErrorCode == OnlineErrorCode.CannotJoinSelf);
         }
 
         [Test]

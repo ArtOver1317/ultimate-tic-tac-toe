@@ -11,6 +11,7 @@ namespace Runtime.GameModes.Wizard.Online
         public static string ResolveCurrentUserId()
         {
             var baseId = SystemInfo.deviceUniqueIdentifier;
+            
             if (string.IsNullOrWhiteSpace(baseId))
                 baseId = Guid.NewGuid().ToString("N");
 
@@ -28,5 +29,3 @@ namespace Runtime.GameModes.Wizard.Online
         public static string ResolveDefaultRegion() => "eu";
     }
 }
-
-#nullable restore

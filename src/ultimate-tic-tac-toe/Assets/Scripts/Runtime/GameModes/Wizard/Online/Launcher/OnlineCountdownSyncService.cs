@@ -56,5 +56,3 @@ namespace Runtime.GameModes.Wizard.Online
             networkTimeSeconds >= targetNetworkTimeSeconds;
     }
 }
-
-#nullable restore

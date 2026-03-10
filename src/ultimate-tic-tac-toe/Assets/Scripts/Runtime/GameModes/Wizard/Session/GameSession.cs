@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using R3;
 using Runtime.GameModes.Wizard.Configs;
-using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Config;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
@@ -128,23 +127,15 @@ namespace Runtime.GameModes.Wizard.Session
                 moveTimeLimitSeconds: snapshot.MoveTimeLimitSeconds));
         }
 
-        private static IOpponentConfig? BuildOpponentConfig(GameSessionSnapshot snapshot)
-        {
-            switch (snapshot.OpponentType)
+        private static IOpponentConfig? BuildOpponentConfig(GameSessionSnapshot snapshot) =>
+            snapshot.OpponentType switch
             {
-                case OpponentType.Bot:
-                    if (string.IsNullOrWhiteSpace(snapshot.BotDifficultyId))
-                        throw new InvalidOperationException("Bot difficulty is missing after validation.");
-
-                    return new BotOpponentConfig(snapshot.BotDifficultyId);
-
-                case OpponentType.Human:
-                    return BuildHumanOpponentConfig(snapshot);
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(snapshot.OpponentType), snapshot.OpponentType, null);
-            }
-        }
+                OpponentType.Bot => string.IsNullOrWhiteSpace(snapshot.BotDifficultyId)
+                    ? throw new InvalidOperationException("Bot difficulty is missing after validation.")
+                    : new BotOpponentConfig(snapshot.BotDifficultyId),
+                OpponentType.Human => BuildHumanOpponentConfig(snapshot),
+                _ => throw new ArgumentOutOfRangeException(nameof(snapshot.OpponentType), snapshot.OpponentType, null),
+            };
 
         private static IOpponentConfig? BuildHumanOpponentConfig(GameSessionSnapshot snapshot)
         {
@@ -154,17 +145,14 @@ namespace Runtime.GameModes.Wizard.Session
                     return new LocalHumanConfig();
 
                 case HumanOpponentKind.DirectInvite:
-                    if (string.IsNullOrWhiteSpace(snapshot.TargetPlayerId))
-                        throw new InvalidOperationException("DirectInvite requires SessionId after validation.");
-
-                    return new DirectInviteConfig(snapshot.TargetPlayerId);
+                    return string.IsNullOrWhiteSpace(snapshot.TargetPlayerId) 
+                        ? throw new InvalidOperationException("DirectInvite requires SessionId after validation.") 
+                        : new DirectInviteConfig(snapshot.TargetPlayerId);
 
                 case HumanOpponentKind.Matchmaking:
                     if (string.IsNullOrWhiteSpace(snapshot.MatchmakingMatchId) ||
                         string.IsNullOrWhiteSpace(snapshot.MatchmakingOpponentId))
-                    {
                         return null;
-                    }
 
                     return new MatchmakingConfig(snapshot.MatchmakingMatchId, snapshot.MatchmakingOpponentId, snapshot.MatchmakingIsHost);
 
@@ -285,6 +273,7 @@ namespace Runtime.GameModes.Wizard.Session
             {
                 (errors ??= new List<ValidationError>(capacity: 4))
                     .Add(new ValidationError(WizardFieldNames.GameCatalog, "Errors.GameWizard.GameCatalogMissing"));
+                
                 return;
             }
 
@@ -297,7 +286,8 @@ namespace Runtime.GameModes.Wizard.Session
             if (strategy is IGameStartValidator startValidator)
             {
                 var startErrors = startValidator.ValidateForStart(snapshot);
-                if (startErrors != null && startErrors.Count > 0)
+                
+                if (startErrors is { Count: > 0 })
                 {
                     errors ??= new List<ValidationError>(capacity: 4);
                     errors.AddRange(startErrors);

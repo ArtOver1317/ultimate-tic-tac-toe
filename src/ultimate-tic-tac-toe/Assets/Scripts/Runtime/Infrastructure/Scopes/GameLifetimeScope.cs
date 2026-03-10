@@ -14,6 +14,7 @@ using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.Matchmaking.Services;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
+using Runtime.GameModes.Wizard.Online.Flow;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.Localization;
