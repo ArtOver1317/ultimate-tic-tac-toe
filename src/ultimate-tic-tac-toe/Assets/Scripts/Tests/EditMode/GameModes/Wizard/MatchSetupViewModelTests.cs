@@ -14,6 +14,7 @@ using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.GameModes.Wizard.ViewModels;
+using Runtime.GameModes.Wizard.ViewModels.MatchSetup;
 using Runtime.Localization;
 using Runtime.UI.Components;
 using Runtime.UI.Core;
@@ -308,6 +309,32 @@ namespace Tests.EditMode.GameModes.Wizard
         }
 
         [Test]
+        public void WhenSnapshotAppliedWithSameVersion_ThenSecondSnapshotIsIgnored()
+        {
+            // Arrange
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            var classicVm = new TestSettingsViewModel(new TestGameModeConfig("classic"));
+            var ultimateVm = new TestSettingsViewModel(new TestGameModeConfig("ultimate"));
+
+            SetupStrategy("classic", new TestStrategy("classic", "icons/classic", "Mode.Classic", classicVm));
+            SetupStrategy("ultimate", new TestStrategy("ultimate", "icons/ultimate", "Mode.Ultimate", ultimateVm));
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(10));
+            session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("ultimate").WithVersion(10));
+
+            // Assert
+            sut.ActiveSettings.CurrentValue.Should().NotBeNull();
+            sut.ActiveSettings.CurrentValue.UxmlAssetKey.Should().Be("ui/mode-settings/classic");
+            ultimateVm.InitializeCallCount.Should().Be(0);
+        }
+
+        [Test]
         public void WhenValidationErrorsChange_ThenInlineErrorTextShowsHighestPriorityError()
         {
             // Arrange
@@ -325,6 +352,48 @@ namespace Tests.EditMode.GameModes.Wizard
 
             // Act
             session.EmitValidationErrors(errors);
+
+            // Assert
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.ConfigRequired");
+        }
+
+        [Test]
+        public void WhenValidationErrorsContainUnknownFieldAndGameCatalog_ThenInlineErrorShowsGameCatalog()
+        {
+            // Arrange
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            session.EmitValidationErrors(new List<ValidationError>
+            {
+                new("UnknownField", "Errors.GameWizard.Unknown"),
+                new(WizardFieldNames.GameCatalog, "Errors.GameWizard.GameCatalogMissing"),
+            });
+
+            // Assert
+            sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.GameCatalogMissing");
+        }
+
+        [Test]
+        public void WhenValidationErrorsContainGameCatalogAndGameConfig_ThenInlineErrorShowsGameConfig()
+        {
+            // Arrange
+            var session = new FakeGameSession(GameSessionSnapshot.Default);
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+            sut.Initialize();
+
+            // Act
+            session.EmitValidationErrors(new List<ValidationError>
+            {
+                new(WizardFieldNames.GameCatalog, "Errors.GameWizard.GameCatalogMissing"),
+                new(WizardFieldNames.GameConfig, "Errors.GameWizard.ConfigRequired"),
+            });
 
             // Assert
             sut.InlineErrorText.CurrentValue.Should().Be("resolved:Errors.GameWizard.ConfigRequired");
@@ -867,6 +936,26 @@ namespace Tests.EditMode.GameModes.Wizard
             // Assert
             sut.MoveTimerSettings.MoveTimeLimitSeconds.CurrentValue.Should().Be(0);
             sut.MoveTimerSettings.SelectedPresetId.CurrentValue.Should().Be("0");
+        }
+
+        [Test]
+        public void WhenSessionStartsWithSupportedMoveTimeLimit_ThenMoveTimerPreservedWithoutWriteBack()
+        {
+            // Arrange
+            var session = new FakeGameSession(GameSessionSnapshot.Default
+                .WithMoveTimeLimitSeconds(30)
+                .WithVersion(1));
+            SetupCoordinatorWithSession(session);
+
+            using var sut = CreateSut();
+
+            // Act
+            sut.Initialize();
+
+            // Assert
+            sut.MoveTimerSettings.MoveTimeLimitSeconds.CurrentValue.Should().Be(30);
+            sut.MoveTimerSettings.SelectedPresetId.CurrentValue.Should().Be("30");
+            session.UpdateCallCount.Should().Be(0);
         }
 
         [Test]

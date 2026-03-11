@@ -48,6 +48,7 @@ namespace Runtime.GameModes.Wizard.ViewModels
             _config = new ReactiveProperty<IGameConfig>(new BattleshipConfig(_presetSeconds[0]));
 
             var table = new TextTableId("GameWizard");
+            
             localization
                 .Observe(table, new TextKey("GameWizard.Timer.Off"))
                 .Subscribe(text =>
@@ -104,9 +105,9 @@ namespace Runtime.GameModes.Wizard.ViewModels
 
         private bool ContainsPreset(int seconds)
         {
-            for (var i = 0; i < _presetSeconds.Count; i++)
+            foreach (var preset in _presetSeconds)
             {
-                if (_presetSeconds[i] == seconds)
+                if (preset == seconds)
                     return true;
             }
 
@@ -123,9 +124,7 @@ namespace Runtime.GameModes.Wizard.ViewModels
             if (string.Equals(_selectedPlacementTimerPresetId.Value, id, StringComparison.Ordinal)
                 && _config.Value is BattleshipConfig cfg
                 && cfg.PlacementTimeLimitSeconds == seconds)
-            {
                 return;
-            }
 
             _selectedPlacementTimerPresetId.Value = id;
             _config.Value = new BattleshipConfig(seconds);

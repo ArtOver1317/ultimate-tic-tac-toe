@@ -11,6 +11,7 @@ using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.GameModes.Wizard.ViewModels;
+using Runtime.GameModes.Wizard.ViewModels.MatchSetup;
 using Runtime.Localization;
 using Runtime.Services.UI.Assets;
 using Runtime.UI.Components;

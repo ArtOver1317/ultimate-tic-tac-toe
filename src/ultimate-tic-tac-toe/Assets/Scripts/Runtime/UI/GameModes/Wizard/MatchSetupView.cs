@@ -9,6 +9,7 @@ using Runtime.Extensions;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.GameModes.Wizard.ViewModels;
+using Runtime.GameModes.Wizard.ViewModels.MatchSetup;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.Services.UI.Assets;
