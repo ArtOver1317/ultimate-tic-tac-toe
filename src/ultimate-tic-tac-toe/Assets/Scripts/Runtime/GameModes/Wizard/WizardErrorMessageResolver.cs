@@ -17,12 +17,9 @@ namespace Runtime.GameModes.Wizard
             if (string.IsNullOrWhiteSpace(messageKey))
                 return string.Empty;
 
-            var dotIndex = messageKey.IndexOf('.', StringComparison.Ordinal);
-            
-            if (dotIndex <= 0 || localization == null)
+            if (localization == null || !TryGetTableName(messageKey, out var tableName))
                 return messageKey;
 
-            var tableName = messageKey[..dotIndex];
             var resolved = localization.Resolve(new TextTableId(tableName), new TextKey(messageKey));
             return string.IsNullOrWhiteSpace(resolved) ? messageKey : resolved;
         }
@@ -35,14 +32,24 @@ namespace Runtime.GameModes.Wizard
             if (string.IsNullOrWhiteSpace(messageKey))
                 return string.Empty;
 
-            var dotIndex = messageKey.IndexOf('.', StringComparison.Ordinal);
-            
-            if (dotIndex <= 0 || localization == null)
+            if (localization == null || !TryGetTableName(messageKey, out var tableName))
                 return messageKey;
 
-            var tableName = messageKey[..dotIndex];
             var resolved = localization.Resolve(new TextTableId(tableName), new TextKey(messageKey), args);
             return string.IsNullOrWhiteSpace(resolved) ? messageKey : resolved;
+        }
+
+        private static bool TryGetTableName(string messageKey, out string tableName)
+        {
+            tableName = string.Empty;
+
+            var dotIndex = messageKey.IndexOf('.', StringComparison.Ordinal);
+            
+            if (dotIndex <= 0)
+                return false;
+
+            tableName = messageKey[..dotIndex];
+            return true;
         }
     }
 }

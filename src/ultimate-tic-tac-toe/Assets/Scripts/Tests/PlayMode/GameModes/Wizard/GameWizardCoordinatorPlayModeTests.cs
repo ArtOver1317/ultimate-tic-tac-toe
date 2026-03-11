@@ -11,6 +11,8 @@ using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Coordinator;
+using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
 using UnityEngine;
@@ -333,7 +335,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             // Assert
             _sut.CurrentError.CurrentValue.Should().NotBeNull();
-            _sut.CurrentError.CurrentValue.Code.Should().Be("wizard.unhandled_exception");
+            _sut.CurrentError.CurrentValue.Code.Should().Be(WizardError.Codes.UnhandledException);
             _sut.CurrentError.CurrentValue.DisplayType.Should().Be(ErrorDisplayType.Modal);
             _sut.CurrentError.CurrentValue.IsBlocking.Should().BeTrue();
             _navigator.CloseAllCalls.Should().Be(1);
@@ -358,7 +360,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             // Assert
             _sut.CurrentError.CurrentValue.Should().NotBeNull();
-            _sut.CurrentError.CurrentValue.Code.Should().Be("wizard.unhandled_exception");
+            _sut.CurrentError.CurrentValue.Code.Should().Be(WizardError.Codes.UnhandledException);
             _sut.CurrentError.CurrentValue.DisplayType.Should().Be(ErrorDisplayType.Modal);
             _sut.CurrentError.CurrentValue.IsBlocking.Should().BeTrue();
             _navigator.CloseAllCalls.Should().Be(1);

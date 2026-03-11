@@ -2,6 +2,7 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.Services.Assets;

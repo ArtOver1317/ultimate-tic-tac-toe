@@ -10,6 +10,7 @@ using R3;
 using Runtime.Gameplay;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.GameModes.Wizard.Session;

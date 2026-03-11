@@ -10,6 +10,8 @@ using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Coordinator;
+using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Config;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
@@ -54,7 +56,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var error = WizardError.FromException(ex);
 
             // Assert
-            error.Code.Should().Be("wizard.unhandled_exception");
+            error.Code.Should().Be(WizardError.Codes.UnhandledException);
             error.MessageKey.Should().Be("Errors.GameWizard.UnhandledException");
             error.IsBlocking.Should().BeTrue();
             error.DisplayType.Should().Be(ErrorDisplayType.Modal);
@@ -772,7 +774,7 @@ namespace Tests.EditMode.GameModes.Wizard
             LogAssert.Expect(LogType.Error, new Regex("close all failed"));
             await act.Should().NotThrowAsync();
             _sut.CurrentError.CurrentValue.Should().NotBeNull();
-            _sut.CurrentError.CurrentValue.Code.Should().Be("wizard.unhandled_exception");
+            _sut.CurrentError.CurrentValue.Code.Should().Be(WizardError.Codes.UnhandledException);
             _sut.CurrentError.CurrentValue.DisplayType.Should().Be(ErrorDisplayType.Modal);
             _sut.CurrentError.CurrentValue.IsBlocking.Should().BeTrue();
             session.DisposeCallCount.Should().Be(1);

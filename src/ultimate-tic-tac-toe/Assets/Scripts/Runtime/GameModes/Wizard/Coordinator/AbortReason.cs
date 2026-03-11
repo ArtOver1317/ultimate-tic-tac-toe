@@ -1,4 +1,4 @@
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Coordinator
 {
     /// <summary>
     /// Reason for aborting the wizard flow.

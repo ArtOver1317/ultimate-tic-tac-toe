@@ -7,7 +7,7 @@ using R3;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Session;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Coordinator
 {
     /// <summary>
     /// Coordinator-driven wizard for selecting game mode and opponent settings.

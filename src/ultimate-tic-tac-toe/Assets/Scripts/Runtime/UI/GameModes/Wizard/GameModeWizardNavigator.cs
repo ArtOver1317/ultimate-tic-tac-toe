@@ -3,6 +3,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.Localization;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.ViewModels;

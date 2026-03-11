@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Infrastructure.Logging;
 using Runtime.Infrastructure.GameStateMachine;

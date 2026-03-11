@@ -7,6 +7,8 @@ using FluentAssertions;
 using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.Coordinator;
+using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
@@ -276,7 +278,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             _navigator.ReplaceMatchSetupWithMatchmakingCalls.Should().Be(0);
             sut.CurrentError.CurrentValue.Should().NotBeNull();
             sut.CurrentError.CurrentValue!.DisplayType.Should().Be(ErrorDisplayType.Inline);
-            sut.CurrentError.CurrentValue!.Code.Should().Be("wizard.matchmaking_start_failed");
+            sut.CurrentError.CurrentValue!.Code.Should().Be(WizardError.Codes.MatchmakingStartFailed);
         });
 
         [UnityTest]

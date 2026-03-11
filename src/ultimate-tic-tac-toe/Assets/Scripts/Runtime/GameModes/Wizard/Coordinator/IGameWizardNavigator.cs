@@ -1,9 +1,8 @@
 ﻿using System.Threading;
 using Cysharp.Threading.Tasks;
-using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.Coordinator
 {
     /// <summary>
     /// Navigation adapter used by <see cref="GameWizardCoordinator"/>.

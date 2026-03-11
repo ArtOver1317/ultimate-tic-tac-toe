@@ -1,4 +1,4 @@
-﻿namespace Runtime.GameModes.Wizard
+﻿namespace Runtime.GameModes.Wizard.Coordinator
 {
     /// <summary>
     /// High-level navigation intents produced by wizard view-models.
