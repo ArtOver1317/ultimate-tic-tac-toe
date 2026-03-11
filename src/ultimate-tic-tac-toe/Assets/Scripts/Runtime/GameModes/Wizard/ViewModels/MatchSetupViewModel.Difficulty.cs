@@ -10,7 +10,7 @@ using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Components;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.ViewModels
 {
     /// <summary>
     /// Difficulty selection: localized chip labels, session sync, coalesced rebuilds.
@@ -36,7 +36,7 @@ namespace Runtime.GameModes.Wizard
             if (!needsSanitize)
                 return;
 
-            if (_opponentType.Value != global::Runtime.GameModes.Wizard.Session.OpponentType.Bot)
+            if (_opponentType.Value != Session.OpponentType.Bot)
                 return;
 
             var session = _session;
@@ -69,7 +69,7 @@ namespace Runtime.GameModes.Wizard
 
             if (!PlayerLoopHelper.IsMainThread)
             {
-                ApplyAvailableDifficultiesOnMainThreadAsync(difficulties).Forget(ex => GameLog.Exception(ex));
+                ApplyAvailableDifficultiesOnMainThreadAsync(difficulties).Forget(GameLog.Exception);
                 return;
             }
 
@@ -160,7 +160,7 @@ namespace Runtime.GameModes.Wizard
                 return;
             }
 
-            SetDifficultyLabelOnMainThreadAsync(difficultyId, text).Forget(ex => GameLog.Exception(ex));
+            SetDifficultyLabelOnMainThreadAsync(difficultyId, text).Forget(GameLog.Exception);
         }
 
         private async UniTask SetDifficultyLabelOnMainThreadAsync(string difficultyId, string? text)
@@ -189,7 +189,7 @@ namespace Runtime.GameModes.Wizard
             if (Interlocked.Exchange(ref _difficultyItemsRebuildScheduled, 1) != 0)
                 return;
 
-            RebuildDifficultyItemsCoalescedAsync().Forget(ex => GameLog.Exception(ex));
+            RebuildDifficultyItemsCoalescedAsync().Forget(GameLog.Exception);
         }
 
         private async UniTask RebuildDifficultyItemsCoalescedAsync()
@@ -281,9 +281,9 @@ namespace Runtime.GameModes.Wizard
             if (difficulties == null || difficulties.Count == 0)
                 return false;
 
-            for (var i = 0; i < difficulties.Count; i++)
+            foreach (var difficulty in difficulties)
             {
-                if (difficulties[i] != null && string.Equals(difficulties[i].Id, difficultyId, StringComparison.Ordinal))
+                if (difficulty != null && string.Equals(difficulty.Id, difficultyId, StringComparison.Ordinal))
                     return true;
             }
 

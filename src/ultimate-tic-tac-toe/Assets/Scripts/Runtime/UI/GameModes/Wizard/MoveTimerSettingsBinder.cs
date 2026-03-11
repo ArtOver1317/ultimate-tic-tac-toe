@@ -3,6 +3,7 @@
 using R3;
 using Runtime.Extensions;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.Infrastructure.Logging;
 using Runtime.UI.Components;
 using UnityEngine.UIElements;

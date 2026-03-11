@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Runtime.GameModes.Wizard.ViewModels;
 
 namespace Runtime.GameModes.Wizard.Modes
 {

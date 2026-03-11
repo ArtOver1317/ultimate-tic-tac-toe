@@ -6,18 +6,16 @@ using Runtime.GameModes.Wizard.Online;
 using Runtime.Infrastructure.Logging;
 using UnityEngine;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.ViewModels
 {
     public sealed partial class MatchSetupViewModel
     {
         private void WireOnlineSubscriptions()
         {
-            AddDisposable(Observable.CombineLatest(
-                    _opponentType,
-                    _humanOpponentKind,
+            AddDisposable(_opponentType.CombineLatest(_humanOpponentKind,
                     static (opponentType, humanKind) =>
-                        opponentType == global::Runtime.GameModes.Wizard.Session.OpponentType.Human &&
-                        humanKind == global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.DirectInvite)
+                        opponentType == Session.OpponentType.Human &&
+                        humanKind == Session.HumanOpponentKind.DirectInvite)
                 .Subscribe(isDirectInvite =>
                 {
                     _onlinePanelVisible.Value = isDirectInvite;
@@ -46,6 +44,7 @@ namespace Runtime.GameModes.Wizard
                 return;
 
             var snapshot = _onlineSessionFlow.Snapshot.CurrentValue;
+            
             if (ShouldResetBeforeHumanSetup(snapshot.State))
                 await _onlineSessionFlow.ExitAsync();
 
@@ -91,9 +90,10 @@ namespace Runtime.GameModes.Wizard
 
             _visibleSessionId.Value = visibleSessionId ?? string.Empty;
             _canCopySessionId.Value = !string.IsNullOrWhiteSpace(_visibleSessionId.Value);
-            _canBecomeHost.Value = snapshot.State == OnlineFlowState.Idle ||
-                                   snapshot.State == OnlineFlowState.Terminated ||
-                                   snapshot.State == OnlineFlowState.Failed;
+           
+            _canBecomeHost.Value = snapshot.State is OnlineFlowState.Idle 
+                or OnlineFlowState.Terminated or OnlineFlowState.Failed;
+            
             _isModeOptionsEnabled.Value = !IsModeOptionsLockedByOnlineFlow(snapshot.State);
 
             if (!string.IsNullOrWhiteSpace(snapshot.ErrorLocalizationKey))
@@ -103,9 +103,7 @@ namespace Runtime.GameModes.Wizard
             else
                 _onlineStatusText.Value = null;
 
-            _onlineCountdownText.Value = snapshot.CountdownRemainingSeconds.HasValue
-                ? snapshot.CountdownRemainingSeconds.Value.ToString()
-                : null;
+            _onlineCountdownText.Value = snapshot.CountdownRemainingSeconds?.ToString();
         }
 
         private async UniTaskVoid RequestCopySessionIdAsync()
@@ -129,6 +127,7 @@ namespace Runtime.GameModes.Wizard
             await _onlineSessionFlow.EnterHumanSetupAsync(region, currentUserId);
 
             var currentSnapshot = _onlineSessionFlow.Snapshot.CurrentValue;
+            
             if (currentSnapshot.State == OnlineFlowState.HostIntentConfirmed)
             {
                 ApplyOnlineFlowSnapshot(currentSnapshot);
@@ -154,6 +153,7 @@ namespace Runtime.GameModes.Wizard
                 return false;
 
             var state = _onlineSessionFlow.Snapshot.CurrentValue.State;
+            
             if (!CanHandleOnlineSoftCancel(state))
                 return false;
 

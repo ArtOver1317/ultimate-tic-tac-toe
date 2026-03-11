@@ -1,5 +1,6 @@
 ﻿using R3;
 using Runtime.GameModes.Wizard;
+using Runtime.GameModes.Wizard.ViewModels;
 using UnityEngine.UIElements;
 
 namespace Runtime.UI.GameModes.Wizard

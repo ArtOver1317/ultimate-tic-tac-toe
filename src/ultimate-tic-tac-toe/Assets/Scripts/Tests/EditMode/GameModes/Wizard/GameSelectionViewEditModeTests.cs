@@ -9,6 +9,7 @@ using Runtime.Gameplay;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
+using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.Localization;
 using Runtime.UI.GameModes.Wizard;
 using UnityEngine;

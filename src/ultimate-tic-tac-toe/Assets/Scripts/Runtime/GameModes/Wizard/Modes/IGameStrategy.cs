@@ -1,6 +1,7 @@
 ﻿#nullable enable
 
 using System.Collections.Generic;
+using Runtime.GameModes.Wizard.ViewModels;
 
 namespace Runtime.GameModes.Wizard.Modes
 {

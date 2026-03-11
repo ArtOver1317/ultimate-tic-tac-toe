@@ -1,6 +1,6 @@
 ﻿#nullable enable
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.ViewModels
 {
     /// <summary>
     /// Atomic pair: UXML addressable key + view model for the mode-specific settings section.

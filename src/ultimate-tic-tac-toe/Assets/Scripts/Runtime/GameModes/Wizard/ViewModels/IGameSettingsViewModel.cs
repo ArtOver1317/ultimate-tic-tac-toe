@@ -2,7 +2,7 @@
 using R3;
 using Runtime.GameModes.Wizard.Modes;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.ViewModels
 {
     /// <summary>
     /// Mode-specific settings view model.

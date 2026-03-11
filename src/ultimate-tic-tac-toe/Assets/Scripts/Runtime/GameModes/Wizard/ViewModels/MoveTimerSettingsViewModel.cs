@@ -3,13 +3,12 @@
 using System;
 using System.Collections.Generic;
 using R3;
-using Runtime.Extensions;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Components;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.ViewModels
 {
     public sealed class MoveTimerSettingsViewModel : IDisposable
     {
@@ -93,9 +92,9 @@ namespace Runtime.GameModes.Wizard
 
         private bool ContainsPreset(int seconds)
         {
-            for (var i = 0; i < _presetSeconds.Count; i++)
+            foreach (var preset in _presetSeconds)
             {
-                if (_presetSeconds[i] == seconds)
+                if (preset == seconds)
                     return true;
             }
 
@@ -123,6 +122,7 @@ namespace Runtime.GameModes.Wizard
             for (var i = 0; i < _presetSeconds.Count; i++)
             {
                 var seconds = _presetSeconds[i];
+                
                 var label = seconds == 0
                     ? _offLabel
                     : string.Format(_secondsFormat, seconds);

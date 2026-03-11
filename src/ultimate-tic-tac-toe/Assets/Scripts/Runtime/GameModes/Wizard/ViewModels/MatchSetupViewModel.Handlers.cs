@@ -12,7 +12,7 @@ using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Core;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.ViewModels
 {
     /// <summary>
     /// Snapshot application, mode presentation, error handling, and thread marshalling.
@@ -34,7 +34,7 @@ namespace Runtime.GameModes.Wizard
 
             if (!PlayerLoopHelper.IsMainThread)
             {
-                ApplySnapshotOnMainThreadAsync(snapshot).Forget(ex => GameLog.Exception(ex));
+                ApplySnapshotOnMainThreadAsync(snapshot).Forget(GameLog.Exception);
                 return;
             }
 
@@ -121,21 +121,16 @@ namespace Runtime.GameModes.Wizard
             UpdateBotSettingsVisibility();
         }
 
-        private IReadOnlyList<BotDifficulty> BuildAvailableDifficultiesForMode(IGameStrategy strategy)
+        private IReadOnlyList<BotDifficulty> BuildAvailableDifficultiesForMode(IGameStrategy? strategy)
         {
-            if (strategy == null)
-                return _difficultyCatalog.Difficulties;
-
-            if (!string.Equals(strategy.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
+            if (strategy == null || !string.Equals(strategy.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
                 return _difficultyCatalog.Difficulties;
 
             var source = _difficultyCatalog.Difficulties;
             var result = new List<BotDifficulty>(capacity: 1);
 
-            for (var i = 0; i < source.Count; i++)
+            foreach (var difficulty in source)
             {
-                var difficulty = source[i];
-
                 if (difficulty == null)
                     continue;
 
@@ -151,7 +146,7 @@ namespace Runtime.GameModes.Wizard
                 : Array.AsReadOnly(result.ToArray());
         }
 
-        private void ApplyModeSpecificConstraints(GameSessionSnapshot snapshot)
+        private void ApplyModeSpecificConstraints(GameSessionSnapshot? snapshot)
         {
             if (snapshot == null)
                 return;
@@ -164,17 +159,14 @@ namespace Runtime.GameModes.Wizard
             if (session == null)
                 return;
 
-            if (snapshot.OpponentType == global::Runtime.GameModes.Wizard.Session.OpponentType.Human
-                && snapshot.HumanOpponentKind == global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.Local)
+            if (snapshot is { OpponentType: global::Runtime.GameModes.Wizard.Session.OpponentType.Human, HumanOpponentKind: global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.Local })
             {
                 try
                 {
                     session.Update(s =>
                     {
-                        if (!string.Equals(s.SelectedGameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
-                            return s;
-
-                        if (s.OpponentType != global::Runtime.GameModes.Wizard.Session.OpponentType.Human
+                        if (!string.Equals(s.SelectedGameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal)
+                            || s.OpponentType != global::Runtime.GameModes.Wizard.Session.OpponentType.Human
                             || s.HumanOpponentKind != global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.Local)
                             return s;
 
@@ -202,13 +194,9 @@ namespace Runtime.GameModes.Wizard
             {
                 session.Update(s =>
                 {
-                    if (!string.Equals(s.SelectedGameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
-                        return s;
-
-                    if (s.OpponentType != global::Runtime.GameModes.Wizard.Session.OpponentType.Bot)
-                        return s;
-
-                    if (!string.IsNullOrWhiteSpace(s.BotDifficultyId))
+                    if (!string.Equals(s.SelectedGameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal) 
+                        || s.OpponentType != global::Runtime.GameModes.Wizard.Session.OpponentType.Bot 
+                        || !string.IsNullOrWhiteSpace(s.BotDifficultyId))
                         return s;
 
                     return s.WithBotDifficultyId(BattleshipStrategy.DefaultBotDifficultyId);
@@ -223,6 +211,7 @@ namespace Runtime.GameModes.Wizard
         private void UpdateBotSettingsVisibility()
         {
             var isBot = _opponentType.Value == global::Runtime.GameModes.Wizard.Session.OpponentType.Bot;
+            
             var hideDifficulty =
                 string.Equals(_activeModeId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal)
                 && _availableDifficulties.Value.Count <= 1;
@@ -265,7 +254,7 @@ namespace Runtime.GameModes.Wizard
                 return;
             }
 
-            SetModeTitleTextOnMainThreadAsync(text).Forget(ex => GameLog.Exception(ex));
+            SetModeTitleTextOnMainThreadAsync(text).Forget(GameLog.Exception);
         }
 
         private async UniTask SetModeTitleTextOnMainThreadAsync(string? text)
@@ -284,10 +273,7 @@ namespace Runtime.GameModes.Wizard
                 return new TextTableId("GameWizard");
 
             var dotIndex = qualifiedKey.IndexOf('.');
-            if (dotIndex <= 0)
-                return new TextTableId("GameWizard");
-
-            return new TextTableId(qualifiedKey.Substring(0, dotIndex));
+            return dotIndex <= 0 ? new TextTableId("GameWizard") : new TextTableId(qualifiedKey[..dotIndex]);
         }
 
         private void OnSessionCanStartChanged(bool canStart)
@@ -303,7 +289,7 @@ namespace Runtime.GameModes.Wizard
 
             if (!PlayerLoopHelper.IsMainThread)
             {
-                ApplyCanStartOnMainThreadAsync(canStart).Forget(ex => GameLog.Exception(ex));
+                ApplyCanStartOnMainThreadAsync(canStart).Forget(GameLog.Exception);
                 return;
             }
 
@@ -349,7 +335,7 @@ namespace Runtime.GameModes.Wizard
 
             if (!PlayerLoopHelper.IsMainThread)
             {
-                ApplyCoordinatorErrorOnMainThreadAsync(error).Forget(ex => GameLog.Exception(ex));
+                ApplyCoordinatorErrorOnMainThreadAsync(error).Forget(GameLog.Exception);
                 return;
             }
 

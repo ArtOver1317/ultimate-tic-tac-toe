@@ -9,7 +9,7 @@ using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Core;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.ViewModels
 {
     /// <summary>
     /// View-model for the first step of the game mode wizard: selecting the desired game mode.

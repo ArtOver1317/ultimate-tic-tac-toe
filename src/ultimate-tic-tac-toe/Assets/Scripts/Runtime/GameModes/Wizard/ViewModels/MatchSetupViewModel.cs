@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
@@ -11,10 +10,10 @@ using Runtime.GameModes.Wizard.Online;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
-using Runtime.UI.Core;
 using Runtime.UI.Components;
+using Runtime.UI.Core;
 
-namespace Runtime.GameModes.Wizard
+namespace Runtime.GameModes.Wizard.ViewModels
 {
     /// <summary>
     /// View-model for the match setup step of the game mode wizard.
@@ -149,9 +148,7 @@ namespace Runtime.GameModes.Wizard
                 localization,
                 difficultyCatalog,
                 moveTimerPresetsConfig: null,
-                onlineSessionFlow: onlineSessionFlow)
-        {
-        }
+                onlineSessionFlow: onlineSessionFlow) { }
 
         public MatchSetupViewModel(
             IGameCatalog catalog,
@@ -166,8 +163,9 @@ namespace Runtime.GameModes.Wizard
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
             _difficultyCatalog = difficultyCatalog ?? throw new ArgumentNullException(nameof(difficultyCatalog));
             _onlineSessionFlow = onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance;
+            
             _moveTimerSettings = new MoveTimerSettingsViewModel(
-                moveTimerPresetsConfig ?? MoveTimerPresetsConfig.CreateRuntimeDefault(),
+                moveTimerPresetsConfig ? moveTimerPresetsConfig : MoveTimerPresetsConfig.CreateRuntimeDefault(),
                 _localization);
 
             _availableDifficulties = new ReactiveProperty<IReadOnlyList<BotDifficulty>>(
@@ -427,14 +425,10 @@ namespace Runtime.GameModes.Wizard
             UpdateCanStart();
         }
 
-        private void WireBusyState()
-        {
-            AddDisposable(Observable.CombineLatest(
-                    _coordinator.IsTransitioning,
-                    _coordinator.IsSubmitting,
+        private void WireBusyState() =>
+            AddDisposable(_coordinator.IsTransitioning.CombineLatest(_coordinator.IsSubmitting,
                     static (isTransitioning, isSubmitting) => isTransitioning || isSubmitting)
                 .Subscribe(isBusy => _isBusy.Value = isBusy));
-        }
 
         private void WireSessionSubscriptions()
         {
@@ -450,7 +444,7 @@ namespace Runtime.GameModes.Wizard
                     .Subscribe(OnSessionCanStartChanged));
 
                 AddDisposable(session.ValidationErrors
-                    .Subscribe(errors => OnValidationErrorsChanged(errors)));
+                    .Subscribe(OnValidationErrorsChanged));
 
                 AddDisposable(_moveTimerSettings.MoveTimeLimitSeconds
                     .Skip(1)
@@ -475,14 +469,11 @@ namespace Runtime.GameModes.Wizard
                 .Select(type => type == global::Runtime.GameModes.Wizard.Session.OpponentType.Human)
                 .Subscribe(isHuman => _isHumanSettingsVisible.Value = isHuman));
 
-            AddDisposable(Observable.CombineLatest(
-                    _opponentType,
-                    _humanOpponentKind,
+            AddDisposable(_opponentType.CombineLatest(_humanOpponentKind,
                     static (opponentType, humanKind) =>
                         opponentType == global::Runtime.GameModes.Wizard.Session.OpponentType.Human &&
                         humanKind == global::Runtime.GameModes.Wizard.Session.HumanOpponentKind.DirectInvite)
                 .Subscribe(isVisible => _isPlayerIdInputVisible.Value = isVisible));
         }
-
     }
 }
