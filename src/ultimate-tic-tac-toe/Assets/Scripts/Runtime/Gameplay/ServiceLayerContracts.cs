@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using R3;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using CellId = Runtime.Games.TicTacToe.Moves.CellId;
 
@@ -29,6 +28,14 @@ namespace Runtime.Gameplay
         Observable<CurrentPlayerChangedEvent> CurrentPlayerChanged { get; }
         Observable<CommandRejectedEvent> CommandRejected { get; }
         Observable<RoundFinishedEvent> RoundFinished { get; }
+    }
+
+    /// <summary>
+    /// Publishes an immediate current-player change when ECS state is externally restored.
+    /// </summary>
+    public interface ICurrentPlayerChangedPublisher
+    {
+        void PublishCurrentPlayerChangedImmediate(int activePlayerSlot);
     }
 
     /// <summary>

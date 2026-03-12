@@ -1,12 +1,10 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.TicTacToe.Moves;
 using Runtime.Infrastructure.Logging;
 using StripLog;
 
@@ -14,6 +12,8 @@ namespace Runtime.Gameplay
 {
     public sealed class OnlineAwareGameplayCommandSink : IGameplayCommandSink
     {
+        private const int _fallbackMinorCount = 3;
+
         private readonly IMatchStateProvider _localCommandSink;
         private readonly IGameplaySnapshotProvider _snapshotProvider;
         private readonly IGameplayNetworkBridge _networkBridge;
@@ -37,6 +37,7 @@ namespace Runtime.Gameplay
                 throw new ArgumentNullException(nameof(command));
 
             var session = _sessionContextStore.Snapshot;
+            
             if (!session.IsOnlineDirectInvite || string.IsNullOrWhiteSpace(session.LocalUserId))
             {
                 _localCommandSink.SubmitCommand(command);
@@ -49,10 +50,12 @@ namespace Runtime.Gameplay
                     return;
 
                 _localCommandSink.SubmitCommand(command);
+                
                 SubmitOnlineTimeoutAsync(new OnlineTimeoutSignal(
                     session.LocalUserId,
                     timeout.LoserSlot,
                     DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())).Forget();
+               
                 return;
             }
 
@@ -63,6 +66,7 @@ namespace Runtime.Gameplay
             }
 
             var localPlayerSlot = session.IsHost ? 0 : 1;
+            
             if (_localCommandSink.ActivePlayerSlot != localPlayerSlot)
                 return;
 
@@ -73,6 +77,7 @@ namespace Runtime.Gameplay
             var minorCount = ResolveMinorCount(cells);
 
             MoveCommand onlineMove;
+           
             try
             {
                 var cellIndex = OnlineMoveIndexCodec.ToCellIndex(move.CellId, minorCount);
@@ -87,15 +92,17 @@ namespace Runtime.Gameplay
             SubmitOnlineMoveAsync(onlineMove).Forget();
         }
 
-        private static int ResolveMinorCount(System.Collections.Generic.IReadOnlyList<CellSnapshot> cells)
+        private static int ResolveMinorCount(IReadOnlyList<CellSnapshot>? cells)
         {
             if (cells == null || cells.Count == 0)
-                return 3;
+                return _fallbackMinorCount;
 
             var maxMinor = 0;
-            for (var i = 0; i < cells.Count; i++)
+            
+            foreach (var cell in cells)
             {
-                var minor = cells[i].CellId.Minor;
+                var minor = cell.CellId.Minor;
+                
                 if (minor > maxMinor)
                     maxMinor = minor;
             }

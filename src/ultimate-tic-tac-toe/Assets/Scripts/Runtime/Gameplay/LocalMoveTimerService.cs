@@ -2,9 +2,7 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.Infrastructure.Logging;
 using StripLog;
@@ -79,6 +77,7 @@ namespace Runtime.Gameplay
                 return;
 
             var clamped = remainingSeconds < 0f ? 0f : remainingSeconds;
+            
             if (clamped < _remainingSeconds.Value)
                 _remainingSeconds.Value = clamped;
         }
@@ -121,10 +120,8 @@ namespace Runtime.Gameplay
             _isActive.Dispose();
         }
 
-        private void OnCurrentPlayerChanged(CurrentPlayerChangedEvent evt)
-        {
+        private void OnCurrentPlayerChanged(CurrentPlayerChangedEvent evt) => 
             StartOrResetForPlayer(evt.ActivePlayerSlot);
-        }
 
         private async UniTaskVoid RunCountdownLoop(int loserSlot, CancellationToken ct)
         {
@@ -134,27 +131,19 @@ namespace Runtime.Gameplay
                 {
                     await UniTask.Yield(PlayerLoopTiming.Update, ct);
 
-                    if (_isFrozen || !_isActive.Value)
-                        continue;
-
                     var deltaTime = _timeSource.DeltaTime;
-                    if (deltaTime <= 0f)
+                    
+                    if (ShouldSkipTick(deltaTime))
                         continue;
 
-                    var next = _remainingSeconds.Value - deltaTime;
-                    _remainingSeconds.Value = next > 0f ? next : 0f;
-
-                    if (_remainingSeconds.Value > 0f)
+                    if (!UpdateCountdown(deltaTime))
                         continue;
 
-                    _commandSink.SubmitCommand(new TimeoutCommand(loserSlot));
-                    Stop();
+                    HandleCountdownElapsed(loserSlot);
                     return;
                 }
             }
-            catch (OperationCanceledException)
-            {
-            }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 HandleCountdownException(ex);
@@ -167,6 +156,21 @@ namespace Runtime.Gameplay
                 return;
 
             Log.Error(LogTags.Infrastructure, $"[LocalMoveTimerService] Countdown loop failed: {ex}");
+        }
+
+        private bool ShouldSkipTick(float deltaTime) => _isFrozen || !_isActive.Value || deltaTime <= 0f;
+
+        private bool UpdateCountdown(float deltaTime)
+        {
+            var next = _remainingSeconds.Value - deltaTime;
+            _remainingSeconds.Value = next > 0f ? next : 0f;
+            return _remainingSeconds.Value <= 0f;
+        }
+
+        private void HandleCountdownElapsed(int loserSlot)
+        {
+            _commandSink.SubmitCommand(new TimeoutCommand(loserSlot));
+            Stop();
         }
 
         private void CancelAndDisposeCountdown()
@@ -186,6 +190,5 @@ namespace Runtime.Gameplay
 
             return config.MoveTimeLimitSeconds > 0 ? config.MoveTimeLimitSeconds : 0;
         }
-
     }
 }

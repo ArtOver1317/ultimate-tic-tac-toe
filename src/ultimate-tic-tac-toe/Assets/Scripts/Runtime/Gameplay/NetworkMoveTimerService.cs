@@ -2,10 +2,8 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Online;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.Infrastructure.Logging;
 using StripLog;
@@ -86,6 +84,7 @@ namespace Runtime.Gameplay
                 return;
 
             var clamped = remainingSeconds < 0f ? 0f : remainingSeconds;
+            
             if (clamped < _remainingSeconds.Value)
                 _remainingSeconds.Value = clamped;
         }
@@ -140,46 +139,23 @@ namespace Runtime.Gameplay
                 {
                     await UniTask.Yield(PlayerLoopTiming.Update, ct);
 
-                    if (_isDisposed || ct.IsCancellationRequested)
+                    if (ShouldStopLoop(ct))
                         return;
 
-                    float deltaTime;
-                    if (Application.isPlaying)
-                    {
-                        var nowRealtime = Time.realtimeSinceStartupAsDouble;
-                        deltaTime = (float)(nowRealtime - lastRealtime);
-                        lastRealtime = nowRealtime;
-                    }
-                    else
-                    {
-                        deltaTime = _timeSource.DeltaTime;
-                    }
-
-                    if (_isFrozen || !_isActive.Value)
+                    var deltaTime = ResolveDeltaTime(ref lastRealtime);
+                    
+                    if (ShouldSkipTick(deltaTime))
                         continue;
 
-                    if (deltaTime <= 0f)
+                    if (!UpdateCountdown(deltaTime))
                         continue;
 
-                    var next = _remainingSeconds.Value - deltaTime;
-                    _remainingSeconds.Value = next > 0f ? next : 0f;
-
-                    if (_remainingSeconds.Value > 0f)
-                        continue;
-
-                    if (submitTimeoutCommand)
-                        _commandSink.SubmitCommand(new TimeoutCommand(loserSlot));
-
-                    Stop();
+                    HandleCountdownElapsed(loserSlot, submitTimeoutCommand);
                     return;
                 }
             }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (ObjectDisposedException) when (_isDisposed || ct.IsCancellationRequested)
-            {
-            }
+            catch (OperationCanceledException) { }
+            catch (ObjectDisposedException) when (_isDisposed || ct.IsCancellationRequested) { }
             catch (Exception ex)
             {
                 HandleCountdownException(ex);
@@ -194,6 +170,36 @@ namespace Runtime.Gameplay
             Log.Error(LogTags.Infrastructure, $"[NetworkMoveTimerService] Countdown loop failed: {ex}");
         }
 
+        private bool ShouldStopLoop(CancellationToken ct) => _isDisposed || ct.IsCancellationRequested;
+
+        private float ResolveDeltaTime(ref double lastRealtime)
+        {
+            if (!Application.isPlaying)
+                return _timeSource.DeltaTime;
+
+            var nowRealtime = Time.realtimeSinceStartupAsDouble;
+            var deltaTime = (float)(nowRealtime - lastRealtime);
+            lastRealtime = nowRealtime;
+            return deltaTime;
+        }
+
+        private bool ShouldSkipTick(float deltaTime) => _isFrozen || !_isActive.Value || deltaTime <= 0f;
+
+        private bool UpdateCountdown(float deltaTime)
+        {
+            var next = _remainingSeconds.Value - deltaTime;
+            _remainingSeconds.Value = next > 0f ? next : 0f;
+            return _remainingSeconds.Value <= 0f;
+        }
+
+        private void HandleCountdownElapsed(int loserSlot, bool submitTimeoutCommand)
+        {
+            if (submitTimeoutCommand)
+                _commandSink.SubmitCommand(new TimeoutCommand(loserSlot));
+
+            Stop();
+        }
+
         private void CancelAndDisposeCountdown()
         {
             if (_countdownCts == null)
@@ -206,7 +212,7 @@ namespace Runtime.Gameplay
 
         private static int ResolveMoveTimeLimitSeconds(IGameLaunchConfigStore configStore, OnlineGameplaySessionSnapshot session)
         {
-            if (session.IsOnlineDirectInvite && session.MatchConfig.HasValue)
+            if (session is { IsOnlineDirectInvite: true, MatchConfig: not null })
             {
                 var onlineLimit = session.MatchConfig.Value.MoveTimeLimitSeconds;
                 return onlineLimit > 0 ? onlineLimit : 0;

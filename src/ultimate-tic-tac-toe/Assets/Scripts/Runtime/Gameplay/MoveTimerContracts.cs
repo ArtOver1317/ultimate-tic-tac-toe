@@ -14,4 +14,9 @@ namespace Runtime.Gameplay
         void Freeze();
         void Unfreeze();
     }
+
+    public static class MoveTimerConstants
+    {
+        public const int WarningThresholdSeconds = 10;
+    }
 }

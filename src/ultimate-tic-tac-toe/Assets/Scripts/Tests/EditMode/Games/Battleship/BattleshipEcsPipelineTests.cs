@@ -29,6 +29,8 @@ namespace Tests.EditMode.Games.Battleship
         private BattleshipGameplayEventStream _battleshipEventStream = null!;
         private MatchEcsLifecycleService _lifecycle = null!;
         private MatchStateProvider _stateProvider = null!;
+        private IBattleshipGameplaySnapshotProvider _battleshipSnapshotProvider = null!;
+        private IBattleshipRecoveryStateApplier _battleshipRecoveryStateApplier = null!;
         private BattleshipAutoPlacer _autoPlacer = null!;
 
         [SetUp]
@@ -51,8 +53,14 @@ namespace Tests.EditMode.Games.Battleship
             _stateProvider = new MatchStateProvider(
                 _commandQueue,
                 _lifecycle,
-                _eventPublishSystem,
-                battleshipEventStream: _battleshipEventStream);
+                _eventPublishSystem);
+            _battleshipSnapshotProvider = new BattleshipSnapshotProvider(
+                _lifecycle,
+                _stateProvider);
+            _battleshipRecoveryStateApplier = new BattleshipRecoveryStateApplier(
+                _lifecycle,
+                _stateProvider,
+                _battleshipEventStream);
         }
 
         [TearDown]
@@ -157,7 +165,7 @@ namespace Tests.EditMode.Games.Battleship
             _stateProvider.SubmitCommand(new MakeMoveCommand(targetCell));
 
             // Assert
-            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            var snapshot = _battleshipSnapshotProvider;
             var marks = snapshot.GetOpponentMarks(shooterSlot);
             var targetIndex = (targetCell.Major * 10) + targetCell.Minor;
 
@@ -207,7 +215,7 @@ namespace Tests.EditMode.Games.Battleship
         {
             _lifecycle.StartMatch(CreateConfig());
 
-            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            var snapshot = _battleshipSnapshotProvider;
 
             snapshot.Phase.Should().Be(BattleshipPhase.Placement);
             snapshot.ActivePlayerSlot.Should().Be(-1);
@@ -224,7 +232,7 @@ namespace Tests.EditMode.Games.Battleship
 
             var phaseEvents = new List<BattleshipPhaseChangedEvent>();
             var marksEvents = new List<BattleshipMarksChangedEvent>();
-            var recoveryApplier = (IBattleshipRecoveryStateApplier)_stateProvider;
+            var recoveryApplier = _battleshipRecoveryStateApplier;
 
             using var phaseSub = _battleshipEventStream.PhaseChanged.Subscribe(evt => phaseEvents.Add(evt));
             using var marksSub = _battleshipEventStream.MarksChanged.Subscribe(evt => marksEvents.Add(evt));
@@ -246,6 +254,33 @@ namespace Tests.EditMode.Games.Battleship
             applied.Should().BeTrue();
             phaseEvents.Should().BeEmpty();
             marksEvents.Should().BeEmpty();
+        }
+
+        [Test]
+        public void WhenRecoveryChangesActivePlayer_ThenCurrentPlayerChangedIsRepublished()
+        {
+            _lifecycle.StartMatch(CreateConfig());
+
+            var events = new List<CurrentPlayerChangedEvent>();
+            using var sub = _stateProvider.CurrentPlayerChanged.Subscribe(evt => events.Add(evt));
+
+            var applied = _battleshipRecoveryStateApplier.TryApplyRecoveryState(new BattleshipRecoveryState(
+                BattleshipPhase.Battle,
+                activePlayerSlot: PlayerSlotMapping.SlotO,
+                GameStatus.InProgress,
+                winnerSlot: null,
+                player0Layout: _autoPlacer.Generate(123456),
+                player1Layout: _autoPlacer.Generate(654321),
+                player0OpponentMarks: CreateUnknownMarks(),
+                player1OpponentMarks: CreateUnknownMarks(),
+                player0ConsecutiveTimeouts: 0,
+                player1ConsecutiveTimeouts: 0,
+                placementTimerRemainingSeconds: 0f,
+                moveTimerRemainingSeconds: 20f));
+
+            applied.Should().BeTrue();
+            events.Should().ContainSingle();
+            events[0].ActivePlayerSlot.Should().Be(PlayerSlotMapping.SlotO);
         }
 
         [Test]
@@ -272,7 +307,7 @@ namespace Tests.EditMode.Games.Battleship
             _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, p0Layout));
             _stateProvider.SubmitCommand(new PlacementTimeoutCommand(PlayerSlotMapping.SlotO, autoPlaceSeed: 8008));
 
-            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            var snapshot = _battleshipSnapshotProvider;
             snapshot.Phase.Should().Be(BattleshipPhase.Battle);
             snapshot.IsPlacementConfirmed(PlayerSlotMapping.SlotX).Should().BeTrue();
             snapshot.IsPlacementConfirmed(PlayerSlotMapping.SlotO).Should().BeTrue();
@@ -330,7 +365,7 @@ namespace Tests.EditMode.Games.Battleship
 
             _stateProvider.SubmitCommand(new RestartRoundCommand(secondRoundStarter));
 
-            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            var snapshot = _battleshipSnapshotProvider;
             snapshot.Phase.Should().Be(BattleshipPhase.Placement);
             snapshot.ActivePlayerSlot.Should().Be(-1);
             snapshot.IsPlacementConfirmed(PlayerSlotMapping.SlotX).Should().BeFalse();
@@ -361,7 +396,7 @@ namespace Tests.EditMode.Games.Battleship
             foreach (var cell in FindShipCells(targetLayout))
                 _stateProvider.SubmitCommand(new MakeMoveCommand(cell));
 
-            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            var snapshot = _battleshipSnapshotProvider;
             roundFinished.Should().ContainSingle();
             roundFinished[0].Status.Should().Be(GameStatus.Win);
             roundFinished[0].WinnerSlot.Should().Be(shooterSlot);
@@ -427,7 +462,7 @@ namespace Tests.EditMode.Games.Battleship
 
         private void AssertTimeoutCounter(int timedOutPlayerSlot, int expectedCount)
         {
-            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            var snapshot = _battleshipSnapshotProvider;
             snapshot.TryGetConsecutiveTimeouts(out var player0Timeouts, out var player1Timeouts).Should().BeTrue();
 
             if (timedOutPlayerSlot == PlayerSlotMapping.SlotX)
@@ -493,7 +528,7 @@ namespace Tests.EditMode.Games.Battleship
             _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 1)));
             _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 2)));
 
-            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            var snapshot = _battleshipSnapshotProvider;
             var marks = snapshot.GetOpponentMarks(shooterSlot);
             marks[0].Should().Be(BattleshipCellMark.Sunk);
             marks[1].Should().Be(BattleshipCellMark.Sunk);
@@ -529,7 +564,7 @@ namespace Tests.EditMode.Games.Battleship
 
             var knownLayout = CreateKnownValidLayout();
             var otherLayout = _autoPlacer.Generate(28002);
-            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            var snapshot = _battleshipSnapshotProvider;
 
             _commandQueue.Enqueue(new SubmitPlacementCommand(PlayerSlotMapping.SlotX, knownLayout));
             _commandQueue.Enqueue(new PlacementTimeoutCommand(PlayerSlotMapping.SlotX, autoPlaceSeed: 9999));
@@ -548,7 +583,7 @@ namespace Tests.EditMode.Games.Battleship
             var knownLayout = CreateKnownValidLayout();
             var autoLayout = _autoPlacer.Generate(1234);
             var otherLayout = _autoPlacer.Generate(29002);
-            var snapshot = (IBattleshipGameplaySnapshotProvider)_stateProvider;
+            var snapshot = _battleshipSnapshotProvider;
             var rejections = new List<CommandRejectedEvent>();
             using var sub = _stateProvider.CommandRejected.Subscribe(evt => rejections.Add(evt));
 

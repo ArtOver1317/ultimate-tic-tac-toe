@@ -82,12 +82,17 @@ namespace Runtime.Infrastructure.Scopes
                 .AsSelf()
                 .As<IMatchEcsLifecycle>();
             builder.Register<MatchStateProvider>(Lifetime.Scoped)
+                .AsSelf()
                 .As<IMatchStateProvider>()
                 .As<IGameplayEventStream>()
+                .As<ICurrentPlayerChangedPublisher>()
+                .As<IUltimateGameplaySnapshotProvider>();
+            builder.Register<BattleshipSnapshotProvider>(Lifetime.Scoped)
                 .As<IGameplaySnapshotProvider>()
                 .As<IBattleshipGameplaySnapshotProvider>()
-                .As<IBattleshipRecoveryStateApplier>()
-                .As<IUltimateGameplaySnapshotProvider>();
+                .AsSelf();
+            builder.Register<BattleshipRecoveryStateApplier>(Lifetime.Scoped)
+                .As<IBattleshipRecoveryStateApplier>();
             builder.Register<IGameplayNetworkBridge, FileGameplayNetworkBridge>(Lifetime.Scoped);
             builder.Register<IBattleshipNetworkBridge, FileBattleshipNetworkBridge>(Lifetime.Scoped);
             builder.Register<IBattleshipLayoutSerializer, BattleshipLayoutSerializer>(Lifetime.Scoped);

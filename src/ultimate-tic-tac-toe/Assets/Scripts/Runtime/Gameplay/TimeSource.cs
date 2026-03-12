@@ -24,6 +24,7 @@ namespace Runtime.Gameplay
                 if (_runner == null || !_runner.IsRunning)
                 {
                     var now = UnityEngine.Time.realtimeSinceStartup;
+                    
                     if (now >= _nextLookupAtRealtime)
                     {
                         _runner = UnityEngine.Object.FindFirstObjectByType<Fusion.NetworkRunner>();
@@ -38,5 +39,3 @@ namespace Runtime.Gameplay
         }
     }
 }
-
-#nullable restore
