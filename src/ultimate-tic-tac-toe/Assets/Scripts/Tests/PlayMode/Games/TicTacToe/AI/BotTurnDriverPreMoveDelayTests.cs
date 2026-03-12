@@ -14,6 +14,7 @@ using Runtime.Gameplay.ECS;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.Moves;
 using UnityEditor;
@@ -254,7 +255,7 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
             _matchState.CommandSequenceValue = 1;
             _matchState.CurrentPlayerChangedSubject.OnNext(new CurrentPlayerChangedEvent(1));
             _matchState.RoundFinishedSubject.OnNext(
-                new RoundFinishedEvent(Runtime.Gameplay.ECS.GameStatus.Win, 0, null));
+                new RoundFinishedEvent(GameStatus.Win, 0, null));
 
             await UniTask.Delay(400);
 

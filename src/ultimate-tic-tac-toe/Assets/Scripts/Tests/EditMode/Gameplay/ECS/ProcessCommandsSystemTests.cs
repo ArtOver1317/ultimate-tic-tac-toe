@@ -3,8 +3,10 @@
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.ECS.Pipeline;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
-using Runtime.Games.TicTacToe.Moves;
 using Scellecs.Morpeh;
 
 namespace Tests.EditMode.Gameplay.ECS
@@ -60,25 +62,12 @@ namespace Tests.EditMode.Gameplay.ECS
         }
 
         [Test]
-        public void WhenSubmitPlacementCommandEnqueued_ThenSubmitPlacementRequestAddedToMatchEntity()
+        public void WhenSubmitPlacementCommandEnqueued_ThenCommandRemainsQueuedForGameSpecificSystem()
         {
             // Arrange
             var matchEntity = _world.CreateEntity();
             _world.GetStash<MatchTag>().Set(matchEntity);
-            var ships = new ShipPlacement[FleetLayout.ExpectedShipCount]
-            {
-                new(ShipSize.Four, ShipOrientation.Horizontal, new CellId(0, 0)),
-                new(ShipSize.Three, ShipOrientation.Horizontal, new CellId(2, 0)),
-                new(ShipSize.Three, ShipOrientation.Horizontal, new CellId(4, 0)),
-                new(ShipSize.Two, ShipOrientation.Horizontal, new CellId(6, 0)),
-                new(ShipSize.Two, ShipOrientation.Horizontal, new CellId(8, 0)),
-                new(ShipSize.Two, ShipOrientation.Vertical, new CellId(0, 9)),
-                new(ShipSize.One, ShipOrientation.Horizontal, new CellId(9, 9)),
-                new(ShipSize.One, ShipOrientation.Horizontal, new CellId(9, 7)),
-                new(ShipSize.One, ShipOrientation.Horizontal, new CellId(9, 5)),
-                new(ShipSize.One, ShipOrientation.Horizontal, new CellId(9, 3)),
-            };
-            var layout = new FleetLayout(ships);
+            var layout = new BattleshipAutoPlacer(new BattleshipPlacementValidator()).Generate(1234);
             _commandQueue.Enqueue(new SubmitPlacementCommand(playerSlot: 0, layout));
             _world.Commit();
 
@@ -86,10 +75,10 @@ namespace Tests.EditMode.Gameplay.ECS
             _world.Update(0f);
 
             // Assert
-            var submitRequestStash = _world.GetStash<SubmitPlacementRequest>();
-            submitRequestStash.Has(matchEntity).Should().BeTrue();
-            submitRequestStash.Get(matchEntity).PlayerSlot.Should().Be(0);
-            submitRequestStash.Get(matchEntity).Layout.IsInitialized.Should().BeTrue();
+            _commandQueue.Count.Should().Be(1);
+            _world.GetStash<MakeMoveRequest>().Has(matchEntity).Should().BeFalse();
+            _world.GetStash<RestartRoundRequest>().Has(matchEntity).Should().BeFalse();
+            _world.GetStash<TimeoutRequest>().Has(matchEntity).Should().BeFalse();
         }
     }
 }

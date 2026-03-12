@@ -7,6 +7,7 @@ using NUnit.Framework;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
 using Runtime.Games.TicTacToe.Moves;
 
@@ -51,9 +52,9 @@ namespace Tests.EditMode.Games.Battleship
 
         private sealed class CapturingCommandSink : Runtime.Gameplay.IGameplayCommandSink
         {
-            public readonly List<Runtime.Gameplay.ECS.IGameplayCommand> Commands = new();
+            public readonly List<IGameplayCommand> Commands = new();
 
-            public void SubmitCommand(Runtime.Gameplay.ECS.IGameplayCommand command) => Commands.Add(command);
+            public void SubmitCommand(IGameplayCommand command) => Commands.Add(command);
         }
 
         [Test]

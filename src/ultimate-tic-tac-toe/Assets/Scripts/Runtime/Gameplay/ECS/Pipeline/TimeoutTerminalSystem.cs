@@ -1,8 +1,10 @@
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.Shared;
 using Runtime.Infrastructure.Logging;
 using Scellecs.Morpeh;
 using StripLog;
 
-namespace Runtime.Gameplay.ECS
+namespace Runtime.Gameplay.ECS.Pipeline
 {
     /// <summary>
     /// Infrastructure terminal system for timeout transitions.
@@ -40,6 +42,7 @@ namespace Runtime.Gameplay.ECS
                 }
 
                 ref var status = ref _statusStash.Get(entity);
+                
                 if (status.Status != GameStatus.InProgress)
                 {
                     _timeoutStash.Remove(entity);
@@ -47,10 +50,13 @@ namespace Runtime.Gameplay.ECS
                 }
 
                 ref var players = ref _playersStash.Get(entity);
-                if (players.PlayerCount != 2 || players.PlayerSlots == null || players.PlayerSlots.Length != 2)
+                
+                if (players.PlayerCount != PlayerSlotMapping.PlayerCount
+                    || players.PlayerSlots is not { Length: PlayerSlotMapping.PlayerCount })
                 {
                     Log.Error(LogTags.Infrastructure,
                         $"[TimeoutTerminalSystem] Unsupported players layout for timeout resolution. PlayerCount={players.PlayerCount}, SlotsLength={players.PlayerSlots?.Length ?? 0}.");
+                    
                     _timeoutStash.Remove(entity);
                     continue;
                 }
@@ -59,15 +65,18 @@ namespace Runtime.Gameplay.ECS
                 {
                     Log.Error(LogTags.Infrastructure,
                         $"[TimeoutTerminalSystem] Invalid LoserSlot={timeout.LoserSlot}. Timeout ignored.");
+                    
                     _timeoutStash.Remove(entity);
                     continue;
                 }
 
                 var winnerSlot = FirstNonLoser(players.PlayerSlots, timeout.LoserSlot);
+                
                 if (!winnerSlot.HasValue)
                 {
                     Log.Error(LogTags.Infrastructure,
                         $"[TimeoutTerminalSystem] Winner slot could not be resolved for LoserSlot={timeout.LoserSlot}. Timeout ignored.");
+                    
                     _timeoutStash.Remove(entity);
                     continue;
                 }
@@ -94,9 +103,9 @@ namespace Runtime.Gameplay.ECS
             if (slots == null)
                 return false;
 
-            for (var i = 0; i < slots.Length; i++)
+            foreach (var slot in slots)
             {
-                if (slots[i] == value)
+                if (slot == value)
                     return true;
             }
 
@@ -108,9 +117,8 @@ namespace Runtime.Gameplay.ECS
             if (slots == null)
                 return null;
 
-            for (var i = 0; i < slots.Length; i++)
+            foreach (var slot in slots)
             {
-                var slot = slots[i];
                 if (slot != loserSlot)
                     return slot;
             }

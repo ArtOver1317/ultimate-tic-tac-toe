@@ -14,6 +14,7 @@ using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
 using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.Moves;

@@ -5,6 +5,7 @@ using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 using Runtime.Infrastructure.Logging;
 using StripLog;
 

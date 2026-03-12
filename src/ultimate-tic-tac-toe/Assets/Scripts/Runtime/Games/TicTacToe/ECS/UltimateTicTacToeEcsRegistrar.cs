@@ -5,7 +5,11 @@ using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.ECS.Lifecycle;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Moves;
+using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Scellecs.Morpeh;
 
@@ -18,12 +22,14 @@ namespace Runtime.Games.TicTacToe.ECS
     public sealed class UltimateTicTacToeEcsRegistrar : IEcsGameplayRegistrar
     {
         private readonly IUltimateRulesEngine _rulesEngine;
+        private readonly UltimateGameplayEventStream _eventStream;
 
         public string GameId => UltimateTicTacToeStrategy.DefaultGameId;
 
-        public UltimateTicTacToeEcsRegistrar(IUltimateRulesEngine rulesEngine)
+        public UltimateTicTacToeEcsRegistrar(IUltimateRulesEngine rulesEngine, UltimateGameplayEventStream eventStream)
         {
             _rulesEngine = rulesEngine ?? throw new ArgumentNullException(nameof(rulesEngine));
+            _eventStream = eventStream ?? throw new ArgumentNullException(nameof(eventStream));
         }
 
         public void Register(World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config)
@@ -100,6 +106,11 @@ namespace Runtime.Games.TicTacToe.ECS
             systemsGroup.AddSystem(new UltimateRulesStateUpdateSystem(_rulesEngine));
             systemsGroup.AddSystem(new RestartRoundSystem());
             systemsGroup.AddSystem(new UltimateRestartRoundSystem());
+        }
+
+        public void RegisterPostPublishSystems(World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config)
+        {
+            systemsGroup.AddSystem(new UltimateEventPublishSystem(_eventStream));
         }
 
         public int GetCellSlot(World world, Entity matchEntity, CellId cellId)

@@ -14,6 +14,7 @@ using Runtime.Gameplay.ECS;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.Moves;
 using UnityEditor;
@@ -539,7 +540,7 @@ namespace Tests.EditMode.Games.TicTacToe.AI
 
                 // Fire RoundFinished during engine computation
                 _matchState.RoundFinishedSubject.OnNext(
-                    new RoundFinishedEvent(Runtime.Gameplay.ECS.GameStatus.Win, 0, null));
+                    new RoundFinishedEvent(GameStatus.Win, 0, null));
                 release.TrySetResult();
                 await WaitUntilNotBusyAsync(driver);
 
@@ -606,7 +607,7 @@ namespace Tests.EditMode.Games.TicTacToe.AI
 
                 // Cancel via RoundFinished before engine returns
                 _matchState.RoundFinishedSubject.OnNext(
-                    new RoundFinishedEvent(Runtime.Gameplay.ECS.GameStatus.Draw, null, null));
+                    new RoundFinishedEvent(GameStatus.Draw, null, null));
                 release.TrySetResult();
                 await WaitUntilNotBusyAsync(driver);
 

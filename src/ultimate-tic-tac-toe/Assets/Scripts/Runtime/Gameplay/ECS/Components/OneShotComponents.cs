@@ -1,7 +1,10 @@
+using Runtime.Gameplay.ECS.Pipeline;
+using Runtime.Gameplay.ECS.Publishing;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Moves;
 using Scellecs.Morpeh;
 
-namespace Runtime.Gameplay.ECS
+namespace Runtime.Gameplay.ECS.Components
 {
     /// <summary>
     /// One-shot request: created by <see cref="ProcessCommandsSystem"/>, consumed by game-specific validation system.
@@ -28,22 +31,10 @@ namespace Runtime.Gameplay.ECS
     }
 
     /// <summary>
-    /// One-shot request: created by <see cref="ProcessCommandsSystem"/>, consumed by battleship placement system.
+    /// Internal pipeline marker: set by the command dispatch stage after one command is consumed during the current tick.
+    /// Cleared at the start of the next <see cref="ProcessCommandsSystem"/> update.
     /// </summary>
-    public struct SubmitPlacementRequest : IComponent
-    {
-        public int PlayerSlot;
-        public Runtime.Games.Battleship.FleetLayout Layout;
-    }
-
-    /// <summary>
-    /// One-shot request: created by <see cref="ProcessCommandsSystem"/>, consumed by battleship placement system.
-    /// </summary>
-    public struct PlacementTimeoutRequest : IComponent
-    {
-        public int PlayerSlot;
-        public int AutoPlaceSeed;
-    }
+    public struct CommandDispatchHandledOneShot : IComponent { }
 
     /// <summary>
     /// One-shot event: placed on match entity by apply systems, consumed by <see cref="EventPublishSystem"/>.

@@ -3,6 +3,10 @@
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.ECS.Pipeline;
+using Runtime.Gameplay.ECS.Publishing;
+using Runtime.Gameplay.Shared;
 using Scellecs.Morpeh;
 
 namespace Tests.EditMode.Gameplay.ECS

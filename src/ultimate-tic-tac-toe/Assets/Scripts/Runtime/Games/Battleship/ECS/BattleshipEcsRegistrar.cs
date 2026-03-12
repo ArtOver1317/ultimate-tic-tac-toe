@@ -7,6 +7,11 @@ using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.ECS.Lifecycle;
+using Runtime.Gameplay.ECS.Pipeline;
+using Runtime.Gameplay.Shared;
+using Runtime.Games.Battleship;
 using Runtime.Games.TicTacToe.Moves;
 using Scellecs.Morpeh;
 
@@ -16,11 +21,19 @@ namespace Runtime.Games.Battleship.ECS
     {
         public string GameId => BattleshipStrategy.DefaultGameId;
 
+        private readonly CommandQueue _commandQueue;
+        private readonly BattleshipGameplayEventStream _eventStream;
         private readonly IBattleshipPlacementValidator _placementValidator;
         private readonly IBattleshipAutoPlacer _autoPlacer;
 
-        public BattleshipEcsRegistrar(IBattleshipPlacementValidator placementValidator, IBattleshipAutoPlacer autoPlacer)
+        public BattleshipEcsRegistrar(
+            CommandQueue commandQueue,
+            BattleshipGameplayEventStream eventStream,
+            IBattleshipPlacementValidator placementValidator,
+            IBattleshipAutoPlacer autoPlacer)
         {
+            _commandQueue = commandQueue ?? throw new ArgumentNullException(nameof(commandQueue));
+            _eventStream = eventStream ?? throw new ArgumentNullException(nameof(eventStream));
             _placementValidator = placementValidator ?? throw new ArgumentNullException(nameof(placementValidator));
             _autoPlacer = autoPlacer ?? throw new ArgumentNullException(nameof(autoPlacer));
         }
@@ -69,11 +82,17 @@ namespace Runtime.Games.Battleship.ECS
                 Player1ConsecutiveTimeouts = 0,
             });
 
+            systemsGroup.AddSystem(new BattleshipProcessCommandsSystem(_commandQueue));
             systemsGroup.AddSystem(new BattleshipPlacementSystem(_placementValidator, _autoPlacer));
             systemsGroup.AddSystem(new BattleshipBattleSystem());
             systemsGroup.AddSystem(new BattleshipTimeoutRuleSystem());
             systemsGroup.AddSystem(new BattleshipRoundRestartSystem());
             systemsGroup.AddSystem(new BoardEventPublishSystem());
+        }
+
+        public void RegisterPostPublishSystems(World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config)
+        {
+            systemsGroup.AddSystem(new BattleshipEventPublishSystem(_eventStream));
         }
 
         private static int ResolveInitialStartingPlayerSlot(GameLaunchConfig config)

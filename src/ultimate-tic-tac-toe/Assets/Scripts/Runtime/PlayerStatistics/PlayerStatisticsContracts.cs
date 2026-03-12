@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 
 namespace Runtime.PlayerStatistics
 {

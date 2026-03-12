@@ -7,6 +7,7 @@ using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 using Runtime.Localization;
 using Runtime.Games.TicTacToe.Moves;
 using UnityEngine.UIElements;

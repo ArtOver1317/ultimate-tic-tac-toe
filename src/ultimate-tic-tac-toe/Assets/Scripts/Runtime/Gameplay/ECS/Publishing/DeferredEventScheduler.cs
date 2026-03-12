@@ -4,7 +4,7 @@ using Cysharp.Threading.Tasks;
 using Runtime.Infrastructure.Logging;
 using StripLog;
 
-namespace Runtime.Gameplay.ECS
+namespace Runtime.Gameplay.ECS.Publishing
 {
     /// <summary>
     /// Defers event publishing to the next frame for re-entrancy safety (ADR-5).
@@ -18,7 +18,9 @@ namespace Runtime.Gameplay.ECS
 
         public void Schedule(Action publishAction)
         {
-            if (publishAction == null) return;
+            if (publishAction == null) 
+                return;
+            
             ScheduleAsync(publishAction, _cts.Token).Forget();
         }
 

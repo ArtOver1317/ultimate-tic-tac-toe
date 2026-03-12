@@ -14,6 +14,8 @@ using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Lifecycle;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
@@ -26,7 +28,7 @@ using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.PlayerStatistics;
 using UnityEngine.UIElements;
 using CellId = Runtime.Games.TicTacToe.Moves.CellId;
-using EcsGameStatus = Runtime.Gameplay.ECS.GameStatus;
+using EcsGameStatus = Runtime.Gameplay.Shared.GameStatus;
 
 namespace Tests.EditMode.Games.TicTacToe
 {

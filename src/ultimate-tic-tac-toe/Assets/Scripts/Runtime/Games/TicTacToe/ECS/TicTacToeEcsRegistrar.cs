@@ -5,6 +5,9 @@ using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.ECS.Lifecycle;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using Scellecs.Morpeh;
@@ -74,6 +77,10 @@ namespace Runtime.Games.TicTacToe.ECS
             systemsGroup.AddSystem(new ApplyMoveSystem());
             systemsGroup.AddSystem(new RulesEvaluationSystem(_rulesEngine));
             systemsGroup.AddSystem(new RestartRoundSystem());
+        }
+
+        public void RegisterPostPublishSystems(World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config)
+        {
         }
 
         internal static FieldRenderSpec MapSpec(TicTacToeConfig config) =>

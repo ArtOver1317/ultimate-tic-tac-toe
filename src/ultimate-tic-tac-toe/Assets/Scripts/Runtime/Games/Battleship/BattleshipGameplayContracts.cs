@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using R3;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 
 namespace Runtime.Games.Battleship
 {

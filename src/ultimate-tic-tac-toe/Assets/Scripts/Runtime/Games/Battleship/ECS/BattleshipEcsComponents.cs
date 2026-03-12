@@ -1,6 +1,7 @@
 #nullable enable
 
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Components;
 using Runtime.Games.TicTacToe.Moves;
 using Scellecs.Morpeh;
 
@@ -26,6 +27,24 @@ namespace Runtime.Games.Battleship.ECS
     }
 
     public struct BoardDirtyComponent : IComponent { }
+
+    /// <summary>
+    /// One-shot request: created by <see cref="BattleshipProcessCommandsSystem"/>, consumed by <see cref="BattleshipPlacementSystem"/>.
+    /// </summary>
+    public struct SubmitPlacementRequest : IComponent
+    {
+        public int PlayerSlot;
+        public FleetLayout Layout;
+    }
+
+    /// <summary>
+    /// One-shot request: created by <see cref="BattleshipProcessCommandsSystem"/>, consumed by <see cref="BattleshipPlacementSystem"/>.
+    /// </summary>
+    public struct PlacementTimeoutRequest : IComponent
+    {
+        public int PlayerSlot;
+        public int AutoPlaceSeed;
+    }
 
     public struct BattleshipPhaseChangedOneShot : IComponent
     {

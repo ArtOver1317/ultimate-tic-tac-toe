@@ -7,6 +7,7 @@ using NUnit.Framework;
 using R3;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.Moves;
 

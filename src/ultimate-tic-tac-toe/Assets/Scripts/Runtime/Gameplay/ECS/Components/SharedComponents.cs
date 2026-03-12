@@ -3,10 +3,11 @@
 // NOTE: CellId currently lives in Runtime.Games.TicTacToe.Moves because it was created
 // for TicTacToe. It's a generic Major/Minor coordinate that works for any grid game.
 // If a second game needs CellId, move it to Runtime.Gameplay (YAGNI until then).
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Moves;
 using Scellecs.Morpeh;
 
-namespace Runtime.Gameplay.ECS
+namespace Runtime.Gameplay.ECS.Components
 {
     public struct MatchTag : IComponent { }
 

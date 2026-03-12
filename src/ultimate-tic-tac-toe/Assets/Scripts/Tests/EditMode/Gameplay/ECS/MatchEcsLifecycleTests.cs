@@ -11,6 +11,10 @@ using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Lifecycle;
+using Runtime.Gameplay.ECS.Pipeline;
+using Runtime.Gameplay.ECS.Publishing;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Rules;
 using Scellecs.Morpeh;
@@ -148,16 +152,19 @@ namespace Tests.EditMode.Gameplay.ECS
         {
             // Arrange — first match with a move
             StartMatch();
+            _eventSystem.HasCallbacks.Should().BeTrue("MatchStateProvider keeps shared callbacks wired for the active lifecycle");
             _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 0)));
             _stateProvider.CommandSequence.Should().Be(1, "sequence should be 1 after a move");
             _stateProvider.LastMove.Should().Be(new CellId(0, 0),
                 "last move must match the submitted command");
             _lifecycle.StopMatch();
+            _eventSystem.HasCallbacks.Should().BeTrue("stopping the world must not clear callbacks because the same EventPublishSystem instance is reused");
 
             // Act — start fresh match
             StartMatch();
 
             // Assert — verify through public API
+            _eventSystem.HasCallbacks.Should().BeTrue("callbacks must still be present after starting the next match");
             _stateProvider.CommandSequence.Should().Be(0, "sequence resets on new match");
             _commandQueue.Count.Should().Be(0, "queue should be empty at start");
             _stateProvider.LastMove.Should().BeNull(
@@ -277,6 +284,9 @@ namespace Tests.EditMode.Gameplay.ECS
 
                 _real.Register(world, systemsGroup, matchEntity, config);
             }
+
+            public void RegisterPostPublishSystems(World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config) =>
+                _real.RegisterPostPublishSystems(world, systemsGroup, matchEntity, config);
 
             public int GetCellSlot(World world, Entity matchEntity, CellId cellId) =>
                 _real.GetCellSlot(world, matchEntity, cellId);

@@ -1,4 +1,4 @@
-namespace Runtime.Gameplay.ECS
+namespace Runtime.Gameplay.Shared
 {
     public enum GameplayRejectionReason
     {

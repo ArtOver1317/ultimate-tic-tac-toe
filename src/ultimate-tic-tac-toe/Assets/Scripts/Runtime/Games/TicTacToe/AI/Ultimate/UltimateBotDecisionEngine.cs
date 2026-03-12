@@ -5,9 +5,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Moves;
-using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
+using GameStatus = Runtime.Games.TicTacToe.Rules.GameStatus;
 
 namespace Runtime.Games.TicTacToe.AI.Ultimate
 {
@@ -1076,8 +1077,8 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate
         {
             return slot switch
             {
-                Runtime.Gameplay.ECS.PlayerSlotMapping.SlotX => PlayerMark.X,
-                Runtime.Gameplay.ECS.PlayerSlotMapping.SlotO => PlayerMark.O,
+                PlayerSlotMapping.SlotX => PlayerMark.X,
+                PlayerSlotMapping.SlotO => PlayerMark.O,
                 _ => PlayerMark.None,
             };
         }

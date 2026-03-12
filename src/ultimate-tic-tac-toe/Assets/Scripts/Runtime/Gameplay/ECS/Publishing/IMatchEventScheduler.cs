@@ -1,6 +1,6 @@
 using System;
 
-namespace Runtime.Gameplay.ECS
+namespace Runtime.Gameplay.ECS.Publishing
 {
     /// <summary>
     /// Abstraction for event scheduling. Runtime uses deferred (next-frame) scheduling

@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.ECS.Pipeline;
+using Runtime.Gameplay.ECS.Publishing;
+using Runtime.Gameplay.Shared;
 using Scellecs.Morpeh;
 
-namespace Runtime.Gameplay.ECS
+namespace Runtime.Gameplay.ECS.Lifecycle
 {
     /// <summary>
     /// Creates and manages a per-match ECS World (ADR-1).
@@ -18,16 +21,15 @@ namespace Runtime.Gameplay.ECS
         private readonly CommandQueue _commandQueue;
         private readonly EventPublishSystem _eventPublishSystem;
 
-        private World _world;
         private SystemsGroup _systemsGroup;
 
-        public bool IsActive => _world != null && !_world.IsDisposed;
+        public bool IsActive => World is { IsDisposed: false };
 
         /// <summary>
         /// The ECS World for the current match. Null when no match is active.
-        /// Internal: only <see cref="MatchTickRunner"/> and tests access this.
+        /// Internal: used by the Service Layer and EditMode tests.
         /// </summary>
-        internal World World => _world;
+        internal World World { get; private set; }
 
         /// <summary>
         /// The match entity. Only valid when <see cref="IsActive"/> is true.
@@ -57,50 +59,62 @@ namespace Runtime.Gameplay.ECS
                 throw new ArgumentNullException(nameof(config));
 
             if (IsActive)
+            {
                 throw new InvalidOperationException(
                     "Cannot start a new match while another is active. Call StopMatch() first.");
+            }
 
             _commandQueue.Clear();
 
-            _world = World.Create();
-            _world.UpdateByUnity = false; // Lazy tick (ADR-7) — we control updates
-            _systemsGroup = _world.CreateSystemsGroup();
+            var registrar = _registrars.FirstOrDefault(r => r.GameId == config.GameId);
+            
+            if (registrar == null)
+            {
+                throw new InvalidOperationException(
+                    $"No IEcsGameplayRegistrar found for GameId '{config.GameId}'.");
+            }
+
+            World = World.Create();
+            World.UpdateByUnity = false; // Lazy tick (ADR-7) — we control updates
+            _systemsGroup = World.CreateSystemsGroup();
 
             // Create match entity with shared components
-            var matchEntity = _world.CreateEntity();
+            var matchEntity = World.CreateEntity();
             MatchEntity = matchEntity;
 
-            var matchTagStash = _world.GetStash<MatchTag>();
+            var matchTagStash = World.GetStash<MatchTag>();
             matchTagStash.Set(matchEntity);
 
-            var gameIdStash = _world.GetStash<GameIdComponent>();
+            var gameIdStash = World.GetStash<GameIdComponent>();
             gameIdStash.Set(matchEntity, new GameIdComponent { Value = config.GameId });
 
-            var statusStash = _world.GetStash<MatchStatusComponent>();
+            var statusStash = World.GetStash<MatchStatusComponent>();
             statusStash.Set(matchEntity, new MatchStatusComponent { Status = GameStatus.InProgress });
 
-            var seqStash = _world.GetStash<CommandSequenceComponent>();
+            var seqStash = World.GetStash<CommandSequenceComponent>();
             seqStash.Set(matchEntity, new CommandSequenceComponent { Value = 0 });
 
-            var lastMoveStash = _world.GetStash<LastMoveComponent>();
+            var lastMoveStash = World.GetStash<LastMoveComponent>();
             lastMoveStash.Set(matchEntity, new LastMoveComponent { HasValue = false });
 
             // Add shared infrastructure systems (order matters)
             // 1. ProcessCommandsSystem — first, dequeues commands
             _systemsGroup.AddSystem(new ProcessCommandsSystem(_commandQueue));
 
-            // Game-specific systems are registered here (between process and event publish)
-            var registrar = _registrars.FirstOrDefault(r => r.GameId == config.GameId);
-            if (registrar == null)
-            {
-                StopMatch();
-                throw new InvalidOperationException(
-                    $"No IEcsGameplayRegistrar found for GameId '{config.GameId}'.");
-            }
-
             try
             {
-                registrar.Register(_world, _systemsGroup, matchEntity, config);
+                // Game-specific systems are registered here (between process and event publish)
+                registrar.Register(World, _systemsGroup, matchEntity, config);
+
+                // Final fallback: discard one unsupported queued command if no shared or game-specific dispatcher consumed it.
+                _systemsGroup.AddSystem(new UnsupportedCommandSystem(_commandQueue));
+
+                // Infrastructure terminal transition for timeout commands.
+                _systemsGroup.AddSystem(new TimeoutTerminalSystem());
+
+                // Shared cross-game publish stage always runs before game-specific publish stages.
+                _systemsGroup.AddSystem(_eventPublishSystem);
+                registrar.RegisterPostPublishSystems(World, _systemsGroup, matchEntity, config);
             }
             catch
             {
@@ -110,28 +124,22 @@ namespace Runtime.Gameplay.ECS
 
             ActiveRegistrar = registrar;
 
-            // Infrastructure terminal transition for timeout commands.
-            _systemsGroup.AddSystem(new TimeoutTerminalSystem());
-
-            // Last: EventPublishSystem — publishes pending events after all mutations
-            _systemsGroup.AddSystem(_eventPublishSystem);
-
-            _world.AddSystemsGroup(0, _systemsGroup);
+            World.AddSystemsGroup(0, _systemsGroup);
 
             // Initial commit to finalize entity setup
-            _world.Commit();
+            World.Commit();
         }
 
         /// <summary>
         /// Manually ticks the ECS World (processes queued commands through systems).
-        /// Used by <see cref="MatchTickRunner"/> at runtime and by EditMode tests.
+        /// Used by <see cref="Runtime.Gameplay.MatchStateProvider.SubmitCommand"/> at runtime and by EditMode tests.
         /// </summary>
         public void Tick(float deltaTime = 0f)
         {
             if (!IsActive)
                 return;
 
-            _world.Update(deltaTime);
+            World.Update(deltaTime);
         }
 
         public void StopMatch()
@@ -141,16 +149,13 @@ namespace Runtime.Gameplay.ECS
 
             _commandQueue.Clear();
 
-            _world.Dispose();
-            _world = null;
+            World.Dispose();
+            World = null;
             _systemsGroup = null;
             MatchEntity = default;
             ActiveRegistrar = null;
         }
 
-        public void Dispose()
-        {
-            StopMatch();
-        }
+        public void Dispose() => StopMatch();
     }
 }

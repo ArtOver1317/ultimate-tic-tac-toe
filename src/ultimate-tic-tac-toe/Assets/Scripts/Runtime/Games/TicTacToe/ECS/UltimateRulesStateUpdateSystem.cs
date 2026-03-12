@@ -1,5 +1,7 @@
 using System;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Scellecs.Morpeh;
 
@@ -102,7 +104,7 @@ namespace Runtime.Games.TicTacToe.ECS
                 switch (result.Match.Status)
                 {
                     case Rules.GameStatus.InProgress:
-                        status.Status = Gameplay.ECS.GameStatus.InProgress;
+                        status.Status = GameStatus.InProgress;
                         status.WinnerSlot = null;
                         status.WinLine = null;
                         bigBoardWinLine.HasValue = false;
@@ -110,7 +112,7 @@ namespace Runtime.Games.TicTacToe.ECS
                         break;
 
                     case Rules.GameStatus.Draw:
-                        status.Status = Gameplay.ECS.GameStatus.Draw;
+                        status.Status = GameStatus.Draw;
                         status.WinnerSlot = null;
                         status.WinLine = null;
                         bigBoardWinLine.HasValue = false;
@@ -124,7 +126,7 @@ namespace Runtime.Games.TicTacToe.ECS
                         break;
 
                     case Rules.GameStatus.Win:
-                        status.Status = Gameplay.ECS.GameStatus.Win;
+                        status.Status = GameStatus.Win;
                         status.WinnerSlot = PlayerSlotMapping.MarkToSlot(result.Match.Winner);
                         status.WinLine = null;
 
@@ -145,7 +147,7 @@ namespace Runtime.Games.TicTacToe.ECS
                         break;
 
                     case Rules.GameStatus.Timeout:
-                        status.Status = Gameplay.ECS.GameStatus.Timeout;
+                        status.Status = GameStatus.Timeout;
                         status.WinnerSlot = result.Match.Winner == Moves.PlayerMark.None
                             ? null
                             : PlayerSlotMapping.MarkToSlot(result.Match.Winner);

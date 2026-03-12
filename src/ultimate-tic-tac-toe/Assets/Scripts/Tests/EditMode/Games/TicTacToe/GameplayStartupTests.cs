@@ -27,6 +27,8 @@ using R3;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
+using Runtime.Gameplay.ECS.Lifecycle;
+using Runtime.Gameplay.Shared;
 using UnityEngine.UIElements;
 
 namespace Tests.EditMode.Games.TicTacToe

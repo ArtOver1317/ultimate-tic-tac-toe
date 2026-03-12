@@ -11,10 +11,12 @@ using UnityEngine.TestTools;
 using R3;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
+using GameStatus = Runtime.Gameplay.Shared.GameStatus;
 
 namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
 {
@@ -765,7 +767,7 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
 
             public void EmitRoundFinished()
             {
-                _finished.OnNext(new RoundFinishedEvent(Runtime.Gameplay.ECS.GameStatus.Draw, null, null));
+                _finished.OnNext(new RoundFinishedEvent(GameStatus.Draw, null, null));
             }
         }
 

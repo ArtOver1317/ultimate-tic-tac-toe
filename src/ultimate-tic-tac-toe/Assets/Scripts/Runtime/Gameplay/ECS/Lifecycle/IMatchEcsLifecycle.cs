@@ -1,8 +1,7 @@
 using System;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 
-namespace Runtime.Gameplay.ECS
+namespace Runtime.Gameplay.ECS.Lifecycle
 {
     /// <summary>
     /// Manages the ECS World lifecycle for a single match (ADR-1).

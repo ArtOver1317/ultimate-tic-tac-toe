@@ -10,6 +10,7 @@ using Runtime.Gameplay.ECS;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Moves;
 using UnityEngine;
 

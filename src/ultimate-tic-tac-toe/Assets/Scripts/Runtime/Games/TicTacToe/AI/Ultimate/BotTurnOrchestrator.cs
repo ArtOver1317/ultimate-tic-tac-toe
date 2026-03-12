@@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 
 namespace Runtime.Games.TicTacToe.AI.Ultimate
 {

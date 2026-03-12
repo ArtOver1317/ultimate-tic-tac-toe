@@ -12,6 +12,7 @@ using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 using CellId = Runtime.Games.TicTacToe.Moves.CellId;
 
 namespace Tests.EditMode.Gameplay

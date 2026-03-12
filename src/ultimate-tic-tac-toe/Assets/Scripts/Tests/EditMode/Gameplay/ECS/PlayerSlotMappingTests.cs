@@ -1,7 +1,10 @@
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Moves;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Tests.EditMode.Gameplay.ECS
 {
@@ -20,10 +23,22 @@ namespace Tests.EditMode.Gameplay.ECS
         }
 
         [Test]
-        public void WhenInvalidSlotOrMarkMapped_ThenReturnsFallbackValues()
+        public void WhenEmptySentinelMapped_ThenReturnsFallbackValues()
         {
-            PlayerSlotMapping.SlotToMark(42).Should().Be(PlayerMark.None);
             PlayerSlotMapping.MarkToSlot(PlayerMark.None).Should().Be(-1);
+            PlayerSlotMapping.SlotToMark(-1).Should().Be(PlayerMark.None);
+        }
+
+        [Test]
+        public void WhenInvalidSlotOrMarkMapped_ThenReturnsFallbackValuesAndLogsErrors()
+        {
+            LogAssert.Expect(LogType.Error,
+                "[Infrastructure] [PlayerSlotMapping] Invalid player slot: 42.");
+            LogAssert.Expect(LogType.Error,
+                "[Infrastructure] [PlayerSlotMapping] Invalid player mark: 99.");
+
+            PlayerSlotMapping.SlotToMark(42).Should().Be(PlayerMark.None);
+            PlayerSlotMapping.MarkToSlot((PlayerMark)99).Should().Be(-1);
         }
     }
 }

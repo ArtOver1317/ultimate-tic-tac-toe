@@ -5,6 +5,9 @@ using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Lifecycle;
+using Runtime.Gameplay.ECS.Pipeline;
+using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.ECS;
 using Runtime.Games.TicTacToe;
@@ -58,6 +61,14 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<CommandQueue>(Lifetime.Scoped);
             builder.Register<IMatchEventScheduler, DeferredEventScheduler>(Lifetime.Scoped);
             builder.Register<EventPublishSystem>(Lifetime.Scoped);
+            builder.Register<UltimateGameplayEventStream>(Lifetime.Scoped)
+                .AsSelf()
+                .As<IUltimateGameplayEventStream>()
+                .As<IDisposable>();
+            builder.Register<BattleshipGameplayEventStream>(Lifetime.Scoped)
+                .AsSelf()
+                .As<IBattleshipGameplayEventStream>()
+                .As<IDisposable>();
             builder.Register<IRulesEngine, ClassicRulesEngine>(Lifetime.Scoped);
             builder.Register<IUltimateRulesEngine, UltimateRulesEngine>(Lifetime.Scoped);
             builder.Register<IBattleshipPlacementValidator, BattleshipPlacementValidator>(Lifetime.Scoped);
@@ -74,10 +85,8 @@ namespace Runtime.Infrastructure.Scopes
                 .As<IMatchStateProvider>()
                 .As<IGameplayEventStream>()
                 .As<IGameplaySnapshotProvider>()
-                .As<IBattleshipGameplayEventStream>()
                 .As<IBattleshipGameplaySnapshotProvider>()
                 .As<IBattleshipRecoveryStateApplier>()
-                .As<IUltimateGameplayEventStream>()
                 .As<IUltimateGameplaySnapshotProvider>();
             builder.Register<IGameplayNetworkBridge, FileGameplayNetworkBridge>(Lifetime.Scoped);
             builder.Register<IBattleshipNetworkBridge, FileBattleshipNetworkBridge>(Lifetime.Scoped);

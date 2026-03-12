@@ -6,6 +6,11 @@ using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.ECS.Lifecycle;
+using Runtime.Gameplay.ECS.Pipeline;
+using Runtime.Gameplay.ECS.Publishing;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
@@ -20,6 +25,7 @@ namespace Tests.EditMode.Games.TicTacToe
     {
         private CommandQueue _commandQueue;
         private EventPublishSystem _eventSystem;
+        private UltimateGameplayEventStream _ultimateEventStream;
         private MatchEcsLifecycleService _lifecycle;
         private MatchStateProvider _stateProvider;
 
@@ -27,12 +33,14 @@ namespace Tests.EditMode.Games.TicTacToe
         public void SetUp()
         {
             _commandQueue = new CommandQueue();
-            _eventSystem = new EventPublishSystem(new SynchronousEventScheduler());
+            var scheduler = new SynchronousEventScheduler();
+            _eventSystem = new EventPublishSystem(scheduler);
+            _ultimateEventStream = new UltimateGameplayEventStream(scheduler);
             _lifecycle = new MatchEcsLifecycleService(
-                new IEcsGameplayRegistrar[] { new UltimateTicTacToeEcsRegistrar(new UltimateRulesEngine()) },
+                new IEcsGameplayRegistrar[] { new UltimateTicTacToeEcsRegistrar(new UltimateRulesEngine(), _ultimateEventStream) },
                 _commandQueue,
                 _eventSystem);
-            _stateProvider = new MatchStateProvider(_commandQueue, _lifecycle, _eventSystem);
+            _stateProvider = new MatchStateProvider(_commandQueue, _lifecycle, _eventSystem, ultimateEventStream: _ultimateEventStream);
         }
 
         [TearDown]
@@ -264,13 +272,11 @@ namespace Tests.EditMode.Games.TicTacToe
             board.Cells[7 * board.MinorCount + 0] = Runtime.Games.TicTacToe.Moves.PlayerMark.X;
             board.Cells[7 * board.MinorCount + 1] = Runtime.Games.TicTacToe.Moves.PlayerMark.X;
 
-            var ultimateStream = (IUltimateGameplayEventStream)_stateProvider;
-
             AllowedMajorsChangedEvent? allowedEvt = null;
             MiniBoardStatusChangedEvent? miniEvt = null;
             using var d = new CompositeDisposable();
-            ultimateStream.AllowedMajorsChanged.Subscribe(evt => allowedEvt = evt).AddTo(d);
-            ultimateStream.MiniBoardStatusChanged.Subscribe(evt => miniEvt = evt).AddTo(d);
+            _ultimateEventStream.AllowedMajorsChanged.Subscribe(evt => allowedEvt = evt).AddTo(d);
+            _ultimateEventStream.MiniBoardStatusChanged.Subscribe(evt => miniEvt = evt).AddTo(d);
 
             _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(7, 2)));
 

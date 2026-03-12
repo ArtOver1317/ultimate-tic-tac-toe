@@ -1,6 +1,7 @@
 #nullable enable
 
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.Shared;
 
 namespace Runtime.PlayerStatistics
 {

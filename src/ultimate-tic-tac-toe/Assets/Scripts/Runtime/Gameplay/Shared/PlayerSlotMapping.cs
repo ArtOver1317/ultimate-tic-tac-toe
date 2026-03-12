@@ -1,7 +1,8 @@
 using Runtime.Games.TicTacToe.Moves;
-using System.Diagnostics;
+using Runtime.Infrastructure.Logging;
+using StripLog;
 
-namespace Runtime.Gameplay.ECS
+namespace Runtime.Gameplay.Shared
 {
     /// <summary>Shared slot ↔ mark mapping for ECS systems and registrars.</summary>
     public static class PlayerSlotMapping
@@ -14,6 +15,7 @@ namespace Runtime.Gameplay.ECS
         {
             SlotX => PlayerMark.X,
             SlotO => PlayerMark.O,
+            -1 => PlayerMark.None,
             _ => OnInvalidSlot(slot),
         };
 
@@ -21,18 +23,19 @@ namespace Runtime.Gameplay.ECS
         {
             PlayerMark.X => SlotX,
             PlayerMark.O => SlotO,
+            PlayerMark.None => -1,
             _ => OnInvalidMark(mark),
         };
 
         private static PlayerMark OnInvalidSlot(int slot)
         {
-            Debug.Fail($"Invalid player slot: {slot}");
+            Log.Error(LogTags.Infrastructure, $"[PlayerSlotMapping] Invalid player slot: {slot}.");
             return PlayerMark.None;
         }
 
         private static int OnInvalidMark(PlayerMark mark)
         {
-            Debug.Fail($"Invalid player mark: {mark}");
+            Log.Error(LogTags.Infrastructure, $"[PlayerSlotMapping] Invalid player mark: {mark}.");
             return -1;
         }
     }

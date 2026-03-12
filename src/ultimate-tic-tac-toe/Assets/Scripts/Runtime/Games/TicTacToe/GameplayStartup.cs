@@ -9,6 +9,8 @@ using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Lifecycle;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
 using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.AI.Ultimate;
@@ -27,8 +29,8 @@ using Runtime.PlayerStatistics;
 using Runtime.PlayerProfile;
 using StripLog;
 using UnityEngine;
-using EcsRoundFinishedEvent = Runtime.Gameplay.ECS.RoundFinishedEvent;
-using EcsGameStatus = Runtime.Gameplay.ECS.GameStatus;
+using EcsRoundFinishedEvent = Runtime.Gameplay.Shared.RoundFinishedEvent;
+using EcsGameStatus = Runtime.Gameplay.Shared.GameStatus;
 
 namespace Runtime.Games.TicTacToe
 {
@@ -71,8 +73,9 @@ namespace Runtime.Games.TicTacToe
         private readonly PlayerStatisticsMatchReporter _statisticsReporter;
         private readonly IBattleshipPlacementUiController _battleshipPlacementUiController;
         private readonly BattleshipPlacementTimerHudBinder _battleshipPlacementTimerHudBinder;
+        private readonly IUltimateGameplayEventStream? _ultimateEventStream;
         private readonly IBattleshipGameplaySnapshotProvider _battleshipSnapshotProvider;
-        private readonly IBattleshipGameplayEventStream _battleshipEventStream;
+        private readonly IBattleshipGameplayEventStream? _battleshipEventStream;
         private readonly IBattleshipLayoutSerializer _battleshipLayoutSerializer;
         private readonly IBattleshipRecoveryStateApplier _battleshipRecoveryStateApplier;
         private readonly HostAuthoritativeMoveProcessor _hostMoveProcessor = new();
@@ -142,7 +145,8 @@ namespace Runtime.Games.TicTacToe
             PlayerStatisticsMatchReporter statisticsReporter = null,
             IBattleshipBotDriver battleshipBotDriver = null,
             IBattleshipPlacementUiController battleshipPlacementUiController = null,
-            BattleshipBoardsBinder battleshipBoardsBinder = null)
+            BattleshipBoardsBinder battleshipBoardsBinder = null,
+            IUltimateGameplayEventStream? ultimateEventStream = null)
         {
             _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));
             _gameService = gameService ?? throw new ArgumentNullException(nameof(gameService));
@@ -175,8 +179,9 @@ namespace Runtime.Games.TicTacToe
             _moveTimerService = moveTimerService ?? NoOpMoveTimerService.Instance;
             _battleshipPlacementTimerService = battleshipPlacementTimerService ?? NoOpBattleshipPlacementTimerService.Instance;
             _battleshipPlacementTimerHudBinder = battleshipPlacementTimerHudBinder;
+            _ultimateEventStream = ultimateEventStream;
             _battleshipSnapshotProvider = battleshipSnapshotProvider ?? _matchStateProvider as IBattleshipGameplaySnapshotProvider;
-            _battleshipEventStream = battleshipEventStream ?? _matchStateProvider as IBattleshipGameplayEventStream;
+            _battleshipEventStream = battleshipEventStream;
             _battleshipLayoutSerializer = battleshipLayoutSerializer ?? new BattleshipLayoutSerializer();
             _battleshipRecoveryStateApplier = battleshipRecoveryStateApplier ?? _matchStateProvider as IBattleshipRecoveryStateApplier;
             _statisticsReporter = statisticsReporter;
@@ -1637,11 +1642,11 @@ namespace Runtime.Games.TicTacToe
             if (_fieldUiAdapter is not IUltimateGameplayFieldUiAdapter ultimateUi)
                 return;
 
-            if (_eventStream is not IUltimateGameplayEventStream ultimateEvents)
+            if (_ultimateEventStream == null)
                 return;
 
-            _ultimateAllowedBinder ??= new UltimateAllowedBinder(ultimateUi, ultimateEvents, _ultimateSnapshotProvider);
-            _ultimateMiniBoardStatusBinder ??= new UltimateMiniBoardStatusBinder(ultimateUi, ultimateEvents, _ultimateSnapshotProvider);
+            _ultimateAllowedBinder ??= new UltimateAllowedBinder(ultimateUi, _ultimateEventStream, _ultimateSnapshotProvider);
+            _ultimateMiniBoardStatusBinder ??= new UltimateMiniBoardStatusBinder(ultimateUi, _ultimateEventStream, _ultimateSnapshotProvider);
 
             _ultimateAllowedBinder.Bind();
             _ultimateMiniBoardStatusBinder.Bind();

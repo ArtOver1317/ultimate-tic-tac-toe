@@ -10,6 +10,10 @@ using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Lifecycle;
+using Runtime.Gameplay.ECS.Pipeline;
+using Runtime.Gameplay.ECS.Publishing;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.ECS;
 using Runtime.Games.TicTacToe.Moves;
@@ -22,6 +26,7 @@ namespace Tests.EditMode.Games.Battleship
     {
         private CommandQueue _commandQueue = null!;
         private EventPublishSystem _eventPublishSystem = null!;
+        private BattleshipGameplayEventStream _battleshipEventStream = null!;
         private MatchEcsLifecycleService _lifecycle = null!;
         private MatchStateProvider _stateProvider = null!;
         private BattleshipAutoPlacer _autoPlacer = null!;
@@ -33,15 +38,21 @@ namespace Tests.EditMode.Games.Battleship
             _autoPlacer = new BattleshipAutoPlacer(validator);
 
             _commandQueue = new CommandQueue();
-            _eventPublishSystem = new EventPublishSystem(new SynchronousEventScheduler());
+            var scheduler = new SynchronousEventScheduler();
+            _eventPublishSystem = new EventPublishSystem(scheduler);
+            _battleshipEventStream = new BattleshipGameplayEventStream(scheduler);
             _lifecycle = new MatchEcsLifecycleService(
                 new IEcsGameplayRegistrar[]
                 {
-                    new BattleshipEcsRegistrar(validator, _autoPlacer),
+                    new BattleshipEcsRegistrar(_commandQueue, _battleshipEventStream, validator, _autoPlacer),
                 },
                 _commandQueue,
                 _eventPublishSystem);
-            _stateProvider = new MatchStateProvider(_commandQueue, _lifecycle, _eventPublishSystem);
+            _stateProvider = new MatchStateProvider(
+                _commandQueue,
+                _lifecycle,
+                _eventPublishSystem,
+                battleshipEventStream: _battleshipEventStream);
         }
 
         [TearDown]
@@ -213,11 +224,10 @@ namespace Tests.EditMode.Games.Battleship
 
             var phaseEvents = new List<BattleshipPhaseChangedEvent>();
             var marksEvents = new List<BattleshipMarksChangedEvent>();
-            var stream = (IBattleshipGameplayEventStream)_stateProvider;
             var recoveryApplier = (IBattleshipRecoveryStateApplier)_stateProvider;
 
-            using var phaseSub = stream.PhaseChanged.Subscribe(evt => phaseEvents.Add(evt));
-            using var marksSub = stream.MarksChanged.Subscribe(evt => marksEvents.Add(evt));
+            using var phaseSub = _battleshipEventStream.PhaseChanged.Subscribe(evt => phaseEvents.Add(evt));
+            using var marksSub = _battleshipEventStream.MarksChanged.Subscribe(evt => marksEvents.Add(evt));
 
             var applied = recoveryApplier.TryApplyRecoveryState(new BattleshipRecoveryState(
                 BattleshipPhase.Placement,
@@ -246,8 +256,7 @@ namespace Tests.EditMode.Games.Battleship
             _stateProvider.SubmitCommand(new SubmitPlacementCommand(PlayerSlotMapping.SlotO, _autoPlacer.Generate(6006)));
 
             var events = new List<BattleshipMarksChangedEvent>();
-            var stream = (IBattleshipGameplayEventStream)_stateProvider;
-            using var sub = stream.MarksChanged.Subscribe(evt => events.Add(evt));
+            using var sub = _battleshipEventStream.MarksChanged.Subscribe(evt => events.Add(evt));
 
             _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 0)));
 
@@ -450,7 +459,7 @@ namespace Tests.EditMode.Games.Battleship
 
             _stateProvider.CommandSequence.Should().Be(sequenceAfterFirstSubmit);
             rejections.Should().ContainSingle();
-            rejections[0].CommandType.Should().Be(GameplayCommandType.SubmitPlacement);
+            rejections[0].CommandType.Should().Be(BattleshipCommandTypes.SubmitPlacement);
             rejections[0].Rejection.Reason.Should().Be(GameplayRejectionReason.ForbiddenMove);
         }
 
@@ -551,7 +560,7 @@ namespace Tests.EditMode.Games.Battleship
             snapshot.TryGetFleetLayout(PlayerSlotMapping.SlotX, out var actualLayout).Should().BeTrue();
             SerializeLayout(actualLayout).Should().Be(SerializeLayout(autoLayout));
             rejections.Should().ContainSingle();
-            rejections[0].CommandType.Should().Be(GameplayCommandType.SubmitPlacement);
+            rejections[0].CommandType.Should().Be(BattleshipCommandTypes.SubmitPlacement);
             rejections[0].Rejection.Reason.Should().Be(GameplayRejectionReason.ForbiddenMove);
         }
 

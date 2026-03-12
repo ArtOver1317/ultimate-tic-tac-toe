@@ -1,5 +1,7 @@
 using System;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Infrastructure.Logging;
 using Scellecs.Morpeh;

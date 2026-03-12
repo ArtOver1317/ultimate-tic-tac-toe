@@ -5,11 +5,12 @@ using System.Collections.Generic;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Gameplay;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.Moves;
-using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
+using GameStatus = Runtime.Games.TicTacToe.Rules.GameStatus;
 
 namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
 {
@@ -249,8 +250,8 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
                 return _occupied.Contains(cellId) ? 0 : -1;
             }
 
-            public IReadOnlyList<Runtime.Gameplay.ECS.CellSnapshot> GetAllCells()
-                => Array.Empty<Runtime.Gameplay.ECS.CellSnapshot>();
+            public IReadOnlyList<CellSnapshot> GetAllCells()
+                => Array.Empty<CellSnapshot>();
         }
 
         private sealed class FakeUltimateSnapshotProvider : IUltimateGameplaySnapshotProvider

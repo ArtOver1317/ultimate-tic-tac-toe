@@ -4,6 +4,11 @@ using System;
 using System.Collections.Generic;
 using R3;
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.ECS.Lifecycle;
+using Runtime.Gameplay.ECS.Pipeline;
+using Runtime.Gameplay.ECS.Publishing;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.ECS;
 using Runtime.Games.TicTacToe.ECS;
@@ -17,19 +22,20 @@ namespace Runtime.Gameplay
 {
     /// <summary>
     /// Bridges ECS World and UI/ViewModel via ISP interfaces (ADR-4).
-    /// Creates R3 Subjects, wires them into <see cref="EventPublishSystem"/> callbacks.
+    /// Creates shared R3 Subjects, wires them into <see cref="EventPublishSystem"/> callbacks,
+    /// and exposes game-specific snapshot/recovery reads.
     /// Reads ECS state for snapshot queries.
     /// </summary>
     public sealed class MatchStateProvider : IMatchStateProvider
-        , IUltimateGameplayEventStream
         , IUltimateGameplaySnapshotProvider
-        , IBattleshipGameplayEventStream
         , IBattleshipGameplaySnapshotProvider
         , IBattleshipRecoveryStateApplier
     {
         private readonly CommandQueue _commandQueue;
         private readonly MatchEcsLifecycleService _lifecycle;
         private readonly EventPublishSystem _eventPublishSystem;
+        private readonly UltimateGameplayEventStream? _ultimateEventStream;
+        private readonly BattleshipGameplayEventStream? _battleshipEventStream;
 
         // R3 Subjects — hot-path event streams
         private readonly Subject<CellChangedEvent> _cellChanged = new();
@@ -37,10 +43,6 @@ namespace Runtime.Gameplay
         private readonly Subject<CurrentPlayerChangedEvent> _currentPlayerChanged = new();
         private readonly Subject<CommandRejectedEvent> _commandRejected = new();
         private readonly Subject<RoundFinishedEvent> _roundFinished = new();
-        private readonly Subject<AllowedMajorsChangedEvent> _allowedMajorsChanged = new();
-        private readonly Subject<MiniBoardStatusChangedEvent> _miniBoardStatusChanged = new();
-        private readonly Subject<BattleshipPhaseChangedEvent> _battleshipPhaseChanged = new();
-        private readonly Subject<BattleshipMarksChangedEvent> _battleshipMarksChanged = new();
 
         private bool _disposed;
         private static readonly BattleshipCellMark[] UnknownBattleshipMarks = CreateUnknownMarks(BattleshipEcsBoard.DefaultBoardSize);
@@ -51,10 +53,6 @@ namespace Runtime.Gameplay
         public Observable<CurrentPlayerChangedEvent> CurrentPlayerChanged => _currentPlayerChanged;
         public Observable<CommandRejectedEvent> CommandRejected => _commandRejected;
         public Observable<RoundFinishedEvent> RoundFinished => _roundFinished;
-        public Observable<AllowedMajorsChangedEvent> AllowedMajorsChanged => _allowedMajorsChanged;
-        public Observable<MiniBoardStatusChangedEvent> MiniBoardStatusChanged => _miniBoardStatusChanged;
-        public Observable<BattleshipPhaseChangedEvent> PhaseChanged => _battleshipPhaseChanged;
-        public Observable<BattleshipMarksChangedEvent> MarksChanged => _battleshipMarksChanged;
 
         // IMatchStateProvider
         public bool IsMatchActive => _lifecycle.IsActive;
@@ -62,7 +60,9 @@ namespace Runtime.Gameplay
         public MatchStateProvider(
             CommandQueue commandQueue,
             MatchEcsLifecycleService lifecycle,
-            EventPublishSystem eventPublishSystem)
+            EventPublishSystem eventPublishSystem,
+            UltimateGameplayEventStream? ultimateEventStream = null,
+            BattleshipGameplayEventStream? battleshipEventStream = null)
         {
             _commandQueue = commandQueue ?? throw new ArgumentNullException(nameof(commandQueue));
             _lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
@@ -71,6 +71,8 @@ namespace Runtime.Gameplay
                 throw new ArgumentNullException(nameof(eventPublishSystem));
 
             _eventPublishSystem = eventPublishSystem;
+            _ultimateEventStream = ultimateEventStream;
+            _battleshipEventStream = battleshipEventStream;
 
             // Wire Subject.OnNext as event callbacks — breaks circular DI dependency
             eventPublishSystem.SetCallbacks(
@@ -78,11 +80,7 @@ namespace Runtime.Gameplay
                 evt => _lastMoveChanged.OnNext(evt),
                 evt => _currentPlayerChanged.OnNext(evt),
                 evt => _commandRejected.OnNext(evt),
-                evt => _roundFinished.OnNext(evt),
-                evt => _allowedMajorsChanged.OnNext(evt),
-                evt => _miniBoardStatusChanged.OnNext(evt),
-                evt => _battleshipPhaseChanged.OnNext(evt),
-                evt => _battleshipMarksChanged.OnNext(evt));
+                evt => _roundFinished.OnNext(evt));
         }
 
         // IGameplayCommandSink
@@ -365,10 +363,10 @@ namespace Runtime.Gameplay
 
                 var status = ecsStatus.Status switch
                 {
-                    Runtime.Gameplay.ECS.GameStatus.Win => Runtime.Games.TicTacToe.Rules.GameStatus.Win,
-                    Runtime.Gameplay.ECS.GameStatus.Draw => Runtime.Games.TicTacToe.Rules.GameStatus.Draw,
-                    Runtime.Gameplay.ECS.GameStatus.InProgress => Runtime.Games.TicTacToe.Rules.GameStatus.InProgress,
-                    Runtime.Gameplay.ECS.GameStatus.Timeout => Runtime.Games.TicTacToe.Rules.GameStatus.Timeout,
+                    GameStatus.Win => Runtime.Games.TicTacToe.Rules.GameStatus.Win,
+                    GameStatus.Draw => Runtime.Games.TicTacToe.Rules.GameStatus.Draw,
+                    GameStatus.InProgress => Runtime.Games.TicTacToe.Rules.GameStatus.InProgress,
+                    GameStatus.Timeout => Runtime.Games.TicTacToe.Rules.GameStatus.Timeout,
                     _ => throw new ArgumentOutOfRangeException(nameof(ecsStatus.Status), ecsStatus.Status, null),
                 };
 
@@ -422,20 +420,14 @@ namespace Runtime.Gameplay
             _currentPlayerChanged.OnCompleted();
             _commandRejected.OnCompleted();
             _roundFinished.OnCompleted();
-            _allowedMajorsChanged.OnCompleted();
-            _miniBoardStatusChanged.OnCompleted();
-            _battleshipPhaseChanged.OnCompleted();
-            _battleshipMarksChanged.OnCompleted();
 
             _cellChanged.Dispose();
             _lastMoveChanged.Dispose();
             _currentPlayerChanged.Dispose();
             _commandRejected.Dispose();
             _roundFinished.Dispose();
-            _allowedMajorsChanged.Dispose();
-            _miniBoardStatusChanged.Dispose();
-            _battleshipPhaseChanged.Dispose();
-            _battleshipMarksChanged.Dispose();
+            _ultimateEventStream?.Dispose();
+            _battleshipEventStream?.Dispose();
         }
 
         public bool TryApplyRecoveryState(in BattleshipRecoveryState state)
@@ -522,13 +514,23 @@ namespace Runtime.Gameplay
                 || !AreMarksEqual(previousViewer1OwnMarks, viewer1OwnMarks);
 
             if (previousPhase != battleshipState.Phase)
-                _battleshipPhaseChanged.OnNext(new BattleshipPhaseChangedEvent(state.Phase));
+                _battleshipEventStream?.PublishPhaseChangedImmediate(new BattleshipPhaseChangedEvent(state.Phase));
 
-            if (viewer0Changed)
-                _battleshipMarksChanged.OnNext(new BattleshipMarksChangedEvent(PlayerSlotMapping.SlotX));
-
-            if (viewer1Changed)
-                _battleshipMarksChanged.OnNext(new BattleshipMarksChangedEvent(PlayerSlotMapping.SlotO));
+            if (viewer0Changed && viewer1Changed)
+            {
+                _battleshipEventStream?.PublishMarksChangedImmediate(
+                    PlayerSlotMapping.SlotX,
+                    PlayerSlotMapping.SlotO,
+                    hasSecondaryViewer: true);
+            }
+            else if (viewer0Changed)
+            {
+                _battleshipEventStream?.PublishMarksChangedImmediate(new BattleshipMarksChangedEvent(PlayerSlotMapping.SlotX));
+            }
+            else if (viewer1Changed)
+            {
+                _battleshipEventStream?.PublishMarksChangedImmediate(new BattleshipMarksChangedEvent(PlayerSlotMapping.SlotO));
+            }
 
             if (state.ActivePlayerSlot >= 0 && previousActivePlayerSlot != state.ActivePlayerSlot)
                 _currentPlayerChanged.OnNext(new CurrentPlayerChangedEvent(state.ActivePlayerSlot));

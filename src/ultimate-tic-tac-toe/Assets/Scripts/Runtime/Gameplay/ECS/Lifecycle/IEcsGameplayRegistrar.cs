@@ -1,10 +1,10 @@
 using System.Collections.Generic;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
+using Runtime.Gameplay.Shared;
 using Scellecs.Morpeh;
 using CellId = Runtime.Games.TicTacToe.Moves.CellId;
 
-namespace Runtime.Gameplay.ECS
+namespace Runtime.Gameplay.ECS.Lifecycle
 {
     /// <summary>
     /// Game-specific registrar that adds ECS systems, initializes components for a particular game,
@@ -20,6 +20,12 @@ namespace Runtime.Gameplay.ECS
         /// Called after shared infrastructure systems are already added.
         /// </summary>
         void Register(World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config);
+
+        /// <summary>
+        /// Register game-specific event publishing systems that must run after shared
+        /// cross-game events are already published.
+        /// </summary>
+        void RegisterPostPublishSystems(World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config);
 
         /// <summary>
         /// Reads a single cell's slot from game-specific board components.

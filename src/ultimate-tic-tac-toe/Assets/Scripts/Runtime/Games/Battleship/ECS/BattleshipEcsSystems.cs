@@ -1,6 +1,8 @@
 #nullable enable
 
 using Runtime.Gameplay.ECS;
+using Runtime.Gameplay.ECS.Components;
+using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Moves;
 using Scellecs.Morpeh;
 
@@ -188,31 +190,31 @@ namespace Runtime.Games.Battleship.ECS
 
             if (status.Status != GameStatus.InProgress)
             {
-                Reject(matchEntity, GameplayCommandType.SubmitPlacement, GameplayRejectionReason.RoundAlreadyEnded);
+                Reject(matchEntity, BattleshipCommandTypes.SubmitPlacement, GameplayRejectionReason.RoundAlreadyEnded);
                 return;
             }
 
             if (!BattleshipEcsBoard.TryResolvePlayerIndex(players, playerSlot, out var playerIndex))
             {
-                Reject(matchEntity, GameplayCommandType.SubmitPlacement, GameplayRejectionReason.ForbiddenMove);
+                Reject(matchEntity, BattleshipCommandTypes.SubmitPlacement, GameplayRejectionReason.ForbiddenMove);
                 return;
             }
 
             if ((playerIndex == 0 && state.Player0Placed) || (playerIndex == 1 && state.Player1Placed))
             {
-                Reject(matchEntity, GameplayCommandType.SubmitPlacement, GameplayRejectionReason.ForbiddenMove);
+                Reject(matchEntity, BattleshipCommandTypes.SubmitPlacement, GameplayRejectionReason.ForbiddenMove);
                 return;
             }
 
             if (!_validator.TryValidate(layout, out _))
             {
-                Reject(matchEntity, GameplayCommandType.SubmitPlacement, GameplayRejectionReason.ForbiddenMove);
+                Reject(matchEntity, BattleshipCommandTypes.SubmitPlacement, GameplayRejectionReason.ForbiddenMove);
                 return;
             }
 
             if (!TryBuildOccupancy(layout, state.BoardSize, out var occupancy, out var deckCount))
             {
-                Reject(matchEntity, GameplayCommandType.SubmitPlacement, GameplayRejectionReason.ForbiddenMove);
+                Reject(matchEntity, BattleshipCommandTypes.SubmitPlacement, GameplayRejectionReason.ForbiddenMove);
                 return;
             }
 
