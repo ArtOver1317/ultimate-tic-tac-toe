@@ -1,6 +1,5 @@
 #nullable enable
 
-using System;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -54,15 +53,12 @@ namespace Tests.EditMode.Games.Battleship
                 "Runtime",
                 "Games",
                 "Battleship",
-                "BattleshipPlacementInteraction.cs");
+                "UI",
+                "Placement",
+                "BattleshipPlacementUiController.cs");
 
-            File.Exists(sourcePath).Should().BeTrue("placement interaction source file must exist");
-
-            var fullSource = File.ReadAllText(sourcePath);
-            var classStart = fullSource.IndexOf("public sealed class BattleshipPlacementUiController", StringComparison.Ordinal);
-            classStart.Should().BeGreaterThanOrEqualTo(0, "placement UI controller class must exist");
-
-            return fullSource[classStart..];
+            File.Exists(sourcePath).Should().BeTrue("placement UI controller source file must exist");
+            return File.ReadAllText(sourcePath);
         }
     }
 }

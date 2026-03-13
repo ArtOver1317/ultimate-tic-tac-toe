@@ -16,6 +16,9 @@ using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.AI;
+using Runtime.Games.Battleship.Core;
+using Runtime.Games.Battleship.Placement;
 using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.Moves;
 

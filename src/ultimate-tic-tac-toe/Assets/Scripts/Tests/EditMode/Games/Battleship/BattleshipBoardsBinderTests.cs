@@ -11,6 +11,9 @@ using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.Core;
+using Runtime.Games.Battleship.UI;
+using Runtime.Games.Battleship.UI.Board;
 using Runtime.Games.TicTacToe.Moves;
 using UnityEngine.UIElements;
 

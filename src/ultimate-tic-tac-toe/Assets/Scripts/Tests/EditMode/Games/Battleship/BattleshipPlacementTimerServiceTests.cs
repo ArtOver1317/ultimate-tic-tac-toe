@@ -2,6 +2,7 @@
 
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using FluentAssertions;
@@ -15,7 +16,11 @@ using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.Core;
+using Runtime.Games.Battleship.Placement;
 using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Tests.EditMode.Games.Battleship
 {
@@ -26,6 +31,14 @@ namespace Tests.EditMode.Games.Battleship
         private sealed class FakeTimeSource : ITimeSource
         {
             public float DeltaTime { get; set; }
+        }
+
+        private sealed class ThrowingTimeSource : ITimeSource
+        {
+            public bool ShouldThrow { get; set; } = true;
+            public float DeltaTime => ShouldThrow
+                ? throw new InvalidOperationException("Simulated timer failure.")
+                : 0.1f;
         }
 
         private sealed class CapturingCommandSink : IGameplayCommandSink
@@ -237,6 +250,44 @@ namespace Tests.EditMode.Games.Battleship
 
             sink.Commands.Should().BeEmpty();
             sut.IsActive.CurrentValue.Should().BeFalse();
+        }
+
+        [Test]
+        public async Task WhenCountdownLoopThrows_ThenTimerResetsAndCanStartAgain()
+        {
+            var stream = new FakeBattleshipEventStream();
+            var snapshot = new FakeBattleshipSnapshotProvider
+            {
+                Phase = BattleshipPhase.Placement,
+                Slot0Confirmed = false,
+                Slot1Confirmed = false,
+            };
+            var matchState = new FakeMatchStateProvider { IsMatchActive = true };
+            var sink = new CapturingCommandSink();
+            var time = new ThrowingTimeSource();
+            var sessionStore = new OnlineGameplaySessionContextStore();
+
+            using var sut = new BattleshipPlacementTimerService(
+                CreateStoreWithPlacementLimit(1),
+                stream,
+                snapshot,
+                matchState,
+                sink,
+                time,
+                sessionStore);
+
+            LogAssert.Expect(LogType.Error, new Regex("BattleshipPlacementTimerService.*Simulated timer failure", RegexOptions.Singleline));
+
+            sut.SyncFromSnapshot();
+            await WaitUntilAsync(() => !sut.IsActive.CurrentValue, maxFrames: 30);
+
+            sink.Commands.Should().BeEmpty();
+            sut.IsActive.CurrentValue.Should().BeFalse();
+
+            time.ShouldThrow = false;
+            sut.SyncFromSnapshot();
+
+            sut.IsActive.CurrentValue.Should().BeTrue();
         }
 
         private static async Task WaitUntilAsync(Func<bool> condition, int maxFrames = 20)

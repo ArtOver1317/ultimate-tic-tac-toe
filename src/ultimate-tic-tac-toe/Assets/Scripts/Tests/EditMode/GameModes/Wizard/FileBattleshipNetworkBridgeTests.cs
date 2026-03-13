@@ -11,12 +11,14 @@ using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.Core;
+using Runtime.Games.Battleship.Networking;
 
 namespace Tests.EditMode.GameModes.Wizard
 {
     [TestFixture]
     [Category("Unit")]
-    public sealed class FileBattleshipNetworkBridgeTests
+    public sealed class PhotonBattleshipNetworkBridgeTests
     {
         [Test]
         public async Task WhenRemotePlacementPayloadReceived_ThenPublishesIncomingPlacement()
@@ -25,7 +27,7 @@ namespace Tests.EditMode.GameModes.Wizard
             context.SetDirectInviteSession("ABCDEF", "local-user", isHost: true);
 
             var transport = CreateTransportSubstitute();
-            var bridge = new FileBattleshipNetworkBridge(context, transport);
+            var bridge = new PhotonBattleshipNetworkBridge(context, transport);
 
             var received = new List<BattleshipPlacementMessage>();
             using var subscription = bridge.IncomingPlacements.Subscribe(message => received.Add(message));
@@ -55,7 +57,7 @@ namespace Tests.EditMode.GameModes.Wizard
                     return UniTask.CompletedTask;
                 });
 
-            var bridge = new FileBattleshipNetworkBridge(context, transport);
+            var bridge = new PhotonBattleshipNetworkBridge(context, transport);
 
             await bridge.BindAsync("host-user", isHost: true);
             await bridge.SubmitPlacementTimeoutAsync(new BattleshipPlacementTimeoutMessage(
@@ -67,7 +69,15 @@ namespace Tests.EditMode.GameModes.Wizard
 
             sentPayload.Should().NotBeNull();
             var payload = Encoding.UTF8.GetString(sentPayload!);
-            payload.Should().Be("BT|6d9fa5a67ec24f8aa209e49964be3594|host-user|1|456|789");
+            var parts = payload.Split('|');
+
+            parts.Should().HaveCount(6);
+            parts[0].Should().Be("BT");
+            parts[1].Should().Be("6d9fa5a67ec24f8aa209e49964be3594");
+            DecodeField(parts[2]).Should().Be("host-user");
+            parts[3].Should().Be("1");
+            parts[4].Should().Be("456");
+            parts[5].Should().Be("789");
         }
 
         [Test]
@@ -77,7 +87,7 @@ namespace Tests.EditMode.GameModes.Wizard
             context.SetDirectInviteSession("ABCDEF", "local-user", isHost: false);
 
             var transport = CreateTransportSubstitute();
-            var bridge = new FileBattleshipNetworkBridge(context, transport);
+            var bridge = new PhotonBattleshipNetworkBridge(context, transport);
 
             var received = new List<BattleshipRecoveryMessage>();
             using var subscription = bridge.IncomingRecoverySnapshots.Subscribe(message => received.Add(message));
@@ -109,7 +119,7 @@ namespace Tests.EditMode.GameModes.Wizard
             var player0MarksPayload = new string('0', 100);
             var player1MarksPayload = new string('1', 100);
 
-            var bridge = new FileBattleshipNetworkBridge(context, transport);
+            var bridge = new PhotonBattleshipNetworkBridge(context, transport);
 
             await bridge.BindAsync("host-user", isHost: true);
             await bridge.SubmitRecoverySnapshotAsync(new BattleshipRecoveryMessage(
@@ -137,7 +147,7 @@ namespace Tests.EditMode.GameModes.Wizard
             parts.Should().HaveCount(17);
             parts[0].Should().Be("BR");
             parts[1].Should().Be("6d9fa5a67ec24f8aa209e49964be3594");
-            parts[2].Should().Be("host-user");
+            DecodeField(parts[2]).Should().Be("host-user");
             parts[3].Should().Be("1");
             parts[4].Should().Be(((int)BattleshipPhase.Battle).ToString());
             parts[5].Should().Be("1");
@@ -161,7 +171,7 @@ namespace Tests.EditMode.GameModes.Wizard
             context.SetDirectInviteSession("ABCDEF", "local-user", isHost: true);
 
             var transport = CreateTransportSubstitute();
-            var bridge = new FileBattleshipNetworkBridge(context, transport);
+            var bridge = new PhotonBattleshipNetworkBridge(context, transport);
 
             var received = new List<BattleshipPlacementMessage>();
             using var subscription = bridge.IncomingPlacements.Subscribe(message => received.Add(message));
@@ -187,5 +197,13 @@ namespace Tests.EditMode.GameModes.Wizard
 
         private static string DecodePayload(string payload) =>
             Encoding.UTF8.GetString(System.Convert.FromBase64String(payload));
+
+        private static string DecodeField(string payload)
+        {
+            const string encodedPrefix = "b64:";
+            return payload.StartsWith(encodedPrefix, System.StringComparison.Ordinal)
+                ? DecodePayload(payload.Substring(encodedPrefix.Length))
+                : payload;
+        }
     }
 }

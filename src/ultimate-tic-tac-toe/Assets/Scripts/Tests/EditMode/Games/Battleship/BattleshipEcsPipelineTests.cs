@@ -15,7 +15,12 @@ using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS;
+using Runtime.Games.Battleship.ECS.Core;
+using Runtime.Games.Battleship.Placement;
+using Runtime.Games.Battleship.Recovery;
+using Runtime.Games.Battleship.State;
 using Runtime.Games.TicTacToe.Moves;
 
 namespace Tests.EditMode.Games.Battleship

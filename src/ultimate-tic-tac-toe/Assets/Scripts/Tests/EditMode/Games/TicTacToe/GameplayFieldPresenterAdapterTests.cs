@@ -10,6 +10,7 @@ using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
 using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.UI;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Moves;
 using UnityEngine;

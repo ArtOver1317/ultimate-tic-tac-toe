@@ -9,7 +9,17 @@ using Runtime.Gameplay.ECS.Lifecycle;
 using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.AI;
+using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS;
+using Runtime.Games.Battleship.ECS.Core;
+using Runtime.Games.Battleship.Networking;
+using Runtime.Games.Battleship.Placement;
+using Runtime.Games.Battleship.Recovery;
+using Runtime.Games.Battleship.State;
+using Runtime.Games.Battleship.UI;
+using Runtime.Games.Battleship.UI.Board;
+using Runtime.Games.Battleship.UI.Placement;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.AI.Ultimate;
@@ -73,7 +83,8 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<IUltimateRulesEngine, UltimateRulesEngine>(Lifetime.Scoped);
             builder.Register<IBattleshipPlacementValidator, BattleshipPlacementValidator>(Lifetime.Scoped);
             builder.Register<IBattleshipAutoPlacer, BattleshipAutoPlacer>(Lifetime.Scoped);
-            builder.Register<IBattleshipPlacementService, BattleshipPlacementService>(Lifetime.Scoped)
+            builder.Register<BattleshipPlacementService>(Lifetime.Scoped)
+                .AsSelf()
                 .As<IDisposable>();
             builder.Register<TicTacToeEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
             builder.Register<UltimateTicTacToeEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
@@ -94,7 +105,7 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<BattleshipRecoveryStateApplier>(Lifetime.Scoped)
                 .As<IBattleshipRecoveryStateApplier>();
             builder.Register<IGameplayNetworkBridge, FileGameplayNetworkBridge>(Lifetime.Scoped);
-            builder.Register<IBattleshipNetworkBridge, FileBattleshipNetworkBridge>(Lifetime.Scoped);
+            builder.Register<IBattleshipNetworkBridge, PhotonBattleshipNetworkBridge>(Lifetime.Scoped);
             builder.Register<IBattleshipLayoutSerializer, BattleshipLayoutSerializer>(Lifetime.Scoped);
             builder.Register<OnlineAwareGameplayCommandSink>(Lifetime.Scoped);
             builder.Register<BattleshipOnlineCommandSink>(Lifetime.Scoped)

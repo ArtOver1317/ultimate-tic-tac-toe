@@ -15,6 +15,9 @@ using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.Core;
+using Runtime.Games.Battleship.Networking;
+using Runtime.Games.Battleship.Placement;
 using Runtime.Games.TicTacToe.Moves;
 
 namespace Tests.EditMode.Games.Battleship
@@ -32,7 +35,7 @@ namespace Tests.EditMode.Games.Battleship
             var transport = Substitute.For<IPhotonSessionTransport>();
             transport.SendReliableDataAsync(Arg.Any<byte[]>()).Returns(UniTask.CompletedTask);
 
-            var bridge = new FileBattleshipNetworkBridge(context, transport);
+            var bridge = new PhotonBattleshipNetworkBridge(context, transport);
 
             var received = new List<BattleshipRecoveryMessage>();
             using var subscription = bridge.IncomingRecoverySnapshots.Subscribe(message => received.Add(message));
@@ -69,6 +72,78 @@ namespace Tests.EditMode.Games.Battleship
             received[0].Phase.Should().Be((int)BattleshipPhase.Battle);
             received[0].Player0LayoutPayload.Should().Be(layoutPayload);
             received[0].Player0OpponentMarksPayload.Should().Be(marksPayload);
+        }
+
+        [Test]
+        public async Task WhenPlacementPacketContainsPipeCharacters_ThenBridgeRoundTripPreservesFields()
+        {
+            var context = new OnlineGameplaySessionContextStore();
+            context.SetDirectInviteSession("ABCDEF", "local-user", isHost: false);
+
+            byte[]? sentPayload = null;
+            var transport = Substitute.For<IPhotonSessionTransport>();
+            transport.SendReliableDataAsync(Arg.Any<byte[]>())
+                .Returns(callInfo =>
+                {
+                    sentPayload = callInfo.Arg<byte[]>();
+                    return UniTask.CompletedTask;
+                });
+
+            var bridge = new PhotonBattleshipNetworkBridge(context, transport);
+            var received = new List<BattleshipPlacementMessage>();
+            using var subscription = bridge.IncomingPlacements.Subscribe(message => received.Add(message));
+
+            await bridge.BindAsync("local-user", isHost: false);
+            await bridge.SubmitPlacementAsync(new BattleshipPlacementMessage(
+                Guid.NewGuid(),
+                "remote|user",
+                "layout|payload",
+                clientTick: 77));
+
+            sentPayload.Should().NotBeNull();
+            transport.ReliableDataReceived += Raise.Event<Action<PhotonReliableDataEvent>>(new PhotonReliableDataEvent(sentPayload!));
+
+            received.Should().ContainSingle();
+            received[0].SenderUserId.Should().Be("remote|user");
+            received[0].LayoutPayload.Should().Be("layout|payload");
+            received[0].ClientTick.Should().Be(77);
+        }
+
+        [Test]
+        public async Task WhenPlacementTimeoutPacketContainsPipeCharacters_ThenBridgeRoundTripPreservesSender()
+        {
+            var context = new OnlineGameplaySessionContextStore();
+            context.SetDirectInviteSession("ABCDEF", "local-user", isHost: false);
+
+            byte[]? sentPayload = null;
+            var transport = Substitute.For<IPhotonSessionTransport>();
+            transport.SendReliableDataAsync(Arg.Any<byte[]>())
+                .Returns(callInfo =>
+                {
+                    sentPayload = callInfo.Arg<byte[]>();
+                    return UniTask.CompletedTask;
+                });
+
+            var bridge = new PhotonBattleshipNetworkBridge(context, transport);
+            var received = new List<BattleshipPlacementTimeoutMessage>();
+            using var subscription = bridge.IncomingPlacementTimeouts.Subscribe(message => received.Add(message));
+
+            await bridge.BindAsync("local-user", isHost: false);
+            await bridge.SubmitPlacementTimeoutAsync(new BattleshipPlacementTimeoutMessage(
+                Guid.NewGuid(),
+                "host|user",
+                playerSlot: PlayerSlotMapping.SlotO,
+                autoPlaceSeed: 456,
+                clientTick: 88));
+
+            sentPayload.Should().NotBeNull();
+            transport.ReliableDataReceived += Raise.Event<Action<PhotonReliableDataEvent>>(new PhotonReliableDataEvent(sentPayload!));
+
+            received.Should().ContainSingle();
+            received[0].SenderUserId.Should().Be("host|user");
+            received[0].PlayerSlot.Should().Be(PlayerSlotMapping.SlotO);
+            received[0].AutoPlaceSeed.Should().Be(456);
+            received[0].ClientTick.Should().Be(88);
         }
 
         [Test]
@@ -301,7 +376,7 @@ namespace Tests.EditMode.Games.Battleship
             var transport = Substitute.For<IPhotonSessionTransport>();
             transport.SendReliableDataAsync(Arg.Any<byte[]>()).Returns(UniTask.CompletedTask);
 
-            var bridge = new FileBattleshipNetworkBridge(context, transport);
+            var bridge = new PhotonBattleshipNetworkBridge(context, transport);
 
             var received = new List<BattleshipRecoveryMessage>();
             using var subscription = bridge.IncomingRecoverySnapshots.Subscribe(message => received.Add(message));

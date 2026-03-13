@@ -1,6 +1,8 @@
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.Core;
+using Runtime.Games.Battleship.Placement;
 using Runtime.Games.TicTacToe.Moves;
 
 namespace Tests.EditMode.Games.Battleship

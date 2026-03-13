@@ -7,7 +7,11 @@ using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS;
+using Runtime.Games.Battleship.ECS.Core;
+using Runtime.Games.Battleship.ECS.Placement;
+using Runtime.Games.Battleship.Placement;
 using Scellecs.Morpeh;
 
 namespace Tests.EditMode.Games.Battleship

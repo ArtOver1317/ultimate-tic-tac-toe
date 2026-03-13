@@ -16,6 +16,8 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 using Runtime.Gameplay;
+using Runtime.Games.Battleship.UI;
+
 namespace Runtime.Games.TicTacToe
 {
     public sealed partial class GameplayFieldPresenter : IGameplayFieldPresenter, IGameplayFieldUiAdapter, IUltimateGameplayFieldUiAdapter, IBattleshipFieldUiAdapter

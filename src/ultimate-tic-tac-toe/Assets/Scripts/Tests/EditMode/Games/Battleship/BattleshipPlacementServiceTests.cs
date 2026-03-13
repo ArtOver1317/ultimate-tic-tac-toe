@@ -9,6 +9,8 @@ using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
+using Runtime.Games.Battleship.Core;
+using Runtime.Games.Battleship.Placement;
 using Runtime.Games.TicTacToe.Moves;
 
 namespace Tests.EditMode.Games.Battleship
