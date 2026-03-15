@@ -19,6 +19,8 @@ namespace Runtime.GameModes.Wizard.ViewModels
     public sealed class GameSelectionViewModel : BaseViewModel
     {
         private readonly IGameWizardCoordinator _coordinator;
+        private readonly object _selectionSync = new();
+        private readonly Queue<string?> _pendingSessionSelections = new();
 
         private readonly ReactiveProperty<IReadOnlyList<GameMetadata>> _availableModes;
         private readonly ReactiveProperty<string?> _selectedGameId = new(null);
@@ -26,7 +28,6 @@ namespace Runtime.GameModes.Wizard.ViewModels
         private readonly ReactiveProperty<bool> _isBusy = new(false);
 
         private int _isWired;
-        private int _isSyncingFromSession;
 
         public ReadOnlyReactiveProperty<IReadOnlyList<GameMetadata>> AvailableModes => _availableModes;
         public ReactiveProperty<string?> SelectedGameId => _selectedGameId;
@@ -69,15 +70,7 @@ namespace Runtime.GameModes.Wizard.ViewModels
             EnsureWired();
         }
 
-        public void SelectMode(string? gameId)
-        {
-            var normalized = string.IsNullOrWhiteSpace(gameId) ? null : gameId;
-
-            if (string.Equals(_selectedGameId.Value, normalized, StringComparison.Ordinal))
-                return;
-
-            _selectedGameId.Value = normalized;
-        }
+        public void SelectMode(string? gameId) => SetSelectedGameId(NormalizeGameId(gameId));
 
         public void RequestContinue()
         {
@@ -104,7 +97,11 @@ namespace Runtime.GameModes.Wizard.ViewModels
             // Reset() is called when returning VM to pool.
 
             System.Threading.Volatile.Write(ref _isWired, 0);
-            System.Threading.Volatile.Write(ref _isSyncingFromSession, 0);
+
+            lock (_selectionSync)
+            {
+                _pendingSessionSelections.Clear();
+            }
 
             _selectedGameId.Value = null;
             _canContinue.Value = false;
@@ -157,20 +154,15 @@ namespace Runtime.GameModes.Wizard.ViewModels
 
         private void ApplySelectionFromSession(string? selectedGameId)
         {
-            var normalized = string.IsNullOrWhiteSpace(selectedGameId) ? null : selectedGameId;
+            var normalized = NormalizeGameId(selectedGameId);
 
-            if (string.Equals(_selectedGameId.Value, normalized, StringComparison.Ordinal))
-                return;
-
-            System.Threading.Interlocked.Exchange(ref _isSyncingFromSession, 1);
-
-            try
+            lock (_selectionSync)
             {
+                if (string.Equals(_selectedGameId.Value, normalized, StringComparison.Ordinal))
+                    return;
+
+                _pendingSessionSelections.Enqueue(normalized);
                 _selectedGameId.Value = normalized;
-            }
-            finally
-            {
-                System.Threading.Interlocked.Exchange(ref _isSyncingFromSession, 0);
             }
         }
 
@@ -178,7 +170,7 @@ namespace Runtime.GameModes.Wizard.ViewModels
         {
             UpdateCanContinue(selectedGameId);
 
-            if (System.Threading.Volatile.Read(ref _isSyncingFromSession) != 0)
+            if (TryConsumePendingSessionSelection(selectedGameId))
                 return;
 
             string? currentId;
@@ -214,6 +206,35 @@ namespace Runtime.GameModes.Wizard.ViewModels
         private void UpdateCanContinue(string? selectedGameId) =>
             _canContinue.Value = !string.IsNullOrWhiteSpace(selectedGameId);
 
+        private void SetSelectedGameId(string? selectedGameId)
+        {
+            lock (_selectionSync)
+            {
+                if (string.Equals(_selectedGameId.Value, selectedGameId, StringComparison.Ordinal))
+                    return;
+
+                _selectedGameId.Value = selectedGameId;
+            }
+        }
+
+        private bool TryConsumePendingSessionSelection(string? selectedGameId)
+        {
+            lock (_selectionSync)
+            {
+                if (_pendingSessionSelections.Count == 0)
+                    return false;
+
+                if (!string.Equals(_pendingSessionSelections.Peek(), selectedGameId, StringComparison.Ordinal))
+                    return false;
+
+                _pendingSessionSelections.Dequeue();
+                return true;
+            }
+        }
+
+        private static string? NormalizeGameId(string? gameId) =>
+            string.IsNullOrWhiteSpace(gameId) ? null : gameId;
+
         private void NormalizeSelectionAgainstAvailableModes(IReadOnlyList<GameMetadata>? modes)
         {
             if (_selectedGameId.Value == null)
@@ -234,7 +255,7 @@ namespace Runtime.GameModes.Wizard.ViewModels
             }
 
             if (!hasMatch)
-                _selectedGameId.Value = null;
+                SetSelectedGameId(null);
         }
 
         private sealed class SessionSelectionObserver : Observer<GameSessionSnapshot>

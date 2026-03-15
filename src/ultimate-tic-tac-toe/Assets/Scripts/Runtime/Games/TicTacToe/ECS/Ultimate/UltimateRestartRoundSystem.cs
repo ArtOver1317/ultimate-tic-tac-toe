@@ -1,4 +1,4 @@
-using Runtime.Gameplay.ECS;
+using System;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Scellecs.Morpeh;
@@ -43,9 +43,10 @@ namespace Runtime.Games.TicTacToe.ECS
 
                 epoch.Value++;
 
-                if (miniBoards.Statuses == null || miniBoards.Statuses.Length != 9)
+                if (miniBoards.Statuses is not { Length: UltimateConstants.MiniBoardCount })
                 {
-                    miniBoards.Statuses = new MiniBoardStatus[9];
+                    throw new InvalidOperationException(
+                        $"UltimateMiniBoardsComponent must be initialized with {UltimateConstants.MiniBoardCount} statuses.");
                 }
 
                 for (var i = 0; i < miniBoards.Statuses.Length; i++)

@@ -1,4 +1,3 @@
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Moves;
@@ -17,7 +16,6 @@ namespace Runtime.Games.TicTacToe.ECS
         private Filter _matchFilter;
         private Stash<MakeMoveRequest> _moveRequestStash;
         private Stash<MatchStatusComponent> _statusStash;
-        private Stash<PlayersComponent> _playersStash;
         private Stash<BoardStateComponent> _boardStash;
         private Stash<MoveRejectedOneShot> _rejectedStash;
 
@@ -26,7 +24,6 @@ namespace Runtime.Games.TicTacToe.ECS
             _matchFilter = World.Filter.With<MatchTag>().With<MakeMoveRequest>().Build();
             _moveRequestStash = World.GetStash<MakeMoveRequest>();
             _statusStash = World.GetStash<MatchStatusComponent>();
-            _playersStash = World.GetStash<PlayersComponent>();
             _boardStash = World.GetStash<BoardStateComponent>();
             _rejectedStash = World.GetStash<MoveRejectedOneShot>();
         }
@@ -51,7 +48,7 @@ namespace Runtime.Games.TicTacToe.ECS
 
                 // Check: cell components must be within valid ranges (server authoritative safety)
                 if (request.CellId.Major < 0 || request.CellId.Major >= majorCount
-                    || request.CellId.Minor < 0 || request.CellId.Minor >= board.MinorCount)
+                                             || request.CellId.Minor < 0 || request.CellId.Minor >= board.MinorCount)
                 {
                     Reject(entity, GameplayRejectionReason.InvalidCell);
                     _moveRequestStash.Remove(entity);
@@ -65,7 +62,6 @@ namespace Runtime.Games.TicTacToe.ECS
                 {
                     Reject(entity, GameplayRejectionReason.CellOccupied);
                     _moveRequestStash.Remove(entity);
-                    continue;
                 }
 
                 // Validation passed — leave MakeMoveRequest for ApplyMoveSystem

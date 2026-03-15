@@ -1,8 +1,6 @@
 using System;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.TicTacToe.Moves;
 using Runtime.Infrastructure.Logging;
 using Scellecs.Morpeh;
 using StripLog;
@@ -53,6 +51,7 @@ namespace Runtime.Games.TicTacToe.ECS
                     Log.Warning(LogTags.Infrastructure,
                         $"[RestartRoundSystem] Invalid StartingPlayerSlot {request.StartingPlayerSlot} " +
                         $"(PlayerCount={players.PlayerCount}). Defaulting to 0.");
+                    
                     startingPlayerSlot = 0;
                 }
 

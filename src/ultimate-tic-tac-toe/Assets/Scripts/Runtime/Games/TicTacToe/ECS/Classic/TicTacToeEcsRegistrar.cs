@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.ECS.Lifecycle;
 using Runtime.Gameplay.Shared;
@@ -35,14 +33,21 @@ namespace Runtime.Games.TicTacToe.ECS
         public void Register(World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config)
         {
             if (config.GameConfig is not TicTacToeConfig tttConfig)
+            {
                 throw new InvalidOperationException(
                     $"Expected TicTacToeConfig but got {config.GameConfig?.GetType().Name ?? "null"}.");
+            }
+
             if (tttConfig.IsUltimate)
+            {
                 throw new NotSupportedException(
                     "Ultimate Tic-Tac-Toe is not yet supported in the ECS pipeline. " +
                     "Use classic mode (IsUltimate = false).");
+            }
+
             // Initialize PlayersComponent (shared)
             var playersStash = world.GetStash<PlayersComponent>();
+            
             playersStash.Set(matchEntity, new PlayersComponent
             {
                 PlayerCount = PlayerCount,
@@ -53,6 +58,7 @@ namespace Runtime.Games.TicTacToe.ECS
             // Initialize FieldConfigComponent (shared)
             var fieldConfigStash = world.GetStash<FieldConfigComponent>();
             var spec = MapSpec(tttConfig);
+            
             fieldConfigStash.Set(matchEntity, new FieldConfigComponent
             {
                 Kind = spec.Kind,
@@ -60,17 +66,9 @@ namespace Runtime.Games.TicTacToe.ECS
                 InnerSize = spec.InnerSize,
             });
 
-            // Initialize BoardStateComponent (game-specific)
-            var boardStash = world.GetStash<BoardStateComponent>();
             var majorCount = spec.Kind == FieldKind.Classic ? spec.OuterSize : spec.OuterSize * spec.OuterSize;
             var minorCount = spec.Kind == FieldKind.Classic ? spec.OuterSize : spec.InnerSize * spec.InnerSize;
-            var totalCells = majorCount * minorCount;
-
-            boardStash.Set(matchEntity, new BoardStateComponent
-            {
-                Cells = new PlayerMark[totalCells],
-                MinorCount = minorCount,
-            });
+            BoardStateHelpers.InitializeBoard(world, matchEntity, majorCount, minorCount);
 
             // Add game-specific systems (order: validate → apply → rules evaluate)
             systemsGroup.AddSystem(new MoveValidationSystem());
@@ -79,61 +77,20 @@ namespace Runtime.Games.TicTacToe.ECS
             systemsGroup.AddSystem(new RestartRoundSystem());
         }
 
-        public void RegisterPostPublishSystems(World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config)
-        {
-        }
+        public void RegisterPostPublishSystems
+            (World world, SystemsGroup systemsGroup, Entity matchEntity, GameLaunchConfig config) { }
 
-        internal static FieldRenderSpec MapSpec(TicTacToeConfig config) =>
+        private static FieldRenderSpec MapSpec(TicTacToeConfig config) =>
             config.IsUltimate
                 ? FieldRenderSpec.Ultimate()
                 : FieldRenderSpec.Classic(config.BoardSize);
 
-        [Obsolete("Use PlayerSlotMapping.SlotToMark.")]
-        public static PlayerMark SlotToMark(int slot) => PlayerSlotMapping.SlotToMark(slot);
-
-        [Obsolete("Use PlayerSlotMapping.MarkToSlot.")]
-        public static int MarkToSlot(PlayerMark mark) => PlayerSlotMapping.MarkToSlot(mark);
-
         // -- IEcsGameplayRegistrar snapshot methods (ADR-3/ADR-9: game-specific reads) --
 
-        public int GetCellSlot(World world, Entity matchEntity, CellId cellId)
-        {
-            var boardStash = world.GetStash<BoardStateComponent>();
-            if (!boardStash.Has(matchEntity))
-                return -1;
+        public int GetCellSlot(World world, Entity matchEntity, CellId cellId) =>
+            BoardStateHelpers.GetCellSlot(world, matchEntity, cellId);
 
-            ref var board = ref boardStash.Get(matchEntity);
-            var majorCount = board.Cells.Length / board.MinorCount;
-
-            if (cellId.Major < 0 || cellId.Major >= majorCount
-                || cellId.Minor < 0 || cellId.Minor >= board.MinorCount)
-                return -1;
-
-            var index = cellId.Major * board.MinorCount + cellId.Minor;
-            return PlayerSlotMapping.MarkToSlot(board.Cells[index]);
-        }
-
-        public IReadOnlyList<CellSnapshot> GetAllCells(World world, Entity matchEntity)
-        {
-            var boardStash = world.GetStash<BoardStateComponent>();
-            if (!boardStash.Has(matchEntity))
-                return Array.Empty<CellSnapshot>();
-
-            ref var board = ref boardStash.Get(matchEntity);
-            var majorCount = board.Cells.Length / board.MinorCount;
-            var result = new CellSnapshot[board.Cells.Length];
-
-            for (var major = 0; major < majorCount; major++)
-            {
-                for (var minor = 0; minor < board.MinorCount; minor++)
-                {
-                    var index = major * board.MinorCount + minor;
-                    var slot = PlayerSlotMapping.MarkToSlot(board.Cells[index]);
-                    result[index] = new CellSnapshot(new CellId(major, minor), slot);
-                }
-            }
-
-            return result;
-        }
+        public IReadOnlyList<CellSnapshot> GetAllCells(World world, Entity matchEntity) =>
+            BoardStateHelpers.GetAllCells(world, matchEntity);
     }
 }

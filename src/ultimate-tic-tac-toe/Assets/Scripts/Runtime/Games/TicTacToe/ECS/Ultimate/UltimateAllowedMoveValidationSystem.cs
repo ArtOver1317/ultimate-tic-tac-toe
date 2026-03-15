@@ -1,4 +1,3 @@
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
@@ -6,6 +5,9 @@ using Scellecs.Morpeh;
 
 namespace Runtime.Games.TicTacToe.ECS
 {
+    /// <summary>
+    /// Rejects move requests that target disallowed or already resolved mini-boards in ultimate mode.
+    /// </summary>
     public sealed class UltimateAllowedMoveValidationSystem : ISystem
     {
         public World World { get; set; }
@@ -39,7 +41,7 @@ namespace Runtime.Games.TicTacToe.ECS
                 ref var allowed = ref _allowedStash.Get(entity);
                 ref var miniBoards = ref _miniBoardsStash.Get(entity);
 
-                if (miniBoards.Statuses == null || miniBoards.Statuses.Length != 9)
+                if (miniBoards.Statuses == null || miniBoards.Statuses.Length != UltimateConstants.MiniBoardCount)
                 {
                     Reject(entity, GameplayRejectionReason.Unknown);
                     _moveRequestStash.Remove(entity);
@@ -57,19 +59,16 @@ namespace Runtime.Games.TicTacToe.ECS
                 {
                     Reject(entity, GameplayRejectionReason.ForbiddenMove);
                     _moveRequestStash.Remove(entity);
-                    continue;
                 }
             }
         }
 
-        private void Reject(Entity entity, GameplayRejectionReason reason)
-        {
+        private void Reject(Entity entity, GameplayRejectionReason reason) =>
             _rejectedStash.Set(entity, new MoveRejectedOneShot
             {
                 CommandType = GameplayCommandType.MakeMove,
                 Rejection = new CommandRejection(reason),
             });
-        }
 
         public void Dispose() { }
     }

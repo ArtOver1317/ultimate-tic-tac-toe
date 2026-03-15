@@ -1,10 +1,13 @@
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Games.TicTacToe.Ultimate;
 using Scellecs.Morpeh;
 
 namespace Runtime.Games.TicTacToe.ECS
 {
+    /// <summary>
+    /// Publishes ultimate gameplay events from one-shot ECS components to the event stream.
+    /// Runs after the main state-update systems via RegisterPostPublishSystems.
+    /// </summary>
     public sealed class UltimateEventPublishSystem : ISystem
     {
         private readonly UltimateGameplayEventStream _eventStream;
@@ -35,9 +38,7 @@ namespace Runtime.Games.TicTacToe.ECS
             TryPublishMiniBoardStatusChanged(matchEntity);
         }
 
-        public void Dispose()
-        {
-        }
+        public void Dispose() { }
 
         private void TryPublishAllowedMajorsChanged(Entity matchEntity)
         {
