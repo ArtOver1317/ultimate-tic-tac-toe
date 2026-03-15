@@ -13,6 +13,8 @@ using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.AI.Ultimate;
+using Runtime.Games.TicTacToe.AI.Ultimate.Core;
+using Runtime.Games.TicTacToe.AI.Ultimate.Execution;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
@@ -874,7 +876,7 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
 
                 request = new UltimateBotDecisionRequest(
                     turnId,
-                    new UltimateBoardSnapshot(cells, miniBoards, AllowedMajors.All, 0, default, false, Runtime.Games.TicTacToe.Rules.GameStatus.InProgress),
+                    new UltimateBoardSnapshot(cells, miniBoards, AllowedMajors.All, 0),
                     new[] { new CellId(0, 0), new CellId(0, 1) },
                     profile,
                     rng);
@@ -940,7 +942,7 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
             public UniTask<UltimateBotDecisionResult> ChooseMoveAsync(UltimateBotDecisionRequest request, CancellationToken ct)
             {
                 ct.ThrowIfCancellationRequested();
-                return UniTask.FromResult(new UltimateBotDecisionResult(_move, _degradationReason, false, null, 0, SearchCutoffReason.Completed, string.Empty, _searchDepthReached, _iterationsCompleted, 0));
+                return UniTask.FromResult(new UltimateBotDecisionResult(_move, _degradationReason, false, null, SearchCutoffReason.Completed, string.Empty, _searchDepthReached, _iterationsCompleted));
             }
         }
 
@@ -953,7 +955,7 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
             {
                 _entered.TrySetResult();
                 await _release.Task.AttachExternalCancellation(ct);
-                return new UltimateBotDecisionResult(new CellId(0, 0), null, false, null, 1, SearchCutoffReason.Completed, string.Empty, 1, 1, 1);
+                return new UltimateBotDecisionResult(new CellId(0, 0), null, false, null, SearchCutoffReason.Completed, string.Empty, 1, 1);
             }
 
             public UniTask WaitUntilEnteredAsync()
@@ -984,10 +986,8 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
                     null,
                     false,
                     null,
-                    1,
                     SearchCutoffReason.Completed,
                     string.Empty,
-                    1,
                     1,
                     1));
             }
@@ -1090,7 +1090,7 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
             public UniTask<UltimateBotDecisionResult> ChooseMoveAsync(UltimateBotDecisionRequest request, CancellationToken ct)
             {
                 Calls++;
-                return UniTask.FromResult(new UltimateBotDecisionResult(new CellId(0, 0), null, false, null, 1, SearchCutoffReason.Completed, string.Empty, 1, 1, 1));
+                return UniTask.FromResult(new UltimateBotDecisionResult(new CellId(0, 0), null, false, null, SearchCutoffReason.Completed, string.Empty, 1, 1));
             }
         }
 

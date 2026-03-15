@@ -7,6 +7,9 @@ using System.Threading;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Games.TicTacToe.AI.Ultimate;
+using Runtime.Games.TicTacToe.AI.Ultimate.Core;
+using Runtime.Games.TicTacToe.AI.Ultimate.Decision;
+using Runtime.Games.TicTacToe.AI.Ultimate.SelfPlay;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using UnityEngine;
 

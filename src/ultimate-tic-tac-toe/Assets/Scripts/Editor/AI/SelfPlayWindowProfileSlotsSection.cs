@@ -1,6 +1,8 @@
 using System;
 using Runtime.Games.TicTacToe.AI;
+using Runtime.Games.TicTacToe.AI.Profiles;
 using Runtime.Games.TicTacToe.AI.Ultimate;
+using Runtime.Games.TicTacToe.AI.Ultimate.Profiles;
 using UnityEditor;
 using UnityEngine;
 

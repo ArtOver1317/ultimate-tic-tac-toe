@@ -5,6 +5,7 @@ using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.Games.TicTacToe.AI;
+using Runtime.Games.TicTacToe.AI.Core;
 
 namespace Runtime.Games.Battleship.AI
 {

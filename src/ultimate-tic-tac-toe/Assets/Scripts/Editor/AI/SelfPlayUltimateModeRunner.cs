@@ -4,6 +4,10 @@ using System.Text;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.Games.TicTacToe.AI.Ultimate;
+using Runtime.Games.TicTacToe.AI.Ultimate.Core;
+using Runtime.Games.TicTacToe.AI.Ultimate.Decision;
+using Runtime.Games.TicTacToe.AI.Ultimate.Profiles;
+using Runtime.Games.TicTacToe.AI.Ultimate.SelfPlay;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using UnityEngine;
 

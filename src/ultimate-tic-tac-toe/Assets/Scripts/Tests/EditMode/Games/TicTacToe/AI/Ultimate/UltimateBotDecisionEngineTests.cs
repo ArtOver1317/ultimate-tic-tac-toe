@@ -3,6 +3,8 @@
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Games.TicTacToe.AI.Ultimate;
+using Runtime.Games.TicTacToe.AI.Ultimate.Core;
+using Runtime.Games.TicTacToe.AI.Ultimate.Decision;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
@@ -53,10 +55,7 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
                     cells,
                     miniBoards,
                     new AllowedMajors(1 << 2),
-                    0,
-                    default,
-                    false,
-                    GameStatus.InProgress),
+                    0),
                 new[] { new CellId(2, 2), new CellId(2, 3) },
                 profile,
                 new XorShift32BotRngSession(123));
@@ -328,10 +327,7 @@ namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
                     cells,
                     miniBoards,
                     allowedMajors,
-                    activePlayerSlot: 0,
-                    default,
-                    hasLastMove: false,
-                    GameStatus.InProgress),
+                    activePlayerSlot: 0),
                 legal,
                 profile,
                 rng);

@@ -20,6 +20,7 @@ using Runtime.Games.Battleship.AI;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
 using Runtime.Games.TicTacToe.AI;
+using Runtime.Games.TicTacToe.AI.Core;
 using Runtime.Games.TicTacToe.Moves;
 
 namespace Tests.EditMode.Games.Battleship

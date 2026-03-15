@@ -6,6 +6,9 @@ using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Games.TicTacToe.AI;
+using Runtime.Games.TicTacToe.AI.Profiles;
+using Runtime.Games.TicTacToe.AI.Search;
+using Runtime.Games.TicTacToe.AI.SelfPlay;
 using Runtime.Games.TicTacToe.Rules;
 using UnityEngine.TestTools;
 

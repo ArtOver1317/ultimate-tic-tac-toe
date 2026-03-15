@@ -1,6 +1,7 @@
 #nullable enable
 
 using Runtime.Games.TicTacToe.AI;
+using Runtime.Games.TicTacToe.AI.Core;
 
 namespace Runtime.Games.TicTacToe.Rules
 {

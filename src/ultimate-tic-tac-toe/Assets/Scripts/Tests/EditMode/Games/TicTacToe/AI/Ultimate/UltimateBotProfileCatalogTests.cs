@@ -3,6 +3,8 @@
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Games.TicTacToe.AI.Ultimate;
+using Runtime.Games.TicTacToe.AI.Ultimate.Core;
+using Runtime.Games.TicTacToe.AI.Ultimate.Profiles;
 using UnityEngine;
 
 namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate

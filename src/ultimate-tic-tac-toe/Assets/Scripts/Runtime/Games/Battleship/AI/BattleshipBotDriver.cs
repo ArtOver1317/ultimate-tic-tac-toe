@@ -11,6 +11,7 @@ using Runtime.Gameplay;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.TicTacToe.AI;
+using Runtime.Games.TicTacToe.AI.Core;
 using Runtime.Games.TicTacToe.Moves;
 
 namespace Runtime.Games.Battleship.AI

@@ -22,7 +22,15 @@ using Runtime.Games.Battleship.UI.Board;
 using Runtime.Games.Battleship.UI.Placement;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.AI;
+using Runtime.Games.TicTacToe.AI.Core;
+using Runtime.Games.TicTacToe.AI.Profiles;
+using Runtime.Games.TicTacToe.AI.Search;
+using Runtime.Games.TicTacToe.AI.Turns;
 using Runtime.Games.TicTacToe.AI.Ultimate;
+using Runtime.Games.TicTacToe.AI.Ultimate.Core;
+using Runtime.Games.TicTacToe.AI.Ultimate.Decision;
+using Runtime.Games.TicTacToe.AI.Ultimate.Execution;
+using Runtime.Games.TicTacToe.AI.Ultimate.Profiles;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
@@ -190,11 +198,9 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<UltimateBotStateReader>(Lifetime.Scoped).As<IUltimateBotStateReader>();
             builder.Register<UltimateBotDecisionEngine>(Lifetime.Scoped).As<IUltimateBotDecisionEngine>();
             builder.Register<BotRngSessionFactory>(Lifetime.Scoped).As<IBotRngSessionFactory>();
-            builder.Register<BotRandomizer>(Lifetime.Scoped).As<IBotRandomizer>();
             builder.Register<GameplayBotMoveCommandSink>(Lifetime.Scoped).As<IBotMoveCommandSink>();
             builder.Register<LocalMatchFailSafeGateway>(Lifetime.Scoped).As<IMatchFailSafeGateway>();
             builder.Register<BotTurnOrchestrator>(Lifetime.Scoped).As<IBotTurnOrchestrator>().As<IDisposable>();
-            builder.Register<UltimateBotSelfPlayRunner>(Lifetime.Scoped).As<IBotSelfPlayRunner>();
 
             // ── UI / Binders ──
             builder.Register<GameplayFieldPresenter>(Lifetime.Scoped)
