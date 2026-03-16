@@ -88,7 +88,7 @@ namespace Runtime.Games.TicTacToe
         private readonly IBattleshipRecoveryStateApplier _battleshipRecoveryStateApplier;
         private readonly HostAuthoritativeMoveProcessor _hostMoveProcessor = new();
         private readonly OnlineRoundCoordinator _onlineRoundCoordinator = new();
-        private readonly MiniBoardStatus[] _ultimateMiniBoardBuffer = new MiniBoardStatus[9];
+        private readonly MiniBoardStatus[] _ultimateMiniBoardBuffer = new MiniBoardStatus[UltimateBoardConstants.MajorCount];
 
         private FieldRenderSpec _fieldSpec;
         private GameResultViewModel _resultVM;

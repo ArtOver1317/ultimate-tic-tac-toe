@@ -13,10 +13,6 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate.Execution
 {
     public sealed class UltimateBotStateReader : IUltimateBotStateReader
     {
-        private const int _majorCount = 9;
-        private const int _minorCount = 9;
-        private const int _cellCount = _majorCount * _minorCount;
-
         private readonly IGameplaySnapshotProvider _gameplaySnapshot;
         private readonly IUltimateGameplaySnapshotProvider _ultimateSnapshot;
 
@@ -76,21 +72,21 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate.Execution
 
         private MiniBoardStatus[] ReadMiniBoards()
         {
-            var miniBoards = new MiniBoardStatus[_majorCount];
+            var miniBoards = new MiniBoardStatus[UltimateBoardConstants.MajorCount];
             _ultimateSnapshot.CopyMiniBoardsTo(miniBoards);
             return miniBoards;
         }
 
         private PlayerMark[] ReadCells()
         {
-            var cells = new PlayerMark[_cellCount];
+            var cells = new PlayerMark[UltimateBoardConstants.CellCount];
 
-            for (var major = 0; major < _majorCount; major++)
+            for (var major = 0; major < UltimateBoardConstants.MajorCount; major++)
             {
-                for (var minor = 0; minor < _minorCount; minor++)
+                for (var minor = 0; minor < UltimateBoardConstants.MinorCount; minor++)
                 {
                     var cellId = new CellId(major, minor);
-                    var index = major * _minorCount + minor;
+                    var index = major * UltimateBoardConstants.MinorCount + minor;
                     cells[index] = UltimateBotBoardUtilities.SlotToMark(_gameplaySnapshot.GetCellSlot(cellId));
                 }
             }

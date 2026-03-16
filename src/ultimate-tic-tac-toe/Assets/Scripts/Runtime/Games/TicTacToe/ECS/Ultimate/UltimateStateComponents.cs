@@ -3,11 +3,6 @@ using Scellecs.Morpeh;
 
 namespace Runtime.Games.TicTacToe.ECS
 {
-    public static class UltimateConstants
-    {
-        public const int MiniBoardCount = 9;
-    }
-
     public struct UltimateAllowedMajorsComponent : IComponent
     {
         public AllowedMajors Value;

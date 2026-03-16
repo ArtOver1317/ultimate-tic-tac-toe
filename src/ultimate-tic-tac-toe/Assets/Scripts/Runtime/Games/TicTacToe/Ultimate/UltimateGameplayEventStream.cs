@@ -2,7 +2,6 @@
 
 using System;
 using R3;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Infrastructure.Logging;
 using StripLog;

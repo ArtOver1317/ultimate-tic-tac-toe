@@ -1,5 +1,6 @@
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.Shared;
+using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Scellecs.Morpeh;
 
@@ -41,7 +42,7 @@ namespace Runtime.Games.TicTacToe.ECS
                 ref var allowed = ref _allowedStash.Get(entity);
                 ref var miniBoards = ref _miniBoardsStash.Get(entity);
 
-                if (miniBoards.Statuses == null || miniBoards.Statuses.Length != UltimateConstants.MiniBoardCount)
+                if (miniBoards.Statuses == null || miniBoards.Statuses.Length != UltimateBoardConstants.MajorCount)
                 {
                     Reject(entity, GameplayRejectionReason.Unknown);
                     _moveRequestStash.Remove(entity);

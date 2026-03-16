@@ -1,13 +1,12 @@
 using System;
 using R3;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
-using UnityEngine.UIElements;
 
 namespace Runtime.Games.TicTacToe.Ultimate.UI
 {
     public sealed class UltimateAllowedBinder : IDisposable
     {
-        private const string AllowedClass = "mini-board--allowed";
+        private const string _allowedClass = "mini-board--allowed";
 
         private readonly IUltimateGameplayFieldUiAdapter _ui;
         private readonly IUltimateGameplayEventStream _events;
@@ -32,16 +31,19 @@ namespace Runtime.Games.TicTacToe.Ultimate.UI
         public void Bind()
         {
             ThrowIfDisposed();
+            
             if (_isBound)
                 return;
 
             _epochAtBind = _snapshot.Epoch;
             var initialAllowed = _snapshot.CurrentAllowedMajors;
+            // Reset to None so ApplyAllowed treats every initially allowed board as newly added.
             _currentAllowed = AllowedMajors.None;
             ApplyAllowed(initialAllowed);
             _currentAllowed = initialAllowed;
 
             _subscriptions = new CompositeDisposable();
+            
             _events.AllowedMajorsChanged
                 .Subscribe(OnAllowedMajorsChanged)
                 .AddTo(_subscriptions);
@@ -79,26 +81,19 @@ namespace Runtime.Games.TicTacToe.Ultimate.UI
 
         private void ApplyAllowed(AllowedMajors nextAllowed)
         {
-            for (var major = 0; major < 9; major++)
+            for (var major = 0; major < UltimateBoardConstants.MajorCount; major++)
             {
                 var had = _currentAllowed.ContainsMajor(major);
                 var has = nextAllowed.ContainsMajor(major);
+                
                 if (had == has)
                     continue;
 
                 if (!_ui.TryGetMiniBoard(major, out var mini) || mini == null)
                     continue;
 
-                ToggleClass(mini, AllowedClass, has);
+                UltimateUiHelpers.ToggleClass(mini, _allowedClass, has);
             }
-        }
-
-        private static void ToggleClass(VisualElement element, string className, bool enabled)
-        {
-            if (enabled)
-                element.AddToClassList(className);
-            else
-                element.RemoveFromClassList(className);
         }
 
         private void ThrowIfDisposed()

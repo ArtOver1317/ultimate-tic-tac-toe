@@ -7,6 +7,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.Games.TicTacToe.AI.Ultimate.Core;
 using Runtime.Games.TicTacToe.Moves;
+using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using GameStatus = Runtime.Games.TicTacToe.Rules.GameStatus;
 
@@ -14,15 +15,12 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate.SelfPlay
 {
     internal sealed class UltimateBotSelfPlayMatchRunner
     {
-        internal const int MaxTurnsPerMatch = 81;
+        internal const int MaxTurnsPerMatch = UltimateBoardConstants.CellCount;
         internal const int LeftWinnerSide = 0;
         internal const int RightWinnerSide = 1;
 
         private const int _slotX = 0;
         private const int _slotO = 1;
-        private const int _miniBoardCount = 9;
-        private const int _outerBoardSize = 3;
-        private const int _innerBoardSize = 3;
         private const double _progressYieldIntervalMs = 33d;
         private const int _drawWinnerSide = -1;
 
@@ -100,7 +98,12 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate.SelfPlay
                 if (!TryApplyChosenMove(decision.Move, cells, activeSlot))
                     return _drawWinnerSide;
 
-                var evaluation = _rules.EvaluateAfterMove(cells, _outerBoardSize, _innerBoardSize, decision.Move, miniBoards);
+                var evaluation = _rules.EvaluateAfterMove(
+                    cells,
+                    UltimateBoardConstants.OuterSize,
+                    UltimateBoardConstants.InnerSize,
+                    decision.Move,
+                    miniBoards);
                 ApplyMiniBoardDelta(evaluation, miniBoards);
 
                 if (TryGetTerminalWinnerSide(evaluation, leftOnSlotX, out var winnerSide))
@@ -152,7 +155,7 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate.SelfPlay
 
         private static MiniBoardStatus[] CreateInitialMiniBoards()
         {
-            var miniBoards = new MiniBoardStatus[_miniBoardCount];
+            var miniBoards = new MiniBoardStatus[UltimateBoardConstants.MajorCount];
             Array.Fill(miniBoards, MiniBoardStatus.InProgress);
             return miniBoards;
         }

@@ -1,6 +1,7 @@
 using System;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.Shared;
+using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Scellecs.Morpeh;
 using EcsGameStatus = Runtime.Gameplay.Shared.GameStatus;
@@ -99,10 +100,10 @@ namespace Runtime.Games.TicTacToe.ECS
 
         private static void ValidateMiniBoards(MiniBoardStatus[] miniBoardStatuses)
         {
-            if (miniBoardStatuses is not { Length: UltimateConstants.MiniBoardCount })
+            if (miniBoardStatuses is not { Length: UltimateBoardConstants.MajorCount })
             {
                 throw new InvalidOperationException(
-                    $"UltimateMiniBoardsComponent must be initialized with {UltimateConstants.MiniBoardCount} statuses.");
+                    $"UltimateMiniBoardsComponent must be initialized with {UltimateBoardConstants.MajorCount} statuses.");
             }
         }
 

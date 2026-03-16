@@ -16,41 +16,15 @@ namespace Runtime.Games.TicTacToe.Ultimate.Rules
 
     public readonly struct AllowedMajors : IEquatable<AllowedMajors>
     {
-        private const int MajorCount = 9;
-
         public ushort Mask { get; }
 
-        public AllowedMajors(ushort mask)
-        {
-            Mask = (ushort)(mask & 0x01FF);
-        }
+        public AllowedMajors(ushort mask) => Mask = (ushort)(mask & ((1 << UltimateBoardConstants.MajorCount) - 1));
 
-        public static AllowedMajors All => new(0x01FF);
+        public static AllowedMajors All => new((1 << UltimateBoardConstants.MajorCount) - 1);
         public static AllowedMajors None => new(0);
 
-        public bool IsEmpty => Mask == 0;
-
         public bool ContainsMajor(int major)
-            => major >= 0 && major < MajorCount && ((Mask & (1 << major)) != 0);
-
-        public int CopyMajorsTo(Span<int> destination)
-        {
-            if (destination.Length < MajorCount)
-            {
-                throw new ArgumentException("destination must be >= 9", nameof(destination));
-            }
-
-            var count = 0;
-            for (var major = 0; major < MajorCount; major++)
-            {
-                if (ContainsMajor(major))
-                {
-                    destination[count++] = major;
-                }
-            }
-
-            return count;
-        }
+            => major is >= 0 and < UltimateBoardConstants.MajorCount && (Mask & (1 << major)) != 0;
 
         public bool Equals(AllowedMajors other) => Mask == other.Mask;
         public override bool Equals(object? obj) => obj is AllowedMajors other && Equals(other);
@@ -96,17 +70,14 @@ namespace Runtime.Games.TicTacToe.Ultimate.Rules
             BigBoardWinLine = bigBoardWinLine;
         }
 
-        public bool IsValid()
-        {
-            return Status switch
+        public bool IsValid() =>
+            Status switch
             {
-                GameStatus.InProgress => Winner == PlayerMark.None && !BigBoardWinLine.HasValue,
-                GameStatus.Draw => Winner == PlayerMark.None && !BigBoardWinLine.HasValue,
+                GameStatus.InProgress or GameStatus.Draw => Winner == PlayerMark.None && !BigBoardWinLine.HasValue,
                 GameStatus.Win => Winner != PlayerMark.None && BigBoardWinLine.HasValue,
                 GameStatus.Timeout => Winner != PlayerMark.None && !BigBoardWinLine.HasValue,
                 _ => false,
             };
-        }
 
         public bool Equals(UltimateMatchResult other)
             => Status == other.Status && Winner == other.Winner && BigBoardWinLine == other.BigBoardWinLine;
