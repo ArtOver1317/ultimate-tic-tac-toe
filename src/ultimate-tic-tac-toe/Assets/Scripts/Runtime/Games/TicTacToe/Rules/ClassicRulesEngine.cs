@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Runtime.Games.TicTacToe.AI.Core;
 using Runtime.Games.TicTacToe.Moves;
 
 namespace Runtime.Games.TicTacToe.Rules
@@ -14,7 +15,7 @@ namespace Runtime.Games.TicTacToe.Rules
     {
         // Direction vectors: (dRow, dCol).
         // Order matches WinLineDirection priority: H > V > D\ > D/.
-        private static readonly (int dRow, int dCol, WinLineDirection dir)[] Directions =
+        private static readonly (int dRow, int dCol, WinLineDirection dir)[] _directions =
         {
             (0, 1, WinLineDirection.Horizontal),
             (1, 0, WinLineDirection.Vertical),
@@ -24,37 +25,36 @@ namespace Runtime.Games.TicTacToe.Rules
 
         public GameResult Evaluate(PlayerMark[] cells, int boardSize, CellId lastMove)
         {
-            if (cells == null) throw new ArgumentNullException(nameof(cells));
-            if (boardSize <= 0) throw new ArgumentOutOfRangeException(nameof(boardSize));
+            if (cells == null) 
+                throw new ArgumentNullException(nameof(cells));
+            
+            if (boardSize <= 0) 
+                throw new ArgumentOutOfRangeException(nameof(boardSize));
 
-            int row = lastMove.Major;
-            int col = lastMove.Minor;
-            int index = row * boardSize + col;
+            var row = lastMove.Major;
+            var col = lastMove.Minor;
+            var index = row * boardSize + col;
 
-            PlayerMark player = cells[index];
+            var player = cells[index];
+            
             if (player == PlayerMark.None)
                 throw new ArgumentException("cells[lastMove] must be X or O, not None.");
 
-            int k = GetWinLength(boardSize);
+            var k = GetWinLength(boardSize);
 
             WinLine? bestLine = null;
 
-            for (int d = 0; d < Directions.Length; d++)
+            foreach (var (dRow, dCol, dir) in _directions)
             {
-                var (dRow, dCol, dir) = Directions[d];
                 var line = FindLine(cells, boardSize, row, col, dRow, dCol, player, k, dir);
+                
                 if (line != null)
                 {
-                    // First found wins due to direction priority order.
-                    // If same direction (impossible with iteration order), compare by Start.
+                    // Direction priority follows Directions order: H > V > D\ > D/.
                     if (bestLine == null)
-                    {
                         bestLine = line;
-                    }
-                    else if (IsBetter(line.Value, bestLine.Value))
-                    {
+                    else if (IsBetter(line.Value, bestLine.Value)) 
                         bestLine = line;
-                    }
                 }
             }
 
@@ -62,19 +62,16 @@ namespace Runtime.Games.TicTacToe.Rules
                 return GameResult.Win(player, bestLine.Value);
 
             // Check for draw: no None cells remaining.
-            if (IsBoardFull(cells))
-                return GameResult.Draw();
-
-            return GameResult.InProgress();
+            return IsBoardFull(cells) ? GameResult.Draw() : GameResult.InProgress();
         }
 
         /// <summary>K(N): N=3→3, N∈{4,5}→4, N>5→5.</summary>
         internal static int GetWinLength(int boardSize) => boardSize switch
         {
             <= 0 => throw new ArgumentOutOfRangeException(nameof(boardSize)),
-            <= 3 => boardSize,  // N=1→1, N=2→2, N=3→3
-            <= 5 => 4,          // N=4→4, N=5→4
-            _ => 5,             // N>5→5
+            <= 3 => boardSize, // N=1→1, N=2→2, N=3→3
+            <= 5 => 4, // N=4→4, N=5→4
+            _ => 5, // N>5→5
         };
 
         /// <summary>
@@ -92,33 +89,31 @@ namespace Runtime.Games.TicTacToe.Rules
             WinLineDirection direction)
         {
             // Count forward (excluding start cell).
-            int forward = CountInDirection(cells, boardSize, row, col, dRow, dCol, player);
+            var forward = CountInDirection(cells, boardSize, row, col, dRow, dCol, player);
             // Count backward (excluding start cell).
-            int backward = CountInDirection(cells, boardSize, row, col, -dRow, -dCol, player);
+            var backward = CountInDirection(cells, boardSize, row, col, -dRow, -dCol, player);
 
-            int total = forward + backward + 1; // +1 for the cell itself.
+            var total = forward + backward + 1; // +1 for the cell itself.
+            
             if (total < k)
                 return null;
 
             // Determine the full run boundaries.
-            int runStartRow = row - backward * dRow;
-            int runStartCol = col - backward * dCol;
+            var runStartRow = row - backward * dRow;
+            var runStartCol = col - backward * dCol;
 
             // Choose a deterministic segment of exactly K that MUST include the last move.
             // Parameterization along the run (0..total-1):
             //   runStart + offset * (dRow,dCol)
-            // lastMove offset from runStart is exactly `backward`.
-            int lastMoveOffset = backward;
-
-            // Smallest start offset that still includes lastMove is (lastMoveOffset - (k-1)).
+            // Smallest start offset that still includes lastMove is backward - (k - 1).
             // Clamp to 0 so we stay inside the run.
-            int segmentStartOffset = lastMoveOffset - (k - 1);
+            var segmentStartOffset = backward - (k - 1);
             if (segmentStartOffset < 0) segmentStartOffset = 0;
 
-            int startRow = runStartRow + segmentStartOffset * dRow;
-            int startCol = runStartCol + segmentStartOffset * dCol;
-            int endRow = startRow + (k - 1) * dRow;
-            int endCol = startCol + (k - 1) * dCol;
+            var startRow = runStartRow + segmentStartOffset * dRow;
+            var startCol = runStartCol + segmentStartOffset * dCol;
+            var endRow = startRow + (k - 1) * dRow;
+            var endCol = startCol + (k - 1) * dCol;
 
             // Normalize: Start ≤ End by (row, then col).
             var start = new CellId(startRow, startCol);
@@ -138,9 +133,9 @@ namespace Runtime.Games.TicTacToe.Rules
             int dRow, int dCol,
             PlayerMark player)
         {
-            int count = 0;
-            int r = row + dRow;
-            int c = col + dCol;
+            var count = 0;
+            var r = row + dRow;
+            var c = col + dCol;
 
             while (r >= 0 && r < boardSize && c >= 0 && c < boardSize
                    && cells[r * boardSize + c] == player)
@@ -180,7 +175,7 @@ namespace Runtime.Games.TicTacToe.Rules
 
         private static bool IsBoardFull(PlayerMark[] cells)
         {
-            for (int i = 0; i < cells.Length; i++)
+            for (var i = 0; i < cells.Length; i++)
             {
                 if (cells[i] == PlayerMark.None)
                     return false;
@@ -188,5 +183,14 @@ namespace Runtime.Games.TicTacToe.Rules
 
             return true;
         }
+    }
+
+    /// <summary>
+    /// Exposes the same K(N) policy used by <see cref="ClassicRulesEngine"/> (ADR-11).
+    /// AI consumes this contract; K is never hard-coded in AI code.
+    /// </summary>
+    public sealed class ClassicWinLengthProvider : IClassicWinLengthProvider
+    {
+        public int GetWinLength(int boardSize) => ClassicRulesEngine.GetWinLength(boardSize);
     }
 }

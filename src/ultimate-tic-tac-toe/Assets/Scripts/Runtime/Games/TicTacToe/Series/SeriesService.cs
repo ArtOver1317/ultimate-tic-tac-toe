@@ -24,7 +24,7 @@ namespace Runtime.Games.TicTacToe.Series
 
         public bool Equals(SeriesScore other)
             => Player1Wins == other.Player1Wins && Player2Wins == other.Player2Wins
-               && Draws == other.Draws && RoundIndex == other.RoundIndex;
+                                                && Draws == other.Draws && RoundIndex == other.RoundIndex;
 
         public override bool Equals(object? obj) => obj is SeriesScore other && Equals(other);
         public override int GetHashCode() => HashCode.Combine(Player1Wins, Player2Wins, Draws, RoundIndex);
@@ -65,17 +65,13 @@ namespace Runtime.Games.TicTacToe.Series
         public void RecordResult(GameResult result)
         {
             ThrowIfDisposed();
-
             var s = _score.Value;
+            
             _score.Value = result.Status switch
             {
-                GameStatus.Win when result.Winner == PlayerMark.X
+                GameStatus.Win or GameStatus.Timeout when result.Winner == PlayerMark.X
                     => new SeriesScore(s.Player1Wins + 1, s.Player2Wins, s.Draws, s.RoundIndex),
-                GameStatus.Win when result.Winner == PlayerMark.O
-                    => new SeriesScore(s.Player1Wins, s.Player2Wins + 1, s.Draws, s.RoundIndex),
-                GameStatus.Timeout when result.Winner == PlayerMark.X
-                    => new SeriesScore(s.Player1Wins + 1, s.Player2Wins, s.Draws, s.RoundIndex),
-                GameStatus.Timeout when result.Winner == PlayerMark.O
+                GameStatus.Win or GameStatus.Timeout when result.Winner == PlayerMark.O
                     => new SeriesScore(s.Player1Wins, s.Player2Wins + 1, s.Draws, s.RoundIndex),
                 GameStatus.Draw
                     => new SeriesScore(s.Player1Wins, s.Player2Wins, s.Draws + 1, s.RoundIndex),
@@ -88,18 +84,20 @@ namespace Runtime.Games.TicTacToe.Series
             ThrowIfDisposed();
 
             var s = _score.Value;
-            int nextRound = s.RoundIndex + 1;
+            var nextRound = s.RoundIndex + 1;
             _score.Value = new SeriesScore(s.Player1Wins, s.Player2Wins, s.Draws, nextRound);
 
-            // round 0 → X (already passed), round 1 → O, round 2 → X, ...
-            // After NextRound, RoundIndex is the NEW round index.
-            // Alternation based on new RoundIndex: even → X, odd → O.
-            return nextRound % 2 == 0 ? PlayerMark.X : PlayerMark.O;
+            return GetFirstPlayerForRound(nextRound);
         }
+
+        private static PlayerMark GetFirstPlayerForRound(int roundIndex)
+            => roundIndex % 2 == 0 ? PlayerMark.X : PlayerMark.O;
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed) 
+                return;
+            
             _disposed = true;
             _score.Dispose();
         }

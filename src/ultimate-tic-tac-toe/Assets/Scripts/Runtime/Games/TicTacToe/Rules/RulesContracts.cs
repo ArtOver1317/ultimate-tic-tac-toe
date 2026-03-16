@@ -5,9 +5,21 @@ using Runtime.Games.TicTacToe.Moves;
 
 namespace Runtime.Games.TicTacToe.Rules
 {
-    public enum GameStatus { InProgress, Win, Draw, Timeout }
+    public enum GameStatus
+    {
+        InProgress,
+        Win, 
+        Draw, 
+        Timeout,
+    }
 
-    public enum WinLineDirection { Horizontal, Vertical, DiagonalMain, DiagonalAnti }
+    public enum WinLineDirection
+    {
+        Horizontal, 
+        Vertical, 
+        DiagonalMain, 
+        DiagonalAnti,
+    }
 
     public readonly struct WinLine : IEquatable<WinLine>
     {
@@ -30,7 +42,7 @@ namespace Runtime.Games.TicTacToe.Rules
 
         public bool Equals(WinLine other)
             => Start == other.Start && End == other.End
-               && Direction == other.Direction && Length == other.Length;
+                                    && Direction == other.Direction && Length == other.Length;
 
         public override bool Equals(object? obj) => obj is WinLine other && Equals(other);
         public override int GetHashCode() => HashCode.Combine(Start, End, Direction, Length);
