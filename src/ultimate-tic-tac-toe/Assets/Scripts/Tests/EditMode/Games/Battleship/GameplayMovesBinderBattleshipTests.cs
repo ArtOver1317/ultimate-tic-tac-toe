@@ -5,11 +5,13 @@ using System.Collections.Generic;
 using FluentAssertions;
 using NUnit.Framework;
 using R3;
+using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.Core;
+using Runtime.Games.Battleship.UI.Board;
 using Runtime.Games.TicTacToe.Moves;
 using UnityEngine.UIElements;
 
@@ -27,7 +29,7 @@ namespace Tests.EditMode.Games.Battleship
             var snapshot = new FakeBattleshipSnapshotProvider();
             var sink = new NoOpCommandSink();
 
-            using var sut = new GameplayMovesBinder(ui, sink, events, snapshot);
+            using var sut = CreateSut(ui, sink, events, snapshot);
             sut.Bind();
 
             events.EmitCellChanged(new CellChangedEvent(new CellId(0, 0), PlayerSlotMapping.SlotX));
@@ -51,7 +53,7 @@ namespace Tests.EditMode.Games.Battleship
             var snapshot = new FakeBattleshipSnapshotProvider();
             var sink = new NoOpCommandSink();
 
-            using var sut = new GameplayMovesBinder(ui, sink, events, snapshot);
+            using var sut = CreateSut(ui, sink, events, snapshot);
             sut.Bind();
 
             snapshot.SetOpponentMark(new CellId(0, 0), BattleshipCellMark.Miss);
@@ -70,13 +72,29 @@ namespace Tests.EditMode.Games.Battleship
             var snapshot = new FakeBattleshipSnapshotProvider();
             var sink = new NoOpCommandSink();
 
-            using var sut = new GameplayMovesBinder(ui, sink, events, snapshot);
+            using var sut = CreateSut(ui, sink, events, snapshot);
             sut.Bind();
 
             events.EmitLastMoveChanged(new LastMoveChangedEvent(new CellId(0, 0)));
 
             var cell = ui.GetCell(new CellId(0, 0));
             cell.ClassListContains("cell--lastMove").Should().BeFalse();
+        }
+
+        private static GameplayMovesBinder CreateSut(
+            IGameplayFieldUiAdapter ui,
+            IGameplayCommandSink sink,
+            IGameplayEventStream events,
+            FakeBattleshipSnapshotProvider snapshot)
+        {
+            var sessionStore = new OnlineGameplaySessionContextStore();
+            
+            return new GameplayMovesBinder(
+                ui,
+                sink,
+                events,
+                snapshot,
+                new BattleshipGameplayMovesModeBehavior(snapshot, sessionStore));
         }
 
         private sealed class NoOpCommandSink : IGameplayCommandSink

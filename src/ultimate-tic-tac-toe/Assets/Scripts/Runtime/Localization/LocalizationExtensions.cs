@@ -14,6 +14,14 @@ namespace Runtime.Localization
             IReadOnlyDictionary<string, object> args = null) =>
             service.Resolve(new TextTableId(table), new TextKey(key), args);
 
+        public static bool TryResolve(
+            this ILocalizationService service,
+            string table,
+            string key,
+            out string result,
+            IReadOnlyDictionary<string, object> args = null) =>
+            service.TryResolve(new TextTableId(table), new TextKey(key), out result, args);
+
         public static Observable<string> Observe(
             this ILocalizationService service,
             string table,

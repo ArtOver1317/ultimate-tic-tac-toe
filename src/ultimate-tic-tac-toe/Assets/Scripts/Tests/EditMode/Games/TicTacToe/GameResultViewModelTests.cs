@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using FluentAssertions;
+using NSubstitute;
 using NUnit.Framework;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Series;
+using Runtime.Localization;
 using R3;
 using UnityEngine.UIElements;
 
@@ -80,6 +82,32 @@ namespace Tests.EditMode.Games.TicTacToe
             // Assert
             var label = _parent.Q<Label>("ResultLabel");
             label.text.Should().Contain("Player 1 (X) Wins!");
+        }
+
+        [Test]
+        public void WhenShowWithLocalization_ThenResultLabelShowsLocalizedWinnerText()
+        {
+            _vm.Dispose();
+
+            var localization = Substitute.For<ILocalizationService>();
+            localization.TryResolve(
+                    Arg.Is<TextTableId>(table => table.Name == "GameOver"),
+                    Arg.Is<TextKey>(key => key.Value == "GameOver.Win.Player1"),
+                    out Arg.Any<string>(),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo =>
+                {
+                    callInfo[2] = "Игрок 1 (X) победил!";
+                    return true;
+                });
+
+            _vm = new GameResultViewModel(_parent, localization);
+
+            _vm.Show(GameResult.Win(PlayerMark.X, new WinLine(default, default, WinLineDirection.Horizontal, 3)),
+                default);
+
+            var label = _parent.Q<Label>("ResultLabel");
+            label.text.Should().Be("Игрок 1 (X) победил!");
         }
 
         [Test]

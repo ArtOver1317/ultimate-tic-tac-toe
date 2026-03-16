@@ -22,6 +22,7 @@ using Runtime.Games.Battleship.AI;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Networking;
 using Runtime.Games.Battleship.Placement;
+using Runtime.Games.Battleship.UI.Board;
 using Runtime.Games.Battleship.UI.Placement;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.AI;
@@ -226,7 +227,6 @@ namespace Tests.EditMode.Games.Battleship
             var commandSink = Substitute.For<IGameplayCommandSink>();
             var snapshotProvider = Substitute.For<IGameplaySnapshotProvider>();
             snapshotProvider.GetAllCells().Returns(new List<CellSnapshot>());
-            var movesBinder = new GameplayMovesBinder(fieldUiAdapter, commandSink, eventStream, snapshotProvider);
 
             var ecsLifecycle = Substitute.For<IMatchEcsLifecycle>();
             ecsLifecycle.IsActive.Returns(true);
@@ -252,6 +252,13 @@ namespace Tests.EditMode.Games.Battleship
             var battleshipEvents = Substitute.For<IBattleshipGameplayEventStream>();
             battleshipEvents.PhaseChanged.Returns(new Subject<BattleshipPhaseChangedEvent>());
             battleshipEvents.MarksChanged.Returns(new Subject<BattleshipMarksChangedEvent>());
+
+            var movesBinder = CreateBattleshipMovesBinder(
+                fieldUiAdapter,
+                commandSink,
+                eventStream,
+                snapshotProvider,
+                battleshipSnapshot);
 
             var statisticsReporter = CreateStatisticsReporter(configStore, eventStream);
 
@@ -335,7 +342,16 @@ namespace Tests.EditMode.Games.Battleship
             var commandSink = Substitute.For<IGameplayCommandSink>();
             var snapshotProvider = Substitute.For<IGameplaySnapshotProvider>();
             snapshotProvider.GetAllCells().Returns(new List<CellSnapshot>());
-            var movesBinder = new GameplayMovesBinder(fieldUiAdapter, commandSink, eventStream, snapshotProvider);
+            var battleshipMovesSnapshot = Substitute.For<IBattleshipGameplaySnapshotProvider>();
+            var emptyMarks = Array.AsReadOnly(Array.Empty<BattleshipCellMark>());
+            battleshipMovesSnapshot.Phase.Returns(BattleshipPhase.Battle);
+            battleshipMovesSnapshot.GetOpponentMarks(Arg.Any<int>()).Returns(emptyMarks);
+            var movesBinder = CreateBattleshipMovesBinder(
+                fieldUiAdapter,
+                commandSink,
+                eventStream,
+                snapshotProvider,
+                battleshipMovesSnapshot);
 
             var ecsLifecycle = Substitute.For<IMatchEcsLifecycle>();
             var stateMachine = Substitute.For<IGameStateMachine>();
@@ -793,7 +809,6 @@ namespace Tests.EditMode.Games.Battleship
             var commandSink = Substitute.For<IGameplayCommandSink>();
             var snapshotProvider = Substitute.For<IGameplaySnapshotProvider>();
             snapshotProvider.GetAllCells().Returns(new List<CellSnapshot>());
-            var movesBinder = new GameplayMovesBinder(fieldUiAdapter, commandSink, eventStream, snapshotProvider);
 
             var ecsLifecycle = Substitute.For<IMatchEcsLifecycle>();
             ecsLifecycle.IsActive.Returns(true);
@@ -828,7 +843,7 @@ namespace Tests.EditMode.Games.Battleship
             battleshipSnapshot.Phase.Returns(BattleshipPhase.Battle);
             battleshipSnapshot.ActivePlayerSlot.Returns(activePlayerSlot);
             battleshipSnapshot.CurrentStatus.Returns(GameStatus.InProgress);
-            battleshipSnapshot.GetOpponentMarks(PlayerSlotMapping.SlotO).Returns(marksView);
+            battleshipSnapshot.GetOpponentMarks(Arg.Any<int>()).Returns(marksView);
 
             var battleshipEvents = Substitute.For<IBattleshipGameplayEventStream>();
             battleshipEvents.PhaseChanged.Returns(new Subject<BattleshipPhaseChangedEvent>());
@@ -870,6 +885,14 @@ namespace Tests.EditMode.Games.Battleship
 
             var sessionStore = new OnlineGameplaySessionContextStore();
             sessionStore.SetDirectInviteSession("ABCDEF", isHost ? "host-user" : "guest-user", isHost);
+
+            var movesBinder = CreateBattleshipMovesBinder(
+                fieldUiAdapter,
+                commandSink,
+                eventStream,
+                snapshotProvider,
+                battleshipSnapshot,
+                sessionStore);
 
             moveTimerService ??= new FakeMoveTimerService();
             placementTimerService ??= new FakePlacementTimerService();
@@ -924,6 +947,24 @@ namespace Tests.EditMode.Games.Battleship
                 statisticsService,
                 contextStore,
                 new MatchKeyMapper());
+        }
+
+        private static GameplayMovesBinder CreateBattleshipMovesBinder(
+            IGameplayFieldUiAdapter fieldUiAdapter,
+            IGameplayCommandSink commandSink,
+            IGameplayEventStream eventStream,
+            IGameplaySnapshotProvider snapshotProvider,
+            IBattleshipGameplaySnapshotProvider battleshipSnapshotProvider,
+            IOnlineGameplaySessionContextStore? sessionStore = null)
+        {
+            sessionStore ??= new OnlineGameplaySessionContextStore();
+
+            return new GameplayMovesBinder(
+                fieldUiAdapter,
+                commandSink,
+                eventStream,
+                snapshotProvider,
+                new BattleshipGameplayMovesModeBehavior(battleshipSnapshotProvider, sessionStore));
         }
 
         private sealed class TestContext : IDisposable

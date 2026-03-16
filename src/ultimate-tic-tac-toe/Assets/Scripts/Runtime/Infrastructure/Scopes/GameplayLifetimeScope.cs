@@ -72,9 +72,6 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<FieldSpecMapper>(Lifetime.Scoped);
             builder.Register<IGameService, LocalGameService>(Lifetime.Scoped);
 
-            // Phase 4: default VFX settings for local moves.
-            builder.RegisterInstance(MovesVfxSettings.Default);
-
             // ── ECS Infrastructure (Phase 5) ──
             builder.Register<CommandQueue>(Lifetime.Scoped);
             builder.Register<IMatchEventScheduler, DeferredEventScheduler>(Lifetime.Scoped);
@@ -207,6 +204,20 @@ namespace Runtime.Infrastructure.Scopes
                 .As<IGameplayFieldPresenter>()
                 .As<IGameplayFieldUiAdapter>()
                 .As<IBattleshipFieldUiAdapter>();
+            builder.Register<IGameplayMovesModeBehavior>(resolver =>
+            {
+                var configStore = resolver.Resolve<IGameLaunchConfigStore>();
+                if (configStore.TryPeek(out var config)
+                    && config != null
+                    && string.Equals(config.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
+                {
+                    return new BattleshipGameplayMovesModeBehavior(
+                        resolver.Resolve<IBattleshipGameplaySnapshotProvider>(),
+                        resolver.Resolve<IOnlineGameplaySessionContextStore>());
+                }
+
+                return DefaultGameplayMovesModeBehavior.Instance;
+            }, Lifetime.Scoped);
             builder.Register<GameplayMovesBinder>(Lifetime.Scoped);
             builder.Register<BattleshipBoardsBinder>(Lifetime.Scoped);
             builder.Register<BattleshipPlacementUiController>(Lifetime.Scoped)

@@ -60,7 +60,7 @@ namespace Runtime.Games.TicTacToe.Moves
         {
             var isVisible = _moveTimerService.IsActive.CurrentValue;
             var remainingSeconds = _moveTimerService.RemainingSeconds.CurrentValue;
-            var displaySeconds = NormalizeDisplaySeconds(remainingSeconds);
+            var displaySeconds = MoveTimerDisplayFormatter.NormalizeDisplaySeconds(remainingSeconds);
             var isWarning = isVisible && displaySeconds <= MoveTimerConstants.WarningThresholdSeconds;
 
             if (_lastVisible != isVisible)
@@ -72,7 +72,7 @@ namespace Runtime.Games.TicTacToe.Moves
             if (_lastDisplaySeconds != displaySeconds)
             {
                 _lastDisplaySeconds = displaySeconds;
-                _formattedTime.Value = FormatSeconds(displaySeconds);
+                _formattedTime.Value = MoveTimerDisplayFormatter.FormatSeconds(displaySeconds);
             }
 
             if (_lastWarning != isWarning)
@@ -81,41 +81,22 @@ namespace Runtime.Games.TicTacToe.Moves
                 _isWarning.Value = isWarning;
             }
         }
-
-        private static int NormalizeDisplaySeconds(float remainingSeconds)
-        {
-            var ceil = (int)Math.Ceiling(remainingSeconds);
-            return ceil > 0 ? ceil : 0;
-        }
-
-        private static string FormatSeconds(int totalSeconds)
-        {
-            if (totalSeconds >= 60)
-            {
-                var minutes = totalSeconds / 60;
-                var seconds = totalSeconds % 60;
-                return $"{minutes:00}:{seconds:00}";
-            }
-
-            return totalSeconds.ToString("00");
-        }
     }
 
     public sealed class MoveTimerHudBinder : IDisposable
     {
-        private const string WarningClass = "move-timer-label--warning";
+        private const string _warningClass = "move-timer-label--warning";
 
         private readonly IGameplayFieldUiAdapter _ui;
         private readonly IMoveTimerHudViewModel _viewModel;
 
         private CompositeDisposable _subscriptions;
         private Label _timerLabel;
-        private bool _isBound;
         private bool _disposed;
         private bool _lastViewModelVisibility;
         private bool? _visibilityOverride;
 
-        public bool IsBound => _isBound;
+        private bool IsBound { get; set; }
 
         public MoveTimerHudBinder(IGameplayFieldUiAdapter ui, IMoveTimerHudViewModel viewModel)
         {
@@ -127,13 +108,14 @@ namespace Runtime.Games.TicTacToe.Moves
         {
             ThrowIfDisposed();
 
-            if (_isBound)
+            if (IsBound)
             {
                 GameLog.Warning("[MoveTimerHudBinder] Bind called more than once. Ignored.");
                 return;
             }
 
             _timerLabel = _ui.MoveTimerLabel;
+            
             if (_timerLabel == null)
             {
                 GameLog.Warning("[MoveTimerHudBinder] Bind skipped: MoveTimerLabel is null.");
@@ -158,12 +140,12 @@ namespace Runtime.Games.TicTacToe.Moves
             UpdateVisibility(_viewModel.IsVisible.CurrentValue);
             UpdateWarningStyle(_viewModel.IsWarning.CurrentValue);
 
-            _isBound = true;
+            IsBound = true;
         }
 
         public void Unbind()
         {
-            if (!_isBound)
+            if (!IsBound)
                 return;
 
             _subscriptions?.Dispose();
@@ -171,7 +153,7 @@ namespace Runtime.Games.TicTacToe.Moves
 
             if (_timerLabel != null)
             {
-                _timerLabel.RemoveFromClassList(WarningClass);
+                _timerLabel.RemoveFromClassList(_warningClass);
                 _timerLabel.style.display = DisplayStyle.None;
                 _timerLabel.text = "00";
             }
@@ -179,7 +161,7 @@ namespace Runtime.Games.TicTacToe.Moves
             _lastViewModelVisibility = false;
             _visibilityOverride = null;
             _timerLabel = null;
-            _isBound = false;
+            IsBound = false;
         }
 
         public void SetVisibilityOverride(bool? isVisible)
@@ -226,9 +208,9 @@ namespace Runtime.Games.TicTacToe.Moves
                 return;
 
             if (isWarning)
-                _timerLabel.AddToClassList(WarningClass);
+                _timerLabel.AddToClassList(_warningClass);
             else
-                _timerLabel.RemoveFromClassList(WarningClass);
+                _timerLabel.RemoveFromClassList(_warningClass);
         }
 
         private void ThrowIfDisposed()

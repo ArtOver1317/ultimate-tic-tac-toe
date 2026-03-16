@@ -1,10 +1,12 @@
-using System;
 using Runtime.Localization;
 
 namespace Runtime.Games.TicTacToe.Moves
 {
     public static class PlayerMarkExtensions
     {
+        private const string _gameTable = "Game";
+        private const string _gameOverTable = "GameOver";
+
         public static string ToUiText(this PlayerMark mark) => mark switch
         {
             PlayerMark.X => "X",
@@ -12,54 +14,29 @@ namespace Runtime.Games.TicTacToe.Moves
             _ => string.Empty,
         };
 
-        /// <summary>
-        /// Turn indicator text during InProgress: "Player 1 (X)" / "Player 2 (O)".
-        /// TODO: Replace with localized text in Phase 5.
-        /// </summary>
-        public static string ToTurnIndicatorText(this PlayerMark mark) => mark switch
+        public static string ToTurnIndicatorText(this PlayerMark mark, ILocalizationService localization = null) => mark switch
         {
-            PlayerMark.X => "Player 1 (X)",
-            PlayerMark.O => "Player 2 (O)",
+            PlayerMark.X => ResolveOrFallback(localization, _gameTable, "Game.PlayerTurn.Player1", "Player 1 (X)"),
+            PlayerMark.O => ResolveOrFallback(localization, _gameTable, "Game.PlayerTurn.Player2", "Player 2 (O)"),
             _ => string.Empty,
         };
 
-        /// <summary>
-        /// Result text for turn indicator: "Player 1 (X) Wins!" / "Draw!".
-        /// TODO: Replace with localized text in Phase 5.
-        /// </summary>
-        public static string ToResultText(this PlayerMark winner, Rules.GameStatus status, ILocalizationService localization = null)
+        public static string ToResultText(this PlayerMark winner, Rules.GameStatus status, ILocalizationService localization = null) => status switch
         {
-            if (status == Rules.GameStatus.Timeout && localization != null)
-            {
-                return winner switch
-                {
-                    PlayerMark.X => ResolveOrFallback(
-                        localization,
-                        key: "GameOver.TimeoutWin.Player1",
-                        fallback: "Player 1 (X) Wins by timeout!"),
-                    PlayerMark.O => ResolveOrFallback(
-                        localization,
-                        key: "GameOver.TimeoutWin.Player2",
-                        fallback: "Player 2 (O) Wins by timeout!"),
-                    _ => string.Empty,
-                };
-            }
+            Rules.GameStatus.Win when winner == PlayerMark.X => ResolveOrFallback(localization, _gameOverTable, "GameOver.Win.Player1", "Player 1 (X) Wins!"),
+            Rules.GameStatus.Win when winner == PlayerMark.O => ResolveOrFallback(localization, _gameOverTable, "GameOver.Win.Player2", "Player 2 (O) Wins!"),
+            Rules.GameStatus.Timeout when winner == PlayerMark.X => ResolveOrFallback(localization, _gameOverTable, "GameOver.TimeoutWin.Player1", "Player 1 (X) Wins by timeout!"),
+            Rules.GameStatus.Timeout when winner == PlayerMark.O => ResolveOrFallback(localization, _gameOverTable, "GameOver.TimeoutWin.Player2", "Player 2 (O) Wins by timeout!"),
+            Rules.GameStatus.Draw => ResolveOrFallback(localization, _gameOverTable, "GameOver.Draw", "Draw!"),
+            _ => string.Empty,
+        };
 
-            return status switch
-            {
-                Rules.GameStatus.Win when winner == PlayerMark.X => "Player 1 (X) Wins!",
-                Rules.GameStatus.Win when winner == PlayerMark.O => "Player 2 (O) Wins!",
-                Rules.GameStatus.Timeout when winner == PlayerMark.X => "Player 1 (X) Wins by timeout!",
-                Rules.GameStatus.Timeout when winner == PlayerMark.O => "Player 2 (O) Wins by timeout!",
-                Rules.GameStatus.Draw => "Draw!",
-                _ => string.Empty,
-            };
-        }
-
-        private static string ResolveOrFallback(ILocalizationService localization, string key, string fallback)
+        private static string ResolveOrFallback(ILocalizationService localization, string table, string key, string fallback)
         {
-            var resolved = localization.Resolve("GameOver", key);
-            return resolved.StartsWith("⟦Missing:", StringComparison.Ordinal) ? fallback : resolved;
+            if (localization == null)
+                return fallback;
+
+            return localization.TryResolve(table, key, out var resolved) ? resolved : fallback;
         }
     }
 }

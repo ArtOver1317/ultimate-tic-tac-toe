@@ -9,10 +9,14 @@ namespace Runtime.Games.TicTacToe.Moves
 
     public readonly struct MovesVfxSettings
     {
+        private const float _defaultMarkAppearDurationSeconds = 0.16f;
+
         public bool EnableMarkAppearAnimation { get; }
         public float MarkAppearDurationSeconds { get; }
 
-        public static MovesVfxSettings Default => new(enableMarkAppearAnimation: true, markAppearDurationSeconds: 0.16f);
+        public static MovesVfxSettings Default => new(
+            enableMarkAppearAnimation: true,
+            markAppearDurationSeconds: _defaultMarkAppearDurationSeconds);
 
         public MovesVfxSettings(bool enableMarkAppearAnimation, float markAppearDurationSeconds)
         {

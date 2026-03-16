@@ -18,6 +18,7 @@ using Runtime.Gameplay.ECS.Lifecycle;
 using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Gameplay.Shared;
+using Runtime.Localization;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
@@ -95,6 +96,52 @@ namespace Tests.EditMode.Games.TicTacToe
             ((Label)markRoot[0]).text.Should().Be("X");
 
             ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("Player 2 (O)");
+        }
+
+        [Test]
+        [Category("Integration")]
+        public void WhenLocalizationProvided_ThenCurrentPlayerLabelUsesLocalizedTurnText()
+        {
+            // Arrange
+            BindPresenter(FieldRenderSpec.Classic(3));
+            StartMatch();
+
+            var localization = Substitute.For<ILocalizationService>();
+            localization.TryResolve(
+                    Arg.Is<TextTableId>(table => table.Name == "Game"),
+                    Arg.Is<TextKey>(key => key.Value == "Game.PlayerTurn.Player1"),
+                    out Arg.Any<string>(),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo =>
+                {
+                    callInfo[2] = "Игрок 1 (X)";
+                    return true;
+                });
+            localization.TryResolve(
+                    Arg.Is<TextTableId>(table => table.Name == "Game"),
+                    Arg.Is<TextKey>(key => key.Value == "Game.PlayerTurn.Player2"),
+                    out Arg.Any<string>(),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(callInfo =>
+                {
+                    callInfo[2] = "Игрок 2 (O)";
+                    return true;
+                });
+
+            _binder = new GameplayMovesBinder(
+                (IGameplayFieldUiAdapter)_presenter,
+                _stateProvider,
+                _stateProvider,
+                _stateProvider,
+                localization: localization);
+
+            // Act
+            _binder.Bind();
+            ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("Игрок 1 (X)");
+            ClickAndTick(new CellId(0, 0));
+
+            // Assert
+            ((IGameplayFieldUiAdapter)_presenter).CurrentPlayerLabel.text.Should().Be("Игрок 2 (O)");
         }
 
         [Test]

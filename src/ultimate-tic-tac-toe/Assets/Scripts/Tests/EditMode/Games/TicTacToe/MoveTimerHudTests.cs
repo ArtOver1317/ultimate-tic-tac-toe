@@ -100,6 +100,18 @@ namespace Tests.EditMode.Games.TicTacToe
         }
 
         [Test]
+        public void WhenNormalizeDisplaySecondsWithNegativeValue_ThenReturnsZero()
+        {
+            MoveTimerDisplayFormatter.NormalizeDisplaySeconds(-0.2f).Should().Be(0);
+        }
+
+        [Test]
+        public void WhenFormatSecondsWithOverMinuteValue_ThenReturnsMinuteSecondText()
+        {
+            MoveTimerDisplayFormatter.FormatSeconds(125).Should().Be("02:05");
+        }
+
+        [Test]
         public void WhenBinderBoundAndVmChanges_ThenUpdatesLabelVisibilityTextAndWarningClass()
         {
             using var timerService = new FakeMoveTimerService();

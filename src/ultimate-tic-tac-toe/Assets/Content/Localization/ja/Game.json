@@ -18,6 +18,8 @@
     "Game.Description.TicTacToe": "○×ゲーム — クラシックとアルティメット",
     "Game.OpponentTurn": "{playerName}のターン",
     "Game.Pause": "一時停止",
+    "Game.PlayerTurn.Player1": "プレイヤー1 (X)",
+    "Game.PlayerTurn.Player2": "プレイヤー2 (O)",
     "Game.Resume": "再開",
     "Game.Score": "スコア: {score}",
     "Game.Surrender": "降参",

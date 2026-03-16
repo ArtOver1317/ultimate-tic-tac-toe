@@ -66,6 +66,7 @@ namespace Runtime.Localization
         UniTask PreloadAsync(LocaleId locale, IReadOnlyList<TextTableId> tables, CancellationToken cancellationToken);
 
         string Resolve(TextTableId table, TextKey key, IReadOnlyDictionary<string, object> args = null);
+        bool TryResolve(TextTableId table, TextKey key, out string result, IReadOnlyDictionary<string, object> args = null);
         Observable<string> Observe(TextTableId table, TextKey key, Observable<IReadOnlyDictionary<string, object>> args);
         Observable<string> Observe(TextTableId table, TextKey key, IReadOnlyDictionary<string, object> args = null);
 

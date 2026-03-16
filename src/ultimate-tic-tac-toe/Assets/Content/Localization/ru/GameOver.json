@@ -4,11 +4,13 @@
   "table": "GameOver",
   "entries": {
     "GameOver.Defeat": "Поражение",
-    "GameOver.Draw": "Ничья",
+    "GameOver.Draw": "Ничья!",
     "GameOver.MainMenu": "Главное меню",
     "GameOver.Rematch": "Реванш",
     "GameOver.TimeoutWin.Player1": "Игрок 1 (X) победил по тайм-ауту!",
     "GameOver.TimeoutWin.Player2": "Игрок 2 (O) победил по тайм-ауту!",
-    "GameOver.Victory": "Победа!"
+    "GameOver.Victory": "Победа!",
+    "GameOver.Win.Player1": "Игрок 1 (X) победил!",
+    "GameOver.Win.Player2": "Игрок 2 (O) победил!"
   }
 }

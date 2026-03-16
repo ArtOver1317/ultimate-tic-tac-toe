@@ -4,11 +4,13 @@
   "table": "GameOver",
   "entries": {
     "GameOver.Defeat": "敗北",
-    "GameOver.Draw": "引き分け",
+    "GameOver.Draw": "引き分け！",
     "GameOver.MainMenu": "メインメニュー",
     "GameOver.Rematch": "再戦",
     "GameOver.TimeoutWin.Player1": "プレイヤー1 (X) はタイムアウト勝ち！",
     "GameOver.TimeoutWin.Player2": "プレイヤー2 (O) はタイムアウト勝ち！",
-    "GameOver.Victory": "勝利！"
+    "GameOver.Victory": "勝利！",
+    "GameOver.Win.Player1": "プレイヤー1 (X) の勝利！",
+    "GameOver.Win.Player2": "プレイヤー2 (O) の勝利！"
   }
 }

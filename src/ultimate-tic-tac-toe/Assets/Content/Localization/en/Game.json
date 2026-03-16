@@ -18,6 +18,8 @@
     "Game.Description.TicTacToe": "Classic and Ultimate Tic-Tac-Toe",
     "Game.OpponentTurn": "{playerName}'s Turn",
     "Game.Pause": "Pause",
+    "Game.PlayerTurn.Player1": "Player 1 (X)",
+    "Game.PlayerTurn.Player2": "Player 2 (O)",
     "Game.Resume": "Resume",
     "Game.Score": "Score: {score}",
     "Game.Surrender": "Surrender",

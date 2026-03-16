@@ -727,6 +727,12 @@ namespace Tests.PlayMode.GameModes.Wizard
             public string Resolve(TextTableId table, TextKey key, IReadOnlyDictionary<string, object> args = null) =>
                 GetOrCreate(_currentLocale.CurrentValue, key.Value).Value;
 
+            public bool TryResolve(TextTableId table, TextKey key, out string result, IReadOnlyDictionary<string, object> args = null)
+            {
+                result = GetOrCreate(_currentLocale.CurrentValue, key.Value).Value;
+                return true;
+            }
+
             public Observable<string> Observe(TextTableId table, TextKey key, Observable<IReadOnlyDictionary<string, object>> args) =>
                 GetOrCreate(_currentLocale.CurrentValue, key.Value);
 

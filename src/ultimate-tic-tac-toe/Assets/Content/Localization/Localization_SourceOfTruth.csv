@@ -17,6 +17,8 @@ Settings.Volume,Volume: {volume}%,Громкость: {volume}%,音量: {volume}
 Settings.Back,Back,Назад,戻る,Back button
 Game.YourTurn,Your Turn,Ваш ход,あなたのターン,Indicates player's turn
 Game.OpponentTurn,"{playerName}'s Turn",Ход игрока {playerName},{playerName}のターン,Indicates opponent's turn
+Game.PlayerTurn.Player1,Player 1 (X),Игрок 1 (X),プレイヤー1 (X),Turn indicator for player 1 in tic-tac-toe style HUD
+Game.PlayerTurn.Player2,Player 2 (O),Игрок 2 (O),プレイヤー2 (O),Turn indicator for player 2 in tic-tac-toe style HUD
 Game.Score,Score: {score},Счёт: {score},スコア: {score},Score display
 Game.Timer,Time: {seconds}s,Время: {seconds}с,時間: {seconds}秒,Timer display
 Game.Pause,Pause,Пауза,一時停止,Pause button
@@ -24,7 +26,9 @@ Game.Resume,Resume,Продолжить,再開,Resume button
 Game.Surrender,Surrender,Сдаться,降参,Surrender button
 GameOver.Victory,Victory!,Победа!,勝利！,Victory message
 GameOver.Defeat,Defeat,Поражение,敗北,Defeat message
-GameOver.Draw,Draw,Ничья,引き分け,Draw message
+GameOver.Draw,Draw!,Ничья!,引き分け！,Draw message
+GameOver.Win.Player1,Player 1 (X) Wins!,Игрок 1 (X) победил!,プレイヤー1 (X) の勝利！,Win message for player 1
+GameOver.Win.Player2,Player 2 (O) Wins!,Игрок 2 (O) победил!,プレイヤー2 (O) の勝利！,Win message for player 2
 GameOver.TimeoutWin.Player1,Player 1 (X) Wins by timeout!,Игрок 1 (X) победил по тайм-ауту!,プレイヤー1 (X) はタイムアウト勝ち！,Timeout win message for player 1
 GameOver.TimeoutWin.Player2,Player 2 (O) Wins by timeout!,Игрок 2 (O) победил по тайм-ауту!,プレイヤー2 (O) はタイムアウト勝ち！,Timeout win message for player 2
 GameOver.Rematch,Rematch,Реванш,再戦,Rematch button

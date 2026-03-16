@@ -64,7 +64,7 @@ namespace Runtime.Games.Battleship.UI.Placement
         {
             var isVisible = _timerService.IsActive.CurrentValue;
             var remainingSeconds = _timerService.RemainingSeconds.CurrentValue;
-            var displaySeconds = NormalizeDisplaySeconds(remainingSeconds);
+            var displaySeconds = MoveTimerDisplayFormatter.NormalizeDisplaySeconds(remainingSeconds);
             var isWarning = isVisible && displaySeconds <= MoveTimerConstants.WarningThresholdSeconds;
 
             if (_lastVisible != isVisible)
@@ -76,7 +76,7 @@ namespace Runtime.Games.Battleship.UI.Placement
             if (_lastDisplaySeconds != displaySeconds)
             {
                 _lastDisplaySeconds = displaySeconds;
-                _formattedTime.Value = FormatSeconds(displaySeconds);
+                _formattedTime.Value = MoveTimerDisplayFormatter.FormatSeconds(displaySeconds);
             }
 
             if (_lastWarning != isWarning)
@@ -84,24 +84,6 @@ namespace Runtime.Games.Battleship.UI.Placement
                 _lastWarning = isWarning;
                 _isWarning.Value = isWarning;
             }
-        }
-
-        private static int NormalizeDisplaySeconds(float remainingSeconds)
-        {
-            var ceil = (int)Math.Ceiling(remainingSeconds);
-            return ceil > 0 ? ceil : 0;
-        }
-
-        private static string FormatSeconds(int totalSeconds)
-        {
-            if (totalSeconds >= 60)
-            {
-                var minutes = totalSeconds / 60;
-                var seconds = totalSeconds % 60;
-                return $"{minutes:00}:{seconds:00}";
-            }
-
-            return totalSeconds.ToString("00");
         }
     }
 

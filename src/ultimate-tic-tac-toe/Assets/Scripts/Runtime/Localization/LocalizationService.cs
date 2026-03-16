@@ -331,32 +331,14 @@ namespace Runtime.Localization
 
         public string Resolve(TextTableId table, TextKey key, IReadOnlyDictionary<string, object> args = null)
         {
-            EnsureInitialized();
+            return TryResolveCore(table, key, args, out var result)
+                ? result
+                : (_policy.UseMissingKeyPlaceholders ? $"⟦Missing: {table.Name}.{key.Value}⟧" : string.Empty);
+        }
 
-            TrackTable(table);
-
-            if (_store.TryResolveTemplate(table, key, out var template))
-            {
-                var activeLocale = _store.GetActiveLocale();
-                return _formatter.Format(template, activeLocale, args);
-            }
-
-            var locale = _store.GetActiveLocale();
-
-            if (_reportedMissingKeys.Count >= _maxReportedMissingKeys)
-                _reportedMissingKeys.Clear();
-
-            if (_reportedMissingKeys.Add(new MissingKeyReportKey(locale, table, key)))
-            {
-                _errors.OnNext(new LocalizationError(
-                    LocalizationErrorCode.MissingKey,
-                    $"Missing key '{key.Value}' in table '{table.Name}'.",
-                    locale: locale,
-                    tableId: table,
-                    key: key));
-            }
-
-            return _policy.UseMissingKeyPlaceholders ? $"⟦Missing: {table.Name}.{key.Value}⟧" : string.Empty;
+        public bool TryResolve(TextTableId table, TextKey key, out string result, IReadOnlyDictionary<string, object> args = null)
+        {
+            return TryResolveCore(table, key, args, out result);
         }
 
         public void Dispose()
@@ -402,6 +384,46 @@ namespace Runtime.Localization
                     hash = (hash * 397) ^ _key.GetHashCode();
                     return hash;
                 }
+            }
+        }
+
+        private bool TryResolveCore(
+            TextTableId table,
+            TextKey key,
+            IReadOnlyDictionary<string, object> args,
+            out string result)
+        {
+            EnsureInitialized();
+
+            TrackTable(table);
+
+            if (_store.TryResolveTemplate(table, key, out var template))
+            {
+                var activeLocale = _store.GetActiveLocale();
+                result = _formatter.Format(template, activeLocale, args);
+                return true;
+            }
+
+            ReportMissingKey(table, key);
+            result = string.Empty;
+            return false;
+        }
+
+        private void ReportMissingKey(TextTableId table, TextKey key)
+        {
+            var locale = _store.GetActiveLocale();
+
+            if (_reportedMissingKeys.Count >= _maxReportedMissingKeys)
+                _reportedMissingKeys.Clear();
+
+            if (_reportedMissingKeys.Add(new MissingKeyReportKey(locale, table, key)))
+            {
+                _errors.OnNext(new LocalizationError(
+                    LocalizationErrorCode.MissingKey,
+                    $"Missing key '{key.Value}' in table '{table.Name}'.",
+                    locale: locale,
+                    tableId: table,
+                    key: key));
             }
         }
 

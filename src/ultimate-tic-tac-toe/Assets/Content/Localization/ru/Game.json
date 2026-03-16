@@ -18,6 +18,8 @@
     "Game.Description.TicTacToe": "Крестики-нолики — классика и ультимейт",
     "Game.OpponentTurn": "Ход игрока {playerName}",
     "Game.Pause": "Пауза",
+    "Game.PlayerTurn.Player1": "Игрок 1 (X)",
+    "Game.PlayerTurn.Player2": "Игрок 2 (O)",
     "Game.Resume": "Продолжить",
     "Game.Score": "Счёт: {score}",
     "Game.Surrender": "Сдаться",
