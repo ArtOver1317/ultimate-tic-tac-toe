@@ -3,9 +3,23 @@ using System.Text;
 
 namespace Runtime.Infrastructure.Save
 {
-    internal class SaveEncryptor
+    internal sealed class SaveEncryptor
     {
-        private static readonly uint[] Key = { 0xD3A7B19Fu, 0x8C4E2D71u, 0xA95F6B23u, 0x17CE84DAu };
+        private const uint _teaDelta = 0x9E3779B9u;
+        private const int _minimumWordCount = 2;
+        private const int _baseRoundCount = 6;
+        private const int _roundFactor = 52;
+        private const int _keyIndexMask = 3;
+        private const int _bytesPerUInt32 = sizeof(uint);
+        private const int _bitsPerByte = 8;
+
+        private static readonly uint[] _xxTeaKey =
+        {
+            0xD3A7B19Fu,
+            0x8C4E2D71u,
+            0xA95F6B23u,
+            0x17CE84DAu,
+        };
 
         public string Encrypt(string plainJson)
         {
@@ -19,7 +33,7 @@ namespace Runtime.Infrastructure.Save
                 return string.Empty;
 
             var plainBytes = Encoding.UTF8.GetBytes(plainJson);
-            var encrypted = XXTeaEncrypt(plainBytes, Key);
+            var encrypted = XXTeaEncrypt(plainBytes, _xxTeaKey);
             return Convert.ToBase64String(encrypted);
 #endif
         }
@@ -36,7 +50,7 @@ namespace Runtime.Infrastructure.Save
                 return string.Empty;
 
             var encryptedBytes = Convert.FromBase64String(base64);
-            var plainBytes = XXTeaDecrypt(encryptedBytes, Key);
+            var plainBytes = XXTeaDecrypt(encryptedBytes, _xxTeaKey);
             return Encoding.UTF8.GetString(plainBytes);
 #endif
         }
@@ -57,32 +71,28 @@ namespace Runtime.Infrastructure.Save
 
         private static uint[] XXTeaEncrypt(uint[] values, uint[] key)
         {
-            var count = values.Length;
-            if (count < 2)
+            if (values.Length < _minimumWordCount)
                 return values;
 
-            const uint delta = 0x9E3779B9u;
-            var rounds = 6 + 52 / count;
+            var rounds = GetRoundCount(values.Length);
             uint sum = 0;
-            var z = values[count - 1];
+            var previousValue = values[^1];
 
             while (rounds-- > 0)
             {
-                sum += delta;
-                var e = (sum >> 2) & 3;
+                sum += _teaDelta;
+                var keyOffset = GetKeyOffset(sum);
 
-                for (var p = 0; p < count - 1; p++)
+                for (var index = 0; index < values.Length - 1; index++)
                 {
-                    var y = values[p + 1];
-                    var mx = ((z >> 5) ^ (y << 2)) + ((y >> 3) ^ (z << 4));
-                    mx ^= (sum ^ y) + (key[(p & 3) ^ e] ^ z);
-                    z = values[p] += mx;
+                    var nextValue = values[index + 1];
+                    var keyValue = key[GetKeyIndex(index, keyOffset)];
+                    previousValue = values[index] += ComputeMix(previousValue, nextValue, sum, keyValue);
                 }
 
-                var yLast = values[0];
-                var mxLast = ((z >> 5) ^ (yLast << 2)) + ((yLast >> 3) ^ (z << 4));
-                mxLast ^= (sum ^ yLast) + (key[((count - 1) & 3) ^ e] ^ z);
-                z = values[count - 1] += mxLast;
+                var firstValue = values[0];
+                var lastKeyValue = key[GetKeyIndex(values.Length - 1, keyOffset)];
+                previousValue = values[^1] += ComputeMix(previousValue, firstValue, sum, lastKeyValue);
             }
 
             return values;
@@ -90,32 +100,28 @@ namespace Runtime.Infrastructure.Save
 
         private static uint[] XXTeaDecrypt(uint[] values, uint[] key)
         {
-            var count = values.Length;
-            if (count < 2)
+            if (values.Length < _minimumWordCount)
                 return values;
 
-            const uint delta = 0x9E3779B9u;
-            var rounds = 6 + 52 / count;
-            uint sum = (uint)(rounds * delta);
-            var y = values[0];
+            var rounds = GetRoundCount(values.Length);
+            var sum = (uint)(rounds * _teaDelta);
+            var nextValue = values[0];
 
             while (sum != 0)
             {
-                var e = (sum >> 2) & 3;
+                var keyOffset = GetKeyOffset(sum);
 
-                for (var p = count - 1; p > 0; p--)
+                for (var index = values.Length - 1; index > 0; index--)
                 {
-                    var z = values[p - 1];
-                    var mx = ((z >> 5) ^ (y << 2)) + ((y >> 3) ^ (z << 4));
-                    mx ^= (sum ^ y) + (key[(p & 3) ^ e] ^ z);
-                    y = values[p] -= mx;
+                    var previousValue = values[index - 1];
+                    var keyValue = key[GetKeyIndex(index, keyOffset)];
+                    nextValue = values[index] -= ComputeMix(previousValue, nextValue, sum, keyValue);
                 }
 
-                var zLast = values[count - 1];
-                var mxLast = ((zLast >> 5) ^ (y << 2)) + ((y >> 3) ^ (zLast << 4));
-                mxLast ^= (sum ^ y) + (key[e] ^ zLast);
-                y = values[0] -= mxLast;
-                sum -= delta;
+                var lastValue = values[^1];
+                var firstKeyValue = key[GetKeyIndex(0, keyOffset)];
+                nextValue = values[0] -= ComputeMix(lastValue, nextValue, sum, firstKeyValue);
+                sum -= _teaDelta;
             }
 
             return values;
@@ -123,23 +129,15 @@ namespace Runtime.Infrastructure.Save
 
         private static uint[] ToUInt32Array(byte[] data, bool includeLength)
         {
-            var length = data.Length;
-            var resultLength = (length & 3) == 0 ? (length >> 2) : ((length >> 2) + 1);
+            var valueCount = GetValueCount(data.Length);
+            var result = includeLength ? new uint[valueCount + 1] : new uint[valueCount];
 
-            uint[] result;
             if (includeLength)
-            {
-                result = new uint[resultLength + 1];
-                result[resultLength] = (uint)length;
-            }
-            else
-            {
-                result = new uint[resultLength];
-            }
+                result[valueCount] = (uint)data.Length;
 
-            for (var index = 0; index < length; index++)
+            for (var index = 0; index < data.Length; index++)
             {
-                result[index >> 2] |= (uint)data[index] << ((index & 3) << 3);
+                result[GetValueIndex(index)] |= (uint)data[index] << GetByteShift(index);
             }
 
             return result;
@@ -147,24 +145,50 @@ namespace Runtime.Infrastructure.Save
 
         private static byte[] ToByteArray(uint[] data, bool includeLength)
         {
-            var length = data.Length << 2;
+            var length = data.Length * _bytesPerUInt32;
 
             if (includeLength)
             {
-                var m = data[data.Length - 1];
-                if (m > length - 4)
+                var originalLength = data[^1];
+
+                if (originalLength > length - _bytesPerUInt32)
                     return Array.Empty<byte>();
 
-                length = (int)m;
+                length = (int)originalLength;
             }
 
             var result = new byte[length];
+
             for (var index = 0; index < length; index++)
             {
-                result[index] = (byte)(data[index >> 2] >> ((index & 3) << 3));
+                result[index] = (byte)(data[GetValueIndex(index)] >> GetByteShift(index));
             }
 
             return result;
+        }
+
+        private static int GetRoundCount(int valueCount)
+            => _baseRoundCount + (_roundFactor / valueCount);
+
+        private static uint GetKeyOffset(uint sum)
+            => (sum >> 2) & _keyIndexMask;
+
+        private static int GetKeyIndex(int position, uint keyOffset)
+            => (position & _keyIndexMask) ^ (int)keyOffset;
+
+        private static int GetValueCount(int byteCount)
+            => (byteCount + _bytesPerUInt32 - 1) / _bytesPerUInt32;
+
+        private static int GetValueIndex(int byteIndex)
+            => byteIndex / _bytesPerUInt32;
+
+        private static int GetByteShift(int byteIndex)
+            => (byteIndex % _bytesPerUInt32) * _bitsPerByte;
+
+        private static uint ComputeMix(uint previousValue, uint nextValue, uint sum, uint keyValue)
+        {
+            var neighborMix = ((previousValue >> 5) ^ (nextValue << 2)) + ((nextValue >> 3) ^ (previousValue << 4));
+            return neighborMix ^ ((sum ^ nextValue) + (keyValue ^ previousValue));
         }
     }
 }

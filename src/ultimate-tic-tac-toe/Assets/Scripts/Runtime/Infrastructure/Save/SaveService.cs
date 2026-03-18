@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Runtime.Infrastructure.Logging;
-using SimpleJSON;
-using UnityEngine;
+using Runtime.Infrastructure.Save.Migration;
+using Runtime.Infrastructure.Save.Serialization;
 using VContainer.Unity;
 using JsonNode = SimpleJSON.JSONNode;
 
@@ -12,131 +11,175 @@ namespace Runtime.Infrastructure.Save
 {
     internal sealed class SaveService : ISaveService, ISaveServiceWithResult, IInitializable
     {
-        private const int CurrentVersion = 1;
-        private const int SaveFrequencyWarningThreshold = 5;
+        private const int _currentVersion = 1;
+        private const int _saveFrequencyWarningThreshold = 5;
+        private const string _initializeSection = "initialize";
+        private const string _migrationSection = "migration";
+
+        private enum SaveServiceState
+        {
+            NotInitialized,
+            Ready,
+            WriteBlocked,
+        }
 
         private readonly ISaveBackend _backend;
         private readonly SaveEncryptor _saveEncryptor;
-        private readonly List<ISaveMigration> _migrations;
-        private readonly Dictionary<int, ISaveMigration> _migrationsByFromVersion = new();
+        private readonly SaveSerializer _serializer;
+        private readonly SaveDataEnvelopeMapper _saveDataEnvelopeMapper = new();
+        private readonly SaveFrequencyWarningTracker _saveFrequencyWarningTracker = new(_saveFrequencyWarningThreshold);
+        private readonly SaveMigrationRunner _saveMigrationRunner;
         private readonly int _mainThreadId;
 
-        private SaveData _saveData = new() { Version = CurrentVersion };
-        private bool _isInitialized;
-        private bool _isWriteBlocked;
+        private SaveData _saveData = new() { Version = _currentVersion };
+        private SaveServiceState _state = SaveServiceState.NotInitialized;
 
-        private DateTime _saveWindowStartedUtc = DateTime.UtcNow;
-        private DateTime _lastSaveFrequencyWarningUtc = DateTime.MinValue;
-        private int _saveCallsInWindow;
-
-        public SaveService(ISaveBackend backend, SaveEncryptor saveEncryptor, IEnumerable<ISaveMigration> migrations)
+        public SaveService(ISaveBackend backend, SaveEncryptor saveEncryptor, SaveSerializer serializer, IEnumerable<ISaveMigration> migrations)
         {
             _backend = backend ?? throw new ArgumentNullException(nameof(backend));
             _saveEncryptor = saveEncryptor ?? throw new ArgumentNullException(nameof(saveEncryptor));
-            _migrations = migrations?.ToList() ?? new List<ISaveMigration>();
+            _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+            _saveMigrationRunner = new SaveMigrationRunner(_currentVersion, migrations);
             _mainThreadId = Environment.CurrentManagedThreadId;
         }
 
         public void Initialize()
         {
-            EnsureNoDuplicateMigrations();
-            _isWriteBlocked = false;
+            PrepareForInitialization();
 
-            GameLog.Info($"[SaveSystem] Path: {_backend.GetDisplayPath()}");
-
-            string raw;
-            try
-            {
-                raw = _backend.Read();
-            }
-            catch (Exception ex)
-            {
-                HandleCorruptedOrInvalidSave("backend_read", "initialize", 0, ex);
-                _isInitialized = true;
+            if (!TryReadRawSave(out var raw))
                 return;
-            }
 
             if (string.IsNullOrWhiteSpace(raw))
             {
-                _saveData = new SaveData { Version = CurrentVersion };
-                _isInitialized = true;
+                SetDefaultSaveData(SaveServiceState.Ready);
                 return;
             }
 
-            string json;
+            if (!TryParseSaveRoot(raw, out var root))
+                return;
+
+            InitializeFromParsedRoot(root);
+        }
+
+        private void PrepareForInitialization()
+        {
+            _saveMigrationRunner.RefreshIndex();
+
+            if (_state == SaveServiceState.WriteBlocked)
+                _state = SaveServiceState.Ready;
+
+            GameLog.Info($"[SaveSystem] Path: {_backend.GetDisplayPath()}");
+        }
+
+        private bool TryReadRawSave(out string raw)
+        {
             try
             {
-                json = _saveEncryptor.Decrypt(raw);
+                raw = _backend.Read();
+                return true;
             }
             catch (Exception ex)
             {
-                HandleCorruptedOrInvalidSave("decrypt", "initialize", Encoding.UTF8.GetByteCount(raw), ex);
-                _isInitialized = true;
-                return;
+                HandleCorruptedOrInvalidSave("backend_read", _initializeSection, 0, ex, SaveServiceState.Ready);
+                raw = string.Empty;
+                return false;
+            }
+        }
+
+        private bool TryParseSaveRoot(string raw, out JsonNode root)
+        {
+            if (!TryDecryptRawSave(raw, out var json))
+            {
+                root = null;
+                return false;
             }
 
-            JsonNode root;
             try
             {
                 root = JsonNode.Parse(json);
             }
             catch (Exception ex)
             {
-                HandleCorruptedOrInvalidSave("parse", "initialize", Encoding.UTF8.GetByteCount(json), ex);
-                _isInitialized = true;
-                return;
+                HandleCorruptedOrInvalidSave("parse", _initializeSection, Encoding.UTF8.GetByteCount(json), ex, SaveServiceState.Ready);
+                root = null;
+                return false;
             }
 
-            if (root == null)
+            if (root != null)
+                return true;
+
+            HandleCorruptedOrInvalidSave("parse returned null", _initializeSection, Encoding.UTF8.GetByteCount(json), null, SaveServiceState.Ready);
+            return false;
+        }
+
+        private bool TryDecryptRawSave(string raw, out string json)
+        {
+            try
             {
-                HandleCorruptedOrInvalidSave("parse returned null", "initialize", Encoding.UTF8.GetByteCount(json), null);
-                _isInitialized = true;
-                return;
+                json = _saveEncryptor.Decrypt(raw);
+                return true;
             }
+            catch (Exception ex)
+            {
+                HandleCorruptedOrInvalidSave("decrypt", _initializeSection, Encoding.UTF8.GetByteCount(raw), ex, SaveServiceState.Ready);
+                json = string.Empty;
+                return false;
+            }
+        }
 
+        private void InitializeFromParsedRoot(JsonNode root)
+        {
             if (!TryGetVersion(root, out var loadedVersion))
             {
-                HandleCorruptedOrInvalidSave($"Save data does not contain valid version. FileVersion=<missing>, CurrentVersion={CurrentVersion}", "initialize", 0, null);
-                _isInitialized = true;
+                HandleCorruptedOrInvalidSave($"Save data does not contain valid version. FileVersion=<missing>, CurrentVersion={_currentVersion}", _initializeSection, 0, null, SaveServiceState.Ready);
                 return;
             }
 
-            if (loadedVersion > CurrentVersion)
+            if (loadedVersion > _currentVersion)
             {
-                HandleCorruptedOrInvalidSave($"Save version is newer than supported. FileVersion={loadedVersion}, CurrentVersion={CurrentVersion}", "initialize", 0, null);
-                _isWriteBlocked = true;
-                _isInitialized = true;
+                HandleCorruptedOrInvalidSave($"Save version is newer than supported. FileVersion={loadedVersion}, CurrentVersion={_currentVersion}", _initializeSection, 0, null, SaveServiceState.WriteBlocked);
                 return;
             }
 
-            if (loadedVersion < CurrentVersion)
+            if (!TryUpgradeRootIfNeeded(root, loadedVersion, out var upgradedRoot, out var upgradedVersion))
             {
-                if (!TryApplyMigrations(root, loadedVersion, out var migratedRoot))
-                {
-                    _saveData = new SaveData { Version = CurrentVersion };
-                    _isWriteBlocked = true;
-                    _isInitialized = true;
-                    return;
-                }
-
-                root = migratedRoot;
-                loadedVersion = CurrentVersion;
-
-                if (!TryPersistRoot(root, "migration", out _))
-                {
-                    GameLog.Error($"[SaveSystem] Migration persisted in-memory only. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section=migration, PayloadBytes=<unknown>, ExceptionType=None");
-                }
+                SetDefaultSaveData(SaveServiceState.WriteBlocked);
+                return;
             }
 
-            _saveData = ParseSaveData(root, loadedVersion);
-            _isInitialized = true;
+            _saveData = _saveDataEnvelopeMapper.ParseRoot(upgradedRoot, upgradedVersion);
+            _state = SaveServiceState.Ready;
+        }
+
+        private bool TryUpgradeRootIfNeeded(JsonNode root, int loadedVersion, out JsonNode upgradedRoot, out int upgradedVersion)
+        {
+            if (!_saveMigrationRunner.TryUpgrade(root, loadedVersion, _backend, out upgradedRoot, out upgradedVersion))
+                return false;
+
+            if (loadedVersion < upgradedVersion)
+                PersistMigratedRoot(upgradedRoot);
+
+            return true;
+        }
+
+        private void PersistMigratedRoot(JsonNode root)
+        {
+            if (!TryPersistRoot(root, _migrationSection, out _))
+                GameLog.Error($"[SaveSystem] Migration persisted in-memory only. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section={_migrationSection}, PayloadBytes=<unknown>, ExceptionType=None");
+        }
+
+        private void SetDefaultSaveData(SaveServiceState state)
+        {
+            _saveData = new SaveData { Version = _currentVersion };
+            _state = state;
         }
 
         public T Load<T>(string section, T defaultValue)
         {
             ValidateSection(section);
 
-            if (!_isInitialized)
+            if (_state == SaveServiceState.NotInitialized)
             {
                 GameLog.Error($"[SaveSystem] Load called before Initialize. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section={section}, PayloadBytes=0, ExceptionType=None");
                 return defaultValue;
@@ -144,10 +187,8 @@ namespace Runtime.Infrastructure.Save
 
             EnsureMainThread();
 
-            if (!TryEnsureTypeInfo(typeof(T), section, true))
-                return defaultValue;
-
-            if (!_saveData.Sections.TryGetValue(section, out var sectionNode) || sectionNode == null)
+            if (!TryEnsureTypeInfo(typeof(T), section, true) 
+                || !_saveData.Sections.TryGetValue(section, out var sectionNode) || sectionNode == null)
                 return defaultValue;
 
             try
@@ -155,7 +196,7 @@ namespace Runtime.Infrastructure.Save
                 var sectionJson = sectionNode.ToString();
                 var payloadBytes = Encoding.UTF8.GetByteCount(sectionJson);
 
-                if (TryDeserializeSection(sectionJson, out T value))
+                if (_serializer.TryDeserialize(sectionJson, out T value))
                     return value;
 
                 GameLog.Warning($"[SaveSystem] Failed to deserialize section. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section={section}, PayloadBytes={payloadBytes}, ExceptionType=None");
@@ -168,22 +209,19 @@ namespace Runtime.Infrastructure.Save
             }
         }
 
-        public void Save<T>(string section, T data)
-        {
-            TrySave(section, data);
-        }
+        public void Save<T>(string section, T data) => TrySave(section, data);
 
         public SaveWriteResult TrySave<T>(string section, T data)
         {
             ValidateSection(section);
 
-            if (!_isInitialized)
+            if (_state == SaveServiceState.NotInitialized)
             {
                 GameLog.Error($"[SaveSystem] Save called before Initialize. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section={section}, PayloadBytes=0, ExceptionType=None");
                 return SaveWriteResult.Failed(SaveWriteError.NotInitialized);
             }
 
-            if (_isWriteBlocked)
+            if (_state == SaveServiceState.WriteBlocked)
             {
                 GameLog.Error($"[SaveSystem] Save blocked due to incompatible persisted data. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section={section}, PayloadBytes=0, ExceptionType=None");
                 return SaveWriteResult.Failed(SaveWriteError.IncompatiblePersistedData);
@@ -195,11 +233,12 @@ namespace Runtime.Infrastructure.Save
                 return SaveWriteResult.Failed(SaveWriteError.SerializationFailed);
 
             string sectionJson;
+           
             try
             {
-                sectionJson = SerializeSection(data);
+                sectionJson = _serializer.Serialize(data);
                 _saveData.Sections[section] = JsonNode.Parse(sectionJson);
-                _saveData.Version = CurrentVersion;
+                _saveData.Version = _currentVersion;
             }
             catch (Exception ex)
             {
@@ -208,9 +247,9 @@ namespace Runtime.Infrastructure.Save
             }
 
             var payloadBytes = Encoding.UTF8.GetByteCount(sectionJson);
-            CheckSaveFrequency(section, payloadBytes);
+            _saveFrequencyWarningTracker.Track(section, payloadBytes);
 
-            if (!TryPersistRoot(BuildRootNode(), section, out var totalBytes))
+            if (!TryPersistRoot(_saveDataEnvelopeMapper.BuildRoot(_saveData), section, out var totalBytes))
             {
                 GameLog.Error($"[SaveSystem] Save write failed. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section={section}, PayloadBytes={totalBytes}, ExceptionType=<see previous log>");
                 return SaveWriteResult.Failed(SaveWriteError.BackendWriteFailed);
@@ -238,260 +277,22 @@ namespace Runtime.Infrastructure.Save
             }
         }
 
-        private static SaveData ParseSaveData(JsonNode root, int version)
-        {
-            var parsed = new SaveData
-            {
-                Version = version,
-                Sections = new Dictionary<string, JsonNode>(),
-            };
-
-            var rootObject = root.AsObject;
-            if (rootObject == null || !rootObject.HasKey("sections"))
-                return parsed;
-
-            var sectionsObject = rootObject["sections"].AsObject;
-            if (sectionsObject == null)
-                return parsed;
-
-            foreach (var sectionPair in sectionsObject)
-            {
-                parsed.Sections[sectionPair.Key] = sectionPair.Value;
-            }
-
-            return parsed;
-        }
-
-        private JsonNode BuildRootNode()
-        {
-            var root = new JSONObject
-            {
-                ["version"] = _saveData.Version,
-            };
-
-            var sections = new JSONObject();
-            foreach (var sectionPair in _saveData.Sections)
-            {
-                sections[sectionPair.Key] = sectionPair.Value;
-            }
-
-            root["sections"] = sections;
-            return root;
-        }
-
-        private bool TryApplyMigrations(JsonNode root, int startVersion, out JsonNode migratedRoot)
-        {
-            var currentVersion = startVersion;
-            migratedRoot = root;
-
-            while (currentVersion < CurrentVersion)
-            {
-                if (!_migrationsByFromVersion.TryGetValue(currentVersion, out var migration))
-                {
-                    GameLog.Error($"[SaveSystem] Missing migration. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section=migration, PayloadBytes=0, ExceptionType=None, FromVersion={currentVersion}, CurrentVersion={CurrentVersion}");
-                    return false;
-                }
-
-                try
-                {
-                    migratedRoot = migration.Migrate(migratedRoot);
-                }
-                catch (Exception ex)
-                {
-                    GameLog.Error($"[SaveSystem] Migration failed. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section=migration, PayloadBytes=0, ExceptionType={ex.GetType().Name}, ExceptionMessage={ex.Message}, FromVersion={currentVersion}");
-                    return false;
-                }
-
-                currentVersion++;
-            }
-
-            var migratedRootObject = migratedRoot.AsObject;
-            if (migratedRootObject == null)
-            {
-                GameLog.Error($"[SaveSystem] Migration result root is not an object. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section=migration, PayloadBytes=0, ExceptionType=None");
-                return false;
-            }
-
-            migratedRootObject["version"] = CurrentVersion;
-            return true;
-        }
-
         private static bool TryGetVersion(JsonNode root, out int version)
         {
             version = 0;
             var rootObject = root.AsObject;
-            if (rootObject == null || !rootObject.HasKey("version"))
+            
+            if (rootObject == null || !rootObject.HasKey(SaveDataEnvelopeFields.VersionKey))
                 return false;
 
-            version = rootObject["version"].AsInt;
+            version = rootObject[SaveDataEnvelopeFields.VersionKey].AsInt;
             return version > 0;
-        }
-
-        private void EnsureNoDuplicateMigrations()
-        {
-            _migrationsByFromVersion.Clear();
-
-            foreach (var migration in _migrations)
-            {
-                if (_migrationsByFromVersion.ContainsKey(migration.FromVersion))
-                    throw new InvalidOperationException($"Duplicate save migrations found for FromVersion={migration.FromVersion}.");
-
-                _migrationsByFromVersion[migration.FromVersion] = migration;
-            }
         }
 
         private static void ValidateSection(string section)
         {
             if (string.IsNullOrWhiteSpace(section))
                 throw new ArgumentException("Section must be a non-empty value.", nameof(section));
-        }
-
-        private static string SerializeSection<T>(T data)
-        {
-            if (data == null)
-                return "null";
-
-            var type = typeof(T);
-
-            if (type == typeof(string))
-                return new JSONString((string)(object)data).ToString();
-
-            if (type == typeof(int))
-                return new JSONNumber((int)(object)data).ToString();
-
-            if (type == typeof(bool))
-                return new JSONBool((bool)(object)data).ToString();
-
-            if (type.IsArray)
-            {
-                var array = (Array)(object)data;
-                return SerializeArraySection(array);
-            }
-
-            return JsonUtility.ToJson(data);
-        }
-
-        private static bool TryDeserializeSection<T>(string json, out T value)
-        {
-            var type = typeof(T);
-
-            if (type == typeof(string))
-            {
-                var parsed = JsonNode.Parse(json);
-                if (parsed is not JSONString)
-                {
-                    value = default;
-                    return false;
-                }
-
-                value = (T)(object)parsed.Value;
-                return true;
-            }
-
-            if (type == typeof(int))
-            {
-                var parsed = JsonNode.Parse(json);
-                if (parsed is not JSONNumber)
-                {
-                    value = default;
-                    return false;
-                }
-
-                value = (T)(object)parsed.AsInt;
-                return true;
-            }
-
-            if (type == typeof(bool))
-            {
-                var parsed = JsonNode.Parse(json);
-                if (parsed is not JSONBool)
-                {
-                    value = default;
-                    return false;
-                }
-
-                value = (T)(object)parsed.AsBool;
-                return true;
-            }
-
-            if (type.IsArray)
-            {
-                if (!TryDeserializeArraySection(type, json, out var arrayValue))
-                {
-                    value = default;
-                    return false;
-                }
-
-                value = (T)arrayValue;
-                return true;
-            }
-
-            if (string.Equals(json, "null", StringComparison.OrdinalIgnoreCase))
-            {
-                value = default;
-                return false;
-            }
-
-            var deserialized = JsonUtility.FromJson<T>(json);
-            if (deserialized == null)
-            {
-                value = default;
-                return false;
-            }
-
-            value = deserialized;
-            return true;
-        }
-
-        private static string SerializeArraySection(Array array)
-        {
-            var jsonArray = new JSONArray();
-
-            for (var i = 0; i < array.Length; i++)
-            {
-                var item = array.GetValue(i);
-                if (item == null)
-                {
-                    jsonArray.Add(JSONNull.CreateOrGet());
-                    continue;
-                }
-
-                var itemJson = JsonUtility.ToJson(item);
-                jsonArray.Add(JsonNode.Parse(itemJson));
-            }
-
-            return jsonArray.ToString();
-        }
-
-        private static bool TryDeserializeArraySection(Type arrayType, string json, out object arrayValue)
-        {
-            arrayValue = null;
-
-            var parsed = JsonNode.Parse(json);
-            if (parsed is not JSONArray jsonArray)
-                return false;
-
-            var elementType = arrayType.GetElementType();
-            if (elementType == null)
-                return false;
-
-            var result = Array.CreateInstance(elementType, jsonArray.Count);
-            for (var i = 0; i < jsonArray.Count; i++)
-            {
-                var node = jsonArray[i];
-                if (node == null || node.IsNull)
-                    continue;
-
-                var itemJson = node.ToString();
-                var item = JsonUtility.FromJson(itemJson, elementType);
-                if (item == null)
-                    return false;
-
-                result.SetValue(item, i);
-            }
-
-            arrayValue = result;
-            return true;
         }
 
         private bool TryEnsureTypeInfo(Type type, string section, bool isLoad)
@@ -517,48 +318,18 @@ namespace Runtime.Infrastructure.Save
             if (Environment.CurrentManagedThreadId == _mainThreadId)
                 return;
 
-            var message = "[SaveSystem] SaveService can be used only from Unity main thread.";
+            const string message = "[SaveSystem] SaveService can be used only from Unity main thread.";
             GameLog.Error(message);
             throw new InvalidOperationException(message);
 #endif
         }
 
-        private void CheckSaveFrequency(string section, int payloadBytes)
-        {
-#if SAVE_ENCRYPTION_DISABLED || UNITY_EDITOR || DEVELOPMENT_BUILD
-            var now = DateTime.UtcNow;
-
-            if ((now - _saveWindowStartedUtc).TotalSeconds >= 1d)
-            {
-                _saveWindowStartedUtc = now;
-                _saveCallsInWindow = 0;
-            }
-
-            _saveCallsInWindow++;
-
-            if (_saveCallsInWindow <= SaveFrequencyWarningThreshold)
-                return;
-
-            if ((now - _lastSaveFrequencyWarningUtc).TotalSeconds < 1d)
-                return;
-
-            _lastSaveFrequencyWarningUtc = now;
-            GameLog.Warning($"[SaveSystem] Save called too frequently. Section={section}, CallsPerSecond={_saveCallsInWindow}, PayloadBytes={payloadBytes}");
-#endif
-        }
-
-        private void HandleCorruptedOrInvalidSave(string error)
-        {
-            GameLog.Error($"[SaveSystem] {error}. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}");
-            _saveData = new SaveData { Version = CurrentVersion };
-        }
-
-        private void HandleCorruptedOrInvalidSave(string error, string section, int payloadBytes, Exception exception)
+        private void HandleCorruptedOrInvalidSave(string error, string section, int payloadBytes, Exception exception, SaveServiceState state)
         {
             var exceptionType = exception?.GetType().Name ?? "None";
             var exceptionMessage = exception?.Message ?? string.Empty;
             GameLog.Error($"[SaveSystem] {error}. Backend={_backend.GetType().Name}, Path={_backend.GetDisplayPath()}, Section={section}, PayloadBytes={payloadBytes}, ExceptionType={exceptionType}, ExceptionMessage={exceptionMessage}");
-            _saveData = new SaveData { Version = CurrentVersion };
+            SetDefaultSaveData(state);
         }
     }
 }

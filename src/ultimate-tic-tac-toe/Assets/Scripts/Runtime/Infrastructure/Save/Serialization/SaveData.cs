@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using JsonNode = SimpleJSON.JSONNode;
 
-namespace Runtime.Infrastructure.Save
+namespace Runtime.Infrastructure.Save.Serialization
 {
     internal sealed class SaveData
     {

@@ -4,17 +4,17 @@ namespace Runtime.Infrastructure.Save.Backends
 {
     internal sealed class PlayerPrefsSaveBackend : ISaveBackend
     {
-        private const string SaveKey = "SaveSystem.Data";
+        private const string _saveKey = "SaveSystem.Data";
 
         public string Read()
-            => PlayerPrefs.GetString(SaveKey, string.Empty);
+            => PlayerPrefs.GetString(_saveKey, string.Empty);
 
         public void Write(string data)
         {
-            PlayerPrefs.SetString(SaveKey, data);
+            PlayerPrefs.SetString(_saveKey, data);
             PlayerPrefs.Save();
         }
 
-        public string GetDisplayPath() => SaveKey;
+        public string GetDisplayPath() => _saveKey;
     }
 }

@@ -7,33 +7,23 @@ namespace Runtime.Infrastructure.Save.Backends
     internal sealed class FileSaveBackend : ISaveBackend
     {
 #if UNITY_EDITOR
-        private const string SaveFileName = "save.editor.dat";
-        private const string TempFileName = "save.editor.tmp";
+        private const string _saveFileName = "save.editor.dat";
+        private const string _tempFileName = "save.editor.tmp";
 #else
-        private const string SaveFileName = "save.dat";
-        private const string TempFileName = "save.tmp";
+        private const string _saveFileName = "save.dat";
+        private const string _tempFileName = "save.tmp";
 #endif
 
-        private readonly string _saveFilePath;
-        private readonly string _tempFilePath;
+        private readonly string _saveFilePath = Path.Combine(Application.persistentDataPath, _saveFileName);
+        private readonly string _tempFilePath = Path.Combine(Application.persistentDataPath, _tempFileName);
 
-        public FileSaveBackend()
-        {
-            _saveFilePath = Path.Combine(Application.persistentDataPath, SaveFileName);
-            _tempFilePath = Path.Combine(Application.persistentDataPath, TempFileName);
-        }
-
-        public string Read()
-        {
-            if (!File.Exists(_saveFilePath))
-                return string.Empty;
-
-            return File.ReadAllText(_saveFilePath, Encoding.UTF8);
-        }
+        public string Read() => 
+            !File.Exists(_saveFilePath) ? string.Empty : File.ReadAllText(_saveFilePath, Encoding.UTF8);
 
         public void Write(string data)
         {
             var directoryPath = Path.GetDirectoryName(_saveFilePath);
+            
             if (!string.IsNullOrWhiteSpace(directoryPath) && !Directory.Exists(directoryPath))
                 Directory.CreateDirectory(directoryPath);
 

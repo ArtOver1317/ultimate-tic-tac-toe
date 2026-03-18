@@ -49,7 +49,7 @@ namespace Tests.EditMode.Infrastructure.Save
             var plainBytes = Encoding.UTF8.GetBytes(payload);
             var type = typeof(SaveEncryptor);
 
-            var keyField = type.GetField("Key", BindingFlags.NonPublic | BindingFlags.Static);
+            var keyField = type.GetField("_xxTeaKey", BindingFlags.NonPublic | BindingFlags.Static);
             keyField.Should().NotBeNull();
             var key = (uint[])keyField.GetValue(null);
 

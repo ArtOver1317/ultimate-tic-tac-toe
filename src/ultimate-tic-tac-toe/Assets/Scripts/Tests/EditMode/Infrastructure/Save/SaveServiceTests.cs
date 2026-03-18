@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Infrastructure.Save;
+using Runtime.Infrastructure.Save.Migration;
+using Runtime.Infrastructure.Save.Serialization;
 using Runtime.PlayerStatistics;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -224,7 +226,7 @@ namespace Tests.EditMode.Infrastructure.Save
                 new TestMigration(0),
             };
 
-            var service = new SaveService(backend, new SaveEncryptor(), migrations);
+            var service = new SaveService(backend, new SaveEncryptor(), new SaveSerializer(), migrations);
 
             Action act = service.Initialize;
 
@@ -406,7 +408,7 @@ namespace Tests.EditMode.Infrastructure.Save
         }
 
         private static SaveService CreateService(ISaveBackend backend, IEnumerable<ISaveMigration> migrations = null)
-            => new(backend, new SaveEncryptor(), migrations ?? Array.Empty<ISaveMigration>());
+            => new(backend, new SaveEncryptor(), new SaveSerializer(), migrations ?? Array.Empty<ISaveMigration>());
 
         private static string EncryptJson(string json)
             => new SaveEncryptor().Encrypt(json);

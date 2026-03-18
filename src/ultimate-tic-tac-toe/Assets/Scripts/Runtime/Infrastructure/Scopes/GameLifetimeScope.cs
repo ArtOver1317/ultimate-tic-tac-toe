@@ -19,6 +19,7 @@ using Runtime.GameModes.Wizard.Online.Flow;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.GameModes.Wizard.ViewModels.MatchSetup;
+using Runtime.Infrastructure.Save.Serialization;
 using Runtime.Localization;
 using Runtime.PlayerStatistics;
 using Runtime.PlayerProfile;
@@ -167,6 +168,7 @@ namespace Runtime.Infrastructure.Scopes
             #endif
 
             builder.Register<SaveEncryptor>(Lifetime.Singleton);
+            builder.Register<SaveSerializer>(Lifetime.Singleton);
             builder.Register<SaveService>(Lifetime.Singleton)
                 .As<ISaveService>()
                 .As<ISaveServiceWithResult>()

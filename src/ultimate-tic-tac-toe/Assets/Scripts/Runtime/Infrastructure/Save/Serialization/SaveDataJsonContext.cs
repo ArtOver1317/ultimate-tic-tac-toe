@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using Runtime.PlayerStatistics;
 
-namespace Runtime.Infrastructure.Save
+namespace Runtime.Infrastructure.Save.Serialization
 {
     internal static class SaveDataJsonContext
     {
-        private static readonly HashSet<Type> KnownTypes = new()
+        private static readonly HashSet<Type> _knownTypes = new()
         {
             typeof(string),
             typeof(int),
@@ -15,6 +15,6 @@ namespace Runtime.Infrastructure.Save
         };
 
         public static bool IsRegistered(Type type)
-            => KnownTypes.Contains(type);
+            => _knownTypes.Contains(type);
     }
 }
