@@ -7,6 +7,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.Games.TicTacToe.AI.Core;
 using Runtime.Games.TicTacToe.AI.Profiles;
+using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 

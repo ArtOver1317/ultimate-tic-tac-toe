@@ -15,7 +15,7 @@ namespace Runtime.PlayerStatistics
         {
             outcome = default;
 
-            if (evt.Status == GameStatus.InProgress)
+            if (evt.Status == EcsGameStatus.InProgress)
                 return false;
 
             if (!evt.WinnerSlot.HasValue)

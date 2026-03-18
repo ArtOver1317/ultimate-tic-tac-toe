@@ -1,10 +1,10 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
+
 namespace Runtime.Games.TicTacToe
 {
     public sealed class LocalGameService : IGameService

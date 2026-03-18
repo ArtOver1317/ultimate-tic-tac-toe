@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Core;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using Runtime.Gameplay.Shared;
 
 namespace Runtime.Games.Battleship.UI.Board

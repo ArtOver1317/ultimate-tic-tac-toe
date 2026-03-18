@@ -1,4 +1,4 @@
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using Runtime.Infrastructure.Logging;
 using StripLog;
 

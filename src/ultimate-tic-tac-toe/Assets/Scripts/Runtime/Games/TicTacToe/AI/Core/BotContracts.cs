@@ -7,7 +7,7 @@ using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.Games.TicTacToe.AI.Profiles;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 
 namespace Runtime.Games.TicTacToe.AI.Core
 {
@@ -88,26 +88,6 @@ namespace Runtime.Games.TicTacToe.AI.Core
     }
 
     // ── Turn Driver ──
-
-    public enum BotStartStatus
-    {
-        Started,
-        NotEnabled,
-        UnsupportedConfig,
-        Failed,
-    }
-
-    public readonly struct BotStartResult
-    {
-        public BotStartStatus Status { get; }
-        public string? Error { get; }
-
-        public BotStartResult(BotStartStatus status, string? error = null)
-        {
-            Status = status;
-            Error = error;
-        }
-    }
 
     /// <summary>
     /// Runtime driver that listens to gameplay events and submits bot moves (ADR-1, ADR-6, ADR-10).

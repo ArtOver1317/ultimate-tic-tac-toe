@@ -1,4 +1,4 @@
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using Scellecs.Morpeh;
 
 namespace Runtime.Games.TicTacToe.ECS

@@ -22,6 +22,7 @@ using Runtime.Games.TicTacToe.AI.Turns;
 using Runtime.Games.TicTacToe.Moves;
 using UnityEditor;
 using UnityEngine.TestTools;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.PlayMode.Games.TicTacToe.AI
 {
@@ -258,7 +259,7 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
             _matchState.CommandSequenceValue = 1;
             _matchState.CurrentPlayerChangedSubject.OnNext(new CurrentPlayerChangedEvent(1));
             _matchState.RoundFinishedSubject.OnNext(
-                new RoundFinishedEvent(GameStatus.Win, 0, null));
+                new RoundFinishedEvent(EcsGameStatus.Win, 0, null));
 
             await UniTask.Delay(400);
 

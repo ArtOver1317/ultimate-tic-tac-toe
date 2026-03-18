@@ -1,11 +1,12 @@
 using System;
+using Runtime.Gameplay;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Scellecs.Morpeh;
-using EcsGameStatus = Runtime.Gameplay.Shared.GameStatus;
-using RulesGameStatus = Runtime.Games.TicTacToe.Rules.GameStatus;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
+using RulesGameStatus = Runtime.Gameplay.GameStatus;
 
 namespace Runtime.Games.TicTacToe.ECS
 {
@@ -209,8 +210,8 @@ namespace Runtime.Games.TicTacToe.ECS
             bigBoardWinLine.Value = match.BigBoardWinLine.Value;
         }
 
-        private static int? ToOptionalWinnerSlot(Moves.PlayerMark winner) =>
-            winner == Moves.PlayerMark.None
+        private static int? ToOptionalWinnerSlot(PlayerMark winner) =>
+            winner == PlayerMark.None
                 ? null
                 : PlayerSlotMapping.MarkToSlot(winner);
 

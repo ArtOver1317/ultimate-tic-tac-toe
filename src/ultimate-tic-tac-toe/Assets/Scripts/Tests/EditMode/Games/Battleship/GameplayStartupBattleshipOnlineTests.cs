@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
@@ -17,11 +18,13 @@ using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Lifecycle;
 using Runtime.Gameplay.Shared;
+using Runtime.Gameplay.Startup;
 using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.AI;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Networking;
 using Runtime.Games.Battleship.Placement;
+using Runtime.Games.Battleship.Startup;
 using Runtime.Games.Battleship.UI.Board;
 using Runtime.Games.Battleship.UI.Placement;
 using Runtime.Games.TicTacToe;
@@ -29,12 +32,13 @@ using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.AI.Core;
 using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.AI.Ultimate.Core;
-using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.PlayerStatistics;
 using UnityEngine.UIElements;
+using UnityEngine.TestTools;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.Games.Battleship
 {
@@ -176,6 +180,33 @@ namespace Tests.EditMode.Games.Battleship
         }
 
         [Test]
+        public async Task WhenConfigIsNotBattleship_ThenReturnsToMainMenuWithoutStartingMatch()
+        {
+            using var context = CreateContext(
+                launchConfig: new GameLaunchConfig(
+                    "classic",
+                    new TicTacToeConfig(3),
+                    new LocalHumanConfig(),
+                    moveTimeLimitSeconds: 30));
+
+            context.StateMachine
+                .EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+
+            LogAssert.Expect(
+                UnityEngine.LogType.Error,
+                new Regex(@"(\[Error\]\s*)?\[Infrastructure\] \[GameplayStartup\] INVALID_CONFIG: Non-Battleship config must be handled by TicTacToe startup\.\s*$"));
+
+            using var sut = context.CreateSut();
+
+            Func<Task> act = async () => await sut.StartAsync(CancellationToken.None);
+
+            await act.Should().NotThrowAsync();
+            await context.StateMachine.Received(1).EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
+            context.MatchStateProvider.DidNotReceive().SubmitCommand(Arg.Any<IGameplayCommand>());
+        }
+
+        [Test]
         public async Task WhenBattleshipBotTurnStarts_ThenMoveTimerHudIsHidden()
         {
             var config = new GameLaunchConfig(
@@ -247,7 +278,7 @@ namespace Tests.EditMode.Games.Battleship
             var battleshipSnapshot = Substitute.For<IBattleshipGameplaySnapshotProvider>();
             battleshipSnapshot.Phase.Returns(BattleshipPhase.Battle);
             battleshipSnapshot.ActivePlayerSlot.Returns(PlayerSlotMapping.SlotO);
-            battleshipSnapshot.CurrentStatus.Returns(GameStatus.InProgress);
+            battleshipSnapshot.CurrentStatus.Returns(EcsGameStatus.InProgress);
 
             var battleshipEvents = Substitute.For<IBattleshipGameplayEventStream>();
             battleshipEvents.PhaseChanged.Returns(new Subject<BattleshipPhaseChangedEvent>());
@@ -262,7 +293,7 @@ namespace Tests.EditMode.Games.Battleship
 
             var statisticsReporter = CreateStatisticsReporter(configStore, eventStream);
 
-            using var sut = new GameplayStartup(
+            using var sut = CreateStartup(
                 configStore,
                 gameService,
                 fieldPresenter,
@@ -271,7 +302,6 @@ namespace Tests.EditMode.Games.Battleship
                 eventStream,
                 commandSink,
                 movesBinder,
-                new WinLineRenderer(fieldUiAdapter),
                 seriesService,
                 Substitute.For<IGameplayBackHandler>(),
                 Substitute.For<IGameStateMachine>(),
@@ -403,7 +433,7 @@ namespace Tests.EditMode.Games.Battleship
 
             var statisticsReporter = CreateStatisticsReporter(configStore, eventStream);
 
-            using var sut = new GameplayStartup(
+            using var sut = CreateStartup(
                 configStore,
                 gameService,
                 fieldPresenter,
@@ -412,7 +442,6 @@ namespace Tests.EditMode.Games.Battleship
                 eventStream,
                 commandSink,
                 movesBinder,
-                new WinLineRenderer(fieldUiAdapter),
                 seriesService,
                 backHandler,
                 stateMachine,
@@ -612,7 +641,7 @@ namespace Tests.EditMode.Games.Battleship
 
             await sut.StartAsync(CancellationToken.None);
 
-            context.RoundFinishedEvents.OnNext(new RoundFinishedEvent(GameStatus.Timeout, PlayerSlotMapping.SlotX, winLine: null));
+            context.RoundFinishedEvents.OnNext(new RoundFinishedEvent(EcsGameStatus.Timeout, PlayerSlotMapping.SlotX, winLine: null));
             await UniTask.DelayFrame(1);
 
             sut.HandleResultAction(ResultAction.Restart);
@@ -651,7 +680,7 @@ namespace Tests.EditMode.Games.Battleship
             using var firstSut = firstContext.CreateSut();
             await firstSut.StartAsync(CancellationToken.None);
 
-            firstContext.RoundFinishedEvents.OnNext(new RoundFinishedEvent(GameStatus.Timeout, PlayerSlotMapping.SlotX, winLine: null));
+            firstContext.RoundFinishedEvents.OnNext(new RoundFinishedEvent(EcsGameStatus.Timeout, PlayerSlotMapping.SlotX, winLine: null));
             await UniTask.DelayFrame(1);
             firstSeriesService.Score.CurrentValue.Player1Wins.Should().Be(1);
 
@@ -735,7 +764,7 @@ namespace Tests.EditMode.Games.Battleship
                 player0ConsecutiveTimeouts: 1,
                 player1ConsecutiveTimeouts: 0,
                 winnerSlot: -1,
-                finishStatus: (int)GameStatus.InProgress,
+                finishStatus: (int)EcsGameStatus.InProgress,
                 clientTick: 321,
                 player0LayoutPayload: layoutPayload,
                 player1LayoutPayload: layoutPayload,
@@ -842,7 +871,7 @@ namespace Tests.EditMode.Games.Battleship
             var battleshipSnapshot = Substitute.For<IBattleshipGameplaySnapshotProvider>();
             battleshipSnapshot.Phase.Returns(BattleshipPhase.Battle);
             battleshipSnapshot.ActivePlayerSlot.Returns(activePlayerSlot);
-            battleshipSnapshot.CurrentStatus.Returns(GameStatus.InProgress);
+            battleshipSnapshot.CurrentStatus.Returns(EcsGameStatus.InProgress);
             battleshipSnapshot.GetOpponentMarks(Arg.Any<int>()).Returns(marksView);
 
             var battleshipEvents = Substitute.For<IBattleshipGameplayEventStream>();
@@ -947,6 +976,110 @@ namespace Tests.EditMode.Games.Battleship
                 statisticsService,
                 contextStore,
                 new MatchKeyMapper());
+        }
+
+        private static BattleshipGameplayStartup CreateStartup(
+            IGameLaunchConfigStore configStore,
+            IGameService gameService,
+            IGameplayFieldPresenter fieldPresenter,
+            IGameplayFieldUiAdapter fieldUiAdapter,
+            IMatchEcsLifecycle ecsLifecycle,
+            IGameplayEventStream eventStream,
+            IGameplayCommandSink commandSink,
+            GameplayMovesBinder movesBinder,
+            ISeriesService seriesService,
+            IGameplayBackHandler backHandler,
+            IGameStateMachine stateMachine,
+            IBotTurnDriver botDriver,
+            IBotTurnOrchestrator ultimateBotOrchestrator,
+            IMatchFailSafeGateway matchFailSafeGateway,
+            IGameplayNetworkBridge? networkBridge = null,
+            IBattleshipNetworkBridge? battleshipNetworkBridge = null,
+            IOnlineGameplaySessionContextStore? onlineSessionContextStore = null,
+            IMatchStateProvider? matchStateProvider = null,
+            IOnlineSessionFlowService? onlineSessionFlow = null,
+            IMoveTimerService? moveTimerService = null,
+            IBattleshipPlacementTimerService? battleshipPlacementTimerService = null,
+            MoveTimerHudBinder? moveTimerHudBinder = null,
+            BattleshipPlacementTimerHudBinder? battleshipPlacementTimerHudBinder = null,
+            IBattleshipGameplaySnapshotProvider? battleshipSnapshotProvider = null,
+            IBattleshipGameplayEventStream? battleshipEventStream = null,
+            IBattleshipRecoveryStateApplier? battleshipRecoveryStateApplier = null,
+            PlayerStatisticsMatchReporter? statisticsReporter = null,
+            IBattleshipBotDriver? battleshipBotDriver = null,
+            IBattleshipPlacementUiController? battleshipPlacementUiController = null,
+            BattleshipBoardsBinder? battleshipBoardsBinder = null)
+        {
+            var resolvedMatchStateProvider = matchStateProvider ?? commandSink as IMatchStateProvider;
+            var core = new GameplayStartupCoreServices(
+                configStore,
+                gameService,
+                fieldPresenter,
+                fieldUiAdapter,
+                ecsLifecycle,
+                eventStream,
+                commandSink,
+                movesBinder,
+                new WinLineRenderer(fieldUiAdapter),
+                seriesService,
+                backHandler,
+                stateMachine,
+                statisticsReporter: statisticsReporter);
+            var timers = new GameplayStartupTimerServices(
+                moveTimerService ?? new FakeMoveTimerService(),
+                battleshipPlacementTimerService ?? new FakePlacementTimerService(),
+                moveTimerHudBinder,
+                battleshipPlacementTimerHudBinder);
+            var bot = new GameplayStartupBotServices(
+                botDriver,
+                battleshipBotDriver,
+                ultimateBotOrchestrator,
+                matchFailSafeGateway);
+            var online = new GameplayStartupOnlineServices(
+                networkBridge ?? new NoOpGameplayNetworkBridge(),
+                battleshipNetworkBridge ?? NoOpBattleshipNetworkBridge.Instance,
+                onlineSessionContextStore ?? new OnlineGameplaySessionContextStore(),
+                onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance,
+                NoOpOnlineSessionLauncher.Instance,
+                matchStateProvider: resolvedMatchStateProvider);
+            var battleship = new GameplayStartupBattleshipServices(
+                new BattleshipLayoutSerializer(),
+                battleshipBoardsBinder,
+                battleshipPlacementUiController,
+                battleshipSnapshotProvider ?? resolvedMatchStateProvider as IBattleshipGameplaySnapshotProvider,
+                battleshipEventStream,
+                battleshipRecoveryStateApplier ?? resolvedMatchStateProvider as IBattleshipRecoveryStateApplier);
+            var dependencies = new GameplayStartupDependencies(core, timers, bot, online, battleship);
+            var state = new GameplayStartupRuntimeState();
+            var uiCoordinator = new GameplayStartupUiCoordinator(dependencies, state);
+            var botCoordinator = new GameplayStartupBotCoordinator(dependencies, state);
+            var sessionScoreStore = new GameplayStartupBattleshipSessionScoreStore();
+            var recoveryCoordinator = new GameplayStartupBattleshipRecoveryCoordinator(
+                dependencies,
+                state,
+                uiCoordinator,
+                botCoordinator,
+                sessionScoreStore);
+            var onlineCoordinator = new GameplayStartupOnlineCoordinator(
+                dependencies,
+                state,
+                uiCoordinator,
+                recoveryCoordinator,
+                sessionScoreStore);
+            var roundCoordinator = new GameplayStartupRoundCoordinator(
+                dependencies,
+                state,
+                uiCoordinator,
+                sessionScoreStore);
+
+            return new BattleshipGameplayStartup(
+                dependencies,
+                state,
+                uiCoordinator,
+                botCoordinator,
+                sessionScoreStore,
+                onlineCoordinator,
+                roundCoordinator);
         }
 
         private static GameplayMovesBinder CreateBattleshipMovesBinder(
@@ -1075,7 +1208,7 @@ namespace Tests.EditMode.Games.Battleship
                 IncomingRecoverySnapshots.Dispose();
             }
 
-            public GameplayStartup CreateSut() => new(
+            public BattleshipGameplayStartup CreateSut() => CreateStartup(
                 _configStore,
                 _gameService,
                 _fieldPresenter,
@@ -1084,7 +1217,6 @@ namespace Tests.EditMode.Games.Battleship
                 _eventStream,
                 _commandSink,
                 _movesBinder,
-                new WinLineRenderer(_fieldUiAdapter),
                 _seriesService,
                 _backHandler,
                 _stateMachine,

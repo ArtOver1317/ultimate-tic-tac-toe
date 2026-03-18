@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using R3;
 using Runtime.Gameplay.Shared;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
 
 namespace Runtime.Gameplay
 {

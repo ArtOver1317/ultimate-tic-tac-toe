@@ -1,10 +1,11 @@
 using System;
+using Runtime.Gameplay;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.Rules;
 using Scellecs.Morpeh;
-using EcsGameStatus = Runtime.Gameplay.Shared.GameStatus;
-using RulesGameStatus = Runtime.Games.TicTacToe.Rules.GameStatus;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
+using RulesGameStatus = Runtime.Gameplay.GameStatus;
 
 namespace Runtime.Games.TicTacToe.ECS
 {

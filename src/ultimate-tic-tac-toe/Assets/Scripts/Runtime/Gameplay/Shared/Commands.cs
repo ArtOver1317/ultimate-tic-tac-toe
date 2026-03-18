@@ -1,5 +1,5 @@
 using System;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 
 namespace Runtime.Gameplay.Shared
 {

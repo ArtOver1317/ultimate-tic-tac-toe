@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Threading;
 using Runtime.Games.TicTacToe.AI.Core;
 using Runtime.Games.TicTacToe.AI.Profiles;
+using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Moves;
 
 namespace Runtime.Games.TicTacToe.AI.Search

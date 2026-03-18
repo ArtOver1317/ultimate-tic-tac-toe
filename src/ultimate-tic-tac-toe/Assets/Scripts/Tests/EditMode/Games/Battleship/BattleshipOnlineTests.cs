@@ -18,7 +18,7 @@ using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Networking;
 using Runtime.Games.Battleship.Placement;
-using Runtime.Games.TicTacToe.Moves;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.Games.Battleship
 {
@@ -57,7 +57,7 @@ namespace Tests.EditMode.Games.Battleship
                 "1",
                 "0",
                 "-1",
-                ((int)GameStatus.InProgress).ToString(),
+                ((int)EcsGameStatus.InProgress).ToString(),
                 "321",
                 EncodePayload(layoutPayload),
                 EncodePayload(layoutPayload),
@@ -398,7 +398,7 @@ namespace Tests.EditMode.Games.Battleship
                 "1",
                 "0",
                 "-1",
-                ((int)GameStatus.InProgress).ToString(),
+                ((int)EcsGameStatus.InProgress).ToString(),
                 "321",
                 EncodePayload(layoutPayload),
                 EncodePayload(layoutPayload),

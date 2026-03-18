@@ -1,8 +1,7 @@
 #nullable enable
 
 using System;
-using Runtime.Games.TicTacToe.Moves;
-using Runtime.Games.TicTacToe.Rules;
+using Runtime.Gameplay;
 
 namespace Runtime.Games.TicTacToe.Ultimate.Rules
 {

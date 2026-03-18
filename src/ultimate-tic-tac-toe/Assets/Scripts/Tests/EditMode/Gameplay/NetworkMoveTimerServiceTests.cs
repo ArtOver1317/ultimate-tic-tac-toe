@@ -14,6 +14,7 @@ using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.Gameplay
 {
@@ -41,7 +42,7 @@ namespace Tests.EditMode.Gameplay
             public Observable<RoundFinishedEvent> RoundFinished => _roundFinished;
 
             public void PublishCurrentPlayerChanged(int slot) => _currentPlayerChanged.OnNext(new CurrentPlayerChangedEvent(slot));
-            public void PublishRoundFinished(GameStatus status) => _roundFinished.OnNext(new RoundFinishedEvent(status, null, null));
+            public void PublishRoundFinished(EcsGameStatus status) => _roundFinished.OnNext(new RoundFinishedEvent(status, null, null));
         }
 
         private sealed class CapturingCommandSink : IGameplayCommandSink
@@ -123,7 +124,7 @@ namespace Tests.EditMode.Gameplay
             using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(5), stream, sink, time, context);
             sut.StartOrResetForPlayer(0);
 
-            stream.PublishRoundFinished(GameStatus.Win);
+            stream.PublishRoundFinished(EcsGameStatus.Win);
             await UniTask.DelayFrame(1);
 
             sut.IsActive.CurrentValue.Should().BeFalse();
@@ -144,7 +145,7 @@ namespace Tests.EditMode.Gameplay
             sut.RemainingSeconds.CurrentValue.Should().Be(5f);
             sut.IsActive.CurrentValue.Should().BeTrue();
 
-            stream.PublishRoundFinished(GameStatus.Win);
+            stream.PublishRoundFinished(EcsGameStatus.Win);
             await WaitUntilAsync(() => sut.IsActive.CurrentValue == false, maxFrames: 5);
             sut.IsActive.CurrentValue.Should().BeFalse();
         }

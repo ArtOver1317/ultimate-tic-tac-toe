@@ -1,18 +1,24 @@
+#nullable enable
 using System;
+using System.Collections.Generic;
 using R3;
-using Runtime.Games.TicTacToe.Moves;
-using Runtime.Games.TicTacToe.Rules;
+using Runtime.Games.Battleship.Startup;
+using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.Localization;
 using UnityEngine.UIElements;
 
-namespace Runtime.Games.TicTacToe
+namespace Runtime.Gameplay.Startup
 {
-    public enum ResultAction { Restart, Exit }
+    public enum ResultAction
+    {
+        Restart, 
+        Exit,
+    }
 
     /// <summary>
     /// Manages the result popup overlay.
-    /// Created once by <see cref="GameplayStartup"/>, reused via <see cref="Show"/> on each round end.
+    /// Created once by <see cref="TicTacToeGameplayStartup"/> or <see cref="BattleshipGameplayStartup"/>, reused via <see cref="Show"/> on each round end.
     /// </summary>
     public sealed class GameResultViewModel : IDisposable
     {
@@ -22,7 +28,7 @@ namespace Runtime.Games.TicTacToe
         private readonly Label _resultLabel;
         private readonly Label _scoreLabel;
         private readonly Label _leadLabel;
-        private readonly ILocalizationService _localization;
+        private readonly ILocalizationService? _localization;
 
         /// <summary>
         /// Emits <see cref="ResultAction.Restart"/> or <see cref="ResultAction.Exit"/>
@@ -30,9 +36,10 @@ namespace Runtime.Games.TicTacToe
         /// </summary>
         public Observable<ResultAction> Actions => _actions;
 
-        public GameResultViewModel(VisualElement parent, ILocalizationService localization = null)
+        public GameResultViewModel(VisualElement parent, ILocalizationService? localization = null)
         {
-            if (parent == null) throw new ArgumentNullException(nameof(parent));
+            if (parent == null) 
+                throw new ArgumentNullException(nameof(parent));
 
             _localization = localization;
 
@@ -60,20 +67,21 @@ namespace Runtime.Games.TicTacToe
             var buttons = new VisualElement { name = "ResultButtons" };
             buttons.AddToClassList("result-buttons");
 
-            // TODO: Replace button text with localized strings (Phase 5 localization).
             var restartBtn = new Button(() => _actions.OnNext(ResultAction.Restart))
             {
                 name = "RestartButton",
-                text = "Restart",
+                text = ResolveTextOrFallback("Game", "Game.Result.RestartButton", "Restart"),
             };
+            
             restartBtn.AddToClassList("result-button");
             buttons.Add(restartBtn);
 
             var exitBtn = new Button(() => _actions.OnNext(ResultAction.Exit))
             {
                 name = "ExitButton",
-                text = "Exit",
+                text = ResolveTextOrFallback("Game", "Game.Result.ExitButton", "Exit"),
             };
+            
             exitBtn.AddToClassList("result-button");
             buttons.Add(exitBtn);
 
@@ -90,6 +98,7 @@ namespace Runtime.Games.TicTacToe
             _resultLabel.text = string.IsNullOrWhiteSpace(customResultText)
                 ? FormatResult(result)
                 : customResultText;
+            
             _scoreLabel.text = FormatScore(score);
             _leadLabel.text = FormatLead(score);
             _overlay.style.display = DisplayStyle.Flex;
@@ -98,10 +107,7 @@ namespace Runtime.Games.TicTacToe
         /// <summary>
         /// Hides the result popup.
         /// </summary>
-        public void Hide()
-        {
-            _overlay.style.display = DisplayStyle.None;
-        }
+        public void Hide() => _overlay.style.display = DisplayStyle.None;
 
         public void Dispose()
         {
@@ -110,20 +116,46 @@ namespace Runtime.Games.TicTacToe
             _actions.Dispose();
         }
 
-        // TODO: Replace with localized strings from Localization tables.
         private string FormatResult(GameResult result) =>
             result.Winner.ToResultText(result.Status, _localization);
 
-        private static string FormatScore(SeriesScore score) =>
-            $"Score: {score.Player1Wins} - {score.Player2Wins}  (Draws: {score.Draws})";
+        private string FormatScore(SeriesScore score)
+        {
+            var fallback = $"Score: {score.Player1Wins} - {score.Player2Wins}  (Draws: {score.Draws})";
+            
+            var args = new Dictionary<string, object>
+            {
+                ["player1Wins"] = score.Player1Wins,
+                ["player2Wins"] = score.Player2Wins,
+                ["draws"] = score.Draws,
+            };
 
-        private static string FormatLead(SeriesScore score)
+            return ResolveTextOrFallback("Game", "Game.Result.Score", fallback, args);
+        }
+
+        private string FormatLead(SeriesScore score)
         {
             var p1 = score.Player1Wins;
             var p2 = score.Player2Wins;
-            return p1 > p2 ? "Player 1 leads"
-                : p2 > p1 ? "Player 2 leads"
-                : "Tied";
+
+            if (p1 > p2)
+                return ResolveTextOrFallback("Game", "Game.Result.LeadPlayer1", "Player 1 leads");
+
+            return p2 > p1 
+                ? ResolveTextOrFallback("Game", "Game.Result.LeadPlayer2", "Player 2 leads") 
+                : ResolveTextOrFallback("Game", "Game.Result.Tied", "Tied");
+        }
+
+        private string ResolveTextOrFallback(
+            string table,
+            string key,
+            string fallback,
+            IReadOnlyDictionary<string, object>? args = null)
+        {
+            if (_localization == null)
+                return fallback;
+
+            return _localization.TryResolve(table, key, out var resolved, args) ? resolved : fallback;
         }
     }
 }

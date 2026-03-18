@@ -1,5 +1,3 @@
-#nullable enable
-
 using System;
 
 namespace Runtime.Games.Battleship.UI.Placement

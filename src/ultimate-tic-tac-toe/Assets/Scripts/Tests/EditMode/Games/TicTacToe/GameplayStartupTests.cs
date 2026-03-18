@@ -9,6 +9,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using Runtime.Gameplay;
+using Runtime.Gameplay.Startup;
 using Runtime.Gameplay.ECS;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Moves;
@@ -20,7 +21,7 @@ using Runtime.GameModes.Wizard;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.PlayerStatistics;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using CellId = Runtime.Gameplay.CellId;
 using UnityEngine;
 using UnityEngine.TestTools;
 using R3;
@@ -29,8 +30,15 @@ using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay.ECS.Lifecycle;
 using Runtime.Gameplay.Shared;
+using Runtime.Games.Battleship.Startup;
+using Runtime.Games.Battleship.Networking;
+using Runtime.Games.Battleship.Placement;
 using Runtime.Games.TicTacToe.AI.Core;
 using Runtime.Games.TicTacToe.AI.Ultimate.Core;
+using Runtime.Games.TicTacToe.Ultimate;
+using Runtime.Localization;
+using Runtime.PlayerProfile;
+using RulesGameStatus = Runtime.Gameplay.GameStatus;
 using UnityEngine.UIElements;
 
 namespace Tests.EditMode.Games.TicTacToe
@@ -57,7 +65,7 @@ namespace Tests.EditMode.Games.TicTacToe
         private ReactiveProperty<bool> _botBusy;
         private ReactiveProperty<bool> _botDisabled;
         private VisualElement _fieldContainer;
-        private GameplayStartup _sut;
+        private TicTacToeGameplayStartup _sut;
         private GameLaunchConfig _config;
         private IGameplaySession _session;
 
@@ -134,7 +142,7 @@ namespace Tests.EditMode.Games.TicTacToe
             var matchFailSafeGateway = Substitute.For<IMatchFailSafeGateway>();
             var statisticsReporter = CreateStatisticsReporter(_configStore, _eventStream);
 
-            _sut = new GameplayStartup(_configStore, _gameService, _fieldPresenter, _fieldUiAdapter, _ecsLifecycle, _eventStream, _commandSink, _movesBinder, _winLineRenderer, _seriesService, _backHandler, _stateMachine, _botDriver, _ultimateBotOrchestrator, matchFailSafeGateway, statisticsReporter: statisticsReporter);
+            _sut = CreateStartup(matchFailSafeGateway, statisticsReporter: statisticsReporter);
         }
 
         [TearDown]
@@ -394,23 +402,8 @@ namespace Tests.EditMode.Games.TicTacToe
             var onlineFlow = new TestOnlineSessionFlow();
             var matchStateProvider = Substitute.For<IMatchStateProvider>();
 
-            var sut = new GameplayStartup(
-                _configStore,
-                _gameService,
-                _fieldPresenter,
-                _fieldUiAdapter,
-                _ecsLifecycle,
-                _eventStream,
-                _commandSink,
-                _movesBinder,
-                _winLineRenderer,
-                _seriesService,
-                _backHandler,
-                _stateMachine,
-                _botDriver,
-                _ultimateBotOrchestrator,
+            var sut = CreateStartup(
                 Substitute.For<IMatchFailSafeGateway>(),
-                ultimateSnapshotProvider: null,
                 networkBridge: networkBridge,
                 onlineSessionContextStore: onlineSessionStore,
                 matchStateProvider: matchStateProvider,
@@ -448,23 +441,8 @@ namespace Tests.EditMode.Games.TicTacToe
 
             _backHandler.ClearReceivedCalls();
 
-            var sut = new GameplayStartup(
-                _configStore,
-                _gameService,
-                _fieldPresenter,
-                _fieldUiAdapter,
-                _ecsLifecycle,
-                _eventStream,
-                _commandSink,
-                _movesBinder,
-                _winLineRenderer,
-                _seriesService,
-                _backHandler,
-                _stateMachine,
-                _botDriver,
-                _ultimateBotOrchestrator,
+            var sut = CreateStartup(
                 Substitute.For<IMatchFailSafeGateway>(),
-                ultimateSnapshotProvider: null,
                 networkBridge: networkBridge,
                 onlineSessionContextStore: onlineSessionStore,
                 matchStateProvider: matchStateProvider,
@@ -478,7 +456,7 @@ namespace Tests.EditMode.Games.TicTacToe
 
             _seriesService.Received(1)
                 .RecordResult(Arg.Is<GameResult>(result =>
-                    result.Status == Runtime.Games.TicTacToe.Rules.GameStatus.Timeout &&
+                    result.Status == RulesGameStatus.Timeout &&
                     result.Winner == PlayerMark.O));
 
             _fieldContainer.ClassListContains("field-container--round-finished").Should().BeTrue();
@@ -504,23 +482,8 @@ namespace Tests.EditMode.Games.TicTacToe
             networkBridge.IncomingTimeoutSignals.Returns(timeoutSignals);
             networkBridge.BindAsync(Arg.Any<string>(), Arg.Any<bool>()).Returns(UniTask.CompletedTask);
 
-            var sut = new GameplayStartup(
-                _configStore,
-                _gameService,
-                _fieldPresenter,
-                _fieldUiAdapter,
-                _ecsLifecycle,
-                _eventStream,
-                _commandSink,
-                _movesBinder,
-                _winLineRenderer,
-                _seriesService,
-                _backHandler,
-                _stateMachine,
-                _botDriver,
-                _ultimateBotOrchestrator,
+            var sut = CreateStartup(
                 Substitute.For<IMatchFailSafeGateway>(),
-                ultimateSnapshotProvider: null,
                 networkBridge: networkBridge,
                 onlineSessionContextStore: onlineSessionStore,
                 matchStateProvider: matchStateProvider,
@@ -556,23 +519,8 @@ namespace Tests.EditMode.Games.TicTacToe
             networkBridge.IncomingTimeoutSignals.Returns(timeoutSignals);
             networkBridge.BindAsync(Arg.Any<string>(), Arg.Any<bool>()).Returns(UniTask.CompletedTask);
 
-            var sut = new GameplayStartup(
-                _configStore,
-                _gameService,
-                _fieldPresenter,
-                _fieldUiAdapter,
-                _ecsLifecycle,
-                _eventStream,
-                _commandSink,
-                _movesBinder,
-                _winLineRenderer,
-                _seriesService,
-                _backHandler,
-                _stateMachine,
-                _botDriver,
-                _ultimateBotOrchestrator,
+            var sut = CreateStartup(
                 Substitute.For<IMatchFailSafeGateway>(),
-                ultimateSnapshotProvider: null,
                 networkBridge: networkBridge,
                 onlineSessionContextStore: onlineSessionStore,
                 matchStateProvider: matchStateProvider,
@@ -624,6 +572,91 @@ namespace Tests.EditMode.Games.TicTacToe
                 regex.IsMatch(messages[i]).Should().BeTrue(
                     $"expected failing log #{i + 1} to match regex '{regex}', but was: {messages[i]}");
             }
+        }
+
+        private TicTacToeGameplayStartup CreateStartup(
+            IMatchFailSafeGateway matchFailSafeGateway,
+            IUltimateGameplaySnapshotProvider ultimateSnapshotProvider = null,
+            IGameplayNetworkBridge networkBridge = null,
+            IOnlineGameplaySessionContextStore onlineSessionContextStore = null,
+            IMatchStateProvider matchStateProvider = null,
+            IOnlineSessionFlowService onlineSessionFlow = null,
+            IOnlineSessionLauncher onlineSessionLauncher = null,
+            IOnlinePlayerNamesStore onlinePlayerNamesStore = null,
+            ILocalizationService localization = null,
+            IMoveTimerService moveTimerService = null,
+            MoveTimerHudBinder moveTimerHudBinder = null,
+            IMatchPlayerNames matchPlayerNames = null,
+            PlayerStatisticsMatchReporter statisticsReporter = null,
+            IUltimateGameplayEventStream ultimateEventStream = null)
+        {
+            var resolvedMatchStateProvider = matchStateProvider ?? _commandSink as IMatchStateProvider;
+            var core = new GameplayStartupCoreServices(
+                _configStore,
+                _gameService,
+                _fieldPresenter,
+                _fieldUiAdapter,
+                _ecsLifecycle,
+                _eventStream,
+                _commandSink,
+                _movesBinder,
+                _winLineRenderer,
+                _seriesService,
+                _backHandler,
+                _stateMachine,
+                localization,
+                matchPlayerNames,
+                statisticsReporter);
+            var timers = new GameplayStartupTimerServices(
+                moveTimerService ?? Substitute.For<IMoveTimerService>(),
+                Substitute.For<IBattleshipPlacementTimerService>(),
+                moveTimerHudBinder);
+            var bot = new GameplayStartupBotServices(
+                _botDriver,
+                null,
+                _ultimateBotOrchestrator,
+                matchFailSafeGateway,
+                ultimateSnapshotProvider,
+                ultimateEventStream);
+            var online = new GameplayStartupOnlineServices(
+                networkBridge ?? new NoOpGameplayNetworkBridge(),
+                NoOpBattleshipNetworkBridge.Instance,
+                onlineSessionContextStore ?? new OnlineGameplaySessionContextStore(),
+                onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance,
+                onlineSessionLauncher ?? NoOpOnlineSessionLauncher.Instance,
+                onlinePlayerNamesStore,
+                resolvedMatchStateProvider);
+            var battleship = new GameplayStartupBattleshipServices(new BattleshipLayoutSerializer());
+            var dependencies = new GameplayStartupDependencies(core, timers, bot, online, battleship);
+            var state = new GameplayStartupRuntimeState();
+            var uiCoordinator = new GameplayStartupUiCoordinator(dependencies, state);
+            var botCoordinator = new GameplayStartupBotCoordinator(dependencies, state);
+            var sessionScoreStore = new GameplayStartupBattleshipSessionScoreStore();
+            var recoveryCoordinator = new GameplayStartupBattleshipRecoveryCoordinator(
+                dependencies,
+                state,
+                uiCoordinator,
+                botCoordinator,
+                sessionScoreStore);
+            var onlineCoordinator = new GameplayStartupOnlineCoordinator(
+                dependencies,
+                state,
+                uiCoordinator,
+                recoveryCoordinator,
+                sessionScoreStore);
+            var roundCoordinator = new GameplayStartupRoundCoordinator(
+                dependencies,
+                state,
+                uiCoordinator,
+                sessionScoreStore);
+
+            return new TicTacToeGameplayStartup(
+                dependencies,
+                state,
+                uiCoordinator,
+                botCoordinator,
+                onlineCoordinator,
+                roundCoordinator);
         }
 
         private static PlayerStatisticsMatchReporter CreateStatisticsReporter(

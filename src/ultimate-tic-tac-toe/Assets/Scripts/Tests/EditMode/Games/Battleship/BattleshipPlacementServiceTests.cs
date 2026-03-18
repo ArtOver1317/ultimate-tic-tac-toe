@@ -11,7 +11,8 @@ using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.Games.Battleship
 {
@@ -25,7 +26,7 @@ namespace Tests.EditMode.Games.Battleship
 
             public BattleshipPhase Phase { get; set; } = BattleshipPhase.Placement;
             public int ActivePlayerSlot { get; set; } = PlayerSlotMapping.SlotX;
-            public GameStatus CurrentStatus { get; set; } = GameStatus.InProgress;
+            public EcsGameStatus CurrentStatus { get; set; } = EcsGameStatus.InProgress;
             public int? WinnerSlot { get; set; }
             public bool SlotXConfirmed { get; set; }
             public bool SlotOConfirmed { get; set; }

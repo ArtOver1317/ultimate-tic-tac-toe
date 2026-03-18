@@ -5,6 +5,7 @@ using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Core;
 using Scellecs.Morpeh;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Games.Battleship.ECS.Flow
 {
@@ -96,7 +97,7 @@ namespace Runtime.Games.Battleship.ECS.Flow
             ref LastMoveComponent lastMove)
         {
             players.ActivePlayerSlot = -1;
-            status.Status = GameStatus.InProgress;
+            status.Status = EcsGameStatus.InProgress;
             status.WinnerSlot = null;
             status.WinLine = null;
             lastMove.HasValue = false;

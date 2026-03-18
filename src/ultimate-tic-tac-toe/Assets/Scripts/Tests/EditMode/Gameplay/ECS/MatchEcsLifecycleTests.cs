@@ -18,7 +18,7 @@ using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Rules;
 using Scellecs.Morpeh;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using CellId = Runtime.Gameplay.CellId;
 
 namespace Tests.EditMode.Gameplay.ECS
 {

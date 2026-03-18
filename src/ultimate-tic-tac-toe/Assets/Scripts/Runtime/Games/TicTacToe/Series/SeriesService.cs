@@ -2,8 +2,7 @@
 
 using System;
 using R3;
-using Runtime.Games.TicTacToe.Moves;
-using Runtime.Games.TicTacToe.Rules;
+using Runtime.Gameplay;
 
 namespace Runtime.Games.TicTacToe.Series
 {

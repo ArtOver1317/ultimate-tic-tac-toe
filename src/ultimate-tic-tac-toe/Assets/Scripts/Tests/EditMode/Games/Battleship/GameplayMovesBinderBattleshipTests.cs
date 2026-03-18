@@ -12,8 +12,8 @@ using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.UI.Board;
-using Runtime.Games.TicTacToe.Moves;
 using UnityEngine.UIElements;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.Games.Battleship
 {
@@ -143,7 +143,7 @@ namespace Tests.EditMode.Games.Battleship
             public CellId? LastMove => null;
 
             public BattleshipPhase Phase => BattleshipPhase.Battle;
-            public GameStatus CurrentStatus => GameStatus.InProgress;
+            public EcsGameStatus CurrentStatus => EcsGameStatus.InProgress;
             public int? WinnerSlot => null;
             public bool IsPlacementConfirmed(int playerSlot) => true;
             public bool TryGetFleetLayout(int playerSlot, out FleetLayout layout)

@@ -17,7 +17,7 @@ using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Rules;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using CellId = Runtime.Gameplay.CellId;
 
 // ReSharper disable AccessToDisposedClosure
 

@@ -6,6 +6,7 @@ using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Battle;
 using Runtime.Games.Battleship.ECS.Core;
 using Scellecs.Morpeh;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Games.Battleship.ECS.Flow
 {
@@ -81,7 +82,7 @@ namespace Runtime.Games.Battleship.ECS.Flow
         {
             loserIndex = -1;
             
-            return status.Status == GameStatus.InProgress
+                 return status.Status == EcsGameStatus.InProgress
                    && state.Phase == BattleshipPhase.Battle
                    && players.ActivePlayerSlot == request.LoserSlot
                    && BattleshipEcsBoard.TryResolvePlayerIndex(players, request.LoserSlot, out loserIndex);
@@ -99,12 +100,12 @@ namespace Runtime.Games.Battleship.ECS.Flow
                 return false;
 
             var winnerSlot = BattleshipBattleShotResolver.ResolveOtherPlayerSlot(players, loserSlot);
-            status.Status = GameStatus.Timeout;
+            status.Status = EcsGameStatus.Timeout;
             status.WinnerSlot = winnerSlot;
             status.WinLine = null;
             state.Phase = BattleshipPhase.Finished;
             _phaseChangedStash.Set(matchEntity, new BattleshipPhaseChangedOneShot { Phase = BattleshipPhase.Finished });
-            _roundFinishedStash.Set(matchEntity, new RoundFinishedOneShot { Status = GameStatus.Timeout, WinnerSlot = winnerSlot, WinLine = null });
+            _roundFinishedStash.Set(matchEntity, new RoundFinishedOneShot { Status = EcsGameStatus.Timeout, WinnerSlot = winnerSlot, WinLine = null });
             return true;
         }
 

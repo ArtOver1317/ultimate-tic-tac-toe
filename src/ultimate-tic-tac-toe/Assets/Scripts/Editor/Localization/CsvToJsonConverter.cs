@@ -6,7 +6,6 @@ using System.Text;
 using Editor.Localization.Parsing;
 using UnityEditor;
 using UnityEngine;
-
 using LocalizationTables = System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, string>>>;
 
 namespace Editor.Localization

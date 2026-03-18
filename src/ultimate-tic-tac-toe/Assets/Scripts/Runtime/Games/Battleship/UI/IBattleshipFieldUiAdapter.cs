@@ -1,6 +1,6 @@
 ﻿#nullable enable
 using R3;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using UnityEngine.UIElements;
 
 namespace Runtime.Games.Battleship.UI

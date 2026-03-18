@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Core;
 using Runtime.Games.Battleship.Placement;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using UnityEngine.UIElements;
 
 namespace Runtime.Games.Battleship.UI.Placement

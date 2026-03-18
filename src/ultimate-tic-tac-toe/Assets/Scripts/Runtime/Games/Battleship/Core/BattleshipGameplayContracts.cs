@@ -13,7 +13,7 @@ namespace Runtime.Games.Battleship.Core
 
         int ActivePlayerSlot { get; }
 
-        GameStatus CurrentStatus { get; }
+        EcsGameStatus CurrentStatus { get; }
 
         int? WinnerSlot { get; }
 
@@ -32,7 +32,7 @@ namespace Runtime.Games.Battleship.Core
     {
         public BattleshipPhase Phase { get; }
         public int ActivePlayerSlot { get; }
-        public GameStatus FinishStatus { get; }
+        public EcsGameStatus FinishStatus { get; }
         public int? WinnerSlot { get; }
         public FleetLayout? Player0Layout { get; }
         public FleetLayout? Player1Layout { get; }
@@ -46,7 +46,7 @@ namespace Runtime.Games.Battleship.Core
         public BattleshipRecoveryState(
             BattleshipPhase phase,
             int activePlayerSlot,
-            GameStatus finishStatus,
+            EcsGameStatus finishStatus,
             int? winnerSlot,
             FleetLayout? player0Layout,
             FleetLayout? player1Layout,

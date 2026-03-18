@@ -22,7 +22,8 @@ using Runtime.Localization;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using VContainer;
+using CellId = Runtime.Gameplay.CellId;
 using Object = UnityEngine.Object;
 
 namespace Tests.EditMode.Games.TicTacToe
@@ -77,6 +78,26 @@ namespace Tests.EditMode.Games.TicTacToe
             _presenter = null;
             _document = null;
             _gameObject = null;
+        }
+
+        [Test]
+        [Category("Unit")]
+        public void WhenResolvedFromVContainerWithoutMovesVfxRegistration_ThenBinderResolvesSuccessfully()
+        {
+            var builder = new ContainerBuilder();
+            builder.RegisterInstance(Substitute.For<IGameplayFieldUiAdapter>()).As<IGameplayFieldUiAdapter>();
+            builder.RegisterInstance(Substitute.For<IGameplayCommandSink>()).As<IGameplayCommandSink>();
+            builder.RegisterInstance(Substitute.For<IGameplayEventStream>()).As<IGameplayEventStream>();
+            builder.RegisterInstance(Substitute.For<IGameplaySnapshotProvider>()).As<IGameplaySnapshotProvider>();
+            builder.RegisterInstance(Substitute.For<IGameplayMovesModeBehavior>()).As<IGameplayMovesModeBehavior>();
+            builder.RegisterInstance(Substitute.For<ILocalizationService>()).As<ILocalizationService>();
+            builder.Register<GameplayMovesBinder>(Lifetime.Scoped);
+
+            using var container = builder.Build();
+
+            Action act = () => container.Resolve<GameplayMovesBinder>();
+
+            act.Should().NotThrow();
         }
 
         [Test]

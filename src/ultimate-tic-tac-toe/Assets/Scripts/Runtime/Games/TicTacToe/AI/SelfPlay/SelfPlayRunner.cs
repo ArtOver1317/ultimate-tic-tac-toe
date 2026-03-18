@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.Games.TicTacToe.AI.Core;
-using Runtime.Games.TicTacToe.Rules;
+using Runtime.Gameplay;
 
 namespace Runtime.Games.TicTacToe.AI.SelfPlay
 {

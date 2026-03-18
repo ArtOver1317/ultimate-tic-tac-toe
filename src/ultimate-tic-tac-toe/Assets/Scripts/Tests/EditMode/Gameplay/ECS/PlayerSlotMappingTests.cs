@@ -1,8 +1,8 @@
 using FluentAssertions;
 using NUnit.Framework;
+using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.TicTacToe.Moves;
 using UnityEngine;
 using UnityEngine.TestTools;
 

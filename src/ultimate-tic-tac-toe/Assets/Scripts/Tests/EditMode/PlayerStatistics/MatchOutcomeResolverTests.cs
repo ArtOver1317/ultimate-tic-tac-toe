@@ -18,7 +18,7 @@ namespace Tests.EditMode.PlayerStatistics
         [Test]
         public void WhenOnlineGuestAndWinnerSlotIsOne_ThenReturnsWin()
         {
-            var evt = new RoundFinishedEvent(GameStatus.Win, winnerSlot: 1, winLine: null);
+            var evt = new RoundFinishedEvent(EcsGameStatus.Win, winnerSlot: 1, winLine: null);
 
             var resolved = _sut.TryResolveOutcome(
                 evt,
@@ -33,7 +33,7 @@ namespace Tests.EditMode.PlayerStatistics
         [Test]
         public void WhenStatusIsInProgress_ThenReturnsFalse()
         {
-            var evt = new RoundFinishedEvent(GameStatus.InProgress, winnerSlot: null, winLine: null);
+            var evt = new RoundFinishedEvent(EcsGameStatus.InProgress, winnerSlot: null, winLine: null);
 
             var resolved = _sut.TryResolveOutcome(
                 evt,
@@ -47,7 +47,7 @@ namespace Tests.EditMode.PlayerStatistics
         [Test]
         public void WhenTimeoutAndWinnerSlotPresent_ThenReturnsWinOrLossByLocalSlot()
         {
-            var evt = new RoundFinishedEvent(GameStatus.Timeout, winnerSlot: 0, winLine: null);
+            var evt = new RoundFinishedEvent(EcsGameStatus.Timeout, winnerSlot: 0, winLine: null);
 
             var hostResolved = _sut.TryResolveOutcome(evt, StatisticsOpponentType.Online, true, out var hostOutcome);
             var guestResolved = _sut.TryResolveOutcome(evt, StatisticsOpponentType.Online, false, out var guestOutcome);
@@ -61,7 +61,7 @@ namespace Tests.EditMode.PlayerStatistics
         [Test]
         public void WhenOpponentTypeIsUnknown_ThenReturnsFalse()
         {
-            var evt = new RoundFinishedEvent(GameStatus.Win, winnerSlot: 0, winLine: null);
+            var evt = new RoundFinishedEvent(EcsGameStatus.Win, winnerSlot: 0, winLine: null);
 
             var resolved = _sut.TryResolveOutcome(
                 evt,

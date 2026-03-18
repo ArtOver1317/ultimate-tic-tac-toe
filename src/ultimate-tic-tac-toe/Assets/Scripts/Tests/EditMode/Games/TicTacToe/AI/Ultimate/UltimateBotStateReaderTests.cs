@@ -9,10 +9,9 @@ using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.AI.Ultimate.Core;
 using Runtime.Games.TicTacToe.AI.Ultimate.Execution;
-using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
-using GameStatus = Runtime.Games.TicTacToe.Rules.GameStatus;
+using GameStatus = Runtime.Gameplay.GameStatus;
 
 namespace Tests.EditMode.Games.TicTacToe.AI.Ultimate
 {

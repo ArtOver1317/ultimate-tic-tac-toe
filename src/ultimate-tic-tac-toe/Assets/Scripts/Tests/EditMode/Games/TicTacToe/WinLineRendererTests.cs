@@ -2,6 +2,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using Runtime.Games.TicTacToe;
+using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using UnityEngine;

@@ -2,6 +2,7 @@
 
 using System;
 using Runtime.Games.TicTacToe.AI.Core;
+using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Moves;
 
 namespace Runtime.Games.TicTacToe.Rules

@@ -3,9 +3,10 @@
 using System;
 using System.Collections.Generic;
 using Runtime.Games.TicTacToe.AI.Ultimate.Core;
+using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
-using GameStatus = Runtime.Games.TicTacToe.Rules.GameStatus;
+using GameStatus = Runtime.Gameplay.GameStatus;
 
 namespace Runtime.Games.TicTacToe.AI.Ultimate.Decision
 {

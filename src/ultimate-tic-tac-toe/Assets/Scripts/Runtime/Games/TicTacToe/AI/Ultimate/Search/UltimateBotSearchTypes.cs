@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Runtime.Games.TicTacToe.AI.Ultimate.Core;
+using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Moves;
 
 namespace Runtime.Games.TicTacToe.AI.Ultimate.Search

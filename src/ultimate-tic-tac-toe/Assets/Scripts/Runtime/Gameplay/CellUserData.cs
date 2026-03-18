@@ -1,4 +1,4 @@
-namespace Runtime.Games.TicTacToe.Moves
+namespace Runtime.Gameplay
 {
     public sealed class CellUserData
     {

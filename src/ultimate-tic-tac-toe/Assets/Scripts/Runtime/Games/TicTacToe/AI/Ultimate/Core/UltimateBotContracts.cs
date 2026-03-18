@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Moves;
 
 namespace Runtime.Games.TicTacToe.AI.Ultimate.Core

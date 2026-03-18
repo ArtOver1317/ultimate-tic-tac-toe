@@ -1,109 +1,67 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Modes;
-using Runtime.Games.Battleship;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
+using Runtime.Games.Battleship.UI;
+using Runtime.Games.TicTacToe.Ultimate.UI;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
-using Runtime.Games.TicTacToe.Ultimate.UI;
 using StripLog;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-using Runtime.Gameplay;
-using Runtime.Games.Battleship.UI;
-
 namespace Runtime.Games.TicTacToe
 {
-    public sealed partial class GameplayFieldPresenter : IGameplayFieldPresenter, IGameplayFieldUiAdapter, IUltimateGameplayFieldUiAdapter, IBattleshipFieldUiAdapter
+    public sealed class GameplayFieldPresenter : IGameplayFieldPresenter, IGameplayFieldUiAdapter, IUltimateGameplayFieldUiAdapter, IBattleshipFieldUiAdapter
     {
-        private const int BattleshipBoardSize = 10;
+        private const int _battleshipBoardSize = 10;
 
-        private readonly UIDocument _uiDocument;
         private readonly IGameplayBackHandler _backHandler;
-        private readonly List<VisualElement> _cells = new();
-        private readonly List<VisualElement> _miniBoards = new();
-        private readonly Dictionary<CellId, VisualElement> _cellById = new();
-        private readonly Dictionary<CellId, VisualElement> _markById = new();
-        private readonly Dictionary<CellId, Label> _markLabelById = new();
-        private readonly Dictionary<CellId, VisualElement> _ownBoardCellById = new();
-        private readonly Dictionary<CellId, VisualElement> _ownBoardMarkById = new();
-        private readonly Dictionary<CellId, Label> _ownBoardMarkLabelById = new();
-        private readonly Dictionary<int, VisualElement> _miniBoardByMajor = new();
-        private readonly Dictionary<int, Vector2> _miniBoardCenterByMajor = new();
-        private VisualElement _root;
-        private VisualElement _fieldRoot;
-        private VisualElement _fieldContainer;
-        private VisualElement _battleshipBoardsRoot;
-        private VisualElement _customStyleCallbackElement;
-        private Button _backButton;
-        private FieldRenderSpec _spec;
-        private bool _isBound;
+        private readonly ILocalizationService _localization;
+        private readonly Subject<CellId> _cellClicks = new();
+        private readonly Subject<CellId> _ownBoardCellClicks = new();
+        private readonly GameplayFieldPresenterState _state = new();
+        private readonly GameplayFieldPresenterScoreboardBuilder _scoreboardBuilder;
+        private readonly GameplayFieldPresenterFieldBuilder _fieldBuilder;
+        private readonly GameplayFieldPresenterLayoutController _layoutController;
+
         private bool _disposed;
         private bool _backInProgress;
-        private int _lastCellSize;
-        private bool _isCellIdCacheValid;
-        private string _boundGameId;
-        private CancellationTokenSource _bindCts;
-
-        private readonly Subject<CellId> _cellClicks = new();
-    private readonly Subject<CellId> _ownBoardCellClicks = new();
-        private Label _currentPlayerLabel;
-
-        // Scoreboard elements
-        private VisualElement _player1Panel;
-        private VisualElement _player2Panel;
-        private Label _player1ScoreLabel;
-        private Label _player2ScoreLabel;
-        private Label _player1NameLabel;
-        private Label _player2NameLabel;
-        private Label _drawsScoreLabel;
-        private Label _moveTimerLabel;
-
-        private float _gridGapHalf;
-        private float _miniBoardGapHalf;
-        private float _miniBoardBorder;
-        private float _miniBoardPadding;
-        private float _markFontScale;
-
-        private bool _hasGridGapHalf;
-        private bool _hasMiniBoardGapHalf;
-        private bool _hasMiniBoardBorder;
-        private bool _hasMiniBoardPadding;
-
-        private bool _hasMarkFontScale;
-
-        private static readonly CustomStyleProperty<float> _gridGapHalfProperty = new("--grid-gap-half");
-        private static readonly CustomStyleProperty<float> _gridGapProperty = new("--grid-gap");
-        private static readonly CustomStyleProperty<float> _miniBoardGapHalfProperty = new("--mini-board-gap-half");
-        private static readonly CustomStyleProperty<float> _miniBoardBorderProperty = new("--mini-board-border-width");
-        private static readonly CustomStyleProperty<float> _miniBoardPaddingProperty = new("--mini-board-padding");
-        private static readonly CustomStyleProperty<float> _markFontScaleProperty = new("--mark-font-scale");
-
-        private readonly ILocalizationService _localization;
 
         public GameplayFieldPresenter(
             UIDocument uiDocument,
             IGameplayBackHandler backHandler,
             ILocalizationService localization = null)
         {
-            _uiDocument = uiDocument ? uiDocument : throw new ArgumentNullException(nameof(uiDocument));
+            var document = uiDocument ? uiDocument : throw new ArgumentNullException(nameof(uiDocument));
             _backHandler = backHandler ?? throw new ArgumentNullException(nameof(backHandler));
             _localization = localization;
+            _scoreboardBuilder = new GameplayFieldPresenterScoreboardBuilder(_state);
+            _layoutController = new GameplayFieldPresenterLayoutController(_state);
+
+            var fieldContext = new GameplayFieldPresenterFieldContext(
+                IsReady,
+                OnBackClicked,
+                PublishCellClick,
+                PublishOwnBoardCellClick,
+                ResolveGameTextOrFallback);
+
+            _fieldBuilder = new GameplayFieldPresenterFieldBuilder(
+                document,
+                _state,
+                _scoreboardBuilder,
+                _layoutController,
+                fieldContext);
         }
 
         Observable<CellId> IGameplayFieldUiAdapter.CellClicks => _cellClicks;
         Observable<CellId> IBattleshipFieldUiAdapter.OwnBoardCellClicks => _ownBoardCellClicks;
 
         bool IBattleshipFieldUiAdapter.HasOwnBoard =>
-            _isBound
-            && !_disposed
-            && IsBattleshipDualBoardMode();
+            IsReady()
+            && _state.CurrentMode == GameplayFieldPresenterMode.BattleshipDual;
 
         bool IGameplayFieldUiAdapter.TryGetCellView(CellId id, out VisualElement cellRoot, out Label markLabel)
         {
@@ -113,7 +71,7 @@ namespace Runtime.Games.TicTacToe
             if (!TryGetCell(id, out cellRoot) || cellRoot == null)
                 return false;
 
-            return _markLabelById.TryGetValue(id, out markLabel) && markLabel != null;
+            return _state.MarkLabelById.TryGetValue(id, out markLabel) && markLabel != null;
         }
 
         Label IGameplayFieldUiAdapter.CurrentPlayerLabel
@@ -123,14 +81,14 @@ namespace Runtime.Games.TicTacToe
                 if (_disposed)
                     throw new ObjectDisposedException(nameof(GameplayFieldPresenter));
 
-                if (!_isBound)
+                if (!_state.IsBound)
                     throw new InvalidOperationException("GameplayFieldPresenter is not bound (CurrentPlayerLabel is unavailable).");
 
-                if (_currentPlayerLabel != null)
-                    return _currentPlayerLabel;
+                if (_state.CurrentPlayerLabel != null)
+                    return _state.CurrentPlayerLabel;
 
-                EnsureCurrentPlayerLabelExists();
-                return _currentPlayerLabel;
+                _scoreboardBuilder.EnsureCurrentPlayerLabelExists();
+                return _state.CurrentPlayerLabel;
             }
         }
 
@@ -142,13 +100,13 @@ namespace Runtime.Games.TicTacToe
 
         bool IBattleshipFieldUiAdapter.TryGetOwnCell(CellId id, out VisualElement cellRoot)
         {
-            if (!_isBound || _disposed || !IsBattleshipDualBoardMode())
+            if (!IsReady() || _state.CurrentMode != GameplayFieldPresenterMode.BattleshipDual)
             {
                 cellRoot = null;
                 return false;
             }
 
-            return _ownBoardCellById.TryGetValue(id, out cellRoot) && cellRoot != null;
+            return _state.OwnBoardCellById.TryGetValue(id, out cellRoot) && cellRoot != null;
         }
 
         bool IBattleshipFieldUiAdapter.TryGetOwnCellView(CellId id, out VisualElement cellRoot, out Label markLabel)
@@ -156,47 +114,47 @@ namespace Runtime.Games.TicTacToe
             cellRoot = null;
             markLabel = null;
 
-            if (!_isBound || _disposed || !IsBattleshipDualBoardMode())
+            if (!IsReady() || _state.CurrentMode != GameplayFieldPresenterMode.BattleshipDual)
                 return false;
 
-            if (!_ownBoardCellById.TryGetValue(id, out cellRoot) || cellRoot == null)
+            if (!_state.OwnBoardCellById.TryGetValue(id, out cellRoot) || cellRoot == null)
                 return false;
 
-            return _ownBoardMarkLabelById.TryGetValue(id, out markLabel) && markLabel != null;
+            return _state.OwnBoardMarkLabelById.TryGetValue(id, out markLabel) && markLabel != null;
         }
 
         bool IUltimateGameplayFieldUiAdapter.TryGetMiniBoard(int major, out VisualElement miniBoardRoot)
         {
-            if (!_isBound || _disposed)
+            if (!IsReady())
             {
                 miniBoardRoot = null;
                 return false;
             }
 
-            return _miniBoardByMajor.TryGetValue(major, out miniBoardRoot) && miniBoardRoot != null;
+            return _state.MiniBoardByMajor.TryGetValue(major, out miniBoardRoot) && miniBoardRoot != null;
         }
 
         bool IUltimateGameplayFieldUiAdapter.TryGetMiniBoardCenter(int major, out Vector2 panelSpaceCenter)
         {
-            if (!_isBound || _disposed)
+            if (!IsReady())
             {
                 panelSpaceCenter = default;
                 return false;
             }
 
-            return _miniBoardCenterByMajor.TryGetValue(major, out panelSpaceCenter);
+            return _state.MiniBoardCenterByMajor.TryGetValue(major, out panelSpaceCenter);
         }
 
-        VisualElement IGameplayFieldUiAdapter.FieldContainer => _isBound ? _fieldContainer : null;
+        VisualElement IGameplayFieldUiAdapter.FieldContainer => _state.IsBound ? _state.FieldContainer : null;
 
-        VisualElement IGameplayFieldUiAdapter.Player1Panel => _isBound ? _player1Panel : null;
-        VisualElement IGameplayFieldUiAdapter.Player2Panel => _isBound ? _player2Panel : null;
-        Label IGameplayFieldUiAdapter.Player1ScoreLabel => _isBound ? _player1ScoreLabel : null;
-        Label IGameplayFieldUiAdapter.Player1NameLabel => _isBound ? _player1NameLabel : null;
-        Label IGameplayFieldUiAdapter.Player2ScoreLabel => _isBound ? _player2ScoreLabel : null;
-        Label IGameplayFieldUiAdapter.Player2NameLabel => _isBound ? _player2NameLabel : null;
-        Label IGameplayFieldUiAdapter.DrawsScoreLabel => _isBound ? _drawsScoreLabel : null;
-        Label IGameplayFieldUiAdapter.MoveTimerLabel => _isBound ? _moveTimerLabel : null;
+        VisualElement IGameplayFieldUiAdapter.Player1Panel => _state.IsBound ? _state.Player1Panel : null;
+        VisualElement IGameplayFieldUiAdapter.Player2Panel => _state.IsBound ? _state.Player2Panel : null;
+        Label IGameplayFieldUiAdapter.Player1ScoreLabel => _state.IsBound ? _state.Player1ScoreLabel : null;
+        Label IGameplayFieldUiAdapter.Player1NameLabel => _state.IsBound ? _state.Player1NameLabel : null;
+        Label IGameplayFieldUiAdapter.Player2ScoreLabel => _state.IsBound ? _state.Player2ScoreLabel : null;
+        Label IGameplayFieldUiAdapter.Player2NameLabel => _state.IsBound ? _state.Player2NameLabel : null;
+        Label IGameplayFieldUiAdapter.DrawsScoreLabel => _state.IsBound ? _state.DrawsScoreLabel : null;
+        Label IGameplayFieldUiAdapter.MoveTimerLabel => _state.IsBound ? _state.MoveTimerLabel : null;
 
         public UniTask BindAsync(FieldRenderSpec spec, CancellationToken ct, string gameId = null)
         {
@@ -208,30 +166,30 @@ namespace Runtime.Games.TicTacToe
 
             ct.ThrowIfCancellationRequested();
 
-            if (_isBound)
+            if (_state.IsBound)
                 Unbind();
 
-            _spec = spec;
-            _boundGameId = gameId;
-            ResetStyleTokenState();
+            _state.Spec = spec;
+            _state.CurrentMode = ResolveFieldMode(spec, gameId);
+            _state.ResetStyleTokenState();
 
             try
             {
-                BuildVisualTree();
-                _isBound = true;
-                _bindCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                UpdateCellSizes(_fieldContainer.contentRect);
+                _fieldBuilder.Build();
+                _state.IsBound = true;
+                _state.BindCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                _layoutController.UpdateCellSizes(_state.FieldContainer.contentRect);
             }
             catch
             {
                 CleanupBindings();
-                _bindCts?.Cancel();
-                _bindCts?.Dispose();
-                _bindCts = null;
-                _spec = null;
-                _boundGameId = null;
-                _currentPlayerLabel = null;
-                _isBound = false;
+                _state.BindCts?.Cancel();
+                _state.BindCts?.Dispose();
+                _state.BindCts = null;
+                _state.Spec = null;
+                _state.CurrentMode = default;
+                _state.CurrentPlayerLabel = null;
+                _state.IsBound = false;
                 throw;
             }
 
@@ -240,71 +198,40 @@ namespace Runtime.Games.TicTacToe
 
         public void Unbind()
         {
-            if (!_isBound)
+            if (!_state.IsBound)
                 return;
 
             CleanupBindings();
 
-            _cells.Clear();
-            _miniBoards.Clear();
-            _cellById.Clear();
-            _markById.Clear();
-            _markLabelById.Clear();
-            _ownBoardCellById.Clear();
-            _ownBoardMarkById.Clear();
-            _ownBoardMarkLabelById.Clear();
-            _miniBoardByMajor.Clear();
-            _miniBoardCenterByMajor.Clear();
-            _isCellIdCacheValid = false;
-            _fieldContainer?.Clear();
-            _battleshipBoardsRoot = null;
-            _backButton = null;
-            _spec = null;
-            _boundGameId = null;
-            _currentPlayerLabel = null;
-            _player1Panel = null;
-            _player2Panel = null;
-            _player1ScoreLabel = null;
-            _player2ScoreLabel = null;
-            _player1NameLabel = null;
-            _player2NameLabel = null;
-            _drawsScoreLabel = null;
-            _moveTimerLabel = null;
-            ResetStyleTokenState();
-            _bindCts?.Cancel();
-            _bindCts?.Dispose();
-            _bindCts = null;
-            _isBound = false;
-            _lastCellSize = 0;
-        }
-
-        private void ResetStyleTokenState()
-        {
-            _gridGapHalf = 0f;
-            _miniBoardGapHalf = 0f;
-            _miniBoardBorder = 0f;
-            _miniBoardPadding = 0f;
-            _markFontScale = 0.62f;
-
-            _hasGridGapHalf = false;
-            _hasMiniBoardGapHalf = false;
-            _hasMiniBoardBorder = false;
-            _hasMiniBoardPadding = false;
-            _hasMarkFontScale = false;
+            _state.ClearCellCaches();
+            _state.FieldContainer?.Clear();
+            _state.BattleshipBoardsRoot = null;
+            _state.BackButton = null;
+            _state.Spec = null;
+            _state.CurrentMode = default;
+            _state.CurrentPlayerLabel = null;
+            _state.Player1Panel = null;
+            _state.Player2Panel = null;
+            _state.Player1ScoreLabel = null;
+            _state.Player2ScoreLabel = null;
+            _state.Player1NameLabel = null;
+            _state.Player2NameLabel = null;
+            _state.DrawsScoreLabel = null;
+            _state.MoveTimerLabel = null;
+            _state.ResetStyleTokenState();
+            _state.BindCts?.Cancel();
+            _state.BindCts?.Dispose();
+            _state.BindCts = null;
+            _state.IsBound = false;
+            _state.LastCellSize = 0;
         }
 
         private void CleanupBindings()
         {
-            _fieldContainer?.UnregisterCallback<GeometryChangedEvent>(OnGeometryChanged);
+            _layoutController.CleanupBindings();
 
-            if (_customStyleCallbackElement != null)
-            {
-                _customStyleCallbackElement.UnregisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
-                _customStyleCallbackElement = null;
-            }
-
-            if (_backButton != null)
-                _backButton.clicked -= OnBackClicked;
+            if (_state.BackButton != null)
+                _state.BackButton.clicked -= OnBackClicked;
         }
 
         public void Dispose()
@@ -321,12 +248,71 @@ namespace Runtime.Games.TicTacToe
             _ownBoardCellClicks.Dispose();
         }
 
-        private bool IsBattleshipDualBoardMode()
+        internal bool TryGetCell(CellId id, out VisualElement cellRoot) =>
+            _fieldBuilder.TryGetCell(id, out cellRoot);
+
+        private bool TryGetMark(CellId id, out VisualElement mark) =>
+            _fieldBuilder.TryGetMark(id, out mark);
+
+        internal void EmitCellClick(CellId cellId) =>
+            PublishCellClick(cellId);
+
+        internal void OnCellClicked(VisualElement cell) =>
+            _fieldBuilder.OnCellClicked(cell);
+
+        private void PublishCellClick(CellId cellId)
         {
-            return _spec != null
-                   && _spec.Kind == FieldKind.Classic
-                   && _spec.OuterSize == BattleshipBoardSize
-                   && string.Equals(_boundGameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal);
+            if (!IsReady())
+                return;
+
+            _cellClicks.OnNext(cellId);
+        }
+
+        private void PublishOwnBoardCellClick(CellId cellId)
+        {
+            if (!IsReady())
+                return;
+
+            _ownBoardCellClicks.OnNext(cellId);
+        }
+
+        private bool IsReady() => _state.IsBound && !_disposed;
+
+        private static GameplayFieldPresenterMode ResolveFieldMode(FieldRenderSpec spec, string gameId)
+        {
+            if (spec.Kind == FieldKind.Ultimate)
+                return GameplayFieldPresenterMode.Ultimate;
+
+            return spec.OuterSize == _battleshipBoardSize
+                   && string.Equals(gameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal)
+                ? GameplayFieldPresenterMode.BattleshipDual
+                : GameplayFieldPresenterMode.Classic;
+        }
+
+        private void OnBackClicked()
+        {
+            if (_backInProgress)
+                return;
+
+            _backInProgress = true;
+            BackToModeSelectionAsync(CancellationToken.None).Forget();
+        }
+
+        private async UniTask BackToModeSelectionAsync(CancellationToken ct)
+        {
+            try
+            {
+                await _backHandler.HandleBackAsync(ct);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                Log.Error(LogTags.UI, $"[GameplayFieldPresenter] Failed to return to ModeSelection: {ex}");
+            }
+            finally
+            {
+                _backInProgress = false;
+            }
         }
 
         private string ResolveGameTextOrFallback(string key, string fallback)
@@ -335,11 +321,11 @@ namespace Runtime.Games.TicTacToe
                 return fallback;
 
             var resolved = _localization.Resolve("Game", key);
+            
             if (string.IsNullOrWhiteSpace(resolved) || string.Equals(resolved, key, StringComparison.Ordinal))
                 return fallback;
 
             return resolved;
         }
-
     }
 }

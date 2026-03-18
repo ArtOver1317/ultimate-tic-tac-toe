@@ -1,9 +1,8 @@
 #nullable enable
 
 using System;
-using Runtime.Games.TicTacToe.Moves;
 
-namespace Runtime.Games.TicTacToe.Rules
+namespace Runtime.Gameplay
 {
     public enum GameStatus
     {
@@ -94,10 +93,6 @@ namespace Runtime.Games.TicTacToe.Rules
 
     public interface IRulesEngine
     {
-        /// <summary>
-        /// Pure function. Flat array layout: row-major, index = row * boardSize + col.
-        /// Invariant: cells[lastMove index] must be X or O (never None).
-        /// </summary>
         GameResult Evaluate(PlayerMark[] cells, int boardSize, CellId lastMove);
     }
 }

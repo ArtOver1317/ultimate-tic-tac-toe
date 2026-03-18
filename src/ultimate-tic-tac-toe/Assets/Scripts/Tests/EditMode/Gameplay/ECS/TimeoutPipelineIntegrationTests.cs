@@ -53,7 +53,7 @@ namespace Tests.EditMode.Gameplay.ECS
             _world.GetStash<MatchTag>().Set(_matchEntity);
             _world.GetStash<MatchStatusComponent>().Set(_matchEntity, new MatchStatusComponent
             {
-                Status = GameStatus.InProgress,
+                Status = EcsGameStatus.InProgress,
                 WinnerSlot = null,
                 WinLine = null,
             });
@@ -84,7 +84,7 @@ namespace Tests.EditMode.Gameplay.ECS
 
             // Assert
             _roundFinishedEvent.Should().NotBeNull();
-            _roundFinishedEvent!.Value.Status.Should().Be(GameStatus.Timeout);
+            _roundFinishedEvent!.Value.Status.Should().Be(EcsGameStatus.Timeout);
             _roundFinishedEvent!.Value.WinnerSlot.Should().Be(1);
             _roundFinishedEvent!.Value.WinLine.Should().BeNull();
         }

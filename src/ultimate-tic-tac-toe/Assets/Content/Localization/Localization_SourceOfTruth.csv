@@ -24,6 +24,12 @@ Game.Timer,Time: {seconds}s,Время: {seconds}с,時間: {seconds}秒,Timer d
 Game.Pause,Pause,Пауза,一時停止,Pause button
 Game.Resume,Resume,Продолжить,再開,Resume button
 Game.Surrender,Surrender,Сдаться,降参,Surrender button
+Game.Result.RestartButton,Restart,Заново,リスタート,Result popup restart button
+Game.Result.ExitButton,Exit,Выход,終了,Result popup exit button
+Game.Result.Score,Score: {player1Wins} - {player2Wins}  (Draws: {draws}),Счёт: {player1Wins} - {player2Wins}  (Ничьи: {draws}),スコア: {player1Wins} - {player2Wins}  (引き分け: {draws}),Result popup series score
+Game.Result.LeadPlayer1,Player 1 leads,Игрок 1 лидирует,プレイヤー1がリード,Result popup lead label for player 1
+Game.Result.LeadPlayer2,Player 2 leads,Игрок 2 лидирует,プレイヤー2がリード,Result popup lead label for player 2
+Game.Result.Tied,Tied,Ничья,同点,Result popup lead label when series is tied
 GameOver.Victory,Victory!,Победа!,勝利！,Victory message
 GameOver.Defeat,Defeat,Поражение,敗北,Defeat message
 GameOver.Draw,Draw!,Ничья!,引き分け！,Draw message

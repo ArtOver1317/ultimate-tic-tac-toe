@@ -4,8 +4,9 @@ using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Core;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using Scellecs.Morpeh;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Games.Battleship.ECS.Battle
 {
@@ -110,7 +111,7 @@ namespace Runtime.Games.Battleship.ECS.Battle
             ref BattleshipStateComponent state,
             in MakeMoveRequest moveRequest)
         {
-            if (status.Status != GameStatus.InProgress)
+            if (status.Status != EcsGameStatus.InProgress)
             {
                 Reject(matchEntity, GameplayCommandType.MakeMove, GameplayRejectionReason.RoundAlreadyEnded);
                 return false;
@@ -185,14 +186,14 @@ namespace Runtime.Games.Battleship.ECS.Battle
             if (defenderRemaining > 0)
                 return false;
 
-            status.Status = GameStatus.Win;
+            status.Status = EcsGameStatus.Win;
             status.WinnerSlot = activeSlot;
             state.Phase = BattleshipPhase.Finished;
             _phaseChangedStash.Set(matchEntity, new BattleshipPhaseChangedOneShot { Phase = BattleshipPhase.Finished });
 
             _roundFinishedStash.Set(matchEntity, new RoundFinishedOneShot
             {
-                Status = GameStatus.Win,
+                Status = EcsGameStatus.Win,
                 WinnerSlot = activeSlot,
                 WinLine = null,
             });

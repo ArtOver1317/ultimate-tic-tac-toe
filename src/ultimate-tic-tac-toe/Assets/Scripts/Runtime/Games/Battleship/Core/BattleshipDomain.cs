@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 
 namespace Runtime.Games.Battleship.Core
 {

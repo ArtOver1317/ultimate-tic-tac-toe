@@ -7,6 +7,7 @@ using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Gameplay.Shared;
 using Scellecs.Morpeh;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Gameplay.ECS.Lifecycle
 {
@@ -89,7 +90,7 @@ namespace Runtime.Gameplay.ECS.Lifecycle
             gameIdStash.Set(matchEntity, new GameIdComponent { Value = config.GameId });
 
             var statusStash = World.GetStash<MatchStatusComponent>();
-            statusStash.Set(matchEntity, new MatchStatusComponent { Status = GameStatus.InProgress });
+            statusStash.Set(matchEntity, new MatchStatusComponent { Status = EcsGameStatus.InProgress });
 
             var seqStash = World.GetStash<CommandSequenceComponent>();
             seqStash.Set(matchEntity, new CommandSequenceComponent { Value = 0 });

@@ -17,7 +17,8 @@ using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.ECS;
 using UnityEngine.TestTools;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using CellId = Runtime.Gameplay.CellId;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.Gameplay.ECS
 {
@@ -222,7 +223,7 @@ namespace Tests.EditMode.Gameplay.ECS
             _stateProvider.SubmitCommand(new TimeoutCommand(TicTacToeEcsRegistrar.SlotX));
 
             var rf = EventsOf<RoundFinishedEvent>().Should().ContainSingle().Which;
-            rf.Status.Should().Be(GameStatus.Timeout);
+            rf.Status.Should().Be(EcsGameStatus.Timeout);
             rf.WinnerSlot.Should().Be(TicTacToeEcsRegistrar.SlotO);
             rf.WinLine.Should().BeNull();
         }
@@ -275,7 +276,7 @@ namespace Tests.EditMode.Gameplay.ECS
             _events[3].Should().BeOfType<RoundFinishedEvent>();
 
             var rf = (RoundFinishedEvent)_events[3];
-            rf.Status.Should().Be(GameStatus.Win);
+            rf.Status.Should().Be(EcsGameStatus.Win);
             rf.WinnerSlot.Should().Be(TicTacToeEcsRegistrar.SlotX);
         }
 
@@ -316,7 +317,7 @@ namespace Tests.EditMode.Gameplay.ECS
             PlayMove(2, 1); // X → board full
 
             var rf = EventsOf<RoundFinishedEvent>().Should().ContainSingle().Which;
-            rf.Status.Should().Be(GameStatus.Draw);
+            rf.Status.Should().Be(EcsGameStatus.Draw);
             rf.WinnerSlot.Should().BeNull();
             rf.WinLine.Should().BeNull();
         }

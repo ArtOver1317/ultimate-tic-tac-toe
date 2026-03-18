@@ -1,7 +1,7 @@
 #nullable enable
 
 using System;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 
 namespace Runtime.Gameplay.Shared
 {
@@ -10,7 +10,7 @@ namespace Runtime.Gameplay.Shared
     /// It is independent from any game-specific status enum and lives in shared ECS namespace
     /// to avoid tying shared components to game-specific code (ADR-9).
     /// </summary>
-    public enum GameStatus
+    public enum EcsGameStatus
     {
         InProgress = 0,
         Win = 1,
@@ -20,7 +20,7 @@ namespace Runtime.Gameplay.Shared
 
     /// <summary>
     /// Game-agnostic win line: just start and end cell coordinates.
-    /// TicTacToe-specific <see cref="Runtime.Games.TicTacToe.Rules.WinLine"/> includes Direction/Length;
+    /// Gameplay result <see cref="Runtime.Gameplay.WinLine"/> includes Direction/Length;
     /// this shared version is used in ECS components and cross-game events.
     /// </summary>
     public readonly struct EcsWinLine : IEquatable<EcsWinLine>
@@ -92,11 +92,11 @@ namespace Runtime.Gameplay.Shared
 
     public readonly struct RoundFinishedEvent
     {
-        public GameStatus Status { get; }
+        public EcsGameStatus Status { get; }
         public int? WinnerSlot { get; }
         public EcsWinLine? WinLine { get; }
 
-        public RoundFinishedEvent(GameStatus status, int? winnerSlot, EcsWinLine? winLine)
+        public RoundFinishedEvent(EcsGameStatus status, int? winnerSlot, EcsWinLine? winLine)
         {
             Status = status;
             WinnerSlot = winnerSlot;

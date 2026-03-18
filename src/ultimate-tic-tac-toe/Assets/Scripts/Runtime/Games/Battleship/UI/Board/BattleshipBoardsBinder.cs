@@ -7,7 +7,7 @@ using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Core;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using Runtime.Infrastructure.Logging;
 using UnityEngine.UIElements;
 
@@ -186,7 +186,7 @@ namespace Runtime.Games.Battleship.UI.Board
                 if (row < 0 || row >= boardSize || col < 0 || col >= boardSize)
                     continue;
 
-                var index = (row * boardSize) + col;
+                var index = row * boardSize + col;
                 
                 if (index >= 0 && index < occupancy.Length)
                     occupancy[index] = true;
@@ -235,19 +235,19 @@ namespace Runtime.Games.Battleship.UI.Board
         private static (string text, string? cssClass) ResolveOpponentMark(BattleshipCellMark mark) =>
             mark switch
             {
-                BattleshipCellMark.Miss => ("o", MissClass: _missClass),
-                BattleshipCellMark.Hit => ("X", HitClass: _hitClass),
-                BattleshipCellMark.Sunk => ("X", SunkClass: _sunkClass),
+                BattleshipCellMark.Miss => ("o", _missClass),
+                BattleshipCellMark.Hit => ("X", _hitClass),
+                BattleshipCellMark.Sunk => ("X", _sunkClass),
                 _ => (string.Empty, null),
             };
 
         private static (string text, string? cssClass) ResolveOwnMark(BattleshipCellMark mark, bool hasShip) =>
             mark switch
             {
-                BattleshipCellMark.Miss => ("o", MissClass: _missClass),
-                BattleshipCellMark.Hit => ("X", HitClass: _hitClass),
-                BattleshipCellMark.Sunk => ("X", SunkClass: _sunkClass),
-                _ when hasShip => ("S", ShipClass: _shipClass),
+                BattleshipCellMark.Miss => ("o", _missClass),
+                BattleshipCellMark.Hit => ("X", _hitClass),
+                BattleshipCellMark.Sunk => ("X", _sunkClass),
+                _ when hasShip => ("S", _shipClass),
                 _ => (string.Empty, null),
             };
 

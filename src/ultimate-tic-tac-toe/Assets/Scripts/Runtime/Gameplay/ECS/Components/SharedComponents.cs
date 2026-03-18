@@ -1,11 +1,9 @@
 #nullable enable
 
-// NOTE: CellId currently lives in Runtime.Games.TicTacToe.Moves because it was created
-// for TicTacToe. It's a generic Major/Minor coordinate that works for any grid game.
-// If a second game needs CellId, move it to Runtime.Gameplay (YAGNI until then).
 using Runtime.Gameplay.Shared;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using Scellecs.Morpeh;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Gameplay.ECS.Components
 {
@@ -18,7 +16,7 @@ namespace Runtime.Gameplay.ECS.Components
 
     public struct MatchStatusComponent : IComponent
     {
-        public GameStatus Status;
+        public EcsGameStatus Status;
         public int? WinnerSlot;
         public EcsWinLine? WinLine;
     }

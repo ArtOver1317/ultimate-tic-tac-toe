@@ -1,6 +1,7 @@
 #nullable enable
 
 using Runtime.Games.TicTacToe.AI.Ultimate.Core;
+using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 

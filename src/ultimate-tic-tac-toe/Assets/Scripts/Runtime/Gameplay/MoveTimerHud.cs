@@ -1,10 +1,9 @@
 using System;
 using R3;
-using Runtime.Gameplay;
 using Runtime.Infrastructure.Logging;
 using UnityEngine.UIElements;
 
-namespace Runtime.Games.TicTacToe.Moves
+namespace Runtime.Gameplay
 {
     public interface IMoveTimerHudViewModel : IDisposable
     {
@@ -85,7 +84,7 @@ namespace Runtime.Games.TicTacToe.Moves
 
     public sealed class MoveTimerHudBinder : IDisposable
     {
-        private const string _warningClass = "move-timer-label--warning";
+        private const string WarningClass = "move-timer-label--warning";
 
         private readonly IGameplayFieldUiAdapter _ui;
         private readonly IMoveTimerHudViewModel _viewModel;
@@ -115,7 +114,7 @@ namespace Runtime.Games.TicTacToe.Moves
             }
 
             _timerLabel = _ui.MoveTimerLabel;
-            
+
             if (_timerLabel == null)
             {
                 GameLog.Warning("[MoveTimerHudBinder] Bind skipped: MoveTimerLabel is null.");
@@ -153,7 +152,7 @@ namespace Runtime.Games.TicTacToe.Moves
 
             if (_timerLabel != null)
             {
-                _timerLabel.RemoveFromClassList(_warningClass);
+                _timerLabel.RemoveFromClassList(WarningClass);
                 _timerLabel.style.display = DisplayStyle.None;
                 _timerLabel.text = "00";
             }
@@ -208,9 +207,9 @@ namespace Runtime.Games.TicTacToe.Moves
                 return;
 
             if (isWarning)
-                _timerLabel.AddToClassList(_warningClass);
+                _timerLabel.AddToClassList(WarningClass);
             else
-                _timerLabel.RemoveFromClassList(_warningClass);
+                _timerLabel.RemoveFromClassList(WarningClass);
         }
 
         private void ThrowIfDisposed()

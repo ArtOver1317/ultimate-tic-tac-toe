@@ -4,7 +4,7 @@ using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Core;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 
 namespace Runtime.Games.Battleship.ECS.Battle
 {

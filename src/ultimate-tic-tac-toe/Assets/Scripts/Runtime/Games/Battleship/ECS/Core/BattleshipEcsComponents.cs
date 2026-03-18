@@ -3,7 +3,7 @@
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Placement;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using Scellecs.Morpeh;
 
 namespace Runtime.Games.Battleship.ECS.Core

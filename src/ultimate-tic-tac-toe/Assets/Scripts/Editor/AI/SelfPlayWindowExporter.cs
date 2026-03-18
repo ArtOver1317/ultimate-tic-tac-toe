@@ -1,9 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
-using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.AI.SelfPlay;
-using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.AI.Ultimate.SelfPlay;
 using UnityEditor;
 using UnityEngine;

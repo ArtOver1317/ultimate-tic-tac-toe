@@ -11,6 +11,7 @@ using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.AI.Core;
 using Runtime.Games.TicTacToe.AI.Profiles;
 using Runtime.Games.TicTacToe.AI.Search;
+using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Rules;
 using UnityEngine.TestTools;

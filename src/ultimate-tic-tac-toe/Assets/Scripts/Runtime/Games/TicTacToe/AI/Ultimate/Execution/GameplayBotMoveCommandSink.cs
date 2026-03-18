@@ -18,7 +18,7 @@ namespace Runtime.Games.TicTacToe.AI.Ultimate.Execution
             _failSafeGateway = failSafeGateway ?? throw new ArgumentNullException(nameof(failSafeGateway));
         }
 
-        public bool TrySubmitMove(Moves.CellId move, BotTurnId turnId)
+        public bool TrySubmitMove(CellId move, BotTurnId turnId)
         {
             if (_failSafeGateway.IsInputLocked) 
                 return false;

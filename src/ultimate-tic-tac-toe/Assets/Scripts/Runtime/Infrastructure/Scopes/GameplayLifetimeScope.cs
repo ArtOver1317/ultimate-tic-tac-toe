@@ -8,6 +8,7 @@ using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Lifecycle;
 using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.ECS.Publishing;
+using Runtime.Gameplay.Startup;
 using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.AI;
 using Runtime.Games.Battleship.Core;
@@ -17,6 +18,7 @@ using Runtime.Games.Battleship.Networking;
 using Runtime.Games.Battleship.Placement;
 using Runtime.Games.Battleship.Recovery;
 using Runtime.Games.Battleship.State;
+using Runtime.Games.Battleship.Startup;
 using Runtime.Games.Battleship.UI;
 using Runtime.Games.Battleship.UI.Board;
 using Runtime.Games.Battleship.UI.Placement;
@@ -37,6 +39,7 @@ using Runtime.Games.TicTacToe.Rules;
 using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Runtime.Games.TicTacToe.Series;
+using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.PlayerStatistics;
@@ -261,9 +264,93 @@ namespace Runtime.Infrastructure.Scopes
             builder.Register<PlayerStatisticsMatchReporter>(Lifetime.Scoped)
                 .AsSelf()
                 .As<IDisposable>();
-            builder.Register<GameplayStartup>(Lifetime.Scoped)
-                .As<IGameplayStartup>()
+            builder.Register<GameplayStartupRuntimeState>(Lifetime.Scoped)
+                .AsSelf();
+            builder.Register(resolver => new GameplayStartupCoreServices(
+                resolver.Resolve<IGameLaunchConfigStore>(),
+                resolver.Resolve<IGameService>(),
+                resolver.Resolve<IGameplayFieldPresenter>(),
+                resolver.Resolve<IGameplayFieldUiAdapter>(),
+                resolver.Resolve<IMatchEcsLifecycle>(),
+                resolver.Resolve<IGameplayEventStream>(),
+                resolver.Resolve<IGameplayCommandSink>(),
+                resolver.Resolve<GameplayMovesBinder>(),
+                resolver.Resolve<WinLineRenderer>(),
+                resolver.Resolve<ISeriesService>(),
+                resolver.Resolve<IGameplayBackHandler>(),
+                resolver.Resolve<IGameStateMachine>(),
+                resolver.Resolve<ILocalizationService>(),
+                resolver.Resolve<IMatchPlayerNames>(),
+                resolver.Resolve<PlayerStatisticsMatchReporter>()), Lifetime.Scoped)
+                .AsSelf();
+            builder.Register(resolver => new GameplayStartupTimerServices(
+                resolver.Resolve<IMoveTimerService>(),
+                resolver.Resolve<IBattleshipPlacementTimerService>(),
+                resolver.Resolve<MoveTimerHudBinder>(),
+                resolver.Resolve<BattleshipPlacementTimerHudBinder>()), Lifetime.Scoped)
+                .AsSelf();
+            builder.Register(resolver => new GameplayStartupBotServices(
+                resolver.Resolve<IBotTurnDriver>(),
+                resolver.Resolve<IBattleshipBotDriver>(),
+                resolver.Resolve<IBotTurnOrchestrator>(),
+                resolver.Resolve<IMatchFailSafeGateway>(),
+                resolver.Resolve<IUltimateGameplaySnapshotProvider>(),
+                resolver.Resolve<IUltimateGameplayEventStream>()), Lifetime.Scoped)
+                .AsSelf();
+            builder.Register(resolver => new GameplayStartupOnlineServices(
+                resolver.Resolve<IGameplayNetworkBridge>(),
+                resolver.Resolve<IBattleshipNetworkBridge>(),
+                resolver.Resolve<IOnlineGameplaySessionContextStore>(),
+                resolver.Resolve<IOnlineSessionFlowService>(),
+                resolver.Resolve<IOnlineSessionLauncher>(),
+                resolver.Resolve<IOnlinePlayerNamesStore>(),
+                resolver.Resolve<IMatchStateProvider>()), Lifetime.Scoped)
+                .AsSelf();
+            builder.Register(resolver => new GameplayStartupBattleshipServices(
+                resolver.Resolve<IBattleshipLayoutSerializer>(),
+                resolver.Resolve<BattleshipBoardsBinder>(),
+                resolver.Resolve<IBattleshipPlacementUiController>(),
+                resolver.Resolve<IBattleshipGameplaySnapshotProvider>(),
+                resolver.Resolve<IBattleshipGameplayEventStream>(),
+                resolver.Resolve<IBattleshipRecoveryStateApplier>()), Lifetime.Scoped)
+                .AsSelf();
+            builder.Register(resolver => new GameplayStartupDependencies(
+                resolver.Resolve<GameplayStartupCoreServices>(),
+                resolver.Resolve<GameplayStartupTimerServices>(),
+                resolver.Resolve<GameplayStartupBotServices>(),
+                resolver.Resolve<GameplayStartupOnlineServices>(),
+                resolver.Resolve<GameplayStartupBattleshipServices>()), Lifetime.Scoped)
+                .AsSelf();
+            builder.Register<GameplayStartupBattleshipSessionScoreStore>(Lifetime.Scoped)
+                .AsSelf();
+            builder.Register<GameplayStartupUiCoordinator>(Lifetime.Scoped)
+                .AsSelf();
+            builder.Register<GameplayStartupBotCoordinator>(Lifetime.Scoped)
+                .AsSelf();
+            builder.Register<GameplayStartupBattleshipRecoveryCoordinator>(Lifetime.Scoped)
+                .AsSelf();
+            builder.Register<GameplayStartupOnlineCoordinator>(Lifetime.Scoped)
+                .AsSelf();
+            builder.Register<GameplayStartupRoundCoordinator>(Lifetime.Scoped)
+                .AsSelf();
+            builder.Register<BattleshipGameplayStartup>(Lifetime.Scoped)
+                .AsSelf()
                 .As<IDisposable>();
+            builder.Register<TicTacToeGameplayStartup>(Lifetime.Scoped)
+                .AsSelf()
+                .As<IDisposable>();
+            builder.Register<IGameplayStartup>(resolver =>
+            {
+                var configStore = resolver.Resolve<IGameLaunchConfigStore>();
+                if (configStore.TryPeek(out var config)
+                    && config != null
+                    && string.Equals(config.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
+                {
+                    return resolver.Resolve<BattleshipGameplayStartup>();
+                }
+
+                return resolver.Resolve<TicTacToeGameplayStartup>();
+            }, Lifetime.Scoped);
         }
 
         protected override void Awake()

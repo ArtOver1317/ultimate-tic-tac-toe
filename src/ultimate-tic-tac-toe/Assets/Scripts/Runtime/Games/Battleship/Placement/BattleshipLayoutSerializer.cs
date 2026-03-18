@@ -7,7 +7,7 @@ using System.Text;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Core;
 using Runtime.Games.Battleship.Networking;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 
 namespace Runtime.Games.Battleship.Placement
 {

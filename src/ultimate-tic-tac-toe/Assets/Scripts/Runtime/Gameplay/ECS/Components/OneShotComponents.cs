@@ -1,8 +1,8 @@
 using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.TicTacToe.Moves;
 using Scellecs.Morpeh;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Gameplay.ECS.Components
 {
@@ -59,7 +59,7 @@ namespace Runtime.Gameplay.ECS.Components
     /// </summary>
     public struct RoundFinishedOneShot : IComponent
     {
-        public GameStatus Status;
+        public EcsGameStatus Status;
         public int? WinnerSlot;
         public EcsWinLine? WinLine;
     }

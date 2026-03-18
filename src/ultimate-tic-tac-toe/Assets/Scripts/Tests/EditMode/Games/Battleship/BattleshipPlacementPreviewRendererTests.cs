@@ -8,7 +8,7 @@ using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
 using Runtime.Games.Battleship.UI;
 using Runtime.Games.Battleship.UI.Placement;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using UnityEngine.UIElements;
 
 namespace Tests.EditMode.Games.Battleship

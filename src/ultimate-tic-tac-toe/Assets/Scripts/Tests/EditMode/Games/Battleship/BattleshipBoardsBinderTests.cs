@@ -14,8 +14,8 @@ using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.UI;
 using Runtime.Games.Battleship.UI.Board;
-using Runtime.Games.TicTacToe.Moves;
 using UnityEngine.UIElements;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.Games.Battleship
 {
@@ -110,7 +110,7 @@ namespace Tests.EditMode.Games.Battleship
         {
             public BattleshipPhase Phase => BattleshipPhase.Battle;
             public int ActivePlayerSlot => PlayerSlotMapping.SlotX;
-            public GameStatus CurrentStatus => GameStatus.InProgress;
+            public EcsGameStatus CurrentStatus => EcsGameStatus.InProgress;
             public int? WinnerSlot => null;
             public IReadOnlyList<BattleshipCellMark> OpponentMarks { get; set; } = Array.Empty<BattleshipCellMark>();
             public IReadOnlyList<BattleshipCellMark> OwnMarks { get; set; } = Array.Empty<BattleshipCellMark>();

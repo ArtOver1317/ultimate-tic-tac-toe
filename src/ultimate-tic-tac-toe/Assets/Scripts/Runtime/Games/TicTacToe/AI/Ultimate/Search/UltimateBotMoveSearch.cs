@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Threading;
 using Runtime.Games.TicTacToe.AI.Ultimate.Core;
 using Runtime.Games.TicTacToe.AI.Ultimate.Decision;
+using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 

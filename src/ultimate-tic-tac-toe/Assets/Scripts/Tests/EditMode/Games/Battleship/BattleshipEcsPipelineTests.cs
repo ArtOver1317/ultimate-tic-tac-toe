@@ -21,7 +21,7 @@ using Runtime.Games.Battleship.ECS.Core;
 using Runtime.Games.Battleship.Placement;
 using Runtime.Games.Battleship.Recovery;
 using Runtime.Games.Battleship.State;
-using Runtime.Games.TicTacToe.Moves;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.Games.Battleship
 {
@@ -245,7 +245,7 @@ namespace Tests.EditMode.Games.Battleship
             var applied = recoveryApplier.TryApplyRecoveryState(new BattleshipRecoveryState(
                 BattleshipPhase.Placement,
                 activePlayerSlot: -1,
-                GameStatus.InProgress,
+                EcsGameStatus.InProgress,
                 winnerSlot: null,
                 player0Layout: null,
                 player1Layout: null,
@@ -272,7 +272,7 @@ namespace Tests.EditMode.Games.Battleship
             var applied = _battleshipRecoveryStateApplier.TryApplyRecoveryState(new BattleshipRecoveryState(
                 BattleshipPhase.Battle,
                 activePlayerSlot: PlayerSlotMapping.SlotO,
-                GameStatus.InProgress,
+                EcsGameStatus.InProgress,
                 winnerSlot: null,
                 player0Layout: _autoPlacer.Generate(123456),
                 player1Layout: _autoPlacer.Generate(654321),
@@ -348,7 +348,7 @@ namespace Tests.EditMode.Games.Battleship
             _stateProvider.SubmitCommand(new TimeoutCommand(timedOutPlayerSlot));
 
             roundFinished.Should().ContainSingle();
-            roundFinished[0].Status.Should().Be(GameStatus.Timeout);
+            roundFinished[0].Status.Should().Be(EcsGameStatus.Timeout);
             roundFinished[0].WinnerSlot.Should().Be(opponentSlot);
             _stateProvider.LastMove.Should().Be(opponentWaterCells[1]);
         }
@@ -403,10 +403,10 @@ namespace Tests.EditMode.Games.Battleship
 
             var snapshot = _battleshipSnapshotProvider;
             roundFinished.Should().ContainSingle();
-            roundFinished[0].Status.Should().Be(GameStatus.Win);
+            roundFinished[0].Status.Should().Be(EcsGameStatus.Win);
             roundFinished[0].WinnerSlot.Should().Be(shooterSlot);
             snapshot.Phase.Should().Be(BattleshipPhase.Finished);
-            snapshot.CurrentStatus.Should().Be(GameStatus.Win);
+            snapshot.CurrentStatus.Should().Be(EcsGameStatus.Win);
             snapshot.WinnerSlot.Should().Be(shooterSlot);
         }
 

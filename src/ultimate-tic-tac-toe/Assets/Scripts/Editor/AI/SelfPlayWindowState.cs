@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.AI.Profiles;
 using Runtime.Games.TicTacToe.AI.SelfPlay;
-using Runtime.Games.TicTacToe.AI.Ultimate;
 using Runtime.Games.TicTacToe.AI.Ultimate.Profiles;
 using Runtime.Games.TicTacToe.AI.Ultimate.SelfPlay;
 using UnityEngine;

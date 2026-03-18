@@ -13,7 +13,8 @@ using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using CellId = Runtime.Gameplay.CellId;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.Gameplay
 {
@@ -41,7 +42,7 @@ namespace Tests.EditMode.Gameplay
             public Observable<RoundFinishedEvent> RoundFinished => _roundFinished;
 
             public void PublishCurrentPlayerChanged(int slot) => _currentPlayerChanged.OnNext(new CurrentPlayerChangedEvent(slot));
-            public void PublishRoundFinished(GameStatus status) => _roundFinished.OnNext(new RoundFinishedEvent(status, null, null));
+            public void PublishRoundFinished(EcsGameStatus status) => _roundFinished.OnNext(new RoundFinishedEvent(status, null, null));
         }
 
         private sealed class CapturingCommandSink : IGameplayCommandSink
@@ -164,7 +165,7 @@ namespace Tests.EditMode.Gameplay
             using var sut = new LocalMoveTimerService(CreateStoreWithLimit(5), stream, sink, time);
             sut.StartOrResetForPlayer(0);
 
-            stream.PublishRoundFinished(GameStatus.Win);
+            stream.PublishRoundFinished(EcsGameStatus.Win);
             await UniTask.DelayFrame(1);
 
             sut.IsActive.CurrentValue.Should().BeFalse();

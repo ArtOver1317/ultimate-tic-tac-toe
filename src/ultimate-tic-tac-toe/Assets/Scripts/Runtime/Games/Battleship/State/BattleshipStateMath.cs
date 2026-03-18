@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Core;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using CellId = Runtime.Gameplay.CellId;
 
 namespace Runtime.Games.Battleship.State
 {

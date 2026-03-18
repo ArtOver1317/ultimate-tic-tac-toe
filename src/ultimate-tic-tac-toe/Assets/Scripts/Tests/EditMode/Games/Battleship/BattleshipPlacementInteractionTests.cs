@@ -17,8 +17,8 @@ using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
 using Runtime.Games.Battleship.UI.Placement;
 using Runtime.Localization;
-using Runtime.Games.TicTacToe.Moves;
 using UnityEngine.UIElements;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.Games.Battleship
 {
@@ -32,7 +32,7 @@ namespace Tests.EditMode.Games.Battleship
         {
             public BattleshipPhase Phase { get; set; } = BattleshipPhase.Waiting;
             public int ActivePlayerSlot { get; set; } = -1;
-            public GameStatus CurrentStatus { get; set; } = GameStatus.InProgress;
+            public EcsGameStatus CurrentStatus { get; set; } = EcsGameStatus.InProgress;
             public int? WinnerSlot { get; set; }
             public bool SlotXConfirmed { get; set; } = true;
 

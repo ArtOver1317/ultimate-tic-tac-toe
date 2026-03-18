@@ -2,7 +2,7 @@
 
 using System;
 using Runtime.Games.TicTacToe.AI.Profiles;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 
 namespace Runtime.Games.TicTacToe.AI.Search
 {

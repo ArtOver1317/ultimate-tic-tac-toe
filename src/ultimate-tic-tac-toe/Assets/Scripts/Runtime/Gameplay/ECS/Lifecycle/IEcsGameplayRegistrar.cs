@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.Gameplay.Shared;
 using Scellecs.Morpeh;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using CellId = Runtime.Gameplay.CellId;
 
 namespace Runtime.Gameplay.ECS.Lifecycle
 {

@@ -3,6 +3,7 @@ using Runtime.Gameplay.Shared;
 using Runtime.Infrastructure.Logging;
 using Scellecs.Morpeh;
 using StripLog;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Gameplay.ECS.Pipeline
 {
@@ -43,7 +44,7 @@ namespace Runtime.Gameplay.ECS.Pipeline
 
                 ref var status = ref _statusStash.Get(entity);
                 
-                if (status.Status != GameStatus.InProgress)
+                if (status.Status != EcsGameStatus.InProgress)
                 {
                     _timeoutStash.Remove(entity);
                     continue;
@@ -81,13 +82,13 @@ namespace Runtime.Gameplay.ECS.Pipeline
                     continue;
                 }
 
-                status.Status = GameStatus.Timeout;
+                status.Status = EcsGameStatus.Timeout;
                 status.WinnerSlot = winnerSlot;
                 status.WinLine = null;
 
                 _roundFinishedStash.Set(entity, new RoundFinishedOneShot
                 {
-                    Status = GameStatus.Timeout,
+                    Status = EcsGameStatus.Timeout,
                     WinnerSlot = winnerSlot,
                     WinLine = null,
                 });

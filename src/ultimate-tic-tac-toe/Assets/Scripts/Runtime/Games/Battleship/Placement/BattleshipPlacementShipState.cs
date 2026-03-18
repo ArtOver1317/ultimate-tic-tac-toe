@@ -1,7 +1,7 @@
 #nullable enable
 
 using Runtime.Games.Battleship.Core;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 
 namespace Runtime.Games.Battleship.Placement
 {

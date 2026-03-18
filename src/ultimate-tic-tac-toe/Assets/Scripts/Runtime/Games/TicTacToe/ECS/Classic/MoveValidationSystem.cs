@@ -1,7 +1,8 @@
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using Scellecs.Morpeh;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Games.TicTacToe.ECS
 {
@@ -36,7 +37,7 @@ namespace Runtime.Games.TicTacToe.ECS
                 ref var status = ref _statusStash.Get(entity);
 
                 // Check: match must be in progress
-                if (status.Status != GameStatus.InProgress)
+                if (status.Status != EcsGameStatus.InProgress)
                 {
                     Reject(entity, GameplayRejectionReason.RoundAlreadyEnded);
                     _moveRequestStash.Remove(entity);

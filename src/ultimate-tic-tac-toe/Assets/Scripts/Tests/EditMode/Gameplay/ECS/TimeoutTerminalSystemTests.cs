@@ -61,7 +61,7 @@ namespace Tests.EditMode.Gameplay.ECS
         {
             // Arrange
             var matchEntity = CreateMatchEntity(
-                status: GameStatus.InProgress,
+                status: EcsGameStatus.InProgress,
                 playerSlots: new[] { 0, 1 },
                 playerCount: 2,
                 loserSlot: loserSlot);
@@ -72,13 +72,13 @@ namespace Tests.EditMode.Gameplay.ECS
 
             // Assert
             var status = _statusStash.Get(matchEntity);
-            status.Status.Should().Be(GameStatus.Timeout);
+            status.Status.Should().Be(EcsGameStatus.Timeout);
             status.WinnerSlot.Should().Be(expectedWinnerSlot);
             status.WinLine.Should().BeNull();
 
             _roundFinishedStash.Has(matchEntity).Should().BeTrue();
             var roundFinished = _roundFinishedStash.Get(matchEntity);
-            roundFinished.Status.Should().Be(GameStatus.Timeout);
+            roundFinished.Status.Should().Be(EcsGameStatus.Timeout);
             roundFinished.WinnerSlot.Should().Be(expectedWinnerSlot);
             roundFinished.WinLine.Should().BeNull();
 
@@ -90,7 +90,7 @@ namespace Tests.EditMode.Gameplay.ECS
         {
             // Arrange
             var matchEntity = CreateMatchEntity(
-                status: GameStatus.Win,
+                status: EcsGameStatus.Win,
                 playerSlots: new[] { 0, 1 },
                 playerCount: 2,
                 loserSlot: 0);
@@ -100,7 +100,7 @@ namespace Tests.EditMode.Gameplay.ECS
             _world.Update(0f);
 
             // Assert
-            _statusStash.Get(matchEntity).Status.Should().Be(GameStatus.Win);
+            _statusStash.Get(matchEntity).Status.Should().Be(EcsGameStatus.Win);
             _timeoutRequestStash.Has(matchEntity).Should().BeFalse();
             _roundFinishedStash.Has(matchEntity).Should().BeFalse();
         }
@@ -118,7 +118,7 @@ namespace Tests.EditMode.Gameplay.ECS
             {
                 _statusStash.Set(matchEntity, new MatchStatusComponent
                 {
-                    Status = GameStatus.InProgress,
+                    Status = EcsGameStatus.InProgress,
                     WinnerSlot = null,
                     WinLine = null,
                 });
@@ -153,7 +153,7 @@ namespace Tests.EditMode.Gameplay.ECS
                 new Regex("Unsupported players layout for timeout resolution"));
 
             var matchEntity = CreateMatchEntity(
-                status: GameStatus.InProgress,
+                status: EcsGameStatus.InProgress,
                 playerSlots: new[] { 0, 1, 2 },
                 playerCount: 3,
                 loserSlot: 0);
@@ -163,7 +163,7 @@ namespace Tests.EditMode.Gameplay.ECS
             _world.Update(0f);
 
             // Assert
-            _statusStash.Get(matchEntity).Status.Should().Be(GameStatus.InProgress);
+            _statusStash.Get(matchEntity).Status.Should().Be(EcsGameStatus.InProgress);
             _roundFinishedStash.Has(matchEntity).Should().BeFalse();
             _timeoutRequestStash.Has(matchEntity).Should().BeFalse();
         }
@@ -176,7 +176,7 @@ namespace Tests.EditMode.Gameplay.ECS
                 new Regex("Winner slot could not be resolved"));
 
             var matchEntity = CreateMatchEntity(
-                status: GameStatus.InProgress,
+                status: EcsGameStatus.InProgress,
                 playerSlots: new[] { 0, 0 },
                 playerCount: 2,
                 loserSlot: 0);
@@ -186,7 +186,7 @@ namespace Tests.EditMode.Gameplay.ECS
             _world.Update(0f);
 
             // Assert
-            _statusStash.Get(matchEntity).Status.Should().Be(GameStatus.InProgress);
+            _statusStash.Get(matchEntity).Status.Should().Be(EcsGameStatus.InProgress);
             _roundFinishedStash.Has(matchEntity).Should().BeFalse();
             _timeoutRequestStash.Has(matchEntity).Should().BeFalse();
         }
@@ -199,7 +199,7 @@ namespace Tests.EditMode.Gameplay.ECS
                 new Regex("Invalid LoserSlot=99"));
 
             var matchEntity = CreateMatchEntity(
-                status: GameStatus.InProgress,
+                status: EcsGameStatus.InProgress,
                 playerSlots: new[] { 0, 1 },
                 playerCount: 2,
                 loserSlot: 99);
@@ -209,12 +209,12 @@ namespace Tests.EditMode.Gameplay.ECS
             _world.Update(0f);
 
             // Assert
-            _statusStash.Get(matchEntity).Status.Should().Be(GameStatus.InProgress);
+            _statusStash.Get(matchEntity).Status.Should().Be(EcsGameStatus.InProgress);
             _roundFinishedStash.Has(matchEntity).Should().BeFalse();
             _timeoutRequestStash.Has(matchEntity).Should().BeFalse();
         }
 
-        private Entity CreateMatchEntity(GameStatus status, int[]? playerSlots, int playerCount, int loserSlot)
+        private Entity CreateMatchEntity(EcsGameStatus status, int[]? playerSlots, int playerCount, int loserSlot)
         {
             var entity = _world.CreateEntity();
             _matchTagStash.Set(entity);

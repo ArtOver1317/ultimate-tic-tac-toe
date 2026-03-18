@@ -3,7 +3,6 @@ using FluentAssertions;
 using NUnit.Framework;
 using R3;
 using Runtime.Gameplay;
-using Runtime.Games.TicTacToe.Moves;
 using UnityEngine.UIElements;
 
 namespace Tests.EditMode.Games.TicTacToe

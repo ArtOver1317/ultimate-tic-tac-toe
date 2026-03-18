@@ -1,10 +1,9 @@
 using System;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
-using Runtime.Games.Battleship;
-
+using Runtime.Games.Battleship.ECS.Core;
 using Runtime.Gameplay;
+
 namespace Runtime.Games.TicTacToe
 {
     public sealed class FieldSpecMapper
@@ -35,7 +34,7 @@ namespace Runtime.Games.TicTacToe
 
             if (string.Equals(config.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal)
                 && config.GameConfig is BattleshipConfig)
-                return FieldRenderSpec.Classic(10);
+                return FieldRenderSpec.Classic(BattleshipEcsBoard.DefaultBoardSize);
 
             throw new InvalidOperationException(
                 $"Unsupported game config type: '{config.GameConfig?.GetType().Name ?? "null"}'.");

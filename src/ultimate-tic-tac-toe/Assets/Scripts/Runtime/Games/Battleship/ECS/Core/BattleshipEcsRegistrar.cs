@@ -14,7 +14,6 @@ using Runtime.Games.Battleship.ECS.Battle;
 using Runtime.Games.Battleship.ECS.Events;
 using Runtime.Games.Battleship.ECS.Flow;
 using Runtime.Games.Battleship.ECS.Placement;
-using Runtime.Games.TicTacToe.Moves;
 using Scellecs.Morpeh;
 
 namespace Runtime.Games.Battleship.ECS.Core

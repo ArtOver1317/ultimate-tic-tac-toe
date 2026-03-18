@@ -1,17 +1,16 @@
 using System;
 using System.Collections.Generic;
 using R3;
-using Runtime.Gameplay;
 using Runtime.Gameplay.Shared;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using UnityEngine.UIElements;
 
-namespace Runtime.Games.TicTacToe.Moves
+namespace Runtime.Gameplay
 {
     public sealed class GameplayMovesBinder : IDisposable
     {
-        private const string _activePanelClass = "player-panel--active";
+        private const string ActivePanelClass = "player-panel--active";
 
         private readonly IGameplayFieldUiAdapter _ui;
         private readonly IGameplayCommandSink _commandSink;
@@ -32,19 +31,18 @@ namespace Runtime.Games.TicTacToe.Moves
             IGameplayEventStream eventStream,
             IGameplaySnapshotProvider snapshotProvider,
             IGameplayMovesModeBehavior modeBehavior = null,
-            ILocalizationService localization = null,
-            MovesVfxSettings? vfxSettings = null)
+            ILocalizationService localization = null)
         {
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
             _commandSink = commandSink ?? throw new ArgumentNullException(nameof(commandSink));
             _eventStream = eventStream ?? throw new ArgumentNullException(nameof(eventStream));
             _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
             _modeBehavior = modeBehavior ?? DefaultGameplayMovesModeBehavior.Instance;
-            
+
             _fieldRenderer = new GameplayMovesFieldRenderer(
                 _ui,
-                NormalizeVfxSettings(vfxSettings ?? MovesVfxSettings.Default));
-            
+                NormalizeVfxSettings(MovesVfxSettings.Default));
+
             _localization = localization;
         }
 
@@ -112,14 +110,12 @@ namespace Runtime.Games.TicTacToe.Moves
             catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
             {
                 GameLog.Error($"[GameplayMovesBinder] Bind failed: UI is not ready ({ex.GetType().Name}). {ex.Message}");
-
                 throw new InvalidOperationException("GameplayMovesBinder.Bind() failed: UI is not ready.", ex);
             }
 
             if (label == null)
             {
                 GameLog.Error("[GameplayMovesBinder] Bind failed: CurrentPlayerLabel is null.");
-
                 throw new InvalidOperationException("GameplayMovesBinder.Bind() failed: CurrentPlayerLabel is null.");
             }
 
@@ -163,7 +159,6 @@ namespace Runtime.Games.TicTacToe.Moves
             }
             catch (ObjectDisposedException)
             {
-                // If scope is being torn down, ignore stray clicks.
             }
         }
 
@@ -194,7 +189,7 @@ namespace Runtime.Games.TicTacToe.Moves
         private static IReadOnlyList<CellValue> MapEcsCells(IReadOnlyList<CellSnapshot> ecsCells)
         {
             var result = new CellValue[ecsCells.Count];
-            
+
             for (var i = 0; i < ecsCells.Count; i++)
             {
                 result[i] = new CellValue(ecsCells[i].CellId, PlayerSlotMapping.SlotToMark(ecsCells[i].Slot));
@@ -224,24 +219,24 @@ namespace Runtime.Games.TicTacToe.Moves
         {
             var p1 = _ui.Player1Panel;
             var p2 = _ui.Player2Panel;
-            
+
             if (p1 == null || p2 == null)
                 return;
 
             if (mark == PlayerMark.X)
             {
-                p1.AddToClassList(_activePanelClass);
-                p2.RemoveFromClassList(_activePanelClass);
+                p1.AddToClassList(ActivePanelClass);
+                p2.RemoveFromClassList(ActivePanelClass);
             }
             else if (mark == PlayerMark.O)
             {
-                p1.RemoveFromClassList(_activePanelClass);
-                p2.AddToClassList(_activePanelClass);
+                p1.RemoveFromClassList(ActivePanelClass);
+                p2.AddToClassList(ActivePanelClass);
             }
             else
             {
-                p1.RemoveFromClassList(_activePanelClass);
-                p2.RemoveFromClassList(_activePanelClass);
+                p1.RemoveFromClassList(ActivePanelClass);
+                p2.RemoveFromClassList(ActivePanelClass);
             }
         }
 

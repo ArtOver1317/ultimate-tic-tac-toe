@@ -5,7 +5,7 @@ using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using Runtime.Localization;
 using UnityEngine.UIElements;
 
@@ -13,23 +13,23 @@ namespace Runtime.Games.Battleship.UI.Placement
 {
     public sealed class BattleshipPlacementUiController : IBattleshipPlacementUiController
     {
-        private const string AutoButtonKey = "Game.Battleship.Placement.AutoButton";
-        private const string RotateButtonKey = "Game.Battleship.Placement.RotateButton";
-        private const string RemoveButtonKey = "Game.Battleship.Placement.RemoveButton";
-        private const string ReadyButtonKey = "Game.Battleship.Placement.ReadyButton";
-        private const string WaitingStatusKey = "Game.Battleship.Placement.Status.WaitingOpponent";
-        private const string UnavailableStatusKey = "Game.Battleship.Placement.Status.Unavailable";
-        private const string PlaceAllShipsStatusKey = "Game.Battleship.Placement.Status.PlaceAllShips";
-        private const string ConfirmReadyStatusKey = "Game.Battleship.Placement.Status.ConfirmReady";
+        private const string _autoButtonKey = "Game.Battleship.Placement.AutoButton";
+        private const string _rotateButtonKey = "Game.Battleship.Placement.RotateButton";
+        private const string _removeButtonKey = "Game.Battleship.Placement.RemoveButton";
+        private const string _readyButtonKey = "Game.Battleship.Placement.ReadyButton";
+        private const string _waitingStatusKey = "Game.Battleship.Placement.Status.WaitingOpponent";
+        private const string _unavailableStatusKey = "Game.Battleship.Placement.Status.Unavailable";
+        private const string _placeAllShipsStatusKey = "Game.Battleship.Placement.Status.PlaceAllShips";
+        private const string _confirmReadyStatusKey = "Game.Battleship.Placement.Status.ConfirmReady";
 
-        private const string AutoButtonFallback = "Auto place";
-        private const string RotateButtonFallback = "Rotate";
-        private const string RemoveButtonFallback = "Remove";
-        private const string ReadyButtonFallback = "Ready";
-        private const string WaitingStatusFallback = "Placement submitted. Waiting for opponent.";
-        private const string UnavailableStatusFallback = "Placement is unavailable.";
-        private const string PlaceAllShipsStatusFallback = "Place all ships.";
-        private const string ConfirmReadyStatusFallback = "Press Ready to confirm placement.";
+        private const string _autoButtonFallback = "Auto place";
+        private const string _rotateButtonFallback = "Rotate";
+        private const string _removeButtonFallback = "Remove";
+        private const string _readyButtonFallback = "Ready";
+        private const string _waitingStatusFallback = "Placement submitted. Waiting for opponent.";
+        private const string _unavailableStatusFallback = "Placement is unavailable.";
+        private const string _placeAllShipsStatusFallback = "Place all ships.";
+        private const string _confirmReadyStatusFallback = "Press Ready to confirm placement.";
 
         private readonly IGameplayFieldUiAdapter _fieldUiAdapter;
         private readonly IBattleshipFieldUiAdapter? _battleshipFieldUiAdapter;
@@ -59,6 +59,7 @@ namespace Runtime.Games.Battleship.UI.Placement
             _eventStream = eventStream ?? throw new ArgumentNullException(nameof(eventStream));
             _localization = localization;
             _previewRenderer = new BattleshipPlacementPreviewRenderer(_fieldUiAdapter, _battleshipFieldUiAdapter);
+            
             _panelView = new BattleshipPlacementPanelView(
                 onAutoPlace: () => _placementService.AutoPlace(),
                 onRotate: () => _placementService.TryToggleSelectedOrientation(),
@@ -88,22 +89,17 @@ namespace Runtime.Games.Battleship.UI.Placement
         private bool TryAttachPanel() =>
             _panelView.TryAttach(_fieldUiAdapter.FieldContainer, _placementService.Ships);
 
-        private void SubscribeToCellClicks()
-        {
+        private void SubscribeToCellClicks() =>
             ResolvePlacementCellClicks()
                 .Subscribe(OnCellClicked)
                 .AddTo(_subscriptions!);
-        }
 
-        private void SubscribeToPlacementChanges()
-        {
+        private void SubscribeToPlacementChanges() =>
             _placementService.Changed
                 .Subscribe(_ => RefreshUi())
                 .AddTo(_subscriptions!);
-        }
 
-        private void SubscribeToPhaseChanges()
-        {
+        private void SubscribeToPhaseChanges() =>
             _eventStream.PhaseChanged
                 .Subscribe(_ =>
                 {
@@ -111,7 +107,6 @@ namespace Runtime.Games.Battleship.UI.Placement
                     RefreshUi();
                 })
                 .AddTo(_subscriptions!);
-        }
 
         private void InitializeUi()
         {
@@ -170,6 +165,7 @@ namespace Runtime.Games.Battleship.UI.Placement
         private void RefreshUi()
         {
             var panel = _panelView.Root;
+            
             if (panel == null)
                 return;
 
@@ -228,32 +224,31 @@ namespace Runtime.Games.Battleship.UI.Placement
             if (!_placementService.CanEdit)
             {
                 return phase == BattleshipPhase.Waiting
-                    ? ResolvePlacementText(WaitingStatusKey, WaitingStatusFallback)
-                    : ResolvePlacementText(UnavailableStatusKey, UnavailableStatusFallback);
+                    ? ResolvePlacementText(_waitingStatusKey, _waitingStatusFallback)
+                    : ResolvePlacementText(_unavailableStatusKey, _unavailableStatusFallback);
             }
 
             if (!string.IsNullOrWhiteSpace(_placementService.LastErrorKey))
                 return ResolvePlacementText(_placementService.LastErrorKey!, _placementService.LastErrorKey!);
 
-            if (!_placementService.IsReadyToConfirm)
-                return ResolvePlacementText(PlaceAllShipsStatusKey, PlaceAllShipsStatusFallback);
-
-            return ResolvePlacementText(ConfirmReadyStatusKey, ConfirmReadyStatusFallback);
+            return !_placementService.IsReadyToConfirm 
+                ? ResolvePlacementText(_placeAllShipsStatusKey, _placeAllShipsStatusFallback) 
+                : ResolvePlacementText(_confirmReadyStatusKey, _confirmReadyStatusFallback);
         }
 
         private void RefreshControlTexts()
         {
             if (_panelView.AutoButton != null)
-                _panelView.AutoButton.text = ResolvePlacementText(AutoButtonKey, AutoButtonFallback);
+                _panelView.AutoButton.text = ResolvePlacementText(_autoButtonKey, _autoButtonFallback);
 
             if (_panelView.RotateButton != null)
-                _panelView.RotateButton.text = ResolvePlacementText(RotateButtonKey, RotateButtonFallback);
+                _panelView.RotateButton.text = ResolvePlacementText(_rotateButtonKey, _rotateButtonFallback);
 
             if (_panelView.RemoveButton != null)
-                _panelView.RemoveButton.text = ResolvePlacementText(RemoveButtonKey, RemoveButtonFallback);
+                _panelView.RemoveButton.text = ResolvePlacementText(_removeButtonKey, _removeButtonFallback);
 
             if (_panelView.ReadyButton != null)
-                _panelView.ReadyButton.text = ResolvePlacementText(ReadyButtonKey, ReadyButtonFallback);
+                _panelView.ReadyButton.text = ResolvePlacementText(_readyButtonKey, _readyButtonFallback);
         }
 
         private string ResolvePlacementText(string key, string fallback)
@@ -262,19 +257,15 @@ namespace Runtime.Games.Battleship.UI.Placement
                 return fallback;
 
             var resolved = WizardErrorMessageResolver.Resolve(_localization, key);
+            
             if (string.IsNullOrWhiteSpace(resolved) || string.Equals(resolved, key, StringComparison.Ordinal))
                 return fallback;
 
             return resolved;
         }
 
-        private Observable<CellId> ResolvePlacementCellClicks()
-        {
-            if (_battleshipFieldUiAdapter != null && _battleshipFieldUiAdapter.HasOwnBoard)
-                return _battleshipFieldUiAdapter.OwnBoardCellClicks;
-
-            return _fieldUiAdapter.CellClicks;
-        }
+        private Observable<CellId> ResolvePlacementCellClicks() => 
+            _battleshipFieldUiAdapter is { HasOwnBoard: true } ? _battleshipFieldUiAdapter.OwnBoardCellClicks : _fieldUiAdapter.CellClicks;
 
         private static string ShipLabel(ShipSize size, int shipId)
         {

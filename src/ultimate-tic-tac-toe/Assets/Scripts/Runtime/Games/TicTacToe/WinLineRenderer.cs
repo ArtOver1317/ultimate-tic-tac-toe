@@ -1,6 +1,5 @@
 using System;
-using Runtime.Games.TicTacToe.Moves;
-using Runtime.Games.TicTacToe.Rules;
+using Runtime.Gameplay;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Runtime.Games.TicTacToe.Ultimate.UI;
 using UnityEngine;
@@ -27,12 +26,12 @@ namespace Runtime.Games.TicTacToe
     /// </summary>
     public sealed class WinLineRenderer : IDisposable
     {
-        private const float LineThickness = 6f;
+        private const float _lineThickness = 6f;
 
         /// <summary>
         /// How far the line extends beyond cell centers, as a fraction of cell width.
         /// </summary>
-        private const float ExtensionFraction = 0.35f;
+        private const float _extensionFraction = 0.35f;
 
         private readonly IGameplayFieldUiAdapter _fieldUiAdapter;
 
@@ -42,10 +41,8 @@ namespace Runtime.Games.TicTacToe
         private UltimateBigBoardWinLine? _currentUltimateWinLine;
         private IUltimateGameplayFieldUiAdapter _ultimateUiAdapter;
 
-        public WinLineRenderer(IGameplayFieldUiAdapter fieldUiAdapter)
-        {
+        public WinLineRenderer(IGameplayFieldUiAdapter fieldUiAdapter) => 
             _fieldUiAdapter = fieldUiAdapter ?? throw new ArgumentNullException(nameof(fieldUiAdapter));
-        }
 
         /// <summary>
         /// Shows the win line overlay from <paramref name="winLine"/>.Start to .End.
@@ -56,6 +53,7 @@ namespace Runtime.Games.TicTacToe
             Clear();
 
             var container = _fieldUiAdapter.FieldContainer;
+            
             if (container == null)
                 return;
 
@@ -76,18 +74,19 @@ namespace Runtime.Games.TicTacToe
             // Both elements live under FieldContainer, so we must NOT add win-line as the last child.
             // Instead, insert it right before ResultOverlay when it exists.
             var resultOverlay = _overlayParent.Q<VisualElement>("ResultOverlay");
+            
             if (resultOverlay != null)
             {
                 var idx = _overlayParent.IndexOf(resultOverlay);
+                
                 if (idx >= 0)
                     _overlayParent.Insert(idx, _lineElement);
                 else
                     _overlayParent.Add(_lineElement);
             }
             else
-            {
                 _overlayParent.Add(_lineElement);
-            }
+
             UpdateLineGeometry(startCell, endCell);
 
             // Defer class toggle to next frame tick so CSS opacity transition fires.
@@ -104,14 +103,13 @@ namespace Runtime.Games.TicTacToe
             Clear();
 
             var container = _fieldUiAdapter.FieldContainer;
+            
             if (container == null)
                 return;
 
             if (!ultimateUiAdapter.TryGetMiniBoardCenter(bigBoardWinLine.Major0, out var startPanelCenter) ||
                 !ultimateUiAdapter.TryGetMiniBoardCenter(bigBoardWinLine.Major2, out var endPanelCenter))
-            {
                 return;
-            }
 
             _currentWinLine = null;
             _currentUltimateWinLine = bigBoardWinLine;
@@ -123,18 +121,18 @@ namespace Runtime.Games.TicTacToe
             _lineElement.pickingMode = PickingMode.Ignore;
 
             var resultOverlay = _overlayParent.Q<VisualElement>("ResultOverlay");
+            
             if (resultOverlay != null)
             {
                 var idx = _overlayParent.IndexOf(resultOverlay);
+                
                 if (idx >= 0)
                     _overlayParent.Insert(idx, _lineElement);
                 else
                     _overlayParent.Add(_lineElement);
             }
             else
-            {
                 _overlayParent.Add(_lineElement);
-            }
 
             UpdateUltimateLineGeometry(bigBoardWinLine, startPanelCenter, endPanelCenter, ultimateUiAdapter);
 
@@ -147,8 +145,7 @@ namespace Runtime.Games.TicTacToe
         /// </summary>
         public void Clear()
         {
-            if (_overlayParent != null)
-                _overlayParent.UnregisterCallback<GeometryChangedEvent>(OnGeometryChanged);
+            _overlayParent?.UnregisterCallback<GeometryChangedEvent>(OnGeometryChanged);
 
             _lineElement?.RemoveFromHierarchy();
             _lineElement = null;
@@ -169,17 +166,17 @@ namespace Runtime.Games.TicTacToe
                     return;
 
                 var ultimateLine = _currentUltimateWinLine.Value;
+                
                 if (!_ultimateUiAdapter.TryGetMiniBoardCenter(ultimateLine.Major0, out var startCenter) ||
                     !_ultimateUiAdapter.TryGetMiniBoardCenter(ultimateLine.Major2, out var endCenter))
-                {
                     return;
-                }
 
                 UpdateUltimateLineGeometry(ultimateLine, startCenter, endCenter, _ultimateUiAdapter);
                 return;
             }
 
             var winLine = _currentWinLine.Value;
+            
             if (!_fieldUiAdapter.TryGetCell(winLine.Start, out var startCell) ||
                 !_fieldUiAdapter.TryGetCell(winLine.End, out var endCell))
                 return;
@@ -202,9 +199,9 @@ namespace Runtime.Games.TicTacToe
             var endCenter = _overlayParent.WorldToLocal(endCell.worldBound.center);
 
             var cellWidth = startCell.worldBound.width;
-            var extension = cellWidth > 0f ? cellWidth * ExtensionFraction : 0f;
+            var extension = cellWidth > 0f ? cellWidth * _extensionFraction : 0f;
 
-            var geo = CalculateGeometry(startCenter, endCenter, LineThickness, extension);
+            var geo = CalculateGeometry(startCenter, endCenter, _lineThickness, extension);
 
             ApplyGeometry(geo);
         }
@@ -221,12 +218,13 @@ namespace Runtime.Games.TicTacToe
             var startCenter = _overlayParent.WorldToLocal(startPanelCenter);
             var endCenter = _overlayParent.WorldToLocal(endPanelCenter);
 
-            float referenceWidth = 0f;
+            var referenceWidth = 0f;
+            
             if (ultimateUiAdapter.TryGetMiniBoard(bigBoardWinLine.Major0, out var startMini) && startMini != null)
                 referenceWidth = startMini.worldBound.width;
 
-            var extension = referenceWidth > 0f ? referenceWidth * ExtensionFraction : 0f;
-            var geo = CalculateGeometry(startCenter, endCenter, LineThickness, extension);
+            var extension = referenceWidth > 0f ? referenceWidth * _extensionFraction : 0f;
+            var geo = CalculateGeometry(startCenter, endCenter, _lineThickness, extension);
 
             ApplyGeometry(geo);
         }
@@ -238,7 +236,7 @@ namespace Runtime.Games.TicTacToe
 
             _lineElement.style.position = Position.Absolute;
             _lineElement.style.width = geo.Width;
-            _lineElement.style.height = LineThickness;
+            _lineElement.style.height = _lineThickness;
             _lineElement.style.left = geo.Left;
             _lineElement.style.top = geo.Top;
             _lineElement.style.rotate = new StyleRotate(new Rotate(new Angle(geo.RotationDeg, AngleUnit.Degree)));

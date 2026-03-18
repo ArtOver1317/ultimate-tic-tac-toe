@@ -13,6 +13,7 @@ using Runtime.Gameplay;
 using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.PlayerStatistics;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.PlayerStatistics
 {
@@ -63,7 +64,7 @@ namespace Tests.EditMode.PlayerStatistics
                 contextStore,
                 new MatchKeyMapper());
 
-            roundFinished.OnNext(new RoundFinishedEvent(GameStatus.Win, winnerSlot: 0, winLine: null));
+            roundFinished.OnNext(new RoundFinishedEvent(EcsGameStatus.Win, winnerSlot: 0, winLine: null));
 
             resolver.Calls.Should().Be(0);
             statisticsService.DidNotReceiveWithAnyArgs().RecordMatch(default!, default);
@@ -90,7 +91,7 @@ namespace Tests.EditMode.PlayerStatistics
                 contextStore,
                 new MatchKeyMapper());
 
-            roundFinished.OnNext(new RoundFinishedEvent(GameStatus.Win, winnerSlot: 0, winLine: null));
+            roundFinished.OnNext(new RoundFinishedEvent(EcsGameStatus.Win, winnerSlot: 0, winLine: null));
 
             statisticsService.Received(1).RecordMatch(
                 Arg.Is<MatchKey>(x => x.GameId == "ttt" && x.OpponentType == StatisticsOpponentType.HotSeat),
@@ -118,9 +119,9 @@ namespace Tests.EditMode.PlayerStatistics
                 contextStore,
                 new MatchKeyMapper());
 
-            roundFinished.OnNext(new RoundFinishedEvent(GameStatus.Win, winnerSlot: 0, winLine: null));
+            roundFinished.OnNext(new RoundFinishedEvent(EcsGameStatus.Win, winnerSlot: 0, winLine: null));
             reporter.Dispose();
-            roundFinished.OnNext(new RoundFinishedEvent(GameStatus.Win, winnerSlot: 0, winLine: null));
+            roundFinished.OnNext(new RoundFinishedEvent(EcsGameStatus.Win, winnerSlot: 0, winLine: null));
 
             statisticsService.Received(1).RecordMatch(
                 Arg.Is<MatchKey>(x => x.GameId == "ttt"),
@@ -144,7 +145,7 @@ namespace Tests.EditMode.PlayerStatistics
                 contextStore,
                 new MatchKeyMapper());
 
-            roundFinished.OnNext(new RoundFinishedEvent(GameStatus.Win, winnerSlot: 0, winLine: null));
+            roundFinished.OnNext(new RoundFinishedEvent(EcsGameStatus.Win, winnerSlot: 0, winLine: null));
 
             resolver.Calls.Should().Be(0);
             statisticsService.DidNotReceiveWithAnyArgs().RecordMatch(default!, default);
@@ -172,7 +173,7 @@ namespace Tests.EditMode.PlayerStatistics
                 contextStore,
                 new MatchKeyMapper());
 
-            roundFinished.OnNext(new RoundFinishedEvent(GameStatus.Win, winnerSlot: 1, winLine: null));
+            roundFinished.OnNext(new RoundFinishedEvent(EcsGameStatus.Win, winnerSlot: 1, winLine: null));
 
             resolver.LastIsLocalPlayerHost.Should().BeFalse();
             statisticsService.Received(1).RecordMatch(
@@ -197,7 +198,7 @@ namespace Tests.EditMode.PlayerStatistics
                 contextStore,
                 new MatchKeyMapper());
 
-            roundFinished.OnNext(new RoundFinishedEvent(GameStatus.Win, winnerSlot: 0, winLine: null));
+            roundFinished.OnNext(new RoundFinishedEvent(EcsGameStatus.Win, winnerSlot: 0, winLine: null));
 
             resolver.Calls.Should().Be(1);
             statisticsService.DidNotReceiveWithAnyArgs().RecordMatch(default!, default);
@@ -225,7 +226,7 @@ namespace Tests.EditMode.PlayerStatistics
                 contextStore,
                 new MatchKeyMapper());
 
-            roundFinished.OnNext(new RoundFinishedEvent(GameStatus.Win, winnerSlot: 1, winLine: null));
+            roundFinished.OnNext(new RoundFinishedEvent(EcsGameStatus.Win, winnerSlot: 1, winLine: null));
 
             resolver.Calls.Should().Be(0);
             statisticsService.DidNotReceiveWithAnyArgs().RecordMatch(default!, default);

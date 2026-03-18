@@ -69,7 +69,7 @@ namespace Runtime.Games.TicTacToe.ECS
 
                 // Reset match status
                 ref var status = ref _statusStash.Get(entity);
-                status.Status = GameStatus.InProgress;
+                status.Status = EcsGameStatus.InProgress;
                 status.WinnerSlot = null;
                 status.WinLine = null;
 

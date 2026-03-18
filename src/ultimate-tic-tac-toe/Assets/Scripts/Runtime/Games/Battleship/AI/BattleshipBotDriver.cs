@@ -10,9 +10,7 @@ using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship.Core;
-using Runtime.Games.TicTacToe.AI;
-using Runtime.Games.TicTacToe.AI.Core;
-using Runtime.Games.TicTacToe.Moves;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Games.Battleship.AI
 {
@@ -220,7 +218,7 @@ namespace Runtime.Games.Battleship.AI
         private bool CanContinueTurnLoop() =>
             IsStarted
             && !_disposed
-            && _battleshipSnapshotProvider is { Phase: BattleshipPhase.Battle, CurrentStatus: GameStatus.InProgress }
+            && _battleshipSnapshotProvider is { Phase: BattleshipPhase.Battle, CurrentStatus: EcsGameStatus.InProgress }
             && _battleshipSnapshotProvider.ActivePlayerSlot == BotSlot;
 
         private bool TryResolveNextTarget(out CellId cellId)

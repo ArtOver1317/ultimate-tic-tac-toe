@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Runtime.Games.TicTacToe.Moves
+namespace Runtime.Gameplay
 {
     public readonly struct CellId : IEquatable<CellId>
     {

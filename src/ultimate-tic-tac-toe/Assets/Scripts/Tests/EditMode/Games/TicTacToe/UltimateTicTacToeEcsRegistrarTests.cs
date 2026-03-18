@@ -15,7 +15,8 @@ using Runtime.Games.TicTacToe.ECS;
 using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Scellecs.Morpeh;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using CellId = Runtime.Gameplay.CellId;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Tests.EditMode.Games.TicTacToe
 {
@@ -179,8 +180,8 @@ namespace Tests.EditMode.Games.TicTacToe
             var allowedStash = world.GetStash<UltimateAllowedMajorsComponent>();
 
             ref var board = ref boardStash.Get(entity);
-            board.Cells[7 * board.MinorCount + 0] = Runtime.Games.TicTacToe.Moves.PlayerMark.X;
-            board.Cells[7 * board.MinorCount + 1] = Runtime.Games.TicTacToe.Moves.PlayerMark.X;
+            board.Cells[7 * board.MinorCount + 0] = PlayerMark.X;
+            board.Cells[7 * board.MinorCount + 1] = PlayerMark.X;
 
             _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(7, 2)));
 
@@ -208,8 +209,8 @@ namespace Tests.EditMode.Games.TicTacToe
             miniBoardsStash.Get(entity).Statuses[1] = MiniBoardStatus.WonByX;
 
             ref var board = ref boardStash.Get(entity);
-            board.Cells[2 * board.MinorCount + 0] = Runtime.Games.TicTacToe.Moves.PlayerMark.X;
-            board.Cells[2 * board.MinorCount + 1] = Runtime.Games.TicTacToe.Moves.PlayerMark.X;
+            board.Cells[2 * board.MinorCount + 0] = PlayerMark.X;
+            board.Cells[2 * board.MinorCount + 1] = PlayerMark.X;
 
             RoundFinishedEvent? finished = null;
             using var sub = _stateProvider.RoundFinished.Subscribe(evt => finished = evt);
@@ -217,10 +218,10 @@ namespace Tests.EditMode.Games.TicTacToe
             _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(2, 2)));
 
             finished.Should().NotBeNull();
-            finished!.Value.Status.Should().Be(GameStatus.Win);
+            finished!.Value.Status.Should().Be(EcsGameStatus.Win);
             finished!.Value.WinnerSlot.Should().Be(PlayerSlotMapping.SlotX);
 
-            statusStash.Get(entity).Status.Should().Be(GameStatus.Win);
+            statusStash.Get(entity).Status.Should().Be(EcsGameStatus.Win);
             statusStash.Get(entity).WinnerSlot.Should().Be(PlayerSlotMapping.SlotX);
             bigLineStash.Get(entity).HasValue.Should().BeTrue();
             bigLineStash.Get(entity).Value.Should().Be(new UltimateBigBoardWinLine(0, 1, 2));
@@ -269,8 +270,8 @@ namespace Tests.EditMode.Games.TicTacToe
             var boardStash = world.GetStash<BoardStateComponent>();
 
             ref var board = ref boardStash.Get(entity);
-            board.Cells[7 * board.MinorCount + 0] = Runtime.Games.TicTacToe.Moves.PlayerMark.X;
-            board.Cells[7 * board.MinorCount + 1] = Runtime.Games.TicTacToe.Moves.PlayerMark.X;
+            board.Cells[7 * board.MinorCount + 0] = PlayerMark.X;
+            board.Cells[7 * board.MinorCount + 1] = PlayerMark.X;
 
             AllowedMajorsChangedEvent? allowedEvt = null;
             MiniBoardStatusChangedEvent? miniEvt = null;

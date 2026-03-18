@@ -4,8 +4,9 @@ using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Core;
-using Runtime.Games.TicTacToe.Moves;
+using Runtime.Gameplay;
 using Scellecs.Morpeh;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Games.Battleship.ECS.Placement
 {
@@ -136,7 +137,7 @@ namespace Runtime.Games.Battleship.ECS.Placement
         {
             playerIndex = -1;
 
-            if (status.Status != GameStatus.InProgress)
+            if (status.Status != EcsGameStatus.InProgress)
             {
                 Reject(matchEntity, BattleshipCommandTypes.SubmitPlacement, GameplayRejectionReason.RoundAlreadyEnded);
                 return false;

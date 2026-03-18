@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,8 @@ using Runtime.Gameplay.Shared;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.ECS.Core;
 using Scellecs.Morpeh;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using CellId = Runtime.Gameplay.CellId;
+using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Games.Battleship.State
 {
@@ -40,7 +41,7 @@ namespace Runtime.Games.Battleship.State
 
         public BattleshipPhase Phase => !TryGetBattleshipState(out var state, out _) ? BattleshipPhase.Placement : state.Phase;
 
-        public GameStatus CurrentStatus => _matchStateProvider.CurrentStatus;
+        public EcsGameStatus CurrentStatus => _matchStateProvider.CurrentStatus;
 
         public int? WinnerSlot => _matchStateProvider.WinnerSlot;
 

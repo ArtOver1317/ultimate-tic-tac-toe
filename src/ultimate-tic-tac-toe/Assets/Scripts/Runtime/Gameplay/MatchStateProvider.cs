@@ -9,11 +9,10 @@ using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Gameplay.Shared;
 using Runtime.Games.TicTacToe.ECS;
-using Runtime.Games.TicTacToe.Moves;
 using Runtime.Games.TicTacToe.Ultimate;
 using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Scellecs.Morpeh;
-using CellId = Runtime.Games.TicTacToe.Moves.CellId;
+using SharedGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
 namespace Runtime.Gameplay
 {
@@ -26,7 +25,7 @@ namespace Runtime.Gameplay
         , ICurrentPlayerChangedPublisher
         , IUltimateGameplaySnapshotProvider
     {
-        private const int UltimateMiniBoardCount = 9;
+        private const int _ultimateMiniBoardCount = 9;
 
         private readonly CommandQueue _commandQueue;
         private readonly MatchEcsLifecycleService _lifecycle;
@@ -124,9 +123,9 @@ namespace Runtime.Gameplay
             ? players.ActivePlayerSlot
             : 0;
 
-        public GameStatus CurrentStatus => TryReadComponent<MatchStatusComponent>(out var status)
+        public SharedGameStatus CurrentStatus => TryReadComponent<MatchStatusComponent>(out var status)
             ? status.Status
-            : GameStatus.InProgress;
+            : SharedGameStatus.InProgress;
 
         public int? WinnerSlot => TryReadComponent<MatchStatusComponent>(out var status)
             ? status.WinnerSlot
@@ -156,18 +155,18 @@ namespace Runtime.Gameplay
             get
             {
                 if (!TryReadComponent<MatchStatusComponent>(out var ecsStatus))
-                    return new UltimateMatchResult(Games.TicTacToe.Rules.GameStatus.InProgress, PlayerMark.None, null);
+                    return new UltimateMatchResult(GameStatus.InProgress, PlayerMark.None, null);
 
                 var status = ecsStatus.Status switch
                 {
-                    GameStatus.Win => Games.TicTacToe.Rules.GameStatus.Win,
-                    GameStatus.Draw => Games.TicTacToe.Rules.GameStatus.Draw,
-                    GameStatus.InProgress => Games.TicTacToe.Rules.GameStatus.InProgress,
-                    GameStatus.Timeout => Games.TicTacToe.Rules.GameStatus.Timeout,
+                    SharedGameStatus.Win => GameStatus.Win,
+                    SharedGameStatus.Draw => GameStatus.Draw,
+                    SharedGameStatus.InProgress => GameStatus.InProgress,
+                    SharedGameStatus.Timeout => GameStatus.Timeout,
                     _ => throw new ArgumentOutOfRangeException(nameof(ecsStatus.Status), ecsStatus.Status, null),
                 };
 
-                if (status != Games.TicTacToe.Rules.GameStatus.Win)
+                if (status != GameStatus.Win)
                     return new UltimateMatchResult(status, PlayerMark.None, null);
 
                 var winner = ecsStatus.WinnerSlot.HasValue
@@ -185,10 +184,10 @@ namespace Runtime.Gameplay
 
         public void CopyMiniBoardsTo(Span<MiniBoardStatus> destination)
         {
-            if (destination.Length < UltimateMiniBoardCount)
-                throw new ArgumentException($"destination must be >= {UltimateMiniBoardCount}", nameof(destination));
+            if (destination.Length < _ultimateMiniBoardCount)
+                throw new ArgumentException($"destination must be >= {_ultimateMiniBoardCount}", nameof(destination));
 
-            for (var i = 0; i < UltimateMiniBoardCount; i++)
+            for (var i = 0; i < _ultimateMiniBoardCount; i++)
             {
                 destination[i] = MiniBoardStatus.InProgress;
             }
@@ -197,7 +196,7 @@ namespace Runtime.Gameplay
                 return;
 
             var source = miniBoards.Statuses;
-            var count = source.Length < UltimateMiniBoardCount ? source.Length : UltimateMiniBoardCount;
+            var count = source.Length < _ultimateMiniBoardCount ? source.Length : _ultimateMiniBoardCount;
             
             for (var i = 0; i < count; i++)
             {

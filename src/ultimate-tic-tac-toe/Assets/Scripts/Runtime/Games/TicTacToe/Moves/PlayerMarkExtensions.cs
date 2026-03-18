@@ -1,3 +1,4 @@
+using Runtime.Gameplay;
 using Runtime.Localization;
 
 namespace Runtime.Games.TicTacToe.Moves
@@ -21,13 +22,13 @@ namespace Runtime.Games.TicTacToe.Moves
             _ => string.Empty,
         };
 
-        public static string ToResultText(this PlayerMark winner, Rules.GameStatus status, ILocalizationService localization = null) => status switch
+        public static string ToResultText(this PlayerMark winner, GameStatus status, ILocalizationService localization = null) => status switch
         {
-            Rules.GameStatus.Win when winner == PlayerMark.X => ResolveOrFallback(localization, _gameOverTable, "GameOver.Win.Player1", "Player 1 (X) Wins!"),
-            Rules.GameStatus.Win when winner == PlayerMark.O => ResolveOrFallback(localization, _gameOverTable, "GameOver.Win.Player2", "Player 2 (O) Wins!"),
-            Rules.GameStatus.Timeout when winner == PlayerMark.X => ResolveOrFallback(localization, _gameOverTable, "GameOver.TimeoutWin.Player1", "Player 1 (X) Wins by timeout!"),
-            Rules.GameStatus.Timeout when winner == PlayerMark.O => ResolveOrFallback(localization, _gameOverTable, "GameOver.TimeoutWin.Player2", "Player 2 (O) Wins by timeout!"),
-            Rules.GameStatus.Draw => ResolveOrFallback(localization, _gameOverTable, "GameOver.Draw", "Draw!"),
+            GameStatus.Win when winner == PlayerMark.X => ResolveOrFallback(localization, _gameOverTable, "GameOver.Win.Player1", "Player 1 (X) Wins!"),
+            GameStatus.Win when winner == PlayerMark.O => ResolveOrFallback(localization, _gameOverTable, "GameOver.Win.Player2", "Player 2 (O) Wins!"),
+            GameStatus.Timeout when winner == PlayerMark.X => ResolveOrFallback(localization, _gameOverTable, "GameOver.TimeoutWin.Player1", "Player 1 (X) Wins by timeout!"),
+            GameStatus.Timeout when winner == PlayerMark.O => ResolveOrFallback(localization, _gameOverTable, "GameOver.TimeoutWin.Player2", "Player 2 (O) Wins by timeout!"),
+            GameStatus.Draw => ResolveOrFallback(localization, _gameOverTable, "GameOver.Draw", "Draw!"),
             _ => string.Empty,
         };
 
