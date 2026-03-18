@@ -5,7 +5,6 @@ using NSubstitute;
 using NUnit.Framework;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
-using Runtime.Services.Assets;
 using Runtime.Services.Scenes;
 using Runtime.Services.UI;
 
@@ -21,7 +20,6 @@ namespace Tests.EditMode
             var stateMachineMock = Substitute.For<IGameStateMachine>();
             var sceneLoaderMock = Substitute.For<ISceneLoaderService>();
             var uiService = Substitute.For<IUIService>();
-            var assets = Substitute.For<IAssetProvider>();
             var cancellationToken = CancellationToken.None;
 
             sceneLoaderMock.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>())
@@ -30,7 +28,7 @@ namespace Tests.EditMode
             stateMachineMock.EnterAsync<MainMenuState>(Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
 
-            var sut = new LoadMainMenuState(stateMachineMock, sceneLoaderMock, uiService, assets);
+            var sut = new LoadMainMenuState(stateMachineMock, sceneLoaderMock, uiService);
 
             // Act
             await sut.EnterAsync(cancellationToken);
@@ -44,7 +42,6 @@ namespace Tests.EditMode
             });
 
             uiService.DidNotReceive().CloseAll();
-            assets.DidNotReceive().Cleanup();
         }
 
         [Test]
@@ -54,7 +51,6 @@ namespace Tests.EditMode
             var stateMachineMock = Substitute.For<IGameStateMachine>();
             var sceneLoaderMock = Substitute.For<ISceneLoaderService>();
             var uiService = Substitute.For<IUIService>();
-            var assets = Substitute.For<IAssetProvider>();
             var cancellationToken = CancellationToken.None;
 
             sceneLoaderMock.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>())
@@ -63,7 +59,7 @@ namespace Tests.EditMode
             stateMachineMock.EnterAsync<MainMenuState>(Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
 
-            var sut = new LoadMainMenuState(stateMachineMock, sceneLoaderMock, uiService, assets);
+            var sut = new LoadMainMenuState(stateMachineMock, sceneLoaderMock, uiService);
 
             // Act
             await sut.EnterAsync(cancellationToken);

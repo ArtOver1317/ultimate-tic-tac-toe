@@ -9,7 +9,6 @@ using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
-using Runtime.Services.Assets;
 using Runtime.Services.Scenes;
 using Runtime.Services.UI;
 
@@ -21,7 +20,6 @@ namespace Tests.EditMode
         private IGameStateMachine _stateMachine;
         private ISceneLoaderService _sceneLoader;
         private IUIService _uiService;
-        private IAssetProvider _assets;
         private IGameLaunchConfigStore _launchConfigStore;
         private LoadGameplayState _sut;
         private CancellationToken _cancellationToken;
@@ -32,11 +30,10 @@ namespace Tests.EditMode
             _stateMachine = Substitute.For<IGameStateMachine>();
             _sceneLoader = Substitute.For<ISceneLoaderService>();
             _uiService = Substitute.For<IUIService>();
-            _assets = Substitute.For<IAssetProvider>();
             _launchConfigStore = Substitute.For<IGameLaunchConfigStore>();
             _cancellationToken = CancellationToken.None;
 
-            _sut = new LoadGameplayState(_stateMachine, _sceneLoader, _uiService, _assets, _launchConfigStore);
+            _sut = new LoadGameplayState(_stateMachine, _sceneLoader, _uiService, _launchConfigStore);
         }
 
         [Test]
@@ -56,7 +53,6 @@ namespace Tests.EditMode
             // Assert
             _uiService.Received(1).ClearViewModelPools();
             _uiService.DidNotReceive().CloseAll();
-            _assets.DidNotReceive().Cleanup();
             await _sceneLoader.Received(1).LoadSceneAsync(SceneNames.Gameplay, Arg.Any<CancellationToken>());
             await _stateMachine.Received(1).EnterAsync<GameplayState>(Arg.Any<CancellationToken>());
         }

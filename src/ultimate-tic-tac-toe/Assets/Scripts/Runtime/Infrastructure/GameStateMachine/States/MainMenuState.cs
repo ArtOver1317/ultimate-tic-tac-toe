@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
@@ -50,66 +49,86 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             cancellationToken.ThrowIfCancellationRequested();
             _isExited = false;
             Log.Debug(LogTags.Scenes, "[MainMenuState] Entered MainMenu");
-            
+
+            await PrepareUiAsync(cancellationToken);
+
+            if (await TryEnterWizardModeAsync(cancellationToken))
+                return;
+
+            await OpenMainMenuAsync(cancellationToken);
+        }
+
+        private async UniTask PrepareUiAsync(CancellationToken cancellationToken)
+        {
             await TryRegisterAndOpenBackgroundAsync(cancellationToken);
             await RegisterMainMenuUiPrefabsAsync(cancellationToken);
+        }
 
-            if (_entryModeStore.TryConsume(out var entryMode) && entryMode == MainMenuEntryMode.OpenWizard)
-            {
-                var menuView = await _uiService.OpenWithLocalizationPreloadAsync<MainMenuView, MainMenuViewModel>(
-                    _localization,
-                    cancellationToken,
-                    TextTableId.MainMenu);
+        private async UniTask<bool> TryEnterWizardModeAsync(CancellationToken cancellationToken)
+        {
+            if (!_entryModeStore.TryConsume(out var entryMode) || entryMode != MainMenuEntryMode.OpenWizard)
+                return false;
 
-                if (menuView != null)
-                {
-                    _uiService.Hide<MainMenuView>();
-                    _coordinator.Initialize(menuView.GetViewModel());
-                }
-                else
-                {
-                    Log.Error(LogTags.UI, "[MainMenuState] Failed to open MainMenuView for wizard entry.");
-                    _headlessViewModel?.Dispose();
-                    _headlessViewModel = new MainMenuViewModel(_localization);
-                    _headlessViewModel.Initialize();
-                    _coordinator.Initialize(_headlessViewModel);
-                }
+            var menuView = await OpenMainMenuViewAsync(cancellationToken);
+            InitializeWizardEntry(menuView);
+            await StartWizardAsync(cancellationToken);
+            return true;
+        }
 
-                try
-                {
-                    await _wizardCoordinator.StartWizardAsync(cancellationToken);
-                }
-                catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw new OperationCanceledException(ex.Message, ex, cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    _uiService.Get<MainMenuView>()?.Show();
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(LogTags.UI, $"[MainMenuState] Wizard entry failed. Falling back to MainMenuView. {ex}");
-
-                    _uiService.Get<MainMenuView>()?.Show();
-                }
-                
-                return;
-            }
-
-            var view = await _uiService.OpenWithLocalizationPreloadAsync<MainMenuView, MainMenuViewModel>(
-                _localization,
-                cancellationToken,
-                TextTableId.MainMenu);
+        private async UniTask OpenMainMenuAsync(CancellationToken cancellationToken)
+        {
+            var view = await OpenMainMenuViewAsync(cancellationToken);
             
             if (view == null)
             {
                 Log.Error(LogTags.UI, "[MainMenuState] Failed to open MainMenuView!");
                 return;
             }
-            
-            var viewModel = view.GetViewModel();
-            _coordinator.Initialize(viewModel);
+
+            _coordinator.Initialize(view.GetViewModel());
+        }
+
+        private async UniTask<MainMenuView> OpenMainMenuViewAsync(CancellationToken cancellationToken) =>
+            await _uiService.OpenWithLocalizationPreloadAsync<MainMenuView, MainMenuViewModel>(
+                _localization,
+                cancellationToken,
+                TextTableId.MainMenu);
+
+        private void InitializeWizardEntry(MainMenuView menuView)
+        {
+            if (menuView != null)
+            {
+                _uiService.Hide<MainMenuView>();
+                _coordinator.Initialize(menuView.GetViewModel());
+                return;
+            }
+
+            Log.Error(LogTags.UI, "[MainMenuState] Failed to open MainMenuView for wizard entry.");
+            _headlessViewModel?.Dispose();
+            _headlessViewModel = new MainMenuViewModel(_localization);
+            _headlessViewModel.Initialize();
+            _coordinator.Initialize(_headlessViewModel);
+        }
+
+        private async UniTask StartWizardAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _wizardCoordinator.StartWizardAsync(cancellationToken);
+            }
+            catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(ex.Message, ex, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                _uiService.Get<MainMenuView>().Show();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(LogTags.UI, $"[MainMenuState] Wizard entry failed. Falling back to MainMenuView. {ex}");
+                _uiService.Get<MainMenuView>().Show();
+            }
         }
 
         private async UniTask TryRegisterAndOpenBackgroundAsync(CancellationToken cancellationToken)
@@ -125,25 +144,25 @@ namespace Runtime.Infrastructure.GameStateMachine.States
 
         private async UniTask RegisterMainMenuUiPrefabsAsync(CancellationToken cancellationToken)
         {
+            await RegisterMainMenuWindowAsync(cancellationToken);
+            await RegisterSettingsWindowsAsync(cancellationToken);
+            await RegisterWizardWindowsAsync(cancellationToken);
+        }
+
+        private async UniTask RegisterMainMenuWindowAsync(CancellationToken cancellationToken)
+        {
             var mainMenuPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.MainMenuPrefab, cancellationToken);
             _uiService.RegisterWindowPrefab<MainMenuView>(mainMenuPrefab);
+        }
 
+        private async UniTask RegisterSettingsWindowsAsync(CancellationToken cancellationToken)
+        {
             await TryRegisterWindowPrefabAsync<UI.Settings.SettingsView>(
                 _assetLibrary.SettingsPrefab,
                 "[MainMenuState] SettingsPrefab is missing or invalid in AssetLibrary. Settings feature will be disabled.",
                 cancellationToken);
 
-            if (_assetLibrary.PlayerStatisticsPrefab == null || !_assetLibrary.PlayerStatisticsPrefab.RuntimeKeyIsValid())
-            {
-                Log.Warning(LogTags.Scenes, "[MainMenuState] PlayerStatisticsPrefab is missing or invalid in AssetLibrary. Statistics feature will be disabled.");
-            }
-            else
-            {
-                await TryRegisterWindowPrefabAsync<PlayerStatisticsView>(
-                    _assetLibrary.PlayerStatisticsPrefab,
-                    "[MainMenuState] PlayerStatisticsPrefab is missing or invalid in AssetLibrary. Statistics feature will be disabled.",
-                    cancellationToken);
-            }
+            await RegisterPlayerStatisticsWindowAsync(cancellationToken);
 
             await TryRegisterWindowPrefabAsync<UI.Settings.LanguageSelectionView>(
                 _assetLibrary.LanguageSelectionPrefab,
@@ -154,7 +173,24 @@ namespace Runtime.Infrastructure.GameStateMachine.States
                 _assetLibrary.PlayerNameEditPrefab,
                 "[MainMenuState] PlayerNameEditPrefab is missing or invalid. Player name edit will be disabled.",
                 cancellationToken);
+        }
 
+        private async UniTask RegisterPlayerStatisticsWindowAsync(CancellationToken cancellationToken)
+        {
+            if (_assetLibrary.PlayerStatisticsPrefab == null || !_assetLibrary.PlayerStatisticsPrefab.RuntimeKeyIsValid())
+            {
+                Log.Error(LogTags.Scenes, "[MainMenuState] PlayerStatisticsPrefab is missing or invalid in AssetLibrary. Statistics feature will be disabled.");
+                return;
+            }
+
+            await TryRegisterWindowPrefabAsync<PlayerStatisticsView>(
+                _assetLibrary.PlayerStatisticsPrefab,
+                "[MainMenuState] PlayerStatisticsPrefab is missing or invalid in AssetLibrary. Statistics feature will be disabled.",
+                cancellationToken);
+        }
+
+        private async UniTask RegisterWizardWindowsAsync(CancellationToken cancellationToken)
+        {
             await TryRegisterWindowPrefabAsync<GameSelectionView>(
                 _assetLibrary.ModeSelectionPrefab,
                 "[MainMenuState] ModeSelectionPrefab is missing or invalid. Game mode wizard will be disabled.",
@@ -175,7 +211,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             AssetReferenceGameObject prefabReference,
             string invalidReferenceLogMessage,
             CancellationToken cancellationToken)
-            where TView : class, Runtime.UI.Core.IUIView
+            where TView : class, UI.Core.IUIView
         {
             if (prefabReference == null || !prefabReference.RuntimeKeyIsValid())
             {
@@ -216,4 +252,3 @@ namespace Runtime.Infrastructure.GameStateMachine.States
         }
     }
 }
-

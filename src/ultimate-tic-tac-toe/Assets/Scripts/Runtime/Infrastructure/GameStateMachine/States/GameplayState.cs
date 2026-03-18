@@ -30,7 +30,7 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             _scopeAccessor = scopeAccessor ?? throw new ArgumentNullException(nameof(scopeAccessor));
             _uiService = uiService ?? throw new ArgumentNullException(nameof(uiService));
             _assets = assets ?? throw new ArgumentNullException(nameof(assets));
-            _assetLibrary = assetLibrary ? assetLibrary : throw new ArgumentNullException(nameof(assetLibrary));
+            _assetLibrary = assetLibrary != null ? assetLibrary : throw new ArgumentNullException(nameof(assetLibrary));
         }
 
         public async UniTask EnterAsync(CancellationToken cancellationToken = default)
@@ -38,37 +38,54 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             cancellationToken.ThrowIfCancellationRequested();
             Log.Debug(LogTags.Infrastructure, "[GameplayState] Game started");
 
-            if (_assetLibrary.BackgroundPrefab != null && _assetLibrary.BackgroundPrefab.RuntimeKeyIsValid())
-            {
-                var backgroundPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.BackgroundPrefab, cancellationToken);
-                _uiService.RegisterWindowPrefab<UIBackgroundView>(backgroundPrefab);
-                _uiService.Open<UIBackgroundView, UIBackgroundViewModel>();
-            }
-            else
-                Log.Error(LogTags.Scenes, "[GameplayState] BackgroundPrefab is missing or invalid. UI background will be disabled.");
+            await TryOpenBackgroundAsync(cancellationToken);
 
+            var startup = await TryResolveGameplayStartupAsync(cancellationToken);
+            
+            if (startup == null)
+                return;
+
+            await StartGameplayAsync(startup, cancellationToken);
+        }
+
+        private async UniTask TryOpenBackgroundAsync(CancellationToken cancellationToken)
+        {
+            if (_assetLibrary.BackgroundPrefab == null || !_assetLibrary.BackgroundPrefab.RuntimeKeyIsValid())
+            {
+                Log.Error(LogTags.Scenes, "[GameplayState] BackgroundPrefab is missing or invalid. UI background will be disabled.");
+                return;
+            }
+
+            var backgroundPrefab = await _assets.LoadAsync<UnityEngine.GameObject>(_assetLibrary.BackgroundPrefab, cancellationToken);
+            _uiService.RegisterWindowPrefab<UIBackgroundView>(backgroundPrefab);
+            _uiService.Open<UIBackgroundView, UIBackgroundViewModel>();
+        }
+
+        private async UniTask<IGameplayStartup> TryResolveGameplayStartupAsync(CancellationToken cancellationToken)
+        {
             var scope = _scopeAccessor.Current;
             
             if (scope == null)
             {
                 Log.Error(LogTags.Infrastructure, "[GameplayState] Gameplay scope is not available.");
                 await ReturnToMainMenuAsync(cancellationToken);
-                return;
+                return null;
             }
 
-            IGameplayStartup startup;
-            
             try
             {
-                startup = scope.Resolve<IGameplayStartup>();
+                return scope.Resolve<IGameplayStartup>();
             }
             catch (Exception ex)
             {
                 Log.Error(LogTags.Infrastructure, $"[GameplayState] Failed to resolve GameplayStartup: {ex}");
                 await ReturnToMainMenuAsync(cancellationToken);
-                return;
+                return null;
             }
+        }
 
+        private async UniTask StartGameplayAsync(IGameplayStartup startup, CancellationToken cancellationToken)
+        {
             try
             {
                 await startup.StartAsync(cancellationToken);
