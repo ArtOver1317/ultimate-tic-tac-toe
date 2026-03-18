@@ -289,7 +289,7 @@ MonoBehaviour:
     TypeName: 
   autoRun: 1
   autoInjectGameObjects: []
-  _assetLibrary: {fileID: 11400000, guid: 2aa4fbeaf29886f43b1376b04fbdb2f8, type: 2}
+  AssetLibrary: {fileID: 11400000, guid: 2aa4fbeaf29886f43b1376b04fbdb2f8, type: 2}
 --- !u!4 &2124226769
 Transform:
   m_ObjectHideFlags: 0

@@ -1,49 +1,9 @@
 using System;
-using Runtime.GameModes.Wizard;
-using Runtime.GameModes.Wizard.Configs;
-using Runtime.GameModes.Wizard.Modes;
-using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
-using Runtime.Gameplay.ECS.Lifecycle;
-using Runtime.Gameplay.ECS.Pipeline;
-using Runtime.Gameplay.ECS.Publishing;
-using Runtime.Gameplay.Startup;
-using Runtime.Games.Battleship;
-using Runtime.Games.Battleship.AI;
 using Runtime.Games.Battleship.Core;
-using Runtime.Games.Battleship.ECS;
-using Runtime.Games.Battleship.ECS.Core;
-using Runtime.Games.Battleship.Networking;
-using Runtime.Games.Battleship.Placement;
-using Runtime.Games.Battleship.Recovery;
-using Runtime.Games.Battleship.State;
-using Runtime.Games.Battleship.Startup;
-using Runtime.Games.Battleship.UI;
-using Runtime.Games.Battleship.UI.Board;
-using Runtime.Games.Battleship.UI.Placement;
-using Runtime.Games.TicTacToe;
-using Runtime.Games.TicTacToe.AI;
-using Runtime.Games.TicTacToe.AI.Core;
 using Runtime.Games.TicTacToe.AI.Profiles;
-using Runtime.Games.TicTacToe.AI.Search;
-using Runtime.Games.TicTacToe.AI.Turns;
-using Runtime.Games.TicTacToe.AI.Ultimate;
-using Runtime.Games.TicTacToe.AI.Ultimate.Core;
-using Runtime.Games.TicTacToe.AI.Ultimate.Decision;
-using Runtime.Games.TicTacToe.AI.Ultimate.Execution;
 using Runtime.Games.TicTacToe.AI.Ultimate.Profiles;
-using Runtime.Games.TicTacToe.ECS;
-using Runtime.Games.TicTacToe.Moves;
-using Runtime.Games.TicTacToe.Rules;
-using Runtime.Games.TicTacToe.Ultimate;
-using Runtime.Games.TicTacToe.Ultimate.Rules;
-using Runtime.Games.TicTacToe.Series;
-using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.Logging;
-using Runtime.Localization;
-using Runtime.PlayerStatistics;
-using Runtime.PlayerProfile;
 using UnityEngine;
 using UnityEngine.UIElements;
 using VContainer;
@@ -53,7 +13,7 @@ namespace Runtime.Infrastructure.Scopes
 {
     public sealed class GameplayLifetimeScope : LifetimeScope
     {
-        [SerializeField] private UIDocument _gameplayDocument;
+        [SerializeField] private UIDocument GameplayDocument;
         [SerializeField] private BotProfileCatalog BotProfileCatalog;
         [SerializeField] private BotSearchSettings BotSearchSettings;
         [SerializeField] private UltimateBotProfileCatalog UltimateBotProfileCatalog;
@@ -61,296 +21,25 @@ namespace Runtime.Infrastructure.Scopes
 
         protected override void Configure(IContainerBuilder builder)
         {
-            if (_gameplayDocument == null)
-                throw new System.InvalidOperationException("Gameplay UIDocument is not assigned.");
+            ValidateSerializedFields();
+            GameplayScopeCoreRegistration.Register(builder, GameplayDocument, BattleshipGameplaySettingsAsset);
+            GameplayScopeEcsRegistration.Register(builder);
+            GameplayScopeServicesRegistration.Register(builder);
+            GameplayScopeBotRegistration.Register(builder, BotProfileCatalog, BotSearchSettings, UltimateBotProfileCatalog);
+            GameplayScopeUiRegistration.Register(builder);
+            GameplayScopeStartupRegistration.Register(builder);
+        }
+
+        private void ValidateSerializedFields()
+        {
+            if (GameplayDocument == null)
+                throw new InvalidOperationException("Gameplay UIDocument is not assigned.");
 
             if (BattleshipGameplaySettingsAsset == null)
             {
                 GameLog.Warning("[GameplayLifetimeScope] BattleshipGameplaySettings is not assigned. Runtime defaults will be used.");
                 BattleshipGameplaySettingsAsset = BattleshipGameplaySettings.CreateRuntimeDefault();
             }
-
-            builder.RegisterInstance(_gameplayDocument);
-            builder.RegisterInstance(BattleshipGameplaySettingsAsset);
-            builder.Register<FieldSpecMapper>(Lifetime.Scoped);
-            builder.Register<IGameService, LocalGameService>(Lifetime.Scoped);
-
-            // ── ECS Infrastructure (Phase 5) ──
-            builder.Register<CommandQueue>(Lifetime.Scoped);
-            builder.Register<IMatchEventScheduler, DeferredEventScheduler>(Lifetime.Scoped);
-            builder.Register<EventPublishSystem>(Lifetime.Scoped);
-            builder.Register<UltimateGameplayEventStream>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IUltimateGameplayEventStream>()
-                .As<IDisposable>();
-            builder.Register<BattleshipGameplayEventStream>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IBattleshipGameplayEventStream>()
-                .As<IDisposable>();
-            builder.Register<IRulesEngine, ClassicRulesEngine>(Lifetime.Scoped);
-            builder.Register<IUltimateRulesEngine, UltimateRulesEngine>(Lifetime.Scoped);
-            builder.Register<IBattleshipPlacementValidator, BattleshipPlacementValidator>(Lifetime.Scoped);
-            builder.Register<IBattleshipAutoPlacer, BattleshipAutoPlacer>(Lifetime.Scoped);
-            builder.Register<BattleshipPlacementService>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IDisposable>();
-            builder.Register<TicTacToeEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
-            builder.Register<UltimateTicTacToeEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
-            builder.Register<BattleshipEcsRegistrar>(Lifetime.Scoped).As<IEcsGameplayRegistrar>();
-            builder.Register<MatchEcsLifecycleService>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IMatchEcsLifecycle>();
-            builder.Register<MatchStateProvider>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IMatchStateProvider>()
-                .As<IGameplayEventStream>()
-                .As<ICurrentPlayerChangedPublisher>()
-                .As<IUltimateGameplaySnapshotProvider>();
-            builder.Register<BattleshipSnapshotProvider>(Lifetime.Scoped)
-                .As<IGameplaySnapshotProvider>()
-                .As<IBattleshipGameplaySnapshotProvider>()
-                .AsSelf();
-            builder.Register<BattleshipRecoveryStateApplier>(Lifetime.Scoped)
-                .As<IBattleshipRecoveryStateApplier>();
-            builder.Register<IGameplayNetworkBridge, FileGameplayNetworkBridge>(Lifetime.Scoped);
-            builder.Register<IBattleshipNetworkBridge, PhotonBattleshipNetworkBridge>(Lifetime.Scoped);
-            builder.Register<IBattleshipLayoutSerializer, BattleshipLayoutSerializer>(Lifetime.Scoped);
-            builder.Register<OnlineAwareGameplayCommandSink>(Lifetime.Scoped);
-            builder.Register<BattleshipOnlineCommandSink>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IDisposable>();
-            builder.Register<IGameplayCommandSink>(resolver =>
-            {
-                var configStore = resolver.Resolve<IGameLaunchConfigStore>();
-                if (configStore.TryPeek(out var config)
-                    && config != null
-                    && string.Equals(config.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
-                {
-                    return resolver.Resolve<BattleshipOnlineCommandSink>();
-                }
-
-                return resolver.Resolve<OnlineAwareGameplayCommandSink>();
-            }, Lifetime.Scoped);
-            builder.Register<ITimeSource>(resolver =>
-            {
-                var session = resolver.Resolve<IOnlineGameplaySessionContextStore>().Snapshot;
-                return session.IsOnlineDirectInvite
-                    ? new FusionTickTimeSource()
-                    : new UnscaledDeltaTimeSource();
-            }, Lifetime.Scoped);
-
-            builder.Register<IMoveTimerService>(resolver =>
-            {
-                var session = resolver.Resolve<IOnlineGameplaySessionContextStore>().Snapshot;
-
-                return session.IsOnlineDirectInvite
-                    ? new NetworkMoveTimerService(
-                        resolver.Resolve<IGameLaunchConfigStore>(),
-                        resolver.Resolve<IGameplayEventStream>(),
-                        resolver.Resolve<IGameplayCommandSink>(),
-                        resolver.Resolve<ITimeSource>(),
-                        resolver.Resolve<IOnlineGameplaySessionContextStore>())
-                    : new LocalMoveTimerService(
-                        resolver.Resolve<IGameLaunchConfigStore>(),
-                        resolver.Resolve<IGameplayEventStream>(),
-                        resolver.Resolve<IGameplayCommandSink>(),
-                        resolver.Resolve<ITimeSource>());
-            }, Lifetime.Scoped)
-            .As<IMoveTimerService>()
-            .As<IDisposable>();
-
-            builder.Register<IBattleshipPlacementTimerService>(resolver =>
-                new BattleshipPlacementTimerService(
-                    resolver.Resolve<IGameLaunchConfigStore>(),
-                    resolver.Resolve<IBattleshipGameplayEventStream>(),
-                    resolver.Resolve<IBattleshipGameplaySnapshotProvider>(),
-                    resolver.Resolve<IMatchStateProvider>(),
-                    resolver.Resolve<IGameplayCommandSink>(),
-                    resolver.Resolve<ITimeSource>(),
-                    resolver.Resolve<IOnlineGameplaySessionContextStore>()),
-                Lifetime.Scoped)
-            .As<IBattleshipPlacementTimerService>()
-            .As<IDisposable>();
-
-            // ── Bot AI ──
-            if (BotProfileCatalog != null)
-                builder.RegisterInstance(BotProfileCatalog).As<IBotProfileCatalog>();
-            else
-                builder.RegisterInstance(new EmptyBotProfileCatalog()).As<IBotProfileCatalog>();
-
-            if (BotSearchSettings != null)
-                builder.RegisterInstance(BotSearchSettings);
-
-            builder.Register<MinimaxDecisionEngine>(Lifetime.Scoped).As<IBotDecisionEngine>();
-            builder.Register<ClassicWinLengthProvider>(Lifetime.Scoped).As<IClassicWinLengthProvider>();
-            builder.Register<BotTurnDriver>(Lifetime.Scoped)
-                .As<IBotTurnDriver>()
-                .As<IDisposable>();
-            builder.Register<BattleshipBotDriver>(Lifetime.Scoped)
-                .As<IBattleshipBotDriver>()
-                .As<IDisposable>();
-
-            if (UltimateBotProfileCatalog != null)
-                builder.RegisterInstance(UltimateBotProfileCatalog).As<IUltimateBotProfileCatalog>();
-            else
-                builder.RegisterInstance(new EmptyUltimateBotProfileCatalog()).As<IUltimateBotProfileCatalog>();
-
-            builder.Register<UltimateBotStateReader>(Lifetime.Scoped).As<IUltimateBotStateReader>();
-            builder.Register<UltimateBotDecisionEngine>(Lifetime.Scoped).As<IUltimateBotDecisionEngine>();
-            builder.Register<BotRngSessionFactory>(Lifetime.Scoped).As<IBotRngSessionFactory>();
-            builder.Register<GameplayBotMoveCommandSink>(Lifetime.Scoped).As<IBotMoveCommandSink>();
-            builder.Register<LocalMatchFailSafeGateway>(Lifetime.Scoped).As<IMatchFailSafeGateway>();
-            builder.Register<BotTurnOrchestrator>(Lifetime.Scoped).As<IBotTurnOrchestrator>().As<IDisposable>();
-
-            // ── UI / Binders ──
-            builder.Register<GameplayFieldPresenter>(Lifetime.Scoped)
-                .As<IGameplayFieldPresenter>()
-                .As<IGameplayFieldUiAdapter>()
-                .As<IBattleshipFieldUiAdapter>();
-            builder.Register<IGameplayMovesModeBehavior>(resolver =>
-            {
-                var configStore = resolver.Resolve<IGameLaunchConfigStore>();
-                if (configStore.TryPeek(out var config)
-                    && config != null
-                    && string.Equals(config.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
-                {
-                    return new BattleshipGameplayMovesModeBehavior(
-                        resolver.Resolve<IBattleshipGameplaySnapshotProvider>(),
-                        resolver.Resolve<IOnlineGameplaySessionContextStore>());
-                }
-
-                return DefaultGameplayMovesModeBehavior.Instance;
-            }, Lifetime.Scoped);
-            builder.Register<GameplayMovesBinder>(Lifetime.Scoped);
-            builder.Register<BattleshipBoardsBinder>(Lifetime.Scoped);
-            builder.Register<BattleshipPlacementUiController>(Lifetime.Scoped)
-                .As<IBattleshipPlacementUiController>()
-                .As<IDisposable>();
-            builder.Register<MoveTimerHudViewModel>(Lifetime.Scoped)
-                .As<IMoveTimerHudViewModel>()
-                .As<IDisposable>();
-            builder.Register<MoveTimerHudBinder>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IDisposable>();
-            builder.Register<BattleshipPlacementTimerHudViewModel>(Lifetime.Scoped)
-                .As<IBattleshipPlacementTimerHudViewModel>()
-                .As<IDisposable>();
-            builder.Register<BattleshipPlacementTimerHudBinder>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IDisposable>();
-            builder.Register<WinLineRenderer>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IDisposable>();
-            builder.Register<ISeriesService, SeriesService>(Lifetime.Scoped);
-            builder.Register<OnlinePlayerNamesStore>(Lifetime.Scoped)
-                .As<IOnlinePlayerNamesStore>()
-                .As<IDisposable>();
-            builder.Register<IMatchPlayerNames>(resolver =>
-            {
-                var session = resolver.Resolve<IOnlineGameplaySessionContextStore>().Snapshot;
-                return session.IsOnlineDirectInvite
-                    ? new OnlineMatchPlayerNames(
-                        resolver.Resolve<IOnlineGameplaySessionContextStore>(),
-                        resolver.Resolve<IPlayerNameService>(),
-                        resolver.Resolve<IOnlinePlayerNamesStore>(),
-                        resolver.Resolve<ILocalizationService>())
-                    : new LocalMatchPlayerNames(
-                        resolver.Resolve<IPlayerNameService>(),
-                        resolver.Resolve<ILocalizationService>());
-            }, Lifetime.Scoped)
-            .As<IMatchPlayerNames>()
-            .As<IDisposable>();
-            builder.Register<IGameplayBackHandler, GameplayBackHandler>(Lifetime.Scoped);
-            builder.Register<PlayerStatisticsMatchReporter>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IDisposable>();
-            builder.Register<GameplayStartupRuntimeState>(Lifetime.Scoped)
-                .AsSelf();
-            builder.Register(resolver => new GameplayStartupCoreServices(
-                resolver.Resolve<IGameLaunchConfigStore>(),
-                resolver.Resolve<IGameService>(),
-                resolver.Resolve<IGameplayFieldPresenter>(),
-                resolver.Resolve<IGameplayFieldUiAdapter>(),
-                resolver.Resolve<IMatchEcsLifecycle>(),
-                resolver.Resolve<IGameplayEventStream>(),
-                resolver.Resolve<IGameplayCommandSink>(),
-                resolver.Resolve<GameplayMovesBinder>(),
-                resolver.Resolve<WinLineRenderer>(),
-                resolver.Resolve<ISeriesService>(),
-                resolver.Resolve<IGameplayBackHandler>(),
-                resolver.Resolve<IGameStateMachine>(),
-                resolver.Resolve<ILocalizationService>(),
-                resolver.Resolve<IMatchPlayerNames>(),
-                resolver.Resolve<PlayerStatisticsMatchReporter>()), Lifetime.Scoped)
-                .AsSelf();
-            builder.Register(resolver => new GameplayStartupTimerServices(
-                resolver.Resolve<IMoveTimerService>(),
-                resolver.Resolve<IBattleshipPlacementTimerService>(),
-                resolver.Resolve<MoveTimerHudBinder>(),
-                resolver.Resolve<BattleshipPlacementTimerHudBinder>()), Lifetime.Scoped)
-                .AsSelf();
-            builder.Register(resolver => new GameplayStartupBotServices(
-                resolver.Resolve<IBotTurnDriver>(),
-                resolver.Resolve<IBattleshipBotDriver>(),
-                resolver.Resolve<IBotTurnOrchestrator>(),
-                resolver.Resolve<IMatchFailSafeGateway>(),
-                resolver.Resolve<IUltimateGameplaySnapshotProvider>(),
-                resolver.Resolve<IUltimateGameplayEventStream>()), Lifetime.Scoped)
-                .AsSelf();
-            builder.Register(resolver => new GameplayStartupOnlineServices(
-                resolver.Resolve<IGameplayNetworkBridge>(),
-                resolver.Resolve<IBattleshipNetworkBridge>(),
-                resolver.Resolve<IOnlineGameplaySessionContextStore>(),
-                resolver.Resolve<IOnlineSessionFlowService>(),
-                resolver.Resolve<IOnlineSessionLauncher>(),
-                resolver.Resolve<IOnlinePlayerNamesStore>(),
-                resolver.Resolve<IMatchStateProvider>()), Lifetime.Scoped)
-                .AsSelf();
-            builder.Register(resolver => new GameplayStartupBattleshipServices(
-                resolver.Resolve<IBattleshipLayoutSerializer>(),
-                resolver.Resolve<BattleshipBoardsBinder>(),
-                resolver.Resolve<IBattleshipPlacementUiController>(),
-                resolver.Resolve<IBattleshipGameplaySnapshotProvider>(),
-                resolver.Resolve<IBattleshipGameplayEventStream>(),
-                resolver.Resolve<IBattleshipRecoveryStateApplier>()), Lifetime.Scoped)
-                .AsSelf();
-            builder.Register(resolver => new GameplayStartupDependencies(
-                resolver.Resolve<GameplayStartupCoreServices>(),
-                resolver.Resolve<GameplayStartupTimerServices>(),
-                resolver.Resolve<GameplayStartupBotServices>(),
-                resolver.Resolve<GameplayStartupOnlineServices>(),
-                resolver.Resolve<GameplayStartupBattleshipServices>()), Lifetime.Scoped)
-                .AsSelf();
-            builder.Register<GameplayStartupBattleshipSessionScoreStore>(Lifetime.Scoped)
-                .AsSelf();
-            builder.Register<GameplayStartupUiCoordinator>(Lifetime.Scoped)
-                .AsSelf();
-            builder.Register<GameplayStartupBotCoordinator>(Lifetime.Scoped)
-                .AsSelf();
-            builder.Register<GameplayStartupBattleshipRecoveryCoordinator>(Lifetime.Scoped)
-                .AsSelf();
-            builder.Register<GameplayStartupOnlineCoordinator>(Lifetime.Scoped)
-                .AsSelf();
-            builder.Register<GameplayStartupRoundCoordinator>(Lifetime.Scoped)
-                .AsSelf();
-            builder.Register<BattleshipGameplayStartup>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IDisposable>();
-            builder.Register<TicTacToeGameplayStartup>(Lifetime.Scoped)
-                .AsSelf()
-                .As<IDisposable>();
-            builder.Register<IGameplayStartup>(resolver =>
-            {
-                var configStore = resolver.Resolve<IGameLaunchConfigStore>();
-                if (configStore.TryPeek(out var config)
-                    && config != null
-                    && string.Equals(config.GameId, BattleshipStrategy.DefaultGameId, StringComparison.Ordinal))
-                {
-                    return resolver.Resolve<BattleshipGameplayStartup>();
-                }
-
-                return resolver.Resolve<TicTacToeGameplayStartup>();
-            }, Lifetime.Scoped);
         }
 
         protected override void Awake()
@@ -370,9 +59,9 @@ namespace Runtime.Infrastructure.Scopes
                     var accessor = Container.Resolve<IGameplayScopeAccessor>();
                     accessor.Clear(Container);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Container might be already disposed.
+                    GameLog.Warning($"[GameplayLifetimeScope] Error during cleanup in {nameof(OnDestroy)}. Error={ex.Message}");
                 }
             }
 
