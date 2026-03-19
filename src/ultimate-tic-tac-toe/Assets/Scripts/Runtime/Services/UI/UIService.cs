@@ -45,10 +45,9 @@ namespace Runtime.Services.UI
                 return typedWindow;
             }
 
-            if (!_windowPrefabs.TryGetValue(windowType, out var prefab))
-                throw new InvalidOperationException($"[UIService] Window {windowType.Name} prefab not registered.");
-
-            return CreateWindowFromPrefab<TWindow, TViewModel>(prefab);
+            return !_windowPrefabs.TryGetValue(windowType, out var prefab) 
+                ? throw new InvalidOperationException($"[UIService] Window {windowType.Name} prefab not registered.") 
+                : CreateWindowFromPrefab<TWindow, TViewModel>(prefab);
         }
 
         public TWindow Open<TWindow, TViewModel>(Action<TViewModel> configureViewModel) 
