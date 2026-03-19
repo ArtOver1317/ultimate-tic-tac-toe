@@ -108,16 +108,14 @@ namespace Tests.EditMode
         #region Open Tests
 
         [Test]
-        public void WhenWindowNotRegistered_ThenReturnsNull()
+        public void WhenWindowNotRegistered_ThenThrowsInvalidOperationException()
         {
             // Arrange
-            LogAssert.Expect(LogType.Error, new Regex(@"Window TestWindow prefab not registered!"));
-
-            // Act
-            var result = _uiService.Open<TestWindow, TestViewModel>();
+            Action act = () => _uiService.Open<TestWindow, TestViewModel>();
 
             // Assert
-            result.Should().BeNull();
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*[UIService] Window TestWindow prefab not registered.*");
         }
 
         [Test]
@@ -213,16 +211,15 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public void WhenOpenWithConfigButWindowNotFound_ThenConfigNotCalled()
+        public void WhenOpenWithConfigButWindowNotFound_ThenThrowsAndConfigNotCalled()
         {
             // Arrange
             var configWasCalled = false;
-            LogAssert.Expect(LogType.Error, new Regex(@"Window TestWindow prefab not registered!"));
-
-            // Act
-            _uiService.Open<TestWindow, TestViewModel>(_ => configWasCalled = true);
+            Action act = () => _uiService.Open<TestWindow, TestViewModel>(_ => configWasCalled = true);
 
             // Assert
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("*[UIService] Window TestWindow prefab not registered.*");
             configWasCalled.Should().BeFalse();
         }
 

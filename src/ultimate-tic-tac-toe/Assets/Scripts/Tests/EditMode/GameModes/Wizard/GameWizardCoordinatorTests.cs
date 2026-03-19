@@ -823,11 +823,13 @@ namespace Tests.EditMode.GameModes.Wizard
                 CloseModeSelectionImpl = _ => UniTask.CompletedTask;
                 OpenMatchSetupImpl = _ => UniTask.CompletedTask;
                 CloseMatchSetupImpl = _ => UniTask.CompletedTask;
-                OpenMatchmakingImpl = _ => UniTask.FromResult<MatchmakingViewModel>(null);
+                OpenMatchmakingImpl = _ => UniTask.FromException<MatchmakingViewModel>(
+                    new InvalidOperationException("SpyWizardNavigator.OpenMatchmakingAsync is not configured."));
                 CloseMatchmakingImpl = _ => UniTask.CompletedTask;
                 ReplaceModeSelectionWithMatchSetupImpl = _ => UniTask.CompletedTask;
                 ReplaceMatchSetupWithModeSelectionImpl = _ => UniTask.CompletedTask;
-                ReplaceMatchSetupWithMatchmakingImpl = _ => UniTask.FromResult<MatchmakingViewModel>(null);
+                ReplaceMatchSetupWithMatchmakingImpl = _ => UniTask.FromException<MatchmakingViewModel>(
+                    new InvalidOperationException("SpyWizardNavigator.ReplaceMatchSetupWithMatchmakingAsync is not configured."));
                 ReplaceMatchmakingWithMatchSetupImpl = _ => UniTask.CompletedTask;
                 CloseAllImpl = _ => UniTask.CompletedTask;
             }

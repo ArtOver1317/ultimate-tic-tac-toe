@@ -269,10 +269,11 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public async Task WhenEnterAndViewReturnsNull_ThenDoesNotInitializeCoordinator()
+        public async Task WhenEnterAndOpenThrows_ThenDoesNotInitializeCoordinator()
         {
             // Arrange
-            _uiService.Open<MainMenuView, MainMenuViewModel>().Returns((MainMenuView)null);
+            _uiService.Open<MainMenuView, MainMenuViewModel>()
+                .Returns(_ => throw new InvalidOperationException("MainMenuView open failed"));
             LogAssert.Expect(LogType.Error, new Regex(@"Failed to open MainMenuView"));
             
             // Act

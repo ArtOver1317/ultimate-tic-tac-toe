@@ -11,19 +11,18 @@ namespace Runtime.Services.UI
     public class ViewModelFactory
     {
         private readonly IObjectResolver _container;
-        private readonly Dictionary<Type, Func<object[], object>> _cachedFactories = new();
-        private readonly Dictionary<Type, Type[]> _cachedDependencies = new();
+        private readonly Dictionary<Type, FactoryPlan> _cachedFactoryPlans = new();
 
         public ViewModelFactory(IObjectResolver container) => _container = container;
         
         public TViewModel CreateViewModel<TViewModel>() where TViewModel : BaseViewModel
         {
             var viewModelType = typeof(TViewModel);
-            var registeredViewModel = TryResolveFromContainer<TViewModel>(viewModelType);
-            return registeredViewModel ?? CreateViewModelWithDependencies<TViewModel>(viewModelType);
+            var registeredViewModel = TryResolveRegisteredViewModel<TViewModel>(viewModelType);
+            return registeredViewModel ?? CreateViewModelFromFallbackFactory<TViewModel>(viewModelType);
         }
 
-        private TViewModel TryResolveFromContainer<TViewModel>(Type viewModelType) where TViewModel : BaseViewModel
+        private TViewModel TryResolveRegisteredViewModel<TViewModel>(Type viewModelType) where TViewModel : BaseViewModel
         {
             try
             {
@@ -31,70 +30,69 @@ namespace Runtime.Services.UI
                 Log.Debug(LogTags.Services, $"[ViewModelFactory] ViewModel {viewModelType.Name} resolved from DI container");
                 return registered;
             }
-            catch
+            catch (VContainerException)
             {
                 // Container doesn't have this type registered, will create manually
                 return null;
             }
         }
 
-        private TViewModel CreateViewModelWithDependencies<TViewModel>(Type viewModelType) 
+        private TViewModel CreateViewModelFromFallbackFactory<TViewModel>(Type viewModelType) 
             where TViewModel : BaseViewModel
         {
-            EnsureFactoryIsCached(viewModelType);
-
-            var dependencies = ResolveDependencies(viewModelType);
-            var factory = _cachedFactories[viewModelType];
-            var viewModel = (TViewModel)factory(dependencies);
+            var plan = GetOrCacheFactoryPlan(viewModelType);
+            var dependencies = ResolveDependencies(plan, viewModelType);
+            var viewModel = (TViewModel)plan.Factory(dependencies);
 
             Log.Debug(LogTags.Services, $"[ViewModelFactory] Created {viewModelType.Name} with {dependencies.Length} dependencies");
             return viewModel;
         }
 
-        private void EnsureFactoryIsCached(Type viewModelType)
+        private FactoryPlan GetOrCacheFactoryPlan(Type viewModelType)
         {
-            if (!_cachedFactories.ContainsKey(viewModelType))
-                CacheFactoryForType(viewModelType);
+            if (_cachedFactoryPlans.TryGetValue(viewModelType, out var cachedPlan))
+                return cachedPlan;
+
+            var plan = CreateFactoryPlan(viewModelType);
+            _cachedFactoryPlans[viewModelType] = plan;
+            return plan;
         }
 
-        private object[] ResolveDependencies(Type viewModelType)
+        private object[] ResolveDependencies(FactoryPlan plan, Type viewModelType)
         {
-            var dependencyTypes = _cachedDependencies[viewModelType];
-            var resolvedDependencies = new object[dependencyTypes.Length];
+            var resolvedDependencies = new object[plan.DependencyTypes.Length];
 
-            for (var i = 0; i < dependencyTypes.Length; i++)
+            for (var i = 0; i < plan.DependencyTypes.Length; i++)
             {
-                resolvedDependencies[i] = ResolveSingleDependency(dependencyTypes[i], viewModelType);
+                resolvedDependencies[i] = ResolveDependencyOrNull(plan.DependencyTypes[i], viewModelType);
             }
 
             return resolvedDependencies;
         }
 
-        private object ResolveSingleDependency(Type dependencyType, Type viewModelType)
+        private object ResolveDependencyOrNull(Type dependencyType, Type viewModelType)
         {
             try
             {
                 return _container.Resolve(dependencyType);
             }
-            catch (Exception ex)
+            catch (VContainerException ex)
             {
                 Log.Error(LogTags.Services, $"[ViewModelFactory] Failed to resolve {dependencyType.Name} for {viewModelType.Name}: {ex.Message}");
                 return null;
             }
         }
 
-        private void CacheFactoryForType(Type viewModelType)
+        private FactoryPlan CreateFactoryPlan(Type viewModelType)
         {
             var constructor = FindBestConstructor(viewModelType);
 
             if (constructor == null)
-            {
-                CacheEmptyFactory(viewModelType);
-                return;
-            }
+                return CreateEmptyFactoryPlan(viewModelType);
 
             var parameterTypes = ExtractParameterTypes(constructor);
-            CacheFactoryWithParameters(viewModelType, parameterTypes);
+            Log.Debug(LogTags.Services, $"[ViewModelFactory] Cached factory for {viewModelType.Name} with {parameterTypes.Length} dependencies");
+            return new FactoryPlan(parameterTypes, args => Activator.CreateInstance(viewModelType, args));
         }
 
         private System.Reflection.ConstructorInfo FindBestConstructor(Type viewModelType) =>
@@ -107,19 +105,23 @@ namespace Runtime.Services.UI
                 .Select(p => p.ParameterType)
                 .ToArray();
 
-        private void CacheFactoryWithParameters(Type viewModelType, Type[] parameterTypes)
-        {
-            _cachedDependencies[viewModelType] = parameterTypes;
-            _cachedFactories[viewModelType] = args => Activator.CreateInstance(viewModelType, args);
-            Log.Debug(LogTags.Services, $"[ViewModelFactory] Cached factory for {viewModelType.Name} with {parameterTypes.Length} dependencies");
-        }
-
-        private void CacheEmptyFactory(Type viewModelType)
+        private FactoryPlan CreateEmptyFactoryPlan(Type viewModelType)
         {
             Log.Error(LogTags.Services, $"[ViewModelFactory] No public constructor found for {viewModelType.Name}");
-            _cachedFactories[viewModelType] = _ => null;
-            _cachedDependencies[viewModelType] = Array.Empty<Type>();
+            return new FactoryPlan(Array.Empty<Type>(), _ => null);
+        }
+
+        private sealed class FactoryPlan
+        {
+            public FactoryPlan(Type[] dependencyTypes, Func<object[], object> factory)
+            {
+                DependencyTypes = dependencyTypes;
+                Factory = factory;
+            }
+
+            public Type[] DependencyTypes { get; }
+
+            public Func<object[], object> Factory { get; }
         }
     }
 }
-

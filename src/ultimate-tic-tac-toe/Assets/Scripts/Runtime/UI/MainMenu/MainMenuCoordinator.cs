@@ -173,63 +173,72 @@ namespace Runtime.UI.MainMenu
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // SettingsView and LanguageSelectionView are transient, opened on top of MainMenu
-            var settingsView = await _uiService.OpenWithLocalizationPreloadAsync<SettingsView, SettingsViewModel>(
-                _localization,
-                cancellationToken,
-                TextTableId.Settings);
-            
-            if (settingsView == null)
+            try
             {
-                Log.Error(LogTags.UI, "Failed to open SettingsView");
-                return;
+                // SettingsView and LanguageSelectionView are transient, opened on top of MainMenu
+                var settingsView = await _uiService.OpenWithLocalizationPreloadAsync<SettingsView, SettingsViewModel>(
+                    _localization,
+                    cancellationToken,
+                    TextTableId.Settings);
+
+                var vm = settingsView.GetViewModel();
+
+                // Note: Back navigation is handled by BaseViewModel.RequestClose triggering UIService.Close
+                // We only need to handle forward navigation.
+                // Using TakeUntil(vm.OnCloseRequested) ensures we unsubscribe when the window closes
+                // (even if View is pooled and ViewModel is reset/pooled, OnCloseRequested completes the session)
+
+                vm.LanguageRequest
+                    .TakeUntil(vm.OnCloseRequested)
+                    .Subscribe(_ => OpenLanguageSelection())
+                    .AddTo(_disposables);
+
+                vm.PlayerNameEditRequest
+                    .TakeUntil(vm.OnCloseRequested)
+                    .Subscribe(_ => OpenPlayerNameEditAsync(_lifecycleCts.Token).Forget(ex =>
+                    {
+                        if (ex is OperationCanceledException)
+                            return;
+
+                        Log.Exception(ex, LogTags.UI);
+                    }))
+                    .AddTo(_disposables);
             }
-
-            var vm = settingsView.GetViewModel();
-
-            // Note: Back navigation is handled by BaseViewModel.RequestClose triggering UIService.Close
-            // We only need to handle forward navigation.
-            // Using TakeUntil(vm.OnCloseRequested) ensures we unsubscribe when the window closes
-            // (even if View is pooled and ViewModel is reset/pooled, OnCloseRequested completes the session)
-
-            vm.LanguageRequest
-                .TakeUntil(vm.OnCloseRequested)
-                .Subscribe(_ => OpenLanguageSelection())
-                .AddTo(_disposables);
-
-            vm.PlayerNameEditRequest
-                .TakeUntil(vm.OnCloseRequested)
-                .Subscribe(_ => OpenPlayerNameEditAsync(_lifecycleCts.Token).Forget(ex =>
-                {
-                    if (ex is OperationCanceledException)
-                        return;
-
-                    Log.Exception(ex, LogTags.UI);
-                }))
-                .AddTo(_disposables);
+            catch (InvalidOperationException ex)
+            {
+                Log.Error(LogTags.UI, $"Failed to open SettingsView. {ex.Message}");
+            }
         }
 
         private async UniTask OpenStatisticsAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var view = await _uiService.OpenWithLocalizationPreloadAsync<PlayerStatisticsView, PlayerStatisticsViewModel>(
-                _localization,
-                cancellationToken,
-                new TextTableId("PlayerStatistics"),
-                new TextTableId("Game"),
-                new TextTableId("GameWizard"));
-
-            if (view == null)
-                Log.Error(LogTags.UI, "Failed to open PlayerStatisticsView");
+            try
+            {
+                await _uiService.OpenWithLocalizationPreloadAsync<PlayerStatisticsView, PlayerStatisticsViewModel>(
+                    _localization,
+                    cancellationToken,
+                    new TextTableId("PlayerStatistics"),
+                    new TextTableId("Game"),
+                    new TextTableId("GameWizard"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                Log.Error(LogTags.UI, $"Failed to open PlayerStatisticsView. {ex.Message}");
+            }
         }
 
         private void OpenLanguageSelection()
         {
-            var langView = _uiService.Open<LanguageSelectionView, LanguageSelectionViewModel>();
-
-            if (langView == null) 
-                Log.Error(LogTags.UI, "Failed to open LanguageSelectionView");
+            try
+            {
+                _uiService.Open<LanguageSelectionView, LanguageSelectionViewModel>();
+            }
+            catch (InvalidOperationException ex)
+            {
+                Log.Error(LogTags.UI, $"Failed to open LanguageSelectionView. {ex.Message}");
+            }
 
             // Back navigation handled by RequestClose -> UIService auto-close
         }
@@ -238,15 +247,19 @@ namespace Runtime.UI.MainMenu
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var view = await _uiService.OpenWithLocalizationPreloadAsync<PlayerNameEditView, PlayerNameEditViewModel>(
-                _localization,
-                cancellationToken,
-                new TextTableId("Settings"),
-                new TextTableId("Common"),
-                TextTableId.Errors);
-
-            if (view == null)
-                Log.Error(LogTags.UI, "Failed to open PlayerNameEditView");
+            try
+            {
+                await _uiService.OpenWithLocalizationPreloadAsync<PlayerNameEditView, PlayerNameEditViewModel>(
+                    _localization,
+                    cancellationToken,
+                    new TextTableId("Settings"),
+                    new TextTableId("Common"),
+                    TextTableId.Errors);
+            }
+            catch (InvalidOperationException ex)
+            {
+                Log.Error(LogTags.UI, $"Failed to open PlayerNameEditView. {ex.Message}");
+            }
         }
 
         public void Dispose()

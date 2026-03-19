@@ -126,6 +126,59 @@ namespace Tests.PlayMode.Services.UI
                 _viewModelPool.ReturnCount.Should().Be(100);
             });
 
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenReplaceConfigureThrowsInvalidOperationException_ThenRestoresInputAndRethrows() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                RegisterWindowWithViewModel<TransitionTestWindowA, TransitionTestViewModelA>();
+                RegisterWindowWithViewModel<TransitionTestWindowB, TransitionTestViewModelB>();
+
+                _sut.Open<TransitionTestWindowA, TransitionTestViewModelA>();
+                var from = _sut.Get<TransitionTestWindowA>();
+
+                try
+                {
+                    await _sut.ReplaceAsync<TransitionTestWindowA, TransitionTestWindowB, TransitionTestViewModelB>(
+                        CancellationToken.None,
+                        _ => throw new InvalidOperationException("configure failed"));
+                    Assert.Fail("Expected InvalidOperationException was not thrown.");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    ex.Message.Should().Be("configure failed");
+                }
+
+                from.InputEnabled.Should().BeTrue();
+                from.SetInputEnabledCallCount.Should().Be(2);
+            });
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenReplaceConfigureThrowsOperationCanceledException_ThenDoesNotRollbackInput() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                RegisterWindowWithViewModel<TransitionTestWindowA, TransitionTestViewModelA>();
+                RegisterWindowWithViewModel<TransitionTestWindowB, TransitionTestViewModelB>();
+
+                _sut.Open<TransitionTestWindowA, TransitionTestViewModelA>();
+                var from = _sut.Get<TransitionTestWindowA>();
+
+                try
+                {
+                    await _sut.ReplaceAsync<TransitionTestWindowA, TransitionTestWindowB, TransitionTestViewModelB>(
+                        CancellationToken.None,
+                        _ => throw new OperationCanceledException());
+                    Assert.Fail("Expected OperationCanceledException was not thrown.");
+                }
+                catch (OperationCanceledException)
+                {
+                }
+
+                from.InputEnabled.Should().BeFalse();
+                from.SetInputEnabledCallCount.Should().Be(1);
+            });
+
         private void RegisterWindowWithViewModel<TWindow, TViewModel>()
             where TWindow : class, IUIView<TViewModel>
             where TViewModel : BaseViewModel

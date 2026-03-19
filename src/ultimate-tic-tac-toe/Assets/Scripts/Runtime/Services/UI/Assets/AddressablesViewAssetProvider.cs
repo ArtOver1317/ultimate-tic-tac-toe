@@ -69,7 +69,7 @@ namespace Runtime.Services.UI.Assets
         {
             private readonly AsyncOperationHandle<T> _handle;
             private readonly T _asset;
-            private int _isDisposed;
+            private bool _isDisposed;
 
             public AddressablesAssetLease(AsyncOperationHandle<T> handle, T asset)
             {
@@ -77,7 +77,7 @@ namespace Runtime.Services.UI.Assets
                 _asset = asset ?? throw new ArgumentNullException(nameof(asset));
             }
 
-            public T Asset => Volatile.Read(ref _isDisposed) != 0 
+            public T Asset => _isDisposed
                 ? throw new ObjectDisposedException(GetType().Name) 
                 : _asset;
 
@@ -89,8 +89,10 @@ namespace Runtime.Services.UI.Assets
                         "[ViewAssetProvider] IAssetLease.Dispose must be called on Unity main thread.");
                 }
 
-                if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
+                if (_isDisposed)
                     return;
+
+                _isDisposed = true;
 
                 if (_handle.IsValid())
                     Addressables.Release(_handle);

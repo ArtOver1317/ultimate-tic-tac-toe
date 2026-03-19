@@ -7,15 +7,30 @@ namespace Runtime.Services.UI
     public interface IUIService
     {
         void RegisterWindowPrefab<TWindow>(GameObject prefab) where TWindow : class, IUIView;
-        
+
+        /// <summary>
+        /// Opens an existing window or creates a new one from the registered prefab.
+        /// Throws <see cref="InvalidOperationException"/> when the window prefab is not registered
+        /// or the window instance cannot be created.
+        /// </summary>
         TWindow Open<TWindow, TViewModel>() 
             where TWindow : class, IUIView<TViewModel> 
             where TViewModel : BaseViewModel;
-        
+
+        /// <summary>
+        /// Opens an existing window or creates a new one from the registered prefab,
+        /// then applies additional ViewModel configuration.
+        /// Throws <see cref="InvalidOperationException"/> when the window prefab is not registered
+        /// or the window instance cannot be created.
+        /// </summary>
         TWindow Open<TWindow, TViewModel>(Action<TViewModel> configureViewModel) 
             where TWindow : class, IUIView<TViewModel> 
             where TViewModel : BaseViewModel;
 
+        /// <summary>
+        /// Replaces one window with another.
+        /// Throws <see cref="InvalidOperationException"/> when the target window cannot be opened.
+        /// </summary>
         Cysharp.Threading.Tasks.UniTask<TTo> ReplaceAsync<TFrom, TTo, TToViewModel>(
             System.Threading.CancellationToken ct,
             Action<TToViewModel> configureViewModel = null,

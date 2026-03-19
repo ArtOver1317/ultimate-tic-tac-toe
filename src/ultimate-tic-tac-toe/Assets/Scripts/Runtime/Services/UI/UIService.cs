@@ -7,7 +7,6 @@ using Runtime.Infrastructure.Logging;
 using Runtime.UI.Core;
 using StripLog;
 using UnityEngine;
-using VContainer;
 
 namespace Runtime.Services.UI
 {
@@ -15,9 +14,8 @@ namespace Runtime.Services.UI
     {
         private readonly ViewModelFactory _viewModelFactory;
         private readonly UIPoolManager _poolManager;
-        private readonly Dictionary<Type, IUIView> _activeWindows = new();
+        private readonly Dictionary<Type, ActiveWindowEntry> _activeWindowEntries = new();
         private readonly Dictionary<Type, GameObject> _windowPrefabs = new();
-        private readonly Dictionary<Type, IDisposable> _closeSubscriptions = new();
         private readonly SemaphoreSlim _replaceGate = new(1, 1);
 
         public UIService(UIPoolManager poolManager, ViewModelFactory viewModelFactory)
@@ -39,19 +37,18 @@ namespace Runtime.Services.UI
         {
             var windowType = typeof(TWindow);
 
-            if (_activeWindows.TryGetValue(windowType, out var existingWindow))
+            if (TryGetActiveEntry(windowType, out var existingEntry))
             {
-                var typedWindow = (TWindow)existingWindow;
+                var typedWindow = (TWindow)existingEntry.Window;
                 typedWindow.Show();
                 Log.Debug(LogTags.Services, $"[UIService] Showing existing window: {windowType.Name}");
                 return typedWindow;
             }
 
-            if (_windowPrefabs.TryGetValue(windowType, out var prefab))
-                return CreateWindowFromPrefab<TWindow, TViewModel>(prefab);
+            if (!_windowPrefabs.TryGetValue(windowType, out var prefab))
+                throw new InvalidOperationException($"[UIService] Window {windowType.Name} prefab not registered.");
 
-            Log.Error(LogTags.Services, $"[UIService] Window {windowType.Name} prefab not registered!");
-            return null;
+            return CreateWindowFromPrefab<TWindow, TViewModel>(prefab);
         }
 
         public TWindow Open<TWindow, TViewModel>(Action<TViewModel> configureViewModel) 
@@ -59,12 +56,9 @@ namespace Runtime.Services.UI
             where TViewModel : BaseViewModel
         {
             var window = Open<TWindow, TViewModel>();
-            
-            if (window != null)
-            {
-                var viewModel = window.GetViewModel();
-                configureViewModel?.Invoke(viewModel);
-            }
+
+            var viewModel = window.GetViewModel();
+            configureViewModel?.Invoke(viewModel);
             
             return window;
         }
@@ -96,22 +90,24 @@ namespace Runtime.Services.UI
                 if (!effective.KeepFromVisibleUntilToShown)
                     from?.Hide();
 
-                var to = configureViewModel == null
-                    ? Open<TTo, TToViewModel>()
-                    : Open<TTo, TToViewModel>(configureViewModel);
+                try
+                {
+                    var to = configureViewModel == null
+                        ? Open<TTo, TToViewModel>()
+                        : Open<TTo, TToViewModel>(configureViewModel);
 
-                if (to == null)
+                    if (effective.CloseFromAfterToOpened && from != null)
+                        Close<TFrom>();
+
+                    return to;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     if (from is IInputBlockableView rollback)
                         rollback.SetInputEnabled(true);
-                    
-                    throw new InvalidOperationException("Failed to open target view.");
+
+                    throw;
                 }
-
-                if (effective.CloseFromAfterToOpened && from != null)
-                    Close<TFrom>();
-
-                return to;
             }
             finally
             {
@@ -123,9 +119,9 @@ namespace Runtime.Services.UI
         {
             var windowType = typeof(TWindow);
             
-            if (_activeWindows.TryGetValue(windowType, out var window))
+            if (TryGetActiveEntry(windowType, out var entry))
             {
-                window.Hide();
+                entry.Window.Hide();
                 Log.Debug(LogTags.Services, $"[UIService] Hidden window: {windowType.Name}");
             }
         }
@@ -140,32 +136,26 @@ namespace Runtime.Services.UI
 
         public void CloseAll()
         {
-            var windowTypes = _activeWindows.Keys.ToList();
+            var windowTypes = _activeWindowEntries.Keys.ToList();
             
             foreach (var windowType in windowTypes)
             {
                 TryCloseWindow(windowType);
             }
-
-            foreach (var subscription in _closeSubscriptions.Values)
-            {
-                subscription?.Dispose();
-            }
-
-            _closeSubscriptions.Clear();
+            
             Log.Debug(LogTags.Services, "[UIService] Closed all windows");
         }
 
         public TWindow Get<TWindow>() where TWindow : IUIView
         {
             var windowType = typeof(TWindow);
-            return _activeWindows.TryGetValue(windowType, out var window) ? (TWindow)window : default;
+            return TryGetActiveEntry(windowType, out var entry) ? (TWindow)entry.Window : default;
         }
 
         public bool IsOpen<TWindow>() where TWindow : IUIView
         {
             var windowType = typeof(TWindow);
-            return _activeWindows.TryGetValue(windowType, out var window) && window.IsVisible;
+            return TryGetActiveEntry(windowType, out var entry) && entry.Window.IsVisible;
         }
 
         public void ClearViewModelPools() => _poolManager.ClearViewModelPools();
@@ -186,24 +176,12 @@ namespace Runtime.Services.UI
             var window = _poolManager.GetOrInstantiateWindow<TWindow>(windowType, prefab);
             
             if (window == null)
-            {
-                Log.Error(LogTags.Services, $"[UIService] Failed to get or instantiate window: {windowType.Name}");
-                return null;
-            }
+                throw new InvalidOperationException($"[UIService] Failed to get or instantiate window: {windowType.Name}.");
 
             var viewModelType = typeof(TViewModel);
             var viewModel = _poolManager.GetViewModelFromPool<TViewModel>(viewModelType) ?? CreateViewModel<TViewModel>();
             window.SetViewModel(viewModel);
-            _activeWindows[windowType] = window;
-            
-            var closeSubscription = viewModel.OnCloseRequested
-                .Subscribe(_ =>
-                {
-                    Log.Debug(LogTags.Services, $"[UIService] Close requested for window: {windowType.Name}");
-                    CloseWindowByType(windowType);
-                });
-            
-            _closeSubscriptions[windowType] = closeSubscription;
+            _activeWindowEntries[windowType] = CreateActiveWindowEntry(windowType, window, viewModel);
             window.Show();
             Log.Debug(LogTags.Services, $"[UIService] Created window from prefab: {windowType.Name}");
             return window;
@@ -220,21 +198,49 @@ namespace Runtime.Services.UI
 
         private bool TryCloseWindow(Type windowType)
         {
-            if (!_activeWindows.Remove(windowType, out var window))
+            if (!_activeWindowEntries.Remove(windowType, out var entry))
                 return false;
-            
-            if (_closeSubscriptions.Remove(windowType, out var subscription))
-                subscription?.Dispose();
-            
-            var viewModel = GetViewModelFromWindow(window);
-            _poolManager.ReturnWindowToPool(window);
-            
-            if (viewModel != null)
-                _poolManager.ReturnViewModelToPool(viewModel);
+
+            entry.DisposeCloseSubscription();
+            _poolManager.ReturnWindowToPool(entry.Window);
+
+            if (entry.ViewModel != null)
+                _poolManager.ReturnViewModelToPool(entry.ViewModel);
             
             return true;
         }
 
-        private BaseViewModel GetViewModelFromWindow(IUIView window) => window.GetViewModel();
+        private bool TryGetActiveEntry(Type windowType, out ActiveWindowEntry entry) =>
+            _activeWindowEntries.TryGetValue(windowType, out entry);
+
+        private ActiveWindowEntry CreateActiveWindowEntry(Type windowType, IUIView window, BaseViewModel viewModel)
+        {
+            var closeSubscription = viewModel.OnCloseRequested
+                .Subscribe(_ =>
+                {
+                    Log.Debug(LogTags.Services, $"[UIService] Close requested for window: {windowType.Name}");
+                    CloseWindowByType(windowType);
+                });
+
+            return new ActiveWindowEntry(window, viewModel, closeSubscription);
+        }
+
+        private sealed class ActiveWindowEntry
+        {
+            public ActiveWindowEntry(IUIView window, BaseViewModel viewModel, IDisposable closeSubscription)
+            {
+                Window = window;
+                ViewModel = viewModel;
+                CloseSubscription = closeSubscription;
+            }
+
+            public IUIView Window { get; }
+
+            public BaseViewModel ViewModel { get; }
+
+            private IDisposable CloseSubscription { get; }
+
+            public void DisposeCloseSubscription() => CloseSubscription?.Dispose();
+        }
     }
 }

@@ -69,23 +69,32 @@ namespace Runtime.Infrastructure.GameStateMachine.States
             if (!_entryModeStore.TryConsume(out var entryMode) || entryMode != MainMenuEntryMode.OpenWizard)
                 return false;
 
-            var menuView = await OpenMainMenuViewAsync(cancellationToken);
-            InitializeWizardEntry(menuView);
+            try
+            {
+                var menuView = await OpenMainMenuViewAsync(cancellationToken);
+                InitializeWizardEntry(menuView);
+            }
+            catch (InvalidOperationException ex)
+            {
+                Log.Error(LogTags.UI, $"[MainMenuState] Failed to open MainMenuView for wizard entry. {ex.Message}");
+                InitializeHeadlessWizardEntry();
+            }
+
             await StartWizardAsync(cancellationToken);
             return true;
         }
 
         private async UniTask OpenMainMenuAsync(CancellationToken cancellationToken)
         {
-            var view = await OpenMainMenuViewAsync(cancellationToken);
-            
-            if (view == null)
+            try
             {
-                Log.Error(LogTags.UI, "[MainMenuState] Failed to open MainMenuView!");
-                return;
+                var view = await OpenMainMenuViewAsync(cancellationToken);
+                _coordinator.Initialize(view.GetViewModel());
             }
-
-            _coordinator.Initialize(view.GetViewModel());
+            catch (InvalidOperationException ex)
+            {
+                Log.Error(LogTags.UI, $"[MainMenuState] Failed to open MainMenuView! {ex.Message}");
+            }
         }
 
         private async UniTask<MainMenuView> OpenMainMenuViewAsync(CancellationToken cancellationToken) =>
@@ -96,14 +105,12 @@ namespace Runtime.Infrastructure.GameStateMachine.States
 
         private void InitializeWizardEntry(MainMenuView menuView)
         {
-            if (menuView != null)
-            {
-                _uiService.Hide<MainMenuView>();
-                _coordinator.Initialize(menuView.GetViewModel());
-                return;
-            }
+            _uiService.Hide<MainMenuView>();
+            _coordinator.Initialize(menuView.GetViewModel());
+        }
 
-            Log.Error(LogTags.UI, "[MainMenuState] Failed to open MainMenuView for wizard entry.");
+        private void InitializeHeadlessWizardEntry()
+        {
             _headlessViewModel?.Dispose();
             _headlessViewModel = new MainMenuViewModel(_localization);
             _headlessViewModel.Initialize();

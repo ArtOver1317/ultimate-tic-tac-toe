@@ -75,7 +75,7 @@ namespace Runtime.UI.GameModes.Wizard
                 _localization,
                 WizardTables,
                 ct);
-            return view?.GetViewModel();
+            return view.GetViewModel();
         }
 
         public UniTask CloseMatchmakingAsync(CancellationToken ct)
@@ -110,7 +110,7 @@ namespace Runtime.UI.GameModes.Wizard
                 _localization,
                 WizardTables,
                 ct);
-            return view?.GetViewModel();
+            return view.GetViewModel();
         }
 
         public UniTask ReplaceMatchmakingWithMatchSetupAsync(CancellationToken ct)

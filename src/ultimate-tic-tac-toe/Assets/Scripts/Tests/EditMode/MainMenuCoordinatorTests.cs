@@ -758,12 +758,13 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public async Task WhenSettingsOpenFails_ThenLogsErrorAndDoesNotThrow()
+        public async Task WhenSettingsOpenThrows_ThenLogsErrorAndDoesNotThrow()
         {
             try
             {
                 LogAssert.Expect(LogType.Error, new Regex(@"Failed to open SettingsView"));
-                _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns((SettingsView)null);
+                _uiServiceMock.Open<SettingsView, SettingsViewModel>()
+                    .Returns(_ => throw new InvalidOperationException("SettingsView open failed"));
                 _coordinator.Initialize(_viewModel);
 
                 _viewModel.Invoking(vm => vm.RequestSettings())
@@ -778,7 +779,7 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public async Task WhenLanguageSelectionOpenFails_ThenLogsErrorAndDoesNotThrow()
+        public async Task WhenLanguageSelectionOpenThrows_ThenLogsErrorAndDoesNotThrow()
         {
             try
             {
@@ -787,7 +788,8 @@ namespace Tests.EditMode
                 var settingsView = CreateInactiveSettingsView(settingsVm);
                 _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns(settingsView);
 
-                _uiServiceMock.Open<LanguageSelectionView, LanguageSelectionViewModel>().Returns((LanguageSelectionView)null);
+                _uiServiceMock.Open<LanguageSelectionView, LanguageSelectionViewModel>()
+                    .Returns(_ => throw new InvalidOperationException("LanguageSelectionView open failed"));
 
                 _coordinator.Initialize(_viewModel);
 

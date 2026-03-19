@@ -48,7 +48,7 @@ namespace Tests.EditMode
         {
             // Arrange
             _mockContainer.Resolve(typeof(TestViewModelWithoutDeps))
-                .Returns(_ => throw new Exception("Type not registered"));
+                .Returns(_ => throw new VContainerException(typeof(TestViewModelWithoutDeps), "Type not registered"));
 
             // Act
             var result = _factory.CreateViewModel<TestViewModelWithoutDeps>();
@@ -71,7 +71,7 @@ namespace Tests.EditMode
             var mockService = Substitute.For<ITestService>();
             
             _mockContainer.Resolve(typeof(TestViewModelWithDeps))
-                .Returns(_ => throw new Exception("Type not registered"));
+                .Returns(_ => throw new VContainerException(typeof(TestViewModelWithDeps), "Type not registered"));
             
             _mockContainer.Resolve(typeof(ITestService))
                 .Returns(mockService);
@@ -96,7 +96,7 @@ namespace Tests.EditMode
             var mockService2 = Substitute.For<ITestService2>();
             
             _mockContainer.Resolve(typeof(TestViewModelMultipleDeps))
-                .Returns(_ => throw new Exception("Type not registered"));
+                .Returns(_ => throw new VContainerException(typeof(TestViewModelMultipleDeps), "Type not registered"));
             
             _mockContainer.Resolve(typeof(ITestService))
                 .Returns(mockService1);
@@ -132,7 +132,7 @@ namespace Tests.EditMode
             var mockService2 = Substitute.For<ITestService2>();
             
             _mockContainer.Resolve(typeof(TestViewModelMultipleCtors))
-                .Returns(_ => throw new Exception("Type not registered"));
+                .Returns(_ => throw new VContainerException(typeof(TestViewModelMultipleCtors), "Type not registered"));
             
             _mockContainer.Resolve(typeof(ITestService))
                 .Returns(mockService1);
@@ -164,7 +164,7 @@ namespace Tests.EditMode
         {
             // Arrange
             _mockContainer.Resolve(typeof(TestViewModelPrivateCtor))
-                .Returns(_ => throw new Exception("Type not registered"));
+                .Returns(_ => throw new VContainerException(typeof(TestViewModelPrivateCtor), "Type not registered"));
             
             LogAssert.Expect(LogType.Error, new Regex(@"No public constructor found for TestViewModelPrivateCtor"));
 
@@ -185,7 +185,7 @@ namespace Tests.EditMode
         {
             // Arrange
             _mockContainer.Resolve(typeof(TestViewModelWithoutDeps))
-                .Returns(_ => throw new Exception("Type not registered"));
+                .Returns(_ => throw new VContainerException(typeof(TestViewModelWithoutDeps), "Type not registered"));
 
             // Act
             var result1 = _factory.CreateViewModel<TestViewModelWithoutDeps>();
@@ -214,10 +214,10 @@ namespace Tests.EditMode
         {
             // Arrange
             _mockContainer.Resolve(typeof(TestViewModelWithDeps))
-                .Returns(_ => throw new Exception("Type not registered"));
+                .Returns(_ => throw new VContainerException(typeof(TestViewModelWithDeps), "Type not registered"));
             
             _mockContainer.Resolve(typeof(ITestService))
-                .Returns(_ => throw new Exception("Dependency resolution failed"));
+                .Returns(_ => throw new VContainerException(typeof(ITestService), "Dependency resolution failed"));
             
             LogAssert.Expect(LogType.Error, new Regex(@"\[ViewModelFactory\] Failed to resolve ITestService for TestViewModelWithDeps.*"));
 
@@ -232,11 +232,11 @@ namespace Tests.EditMode
         }
 
         [Test]
-        public void WhenContainerThrowsOnTryResolve_ThenFallsBackToManualCreation()
+        public void WhenContainerThrowsVContainerException_ThenFallsBackToManualCreation()
         {
             // Arrange
             _mockContainer.Resolve(typeof(TestViewModelWithoutDeps))
-                .Returns(_ => throw new Exception("Container threw exception"));
+                .Returns(_ => throw new VContainerException(typeof(TestViewModelWithoutDeps), "Container threw exception"));
 
             // Act
             var result = _factory.CreateViewModel<TestViewModelWithoutDeps>();
@@ -247,6 +247,21 @@ namespace Tests.EditMode
             
             result.Should().BeOfType<TestViewModelWithoutDeps>(
                 "factory should create correct type through fallback");
+        }
+
+        [Test]
+        public void WhenContainerThrowsUnexpectedException_ThenRethrows()
+        {
+            // Arrange
+            _mockContainer.Resolve(typeof(TestViewModelWithoutDeps))
+                .Returns(_ => throw new InvalidOperationException("Unexpected container failure"));
+
+            // Act
+            Action act = () => _factory.CreateViewModel<TestViewModelWithoutDeps>();
+
+            // Assert
+            act.Should().Throw<InvalidOperationException>()
+                .WithMessage("Unexpected container failure");
         }
 
         #endregion

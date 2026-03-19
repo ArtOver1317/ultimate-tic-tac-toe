@@ -17,11 +17,15 @@ namespace Tests.PlayMode.GameModes.Wizard
         public Func<CancellationToken, UniTask> CloseModeSelectionImpl { get; set; } = _ => UniTask.CompletedTask;
         public Func<CancellationToken, UniTask> OpenMatchSetupImpl { get; set; } = _ => UniTask.CompletedTask;
         public Func<CancellationToken, UniTask> CloseMatchSetupImpl { get; set; } = _ => UniTask.CompletedTask;
-        public Func<CancellationToken, UniTask<MatchmakingViewModel>> OpenMatchmakingImpl { get; set; } = _ => UniTask.FromResult<MatchmakingViewModel>(null);
+        public Func<CancellationToken, UniTask<MatchmakingViewModel>> OpenMatchmakingImpl { get; set; } = _ =>
+            UniTask.FromException<MatchmakingViewModel>(new InvalidOperationException(
+                "SpyWizardNavigator.OpenMatchmakingAsync is not configured."));
         public Func<CancellationToken, UniTask> CloseMatchmakingImpl { get; set; } = _ => UniTask.CompletedTask;
         public Func<CancellationToken, UniTask> ReplaceModeSelectionWithMatchSetupImpl { get; set; } = _ => UniTask.CompletedTask;
         public Func<CancellationToken, UniTask> ReplaceMatchSetupWithModeSelectionImpl { get; set; } = _ => UniTask.CompletedTask;
-        public Func<CancellationToken, UniTask<MatchmakingViewModel>> ReplaceMatchSetupWithMatchmakingImpl { get; set; } = _ => UniTask.FromResult<MatchmakingViewModel>(null);
+        public Func<CancellationToken, UniTask<MatchmakingViewModel>> ReplaceMatchSetupWithMatchmakingImpl { get; set; } = _ =>
+            UniTask.FromException<MatchmakingViewModel>(new InvalidOperationException(
+                "SpyWizardNavigator.ReplaceMatchSetupWithMatchmakingAsync is not configured."));
         public Func<CancellationToken, UniTask> ReplaceMatchmakingWithMatchSetupImpl { get; set; } = _ => UniTask.CompletedTask;
         public Func<CancellationToken, UniTask> CloseAllImpl { get; set; } = _ => UniTask.CompletedTask;
 

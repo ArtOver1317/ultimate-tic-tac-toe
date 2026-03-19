@@ -31,41 +31,8 @@ namespace Runtime.Services.UI
         public TWindow GetOrInstantiateWindow<TWindow>(Type windowType, GameObject prefab) 
             where TWindow : class, IUIView
         {
-            var pooledWindow = _windowPool.Get<TWindow>(windowType);
-            
-            if (pooledWindow != null)
-            {
-                if (pooledWindow is MonoBehaviour mb) 
-                    mb.gameObject.SetActive(true);
-
-                if (pooledWindow is MonoBehaviour pooledMb)
-                {
-                    EnsureInjected(pooledMb.gameObject);
-                    EnsureInjected(pooledMb);
-                }
-                else
-                    EnsureInjected(pooledWindow);
-
-                Log.Debug(LogTags.Services, $"[UIPoolManager] Retrieved window from pool: {windowType.Name}");
-                return pooledWindow;
-            }
-
-            var instance = UnityEngine.Object.Instantiate(prefab);
-            UnityEngine.Object.DontDestroyOnLoad(instance);
-            EnsureInjected(instance);
-            var window = instance.GetComponent<TWindow>();
-            
-            if (window == null)
-            {
-                Log.Error(LogTags.Services, $"[UIPoolManager] Prefab doesn't have {windowType.Name} component!");
-                UnityEngine.Object.Destroy(instance);
-                return null;
-            }
-
-            EnsureInjected(window);
-
-            Log.Debug(LogTags.Services, $"[UIPoolManager] Created new window instance: {windowType.Name}");
-            return window;
+            var pooledWindow = TryReuseWindowFromPool<TWindow>(windowType);
+            return pooledWindow ?? InstantiateWindow<TWindow>(windowType, prefab);
         }
 
         public TViewModel GetViewModelFromPool<TViewModel>(Type viewModelType) where TViewModel : BaseViewModel
@@ -101,22 +68,7 @@ namespace Runtime.Services.UI
 
         public void ClearAllPools()
         {
-            _windowPool.ClearAll(w =>
-            {
-                RemoveInjectedId(w);
-
-                try
-                {
-                    w.Close();
-                }
-                catch (MissingReferenceException)
-                {
-                    // View is already destroyed; ignore.
-                }
-
-                if (w is MonoBehaviour mb && mb)
-                    UnityEngine.Object.Destroy(mb.gameObject);
-            });
+            _windowPool.ClearAll(CleanupPooledWindow);
             
             _viewModelPool.ClearAll(vm => vm.Dispose());
             Log.Debug(LogTags.Services, "[UIPoolManager] All pools cleared");
@@ -125,24 +77,77 @@ namespace Runtime.Services.UI
 
         public void ClearPool(Type windowType)
         {
-            _windowPool.Clear(windowType, w =>
-            {
-                RemoveInjectedId(w);
-
-                try
-                {
-                    w.Close();
-                }
-                catch (MissingReferenceException)
-                {
-                    // View is already destroyed; ignore.
-                }
-
-                if (w is MonoBehaviour mb && mb)
-                    UnityEngine.Object.Destroy(mb.gameObject);
-            });
+            _windowPool.Clear(windowType, CleanupPooledWindow);
             
             Log.Debug(LogTags.Services, $"[UIPoolManager] Cleared pool for {windowType.Name}");
+        }
+
+        private TWindow TryReuseWindowFromPool<TWindow>(Type windowType) where TWindow : class, IUIView
+        {
+            var pooledWindow = _windowPool.Get<TWindow>(windowType);
+
+            if (pooledWindow == null)
+                return null;
+
+            ReactivateAndInjectWindow(pooledWindow);
+            Log.Debug(LogTags.Services, $"[UIPoolManager] Retrieved window from pool: {windowType.Name}");
+            return pooledWindow;
+        }
+
+        private TWindow InstantiateWindow<TWindow>(Type windowType, GameObject prefab) where TWindow : class, IUIView
+        {
+            var instance = UnityEngine.Object.Instantiate(prefab);
+            UnityEngine.Object.DontDestroyOnLoad(instance);
+
+            var window = instance.GetComponent<TWindow>();
+
+            if (window == null)
+            {
+                Log.Error(LogTags.Services, $"[UIPoolManager] Prefab doesn't have {windowType.Name} component!");
+                UnityEngine.Object.Destroy(instance);
+                return null;
+            }
+
+            EnsureWindowInjected(window);
+            Log.Debug(LogTags.Services, $"[UIPoolManager] Created new window instance: {windowType.Name}");
+            return window;
+        }
+
+        private void ReactivateAndInjectWindow(IUIView window)
+        {
+            if (window is MonoBehaviour monoBehaviour)
+                monoBehaviour.gameObject.SetActive(true);
+
+            EnsureWindowInjected(window);
+        }
+
+        private void EnsureWindowInjected(IUIView window)
+        {
+            if (window is MonoBehaviour monoBehaviour)
+            {
+                EnsureInjected(monoBehaviour.gameObject);
+                EnsureInjected(monoBehaviour);
+                return;
+            }
+
+            EnsureInjected(window);
+        }
+
+        private void CleanupPooledWindow(IUIView window)
+        {
+            RemoveInjectedId(window);
+
+            try
+            {
+                window.Close();
+            }
+            catch (MissingReferenceException)
+            {
+                // View is already destroyed; ignore.
+            }
+
+            if (window is MonoBehaviour monoBehaviour && monoBehaviour)
+                UnityEngine.Object.Destroy(monoBehaviour.gameObject);
         }
 
         private void EnsureInjected(object target)

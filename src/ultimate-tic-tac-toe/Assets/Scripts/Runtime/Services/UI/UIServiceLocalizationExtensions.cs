@@ -35,9 +35,11 @@ namespace Runtime.Services.UI
                     cancellationToken);
             }
 
-            return configureViewModel == null
+            var window = configureViewModel == null
                 ? uiService.Open<TWindow, TViewModel>()
                 : uiService.Open<TWindow, TViewModel>(configureViewModel);
+
+            return window;
         }
 
         public static UniTask<TWindow> OpenWithLocalizationPreloadAsync<TWindow, TViewModel>(
