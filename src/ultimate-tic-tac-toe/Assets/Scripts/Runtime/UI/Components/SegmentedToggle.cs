@@ -8,6 +8,8 @@ namespace Runtime.UI.Components
     [UxmlElement]
     public sealed partial class SegmentedToggle : VisualElement
     {
+        private const string _selectedClass = "segmented-toggle__button--selected";
+
         private readonly Button _leftButton;
         private readonly Button _rightButton;
 
@@ -67,12 +69,10 @@ namespace Runtime.UI.Components
 
         private static void SetSelected(VisualElement element, bool selected)
         {
-            const string selectedClass = "segmented-toggle__button--selected";
-
             if (selected)
-                element.AddToClassList(selectedClass);
+                element.AddToClassList(_selectedClass);
             else
-                element.RemoveFromClassList(selectedClass);
+                element.RemoveFromClassList(_selectedClass);
         }
     }
 }

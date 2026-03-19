@@ -2,12 +2,11 @@
 
 using System;
 using System.Collections.Generic;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using UnityEngine.UIElements;
 
-namespace Runtime.UI.Components
+namespace Runtime.UI.GameModes.Wizard
 {
     public sealed class HumanKindRadioItem
     {
@@ -43,9 +42,7 @@ namespace Runtime.UI.Components
 
         public void SetItems(IReadOnlyList<HumanKindRadioItem>? items)
         {
-            Clear();
-            _orderedButtons.Clear();
-            _buttonsByKind.Clear();
+            ResetItems();
 
             if (items == null || items.Count == 0)
             {
@@ -55,48 +52,71 @@ namespace Runtime.UI.Components
 
             for (var i = 0; i < items.Count; i++)
             {
-                var item = items[i];
-                
-                if (item == null)
-                {
-                    GameLog.Warning("[HumanKindRadio] Null item ignored.");
-                    continue;
-                }
-
-                if (_buttonsByKind.ContainsKey(item.Kind))
-                {
-                    GameLog.Warning($"[HumanKindRadio] Duplicate human opponent kind '{item.Kind}' ignored.");
-                    continue;
-                }
-
-                var button = new Button { text = item.Label ?? string.Empty, name = item.Kind.ToString() };
-                button.AddToClassList(_itemClass);
-
-                if (!item.IsEnabled)
-                {
-                    button.SetEnabled(false);
-                    button.AddToClassList(_disabledClass);
-                }
-
-                var kind = item.Kind;
-                
-                button.clicked += () =>
-                {
-                    if (item.IsEnabled)
-                        SetSelectedKindInternal(kind, notify: true);
-                };
-
-                _orderedButtons.Add(button);
-                _buttonsByKind.Add(kind, button);
-                Add(button);
+                AddItem(items[i]);
             }
 
             UpdateLastItemClass();
+            NormalizeSelectedKind();
+            UpdateVisualState();
+        }
 
+        private void ResetItems()
+        {
+            Clear();
+            _orderedButtons.Clear();
+            _buttonsByKind.Clear();
+        }
+
+        private void AddItem(HumanKindRadioItem? item)
+        {
+            if (item == null)
+            {
+                GameLog.Warning("[HumanKindRadio] Null item ignored.");
+                return;
+            }
+
+            if (_buttonsByKind.ContainsKey(item.Kind))
+            {
+                GameLog.Warning($"[HumanKindRadio] Duplicate human opponent kind '{item.Kind}' ignored.");
+                return;
+            }
+
+            var button = CreateButton(item);
+            _orderedButtons.Add(button);
+            _buttonsByKind.Add(item.Kind, button);
+            Add(button);
+        }
+
+        private Button CreateButton(HumanKindRadioItem item)
+        {
+            var button = new Button { text = item.Label, name = item.Kind.ToString() };
+            button.AddToClassList(_itemClass);
+
+            if (!item.IsEnabled)
+            {
+                button.SetEnabled(false);
+                button.AddToClassList(_disabledClass);
+            }
+
+            var kind = item.Kind;
+            var isEnabled = item.IsEnabled;
+            button.clicked += () => OnItemClicked(kind, isEnabled);
+
+            return button;
+        }
+
+        private void NormalizeSelectedKind()
+        {
             if (_selectedKind.HasValue && !_buttonsByKind.ContainsKey(_selectedKind.Value))
                 _selectedKind = null;
+        }
 
-            UpdateVisualState();
+        private void OnItemClicked(HumanOpponentKind kind, bool isEnabled)
+        {
+            if (!isEnabled)
+                return;
+
+            SetSelectedKindInternal(kind, notify: true);
         }
 
         public void SetSelectedKind(HumanOpponentKind kind) => SetSelectedKindInternal(kind, notify: true);
@@ -126,7 +146,7 @@ namespace Runtime.UI.Components
             foreach (var pair in _buttonsByKind)
             {
                 var isSelected = _selectedKind.HasValue && pair.Key.Equals(_selectedKind.Value);
-                
+
                 if (isSelected)
                     pair.Value.AddToClassList(_selectedClass);
                 else

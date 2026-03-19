@@ -7,9 +7,11 @@ namespace Runtime.UI.Components
     [UxmlElement]
     public sealed partial class MatchmakingSpinner : VisualElement
     {
-        private const float _rotationStep = 18f;
+        private const float _fullRotationDegrees = 360f;
+        private const int _stepsPerRevolution = 20;
+        private const float _rotationStepDegrees = _fullRotationDegrees / _stepsPerRevolution;
+        private const int _frameIntervalMs = 60;
 
-        private readonly Label _glyph;
         private IVisualElementScheduledItem? _schedule;
         private float _angle;
         private bool _isRunning;
@@ -17,9 +19,9 @@ namespace Runtime.UI.Components
         public MatchmakingSpinner()
         {
             AddToClassList("matchmaking-spinner");
-            _glyph = new Label("!");
-            _glyph.AddToClassList("matchmaking-spinner__glyph");
-            Add(_glyph);
+            var glyph = new Label("!");
+            glyph.AddToClassList("matchmaking-spinner__glyph");
+            Add(glyph);
             _angle = 0f;
             style.rotate = new Rotate(new Angle(_angle, AngleUnit.Degree));
         }
@@ -32,7 +34,7 @@ namespace Runtime.UI.Components
             _isRunning = true;
             
             if (_schedule == null)
-                _schedule = schedule.Execute(AdvanceFrame).Every(60);
+                _schedule = schedule.Execute(AdvanceFrame).Every(_frameIntervalMs);
             else
                 _schedule.Resume();
         }
@@ -50,10 +52,10 @@ namespace Runtime.UI.Components
             if (!_isRunning)
                 return;
 
-            _angle += _rotationStep;
+            _angle += _rotationStepDegrees;
             
-            if (_angle >= 360f)
-                _angle -= 360f;
+            if (_angle >= _fullRotationDegrees)
+                _angle -= _fullRotationDegrees;
 
             style.rotate = new Rotate(new Angle(_angle, AngleUnit.Degree));
         }

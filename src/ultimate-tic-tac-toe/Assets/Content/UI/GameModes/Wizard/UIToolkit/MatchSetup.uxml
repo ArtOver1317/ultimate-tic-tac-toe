@@ -1,4 +1,4 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:app="Runtime.UI.Components" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:app="Runtime.UI.Components" xmlns:wizard="Runtime.UI.GameModes.Wizard" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
     <Style src="MatchSetupStyles.uss" />
     <Style src="WizardErrorOverlayStyles.uss" />
     <ui:VisualElement name="Root" class="gmw-root">
@@ -31,7 +31,7 @@
 
                 <ui:VisualElement name="HumanSettingsSection" class="gmw-section gmw-human-settings">
                     <ui:Label text="" name="HumanSettingsTitle" class="gmw-section__title" />
-                    <app:HumanKindRadio name="HumanKindRadio" class="gmw-human-kind-radio" />
+                    <wizard:HumanKindRadio name="HumanKindRadio" class="gmw-human-kind-radio" />
                     <app:PlayerIdInput name="PlayerIdInput" class="gmw-player-id-input" />
                     <ui:VisualElement name="OnlinePanel" class="gmw-online-panel">
                         <ui:VisualElement class="gmw-online-panel__row">

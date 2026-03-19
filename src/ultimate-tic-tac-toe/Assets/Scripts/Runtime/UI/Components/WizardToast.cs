@@ -28,7 +28,7 @@ namespace Runtime.UI.Components
 
         public void Show(string message, TimeSpan? autoHide = null)
         {
-            _messageLabel.text = message ?? string.Empty;
+            _messageLabel.text = message;
             style.display = DisplayStyle.Flex;
             IsVisible = true;
 
@@ -37,6 +37,7 @@ namespace Runtime.UI.Components
             if (autoHide.HasValue && autoHide.Value > TimeSpan.Zero)
             {
                 var token = ++_autoHideToken;
+
                 _autoHideItem = schedule.Execute(() =>
                 {
                     if (_autoHideToken != token)
@@ -57,6 +58,7 @@ namespace Runtime.UI.Components
         private void CancelAutoHide()
         {
             _autoHideToken++;
+
             if (_autoHideItem != null)
             {
                 _autoHideItem.Pause();

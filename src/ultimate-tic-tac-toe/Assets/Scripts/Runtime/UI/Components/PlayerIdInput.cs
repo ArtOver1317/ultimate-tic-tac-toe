@@ -67,7 +67,7 @@ namespace Runtime.UI.Components
                 : DisplayStyle.Flex;
         }
 
-        internal void NotifyValueChangedForTests(string? value)
+        internal void SimulateInput(string? value)
         {
             _textField.SetValueWithoutNotify(value ?? string.Empty);
 

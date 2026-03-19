@@ -66,7 +66,7 @@ namespace Tests.EditMode.UI.Components
             };
 
             // Act
-            input.NotifyValueChangedForTests("123");
+            input.SimulateInput("123");
 
             // Assert
             input.Value.Should().Be("123");

@@ -2,12 +2,11 @@ using System;
 using System.Collections.Generic;
 using FluentAssertions;
 using NUnit.Framework;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Session;
-using Runtime.UI.Components;
+using Runtime.UI.GameModes.Wizard;
 using UnityEngine.UIElements;
 
-namespace Tests.EditMode.UI.Components
+namespace Tests.EditMode.GameModes.Wizard
 {
     [TestFixture]
     [Category("Unit")]

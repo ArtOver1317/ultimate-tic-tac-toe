@@ -35,10 +35,7 @@ namespace Runtime.UI.Components
 
         public string? SelectedId { get; private set; }
 
-        public DifficultyChips()
-        {
-            AddToClassList("difficulty-chips");
-        }
+        public DifficultyChips() => AddToClassList("difficulty-chips");
 
         public void SetItems(IReadOnlyList<DifficultyChipItem>? items)
         {
@@ -63,7 +60,7 @@ namespace Runtime.UI.Components
                 if (_buttonsById.ContainsKey(item.Id))
                     throw new InvalidOperationException($"Duplicate difficulty id detected: '{item.Id}'.");
 
-                var button = new Button { text = item.Label ?? string.Empty, name = item.Id };
+                var button = new Button { text = item.Label, name = item.Id };
                 button.AddToClassList(_itemClass);
 
                 var id = item.Id;

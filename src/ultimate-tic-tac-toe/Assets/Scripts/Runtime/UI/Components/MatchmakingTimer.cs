@@ -8,9 +8,11 @@ namespace Runtime.UI.Components
     [UxmlElement]
     public sealed partial class MatchmakingTimer : VisualElement
     {
+        private const int _neverDisplayedSeconds = -1;
+
         private readonly Label _label;
         private string _prefix = string.Empty;
-        private int _lastDisplayedSeconds = -1;
+        private int _lastDisplayedSeconds = _neverDisplayedSeconds;
         private string _lastPrefix = string.Empty;
 
         public MatchmakingTimer()

@@ -42,11 +42,11 @@ namespace Runtime.UI.Components
             Hide();
         }
 
-        public void SetButtonText(string text) => _okButton.text = text ?? string.Empty;
+        public void SetButtonText(string? text) => _okButton.text = text ?? string.Empty;
 
         public void Show(string message)
         {
-            _messageLabel.text = message ?? string.Empty;
+            _messageLabel.text = message;
             style.display = DisplayStyle.Flex;
             IsVisible = true;
             pickingMode = PickingMode.Position;

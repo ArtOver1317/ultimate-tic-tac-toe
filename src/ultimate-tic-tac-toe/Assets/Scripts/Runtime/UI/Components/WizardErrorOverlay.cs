@@ -5,6 +5,11 @@ using UnityEngine.UIElements;
 
 namespace Runtime.UI.Components
 {
+    public static class WizardErrorOverlayDefaults
+    {
+        public static readonly TimeSpan ToastDuration = TimeSpan.FromSeconds(3);
+    }
+
     [UxmlElement]
     public sealed partial class WizardErrorOverlay : VisualElement
     {
@@ -30,7 +35,7 @@ namespace Runtime.UI.Components
             ResetState();
         }
 
-        public void SetModalButtonText(string text) => _modal.SetButtonText(text);
+        public void SetModalButtonText(string? text) => _modal.SetButtonText(text);
 
         public void Present(UIErrorPresentation? presentation)
         {
