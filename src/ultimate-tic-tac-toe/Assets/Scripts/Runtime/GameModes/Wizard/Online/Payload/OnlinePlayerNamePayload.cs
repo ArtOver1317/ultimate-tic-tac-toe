@@ -45,12 +45,12 @@ namespace Runtime.GameModes.Wizard.Online
             payload = default;
 
             var line = Encoding.UTF8.GetString(payloadBytes);
-            
+
             if (string.IsNullOrWhiteSpace(line))
                 return false;
 
             var parts = line.Split('|');
-            
+
             if (parts.Length != 5 || !string.Equals(parts[0], _typeMarker, StringComparison.Ordinal))
                 return false;
 
@@ -60,17 +60,13 @@ namespace Runtime.GameModes.Wizard.Online
                 return false;
             }
 
-            var isHost = parts[2] switch
-            {
-                "H" => true,
-                _ => false,
-            };
-
             if (parts[2] != "H" && parts[2] != "G")
             {
                 GameLog.Warning($"[OnlinePlayerNamePayload] Unsupported role marker: '{parts[2]}'.");
                 return false;
             }
+
+            var isHost = parts[2] == "H";
 
             if (parts[3] == "0")
             {
@@ -88,7 +84,7 @@ namespace Runtime.GameModes.Wizard.Online
             }
 
             var customName = parts[4];
-            
+
             if (string.IsNullOrWhiteSpace(customName))
                 return false;
 

@@ -1,9 +1,10 @@
 #nullable enable
 
 using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
-using System.Threading;
+using Runtime.Localization;
 
 namespace Runtime.PlayerProfile
 {
@@ -22,10 +23,7 @@ namespace Runtime.PlayerProfile
 
         public static PlayerNameValidationError ValidateOnConfirm(string? input)
         {
-            if (input == null)
-                return PlayerNameValidationError.Empty;
-
-            if (input.Length < MinLength)
+            if (input == null || input.Length < MinLength)
                 return PlayerNameValidationError.Empty;
 
             if (input.Length > MaxLength)
@@ -57,10 +55,7 @@ namespace Runtime.PlayerProfile
             if (symbol is >= 'А' and <= 'Я')
                 return true;
 
-            if (symbol is >= 'а' and <= 'я')
-                return true;
-
-            return false;
+            return symbol is >= 'а' and <= 'я';
         }
     }
 
@@ -71,18 +66,15 @@ namespace Runtime.PlayerProfile
 
         public PlayerNameSnapshot(string? customName, string displayName)
         {
-            if (displayName == null)
-                throw new ArgumentNullException(nameof(displayName));
-
             CustomName = customName;
-            DisplayName = displayName;
+            DisplayName = displayName ?? throw new ArgumentNullException(nameof(displayName));
         }
 
         public bool Equals(PlayerNameSnapshot other)
             => string.Equals(CustomName, other.CustomName, StringComparison.Ordinal)
                && string.Equals(DisplayName, other.DisplayName, StringComparison.Ordinal);
 
-        public override bool Equals(object obj) => obj is PlayerNameSnapshot other && Equals(other);
+        public override bool Equals(object? obj) => obj is PlayerNameSnapshot other && Equals(other);
 
         public override int GetHashCode() => HashCode.Combine(CustomName, DisplayName);
     }
@@ -114,12 +106,40 @@ namespace Runtime.PlayerProfile
         public const string FallbackDisplayName = "Player";
     }
 
+    internal static class PlayerNameLocalizationKeys
+    {
+        public const string Table = "Common";
+        public const string PlayerWord = "Common.Player";
+    }
+
+    internal static class PlayerNameLocalizationResolver
+    {
+        public static string ResolvePlayerWordOrFallback(ILocalizationService localizationService)
+        {
+            if (localizationService == null)
+                throw new ArgumentNullException(nameof(localizationService));
+
+            try
+            {
+                var localizedPlayerWord = localizationService.Resolve(
+                    new TextTableId(PlayerNameLocalizationKeys.Table),
+                    new TextKey(PlayerNameLocalizationKeys.PlayerWord));
+
+                return string.IsNullOrWhiteSpace(localizedPlayerWord)
+                    ? PlayerNameDefaults.FallbackDisplayName
+                    : localizedPlayerWord;
+            }
+            catch (InvalidOperationException)
+            {
+                return PlayerNameDefaults.FallbackDisplayName;
+            }
+        }
+    }
+
     public interface IPlayerNameService
     {
         ReadOnlyReactiveProperty<PlayerNameSnapshot> Snapshot { get; }
 
-        UniTask<PlayerNameChangeResult> TrySetOnConfirmAsync(string? confirmedInput, CancellationToken ct);
+        UniTask<PlayerNameChangeResult> TryChangeNameAsync(string? requestedName, CancellationToken ct);
     }
 }
-
-#nullable restore

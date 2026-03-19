@@ -1,3 +1,4 @@
+using System;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.PlayerProfile;
@@ -67,6 +68,21 @@ namespace Tests.EditMode.PlayerProfile
             first.Should().BeTrue();
             second.Should().BeFalse();
             sut.Snapshot.CurrentValue.HostCustomName.Should().BeNull();
+        }
+
+        [Test]
+        public void WhenDisposed_ThenFurtherWritesReturnFalseWithoutThrowing()
+        {
+            var sut = new OnlinePlayerNamesStore();
+            sut.Dispose();
+
+            var action = new Action(() =>
+            {
+                sut.TrySetHostCustomNameOnce("Alice").Should().BeFalse();
+                sut.TrySetGuestCustomNameOnce("Bob").Should().BeFalse();
+            });
+
+            action.Should().NotThrow();
         }
     }
 }

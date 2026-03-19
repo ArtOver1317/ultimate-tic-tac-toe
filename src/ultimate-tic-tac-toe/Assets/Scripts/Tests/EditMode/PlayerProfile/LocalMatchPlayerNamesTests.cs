@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using FluentAssertions;
 using NSubstitute;
@@ -59,6 +60,21 @@ namespace Tests.EditMode.PlayerProfile
             using var sut = new LocalMatchPlayerNames(_playerNameService, _localizationService);
 
             _snapshot.Value = new PlayerNameSnapshot("NewName", "NewName");
+
+            sut.GetSlotName(PlayerSlot.Slot1).CurrentValue.Should().Be("Player");
+            sut.GetSlotName(PlayerSlot.Slot2).CurrentValue.Should().Be("Player 2");
+        }
+
+        [Test]
+        public void WhenLocalizationIsNotInitialized_ThenUsesFallbackPlayerLabels()
+        {
+            _localizationService.Resolve(
+                    Arg.Any<TextTableId>(),
+                    Arg.Any<TextKey>(),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(_ => throw new InvalidOperationException("LocalizationService is not initialized. Call InitializeAsync first."));
+
+            using var sut = new LocalMatchPlayerNames(_playerNameService, _localizationService);
 
             sut.GetSlotName(PlayerSlot.Slot1).CurrentValue.Should().Be("Player");
             sut.GetSlotName(PlayerSlot.Slot2).CurrentValue.Should().Be("Player 2");

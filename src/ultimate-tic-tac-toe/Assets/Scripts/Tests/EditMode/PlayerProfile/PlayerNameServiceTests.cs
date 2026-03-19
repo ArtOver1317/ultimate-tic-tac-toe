@@ -53,7 +53,7 @@ namespace Tests.EditMode.PlayerProfile
         [Test]
         public void WhenInitializeAndSavedNameIsValid_ThenSnapshotUsesCustomName()
         {
-            _saveService.Load<string>("player_name", null).Returns("Alex7");
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns("Alex7");
 
             _sut.Initialize();
 
@@ -65,7 +65,7 @@ namespace Tests.EditMode.PlayerProfile
         [Test]
         public void WhenInitializeAndSavedNameIsCorrupted_ThenFallsBackToLocalizedDefault()
         {
-            _saveService.Load<string>("player_name", null).Returns("Invalid Name");
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns("Invalid Name");
 
             _sut.Initialize();
 
@@ -75,12 +75,23 @@ namespace Tests.EditMode.PlayerProfile
         }
 
         [Test]
-        public void WhenTrySetOnConfirmAndValidationFails_ThenReturnsValidationErrorAndDoesNotSave()
+        public void WhenInitializeCalledTwice_ThenLoadsSavedNameOnlyOnce()
         {
-            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns("Alex7");
+
+            _sut.Initialize();
             _sut.Initialize();
 
-            var result = _sut.TrySetOnConfirmAsync("", CancellationToken.None).GetAwaiter().GetResult();
+            _saveService.Received(1).Load<string>(PlayerNameService.SaveSection, null);
+        }
+
+        [Test]
+        public void WhenTryChangeNameAndValidationFails_ThenReturnsValidationErrorAndDoesNotSave()
+        {
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns((string)null);
+            _sut.Initialize();
+
+            var result = _sut.TryChangeNameAsync("", CancellationToken.None).GetAwaiter().GetResult();
 
             result.IsSuccess.Should().BeFalse();
             result.ValidationError.Should().Be(PlayerNameValidationError.Empty);
@@ -88,14 +99,14 @@ namespace Tests.EditMode.PlayerProfile
         }
 
         [Test]
-        public void WhenTrySetOnConfirmAndSaveFails_ThenSnapshotIsNotUpdated()
+        public void WhenTryChangeNameAndSaveFails_ThenSnapshotIsNotUpdated()
         {
-            _saveService.Load<string>("player_name", null).Returns((string)null);
-            _saveServiceWithResult.TrySave("player_name", "Alex")
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns((string)null);
+            _saveServiceWithResult.TrySave(PlayerNameService.SaveSection, "Alex")
                 .Returns(SaveWriteResult.Failed(SaveWriteError.BackendWriteFailed));
             _sut.Initialize();
 
-            var result = _sut.TrySetOnConfirmAsync("Alex", CancellationToken.None).GetAwaiter().GetResult();
+            var result = _sut.TryChangeNameAsync("Alex", CancellationToken.None).GetAwaiter().GetResult();
 
             result.IsSuccess.Should().BeFalse();
             _sut.Snapshot.CurrentValue.CustomName.Should().BeNull();
@@ -103,14 +114,14 @@ namespace Tests.EditMode.PlayerProfile
         }
 
         [Test]
-        public void WhenTrySetOnConfirmAndTrySaveThrows_ThenReturnsFailedSaveAndKeepsPreviousName()
+        public void WhenTryChangeNameAndTrySaveThrows_ThenReturnsFailedSaveAndKeepsPreviousName()
         {
-            _saveService.Load<string>("player_name", null).Returns("Old");
-            _saveServiceWithResult.TrySave("player_name", "New")
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns("Old");
+            _saveServiceWithResult.TrySave(PlayerNameService.SaveSection, "New")
                 .Returns(_ => throw new IOException("I/O failed"));
             _sut.Initialize();
 
-            var result = _sut.TrySetOnConfirmAsync("New", CancellationToken.None).GetAwaiter().GetResult();
+            var result = _sut.TryChangeNameAsync("New", CancellationToken.None).GetAwaiter().GetResult();
 
             result.IsSuccess.Should().BeFalse();
             result.ErrorMessageKey.Should().Be("Errors.PlayerProfile.SaveFailed");
@@ -120,12 +131,12 @@ namespace Tests.EditMode.PlayerProfile
         }
 
         [Test]
-        public void WhenTrySetOnConfirmAndSaveSucceeds_ThenSnapshotUpdates()
+        public void WhenTryChangeNameAndSaveSucceeds_ThenSnapshotUpdates()
         {
-            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns((string)null);
             _sut.Initialize();
 
-            var result = _sut.TrySetOnConfirmAsync("Alex", CancellationToken.None).GetAwaiter().GetResult();
+            var result = _sut.TryChangeNameAsync("Alex", CancellationToken.None).GetAwaiter().GetResult();
 
             result.IsSuccess.Should().BeTrue();
             _sut.Snapshot.CurrentValue.CustomName.Should().Be("Alex");
@@ -135,7 +146,7 @@ namespace Tests.EditMode.PlayerProfile
         [Test]
         public void WhenLocaleChangesAndCustomNameIsNotSet_ThenDisplayNameUpdates()
         {
-            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns((string)null);
             _sut.Initialize();
 
             _currentLocale.Value = LocaleId.Russian;
@@ -147,10 +158,10 @@ namespace Tests.EditMode.PlayerProfile
         [Test]
         public void WhenLocaleChangesAndCustomNameIsSet_ThenDisplayNameDoesNotChange()
         {
-            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns((string)null);
             _sut.Initialize();
 
-            var setResult = _sut.TrySetOnConfirmAsync("Alex", CancellationToken.None).GetAwaiter().GetResult();
+            var setResult = _sut.TryChangeNameAsync("Alex", CancellationToken.None).GetAwaiter().GetResult();
             setResult.IsSuccess.Should().BeTrue();
 
             _currentLocale.Value = LocaleId.Russian;
@@ -162,7 +173,7 @@ namespace Tests.EditMode.PlayerProfile
         [Test]
         public void WhenInitializeAndLoadThrows_ThenFallsBackToDefaultWithoutThrowing()
         {
-            _saveService.Load<string>("player_name", null)
+            _saveService.Load<string>(PlayerNameService.SaveSection, null)
                 .Returns(_ => throw new Exception("Load failed"));
 
             var action = new Action(() => _sut.Initialize());
@@ -175,10 +186,10 @@ namespace Tests.EditMode.PlayerProfile
         [Test]
         public void WhenValidationFailsWithEmpty_ThenReturnsNameEmptyKey()
         {
-            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns((string)null);
             _sut.Initialize();
 
-            var result = _sut.TrySetOnConfirmAsync(string.Empty, CancellationToken.None).GetAwaiter().GetResult();
+            var result = _sut.TryChangeNameAsync(string.Empty, CancellationToken.None).GetAwaiter().GetResult();
 
             result.IsSuccess.Should().BeFalse();
             result.ValidationError.Should().Be(PlayerNameValidationError.Empty);
@@ -188,10 +199,10 @@ namespace Tests.EditMode.PlayerProfile
         [Test]
         public void WhenValidationFailsWithTooLong_ThenReturnsNameTooLongKey()
         {
-            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns((string)null);
             _sut.Initialize();
 
-            var result = _sut.TrySetOnConfirmAsync("ABCDEFGHIJKLMN", CancellationToken.None).GetAwaiter().GetResult();
+            var result = _sut.TryChangeNameAsync("ABCDEFGHIJKLMN", CancellationToken.None).GetAwaiter().GetResult();
 
             result.IsSuccess.Should().BeFalse();
             result.ValidationError.Should().Be(PlayerNameValidationError.TooLong);
@@ -201,10 +212,10 @@ namespace Tests.EditMode.PlayerProfile
         [Test]
         public void WhenValidationFailsWithInvalidCharacters_ThenReturnsNameInvalidCharsKey()
         {
-            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns((string)null);
             _sut.Initialize();
 
-            var result = _sut.TrySetOnConfirmAsync("Bad!", CancellationToken.None).GetAwaiter().GetResult();
+            var result = _sut.TryChangeNameAsync("Bad!", CancellationToken.None).GetAwaiter().GetResult();
 
             result.IsSuccess.Should().BeFalse();
             result.ValidationError.Should().Be(PlayerNameValidationError.InvalidCharacters);
@@ -214,7 +225,7 @@ namespace Tests.EditMode.PlayerProfile
         [Test]
         public void WhenLocalizationIsNotInitialized_ThenInitializeFallsBackToPlayerWithoutThrowing()
         {
-            _saveService.Load<string>("player_name", null).Returns((string)null);
+            _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns((string)null);
             _localizationService.Resolve(
                     Arg.Any<TextTableId>(),
                     Arg.Any<TextKey>(),

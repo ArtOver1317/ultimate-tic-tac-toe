@@ -23,7 +23,6 @@ namespace Runtime.UI.Settings
         public ReadOnlyReactiveProperty<string> InputText => _inputText;
         public ReadOnlyReactiveProperty<bool> IsBusy => _isBusy;
         public ReadOnlyReactiveProperty<WizardError> Error => _error;
-        public ILocalizationService Localization => _localization;
 
         public Observable<string> TitleText { get; }
         public Observable<string> ConfirmButtonText { get; }
@@ -79,7 +78,7 @@ namespace Runtime.UI.Settings
             {
                 ct.ThrowIfCancellationRequested();
 
-                var result = await _playerNameService.TrySetOnConfirmAsync(_inputText.Value, ct);
+                var result = await _playerNameService.TryChangeNameAsync(_inputText.Value, ct);
 
                 if (result.IsSuccess)
                 {

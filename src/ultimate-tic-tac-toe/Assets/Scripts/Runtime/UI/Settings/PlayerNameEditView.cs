@@ -32,7 +32,6 @@ namespace Runtime.UI.Settings
         protected override void BindViewModel()
         {
             _bindDisposables.Clear();
-            _localization ??= ViewModel.Localization;
 
             ViewModel.OnOpen();
 

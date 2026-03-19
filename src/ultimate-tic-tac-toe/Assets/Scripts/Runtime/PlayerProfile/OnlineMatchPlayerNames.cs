@@ -1,6 +1,7 @@
+#nullable enable
+
 using System;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Localization;
 
@@ -22,17 +23,22 @@ namespace Runtime.PlayerProfile
         {
             if (sessionContextStore == null)
                 throw new ArgumentNullException(nameof(sessionContextStore));
+
             if (playerNameService == null)
                 throw new ArgumentNullException(nameof(playerNameService));
+
             if (onlinePlayerNamesStore == null)
                 throw new ArgumentNullException(nameof(onlinePlayerNamesStore));
+
             if (localizationService == null)
                 throw new ArgumentNullException(nameof(localizationService));
 
             var session = sessionContextStore.Snapshot;
             _localIsHost = session.IsHost;
 
-            var localizedPlayerWord = localizationService.Resolve(new TextTableId("Common"), new TextKey("Common.Player"));
+            // Match-scoped slot labels are intentionally frozen when the presenter is created.
+            var localizedPlayerWord = PlayerNameLocalizationResolver.ResolvePlayerWordOrFallback(localizationService);
+
             var localDisplayName = playerNameService.Snapshot.CurrentValue.DisplayName;
             var guestPlaceholder = PlayerLabelFormat.PlayerSlot(localizedPlayerWord, OnlinePlayerNameDefaults.GuestSlotIndex);
             var hostPlaceholder = PlayerLabelFormat.PlayerSlot(localizedPlayerWord, OnlinePlayerNameDefaults.HostSlotIndex);
@@ -65,9 +71,10 @@ namespace Runtime.PlayerProfile
         private void UpdateRemotePlayerName(OnlinePlayerNamesSnapshot snapshot)
         {
             var remoteCustomName = _localIsHost ? snapshot.GuestCustomName : snapshot.HostCustomName;
+
             var remoteDisplayName = string.IsNullOrWhiteSpace(remoteCustomName)
                 ? _remotePlaceholderName
-                : remoteCustomName!;
+                : remoteCustomName;
 
             if (_localIsHost)
                 _slot2Name.Value = remoteDisplayName;

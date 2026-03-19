@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -11,9 +13,7 @@ namespace Runtime.PlayerProfile
 {
     public sealed class PlayerNameService : IPlayerNameService, IInitializable, IDisposable
     {
-        private const string SaveSection = "player_name";
-        private const string PlayerNameTable = "Common";
-        private const string PlayerNameKey = "Common.Player";
+        internal const string SaveSection = "player_name";
 
         private readonly ISaveService _saveService;
         private readonly ISaveServiceWithResult _saveServiceWithResult;
@@ -49,9 +49,10 @@ namespace Runtime.PlayerProfile
             _isInitialized = true;
 
             string? loadedCustomName;
+
             try
             {
-                loadedCustomName = _saveService.Load<string>(SaveSection, null);
+                loadedCustomName = _saveService.Load<string?>(SaveSection, null);
             }
             catch (Exception ex)
             {
@@ -62,6 +63,7 @@ namespace Runtime.PlayerProfile
             if (loadedCustomName != null)
             {
                 var validation = PlayerNameValidator.ValidateOnConfirm(loadedCustomName);
+
                 if (validation != PlayerNameValidationError.None)
                 {
                     GameLog.Warning($"[PlayerNameService] Persisted player name is invalid. ValidationError={validation}. Fallback to default.");
@@ -81,11 +83,20 @@ namespace Runtime.PlayerProfile
                 .AddTo(_disposables);
         }
 
-        public UniTask<PlayerNameChangeResult> TrySetOnConfirmAsync(string? confirmedInput, CancellationToken ct)
+        public UniTask<PlayerNameChangeResult> TryChangeNameAsync(string? requestedName, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
 
-            var validationError = PlayerNameValidator.ValidateOnConfirm(confirmedInput);
+            if (requestedName is not { } validatedName)
+            {
+                return UniTask.FromResult(
+                    PlayerNameChangeResult.FailedValidation(
+                        key: ValidationErrorToMessageKey(PlayerNameValidationError.Empty),
+                        error: PlayerNameValidationError.Empty));
+            }
+
+            var validationError = PlayerNameValidator.ValidateOnConfirm(validatedName);
+
             if (validationError != PlayerNameValidationError.None)
             {
                 return UniTask.FromResult(
@@ -95,13 +106,15 @@ namespace Runtime.PlayerProfile
             }
 
             SaveWriteResult saveResult;
+
             try
             {
-                saveResult = _saveServiceWithResult.TrySave(SaveSection, confirmedInput);
+                saveResult = _saveServiceWithResult.TrySave(SaveSection, validatedName);
             }
             catch (Exception ex)
             {
                 GameLog.Warning($"[PlayerNameService] Failed to save player name. Error={ex.Message}");
+
                 return UniTask.FromResult(
                     PlayerNameChangeResult.FailedSave("Errors.PlayerProfile.SaveFailed"));
             }
@@ -112,7 +125,7 @@ namespace Runtime.PlayerProfile
                     PlayerNameChangeResult.FailedSave("Errors.PlayerProfile.SaveFailed"));
             }
 
-            _customName = confirmedInput;
+            _customName = validatedName;
             EmitSnapshot();
             return UniTask.FromResult(PlayerNameChangeResult.Success());
         }
@@ -129,31 +142,14 @@ namespace Runtime.PlayerProfile
             _snapshot.Value = new PlayerNameSnapshot(_customName, displayName);
         }
 
-        private string ResolveDefaultDisplayName()
-        {
-            string localizedPlayer;
-            try
-            {
-                localizedPlayer = _localizationService.Resolve(
-                    new TextTableId(PlayerNameTable),
-                    new TextKey(PlayerNameKey));
-            }
-            catch (InvalidOperationException)
-            {
-                return PlayerNameDefaults.FallbackDisplayName;
-            }
-
-            return string.IsNullOrWhiteSpace(localizedPlayer)
-                ? PlayerNameDefaults.FallbackDisplayName
-                : localizedPlayer;
-        }
+        private string ResolveDefaultDisplayName() =>
+            PlayerNameLocalizationResolver.ResolvePlayerWordOrFallback(_localizationService);
 
         private static string ValidationErrorToMessageKey(PlayerNameValidationError error)
             => error switch
             {
                 PlayerNameValidationError.Empty => "Errors.PlayerProfile.NameEmpty",
                 PlayerNameValidationError.TooLong => "Errors.PlayerProfile.NameTooLong",
-                PlayerNameValidationError.InvalidCharacters => "Errors.PlayerProfile.NameInvalidChars",
                 _ => "Errors.PlayerProfile.NameInvalidChars",
             };
     }

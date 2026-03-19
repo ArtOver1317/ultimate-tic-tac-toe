@@ -679,7 +679,7 @@ namespace Tests.EditMode.GameModes.Wizard
 
             public ReadOnlyReactiveProperty<PlayerNameSnapshot> Snapshot => _snapshot;
 
-            public UniTask<PlayerNameChangeResult> TrySetOnConfirmAsync(string input, CancellationToken ct)
+            public UniTask<PlayerNameChangeResult> TryChangeNameAsync(string? requestedName, CancellationToken ct)
                 => UniTask.FromResult(PlayerNameChangeResult.Success());
         }
 

@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using R3;
 
@@ -11,7 +13,7 @@ namespace Runtime.PlayerProfile
 
     public static class PlayerLabelFormat
     {
-        public static string PlayerSlot(string localizedPlayerWord, int slotNumber)
+        public static string PlayerSlot(string? localizedPlayerWord, int slotNumber)
         {
             var playerWord = string.IsNullOrWhiteSpace(localizedPlayerWord)
                 ? PlayerNameDefaults.FallbackDisplayName
@@ -20,7 +22,7 @@ namespace Runtime.PlayerProfile
             return $"{playerWord} {slotNumber}";
         }
 
-        public static string NameWithMark(string name, string mark)
+        public static string NameWithMark(string? name, string? mark)
         {
             var safeName = name ?? string.Empty;
             var safeMark = mark ?? string.Empty;

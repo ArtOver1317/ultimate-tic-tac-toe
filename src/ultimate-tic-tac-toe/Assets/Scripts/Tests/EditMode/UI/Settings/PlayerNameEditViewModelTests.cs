@@ -31,7 +31,7 @@ namespace Tests.EditMode.UI.Settings
             _snapshot = new ReactiveProperty<PlayerNameSnapshot>(new PlayerNameSnapshot(null, "Player"));
             _playerNameService.Snapshot.Returns(_snapshot);
 
-            _playerNameService.TrySetOnConfirmAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            _playerNameService.TryChangeNameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(PlayerNameChangeResult.Success()));
 
             _localizationService.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
@@ -68,13 +68,13 @@ namespace Tests.EditMode.UI.Settings
             _sut.ConfirmAsync(CancellationToken.None).GetAwaiter().GetResult();
 
             closeRequested.Should().BeTrue();
-            _playerNameService.DidNotReceive().TrySetOnConfirmAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            _playerNameService.DidNotReceive().TryChangeNameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
         }
 
         [Test]
         public void WhenConfirmAndServiceReturnsValidationError_ThenShowsToastAndDoesNotClose()
         {
-            _playerNameService.TrySetOnConfirmAsync("Bad Name", Arg.Any<CancellationToken>())
+            _playerNameService.TryChangeNameAsync("Bad Name", Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(
                     PlayerNameChangeResult.FailedValidation(
                         "Errors.PlayerProfile.NameInvalidChars",
@@ -95,7 +95,7 @@ namespace Tests.EditMode.UI.Settings
         [Test]
         public void WhenConfirmAndServiceReturnsSuccess_ThenCloses()
         {
-            _playerNameService.TrySetOnConfirmAsync("Alex", Arg.Any<CancellationToken>())
+            _playerNameService.TryChangeNameAsync("Alex", Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(PlayerNameChangeResult.Success()));
 
             var closeRequested = false;
@@ -120,7 +120,7 @@ namespace Tests.EditMode.UI.Settings
             _sut.CloseWithoutConfirm();
 
             closeRequested.Should().BeTrue();
-            _playerNameService.DidNotReceive().TrySetOnConfirmAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+            _playerNameService.DidNotReceive().TryChangeNameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
 
             _sut.Reset();
             _sut.OnOpen();
@@ -131,7 +131,7 @@ namespace Tests.EditMode.UI.Settings
         [Test]
         public void WhenConfirmAndServiceReturnsSaveError_ThenShowsToastAndDoesNotClose()
         {
-            _playerNameService.TrySetOnConfirmAsync("Alex", Arg.Any<CancellationToken>())
+            _playerNameService.TryChangeNameAsync("Alex", Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(PlayerNameChangeResult.FailedSave("Errors.PlayerProfile.SaveFailed")));
 
             var closeRequested = false;
@@ -151,7 +151,7 @@ namespace Tests.EditMode.UI.Settings
         public void WhenConfirmCalledWhileBusy_ThenSecondCallIsNoOp()
         {
             var pending = new UniTaskCompletionSource<PlayerNameChangeResult>();
-            _playerNameService.TrySetOnConfirmAsync("Alex", Arg.Any<CancellationToken>())
+            _playerNameService.TryChangeNameAsync("Alex", Arg.Any<CancellationToken>())
                 .Returns(pending.Task);
 
             _sut.OnOpen();
@@ -166,7 +166,7 @@ namespace Tests.EditMode.UI.Settings
             completed.Should().Be(secondConfirmTask, "busy-guard regressions must fail fast as potential hang, not wait for pending save completion");
             secondConfirmTask.IsCompletedSuccessfully.Should().BeTrue();
 
-            _playerNameService.Received(1).TrySetOnConfirmAsync("Alex", Arg.Any<CancellationToken>());
+            _playerNameService.Received(1).TryChangeNameAsync("Alex", Arg.Any<CancellationToken>());
 
             pending.TrySetResult(PlayerNameChangeResult.Success());
             firstConfirm.GetAwaiter().GetResult();

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using FluentAssertions;
 using NSubstitute;
@@ -151,6 +152,32 @@ namespace Tests.EditMode.PlayerProfile
 
             _onlineNamesSnapshot.Value = new OnlinePlayerNamesSnapshot(null, null);
 
+            sut.GetSlotName(PlayerSlot.Slot2).CurrentValue.Should().Be("Player 2");
+        }
+
+        [Test]
+        public void WhenLocalizationIsNotInitialized_ThenUsesFallbackPlaceholderNames()
+        {
+            _sessionContextStore.Snapshot.Returns(new OnlineGameplaySessionSnapshot(
+                true,
+                "ABCD",
+                "host",
+                true,
+                null));
+
+            _localizationService.Resolve(
+                    Arg.Any<TextTableId>(),
+                    Arg.Any<TextKey>(),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(_ => throw new InvalidOperationException("LocalizationService is not initialized. Call InitializeAsync first."));
+
+            using var sut = new OnlineMatchPlayerNames(
+                _sessionContextStore,
+                _playerNameService,
+                _onlinePlayerNamesStore,
+                _localizationService);
+
+            sut.GetSlotName(PlayerSlot.Slot1).CurrentValue.Should().Be("Alice");
             sut.GetSlotName(PlayerSlot.Slot2).CurrentValue.Should().Be("Player 2");
         }
 

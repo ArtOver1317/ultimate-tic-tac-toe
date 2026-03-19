@@ -11,6 +11,7 @@ namespace Runtime.PlayerProfile
         private readonly ReactiveProperty<OnlinePlayerNamesSnapshot> _snapshot = new(new OnlinePlayerNamesSnapshot(null, null));
         private bool _hostWritten;
         private bool _guestWritten;
+        private bool _isDisposed;
 
         public ReadOnlyReactiveProperty<OnlinePlayerNamesSnapshot> Snapshot => _snapshot;
 
@@ -18,7 +19,7 @@ namespace Runtime.PlayerProfile
         {
             lock (_syncRoot)
             {
-                if (_hostWritten)
+                if (_isDisposed || _hostWritten)
                     return false;
 
                 _hostWritten = true;
@@ -31,7 +32,7 @@ namespace Runtime.PlayerProfile
         {
             lock (_syncRoot)
             {
-                if (_guestWritten)
+                if (_isDisposed || _guestWritten)
                     return false;
 
                 _guestWritten = true;
@@ -40,8 +41,19 @@ namespace Runtime.PlayerProfile
             }
         }
 
-        public void Dispose() => _snapshot.Dispose();
+        public void Dispose()
+        {
+            lock (_syncRoot)
+            {
+                if (_isDisposed)
+                    return;
+
+                _isDisposed = true;
+                _hostWritten = true;
+                _guestWritten = true;
+            }
+
+            _snapshot.Dispose();
+        }
     }
 }
-
-#nullable restore
