@@ -2,9 +2,7 @@
 
 using System;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
-using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Config;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
@@ -15,7 +13,6 @@ namespace Runtime.PlayerStatistics
     public sealed class PlayerStatisticsMatchReporter : IDisposable
     {
         private readonly CompositeDisposable _disposables = new();
-        private readonly bool _isLocalPlayerHost;
 
         public PlayerStatisticsMatchReporter(
             IGameLaunchConfigStore configStore,
@@ -52,24 +49,20 @@ namespace Runtime.PlayerStatistics
                 return;
             }
 
-            var key = mappedKey;
-
-            if (!TryResolveLocalHostFlag(contextStore.Snapshot, key.OpponentType, out var isLocalPlayerHost))
+            if (!TryResolveLocalHostFlag(contextStore.Snapshot, mappedKey.OpponentType, out var isLocalPlayerHost))
             {
                 var onlineContextKind = ResolveOnlineContextKind(config.OpponentConfig);
                 GameLog.Warning($"[PlayerStatisticsMatchReporter] Online match without reliable local slot context (kind='{onlineContextKind}'). Statistics reporting disabled for this match.");
                 return;
             }
-
-            _isLocalPlayerHost = isLocalPlayerHost;
-
+            
             eventStream.RoundFinished
                 .Subscribe(evt =>
                 {
-                    if (!outcomeResolver.TryResolveOutcome(evt, key.OpponentType, _isLocalPlayerHost, out var outcome))
+                    if (!outcomeResolver.TryResolveOutcome(evt, mappedKey.OpponentType, isLocalPlayerHost, out var outcome))
                         return;
 
-                    statisticsService.RecordMatch(key, outcome);
+                    statisticsService.RecordMatch(mappedKey, outcome);
                 })
                 .AddTo(_disposables);
         }
@@ -90,16 +83,14 @@ namespace Runtime.PlayerStatistics
             return false;
         }
 
-        private static string ResolveOnlineContextKind(IOpponentConfig opponentConfig) =>
+        private static string ResolveOnlineContextKind(IOpponentConfig? opponentConfig) =>
             opponentConfig switch
             {
                 DirectInviteConfig => "direct-invite-without-session-context",
                 MatchmakingConfig => "matchmaking",
-                _ => opponentConfig?.GetType().Name ?? "unknown",
+                _ => opponentConfig?.GetType().Name ?? "<null>",
             };
 
         public void Dispose() => _disposables.Dispose();
     }
 }
-
-#nullable restore

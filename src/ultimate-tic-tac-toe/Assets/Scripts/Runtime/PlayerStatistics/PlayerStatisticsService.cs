@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Runtime.Infrastructure.Logging;
 using Runtime.Infrastructure.Save;
 using VContainer.Unity;
@@ -11,16 +10,15 @@ namespace Runtime.PlayerStatistics
 {
     public sealed class PlayerStatisticsService : IPlayerStatisticsService, IInitializable
     {
-        private const string SaveSection = "player_statistics";
+        private const string _saveSection = "player_statistics";
 
         private readonly ISaveService _saveService;
         private readonly ISaveServiceWithResult _saveServiceWithResult;
-        private static readonly IReadOnlyList<StatisticsEntry> EmptySnapshot = Array.AsReadOnly(Array.Empty<StatisticsEntry>());
+        private static readonly IReadOnlyList<StatisticsEntry> _emptySnapshot = Array.AsReadOnly(Array.Empty<StatisticsEntry>());
 
         private readonly List<StatisticsEntry> _entries = new();
         private readonly Dictionary<MatchKey, int> _indexByKey = new();
-        private StatisticsEntry[] _cachedSnapshot = Array.Empty<StatisticsEntry>();
-        private IReadOnlyList<StatisticsEntry> _cachedReadOnlySnapshot = EmptySnapshot;
+        private IReadOnlyList<StatisticsEntry> _cachedSnapshot = _emptySnapshot;
         private bool _isSnapshotDirty = true;
 
         private bool _isInitialized;
@@ -61,7 +59,7 @@ namespace Runtime.PlayerStatistics
             }
             else
             {
-                var record = CreateRecord(outcome);
+                var record = Increment(new StatisticsRecord(0, 0, 0), outcome);
                 _indexByKey[key] = _entries.Count;
                 _entries.Add(new StatisticsEntry(key, record));
             }
@@ -74,24 +72,24 @@ namespace Runtime.PlayerStatistics
         public IReadOnlyList<StatisticsEntry> GetEntriesSnapshot()
         {
             if (!_isInitialized)
-                return EmptySnapshot;
+                return _emptySnapshot;
 
             if (_isSnapshotDirty)
             {
-                _cachedSnapshot = _entries.ToArray();
-                _cachedReadOnlySnapshot = Array.AsReadOnly(_cachedSnapshot);
+                _cachedSnapshot = Array.AsReadOnly(_entries.ToArray());
                 _isSnapshotDirty = false;
             }
 
-            return _cachedReadOnlySnapshot;
+            return _cachedSnapshot;
         }
 
         private void LoadFromSave()
         {
             StatisticsEntryDto[] loaded;
+            
             try
             {
-                loaded = _saveService.Load(SaveSection, Array.Empty<StatisticsEntryDto>());
+                loaded = _saveService.Load(_saveSection, Array.Empty<StatisticsEntryDto>());
             }
             catch (Exception ex)
             {
@@ -157,6 +155,7 @@ namespace Runtime.PlayerStatistics
             }
 
             MatchKey key;
+            
             try
             {
                 key = new MatchKey(dto.gameId, opponentType, dto.botDifficultyId);
@@ -175,15 +174,17 @@ namespace Runtime.PlayerStatistics
         private void PersistSnapshot()
         {
             var dto = new StatisticsEntryDto[_entries.Count];
+            
             for (var i = 0; i < _entries.Count; i++)
             {
                 dto[i] = ToDto(_entries[i]);
             }
 
             SaveWriteResult result;
+           
             try
             {
-                result = _saveServiceWithResult.TrySave(SaveSection, dto);
+                result = _saveServiceWithResult.TrySave(_saveSection, dto);
             }
             catch (Exception ex)
             {
@@ -191,15 +192,12 @@ namespace Runtime.PlayerStatistics
                 return;
             }
 
-            if (!result.IsSuccess)
-            {
+            if (!result.IsSuccess) 
                 GameLog.Error($"[PlayerStatisticsService] Failed to save statistics. SaveError={result.Error}");
-            }
         }
 
-        private static StatisticsEntryDto ToDto(StatisticsEntry entry)
-        {
-            return new StatisticsEntryDto
+        private static StatisticsEntryDto ToDto(StatisticsEntry entry) =>
+            new()
             {
                 gameId = entry.Key.GameId,
                 opponentType = entry.Key.OpponentType.ToString(),
@@ -208,7 +206,6 @@ namespace Runtime.PlayerStatistics
                 losses = entry.Record.Losses,
                 draws = entry.Record.Draws,
             };
-        }
 
         private static bool TryParseOpponentType(string? value, out StatisticsOpponentType opponentType)
         {
@@ -228,28 +225,13 @@ namespace Runtime.PlayerStatistics
             return string.IsNullOrWhiteSpace(botDifficultyId);
         }
 
-        private static StatisticsRecord Increment(StatisticsRecord source, MatchOutcome outcome)
-        {
-            return outcome switch
+        private static StatisticsRecord Increment(StatisticsRecord source, MatchOutcome outcome) =>
+            outcome switch
             {
                 MatchOutcome.Win => new StatisticsRecord(source.Wins + 1, source.Losses, source.Draws),
                 MatchOutcome.Loss => new StatisticsRecord(source.Wins, source.Losses + 1, source.Draws),
                 MatchOutcome.Draw => new StatisticsRecord(source.Wins, source.Losses, source.Draws + 1),
                 _ => source,
             };
-        }
-
-        private static StatisticsRecord CreateRecord(MatchOutcome outcome)
-        {
-            return outcome switch
-            {
-                MatchOutcome.Win => new StatisticsRecord(1, 0, 0),
-                MatchOutcome.Loss => new StatisticsRecord(0, 1, 0),
-                MatchOutcome.Draw => new StatisticsRecord(0, 0, 1),
-                _ => new StatisticsRecord(0, 0, 0),
-            };
-        }
     }
 }
-
-#nullable restore

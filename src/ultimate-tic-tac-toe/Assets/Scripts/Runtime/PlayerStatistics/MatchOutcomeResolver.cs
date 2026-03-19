@@ -1,6 +1,5 @@
 #nullable enable
 
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 
 namespace Runtime.PlayerStatistics
@@ -30,6 +29,7 @@ namespace Runtime.PlayerStatistics
             outcome = evt.WinnerSlot.Value == localSlot
                 ? MatchOutcome.Win
                 : MatchOutcome.Loss;
+            
             return true;
         }
 
@@ -37,8 +37,7 @@ namespace Runtime.PlayerStatistics
         {
             localSlot = opponentType switch
             {
-                StatisticsOpponentType.HotSeat => 0,
-                StatisticsOpponentType.Bot => 0,
+                StatisticsOpponentType.HotSeat or StatisticsOpponentType.Bot => 0,
                 StatisticsOpponentType.Online => isLocalPlayerHost ? 0 : 1,
                 _ => -1,
             };
@@ -47,5 +46,3 @@ namespace Runtime.PlayerStatistics
         }
     }
 }
-
-#nullable restore

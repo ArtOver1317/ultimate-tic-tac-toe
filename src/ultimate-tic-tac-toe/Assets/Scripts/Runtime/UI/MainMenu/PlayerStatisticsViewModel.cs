@@ -96,8 +96,8 @@ namespace Runtime.UI.MainMenu
             _botDifficultyCatalog = botDifficultyCatalog ?? throw new ArgumentNullException(nameof(botDifficultyCatalog));
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
 
-            _botDifficultyLocalizationKeyById = BuildBotDifficultyKeyMap(_botDifficultyCatalog.Difficulties);
-            _botDifficultySortOrderById = BuildBotDifficultySortOrderMap(_botDifficultyCatalog.Difficulties);
+            (_botDifficultyLocalizationKeyById, _botDifficultySortOrderById) =
+                BuildBotDifficultyMaps(_botDifficultyCatalog.Difficulties);
 
             var table = new TextTableId(StatisticsTableName);
             TitleText = _localization.Observe(table, new TextKey("PlayerStatistics.Title"));
@@ -134,11 +134,43 @@ namespace Runtime.UI.MainMenu
 
             if (snapshot == null || snapshot.Count == 0)
             {
-                _groups.Value = Array.Empty<PlayerStatisticsGroupPresentation>();
-                _isEmpty.Value = true;
+                SetEmpty();
                 return;
             }
 
+            var (strategyById, gameOrderById, supportedBotDifficultyIds) = BuildCatalogLookups();
+            var entriesByGameId = FilterAndGroupEntries(snapshot, strategyById, supportedBotDifficultyIds);
+
+            if (entriesByGameId.Count == 0)
+            {
+                SetEmpty();
+                return;
+            }
+
+            _groups.Value = BuildGroups(entriesByGameId, strategyById, gameOrderById);
+            _isEmpty.Value = false;
+        }
+
+        protected override void OnDispose()
+        {
+            _backRequested.OnCompleted();
+            _backRequested.Dispose();
+            _groups.Dispose();
+            _isEmpty.Dispose();
+        }
+
+        private void SetEmpty()
+        {
+            _groups.Value = Array.Empty<PlayerStatisticsGroupPresentation>();
+            _isEmpty.Value = true;
+        }
+
+        private (
+            Dictionary<string, IGameStrategy> strategyById,
+            Dictionary<string, int> gameOrderById,
+            HashSet<string> supportedBotDifficultyIds)
+            BuildCatalogLookups()
+        {
             var strategyById = new Dictionary<string, IGameStrategy>(StringComparer.Ordinal);
             var gameOrderById = new Dictionary<string, int>(StringComparer.Ordinal);
             var supportedBotDifficultyIds = new HashSet<string>(StringComparer.Ordinal);
@@ -156,23 +188,21 @@ namespace Runtime.UI.MainMenu
                 }
             }
 
+            return (strategyById, gameOrderById, supportedBotDifficultyIds);
+        }
+
+        private static Dictionary<string, List<StatisticsEntry>> FilterAndGroupEntries(
+            IReadOnlyList<StatisticsEntry> snapshot,
+            Dictionary<string, IGameStrategy> strategyById,
+            HashSet<string> supportedBotDifficultyIds)
+        {
             var entriesByGameId = new Dictionary<string, List<StatisticsEntry>>(StringComparer.Ordinal);
 
             for (var i = 0; i < snapshot.Count; i++)
             {
                 var entry = snapshot[i];
-
-                if (!strategyById.TryGetValue(entry.Key.GameId, out var strategy))
+                if (!IsSupportedEntry(entry, strategyById, supportedBotDifficultyIds))
                     continue;
-
-                if (entry.Key.OpponentType == StatisticsOpponentType.Bot)
-                {
-                    if (string.IsNullOrWhiteSpace(entry.Key.BotDifficultyId))
-                        continue;
-
-                    if (!supportedBotDifficultyIds.Contains(entry.Key.BotDifficultyId))
-                        continue;
-                }
 
                 if (!entriesByGameId.TryGetValue(entry.Key.GameId, out var entries))
                 {
@@ -183,13 +213,31 @@ namespace Runtime.UI.MainMenu
                 entries.Add(entry);
             }
 
-            if (entriesByGameId.Count == 0)
-            {
-                _groups.Value = Array.Empty<PlayerStatisticsGroupPresentation>();
-                _isEmpty.Value = true;
-                return;
-            }
+            return entriesByGameId;
+        }
 
+        private static bool IsSupportedEntry(
+            StatisticsEntry entry,
+            Dictionary<string, IGameStrategy> strategyById,
+            HashSet<string> supportedBotDifficultyIds)
+        {
+            if (!strategyById.ContainsKey(entry.Key.GameId))
+                return false;
+
+            if (entry.Key.OpponentType != StatisticsOpponentType.Bot)
+                return true;
+
+            if (string.IsNullOrWhiteSpace(entry.Key.BotDifficultyId))
+                return false;
+
+            return supportedBotDifficultyIds.Contains(entry.Key.BotDifficultyId);
+        }
+
+        private List<PlayerStatisticsGroupPresentation> BuildGroups(
+            Dictionary<string, List<StatisticsEntry>> entriesByGameId,
+            Dictionary<string, IGameStrategy> strategyById,
+            Dictionary<string, int> gameOrderById)
+        {
             var orderedGameIds = entriesByGameId.Keys
                 .OrderBy(id => gameOrderById.TryGetValue(id, out var order) ? order : int.MaxValue)
                 .ThenBy(id => id, StringComparer.Ordinal)
@@ -205,19 +253,11 @@ namespace Runtime.UI.MainMenu
                 var rows = OrderEntriesForDisplay(entriesByGameId[gameId])
                     .Select(entry => BuildRowPresentation(entry, localizedTitle))
                     .ToArray();
+
                 groups.Add(new PlayerStatisticsGroupPresentation(gameId, localizedTitle, rows));
             }
 
-            _groups.Value = groups;
-            _isEmpty.Value = groups.Count == 0;
-        }
-
-        protected override void OnDispose()
-        {
-            _backRequested.OnCompleted();
-            _backRequested.Dispose();
-            _groups.Dispose();
-            _isEmpty.Dispose();
+            return groups;
         }
 
         private IReadOnlyList<StatisticsEntry> OrderEntriesForDisplay(IReadOnlyList<StatisticsEntry> entries) =>
@@ -322,35 +362,14 @@ namespace Runtime.UI.MainMenu
             return resolved;
         }
 
-        private static Dictionary<string, string> BuildBotDifficultyKeyMap(IReadOnlyList<BotDifficulty> difficulties)
+        private static (Dictionary<string, string> localizationKeyById, Dictionary<string, int> sortOrderById)
+            BuildBotDifficultyMaps(IReadOnlyList<BotDifficulty> difficulties)
         {
-            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            var localizationKeyById = new Dictionary<string, string>(StringComparer.Ordinal);
+            var sortOrderById = new Dictionary<string, int>(StringComparer.Ordinal);
 
             if (difficulties == null)
-                return map;
-
-            for (var i = 0; i < difficulties.Count; i++)
-            {
-                var difficulty = difficulties[i];
-                if (string.IsNullOrWhiteSpace(difficulty.Id))
-                    continue;
-
-                if (string.IsNullOrWhiteSpace(difficulty.NameKey))
-                    continue;
-
-                if (!map.ContainsKey(difficulty.Id))
-                    map.Add(difficulty.Id, difficulty.NameKey);
-            }
-
-            return map;
-        }
-
-        private static Dictionary<string, int> BuildBotDifficultySortOrderMap(IReadOnlyList<BotDifficulty> difficulties)
-        {
-            var map = new Dictionary<string, int>(StringComparer.Ordinal);
-
-            if (difficulties == null)
-                return map;
+                return (localizationKeyById, sortOrderById);
 
             for (var i = 0; i < difficulties.Count; i++)
             {
@@ -359,11 +378,14 @@ namespace Runtime.UI.MainMenu
                 if (string.IsNullOrWhiteSpace(difficulty.Id))
                     continue;
 
-                if (!map.ContainsKey(difficulty.Id))
-                    map.Add(difficulty.Id, difficulty.SortOrder);
+                if (!sortOrderById.ContainsKey(difficulty.Id))
+                    sortOrderById.Add(difficulty.Id, difficulty.SortOrder);
+
+                if (!string.IsNullOrWhiteSpace(difficulty.NameKey) && !localizationKeyById.ContainsKey(difficulty.Id))
+                    localizationKeyById.Add(difficulty.Id, difficulty.NameKey);
             }
 
-            return map;
+            return (localizationKeyById, sortOrderById);
         }
 
         private int ResolveBotDifficultySortOrder(string botDifficultyId)
@@ -376,6 +398,5 @@ namespace Runtime.UI.MainMenu
 
             return int.MaxValue;
         }
-
     }
 }

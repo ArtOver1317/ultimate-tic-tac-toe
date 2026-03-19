@@ -15,5 +15,3 @@ namespace Runtime.PlayerStatistics
         public int draws;
     }
 }
-
-#nullable restore

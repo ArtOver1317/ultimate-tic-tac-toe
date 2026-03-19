@@ -1,9 +1,7 @@
 #nullable enable
 
 using System;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
-using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Config;
 
 namespace Runtime.PlayerStatistics
@@ -29,10 +27,9 @@ namespace Runtime.PlayerStatistics
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
 
-            if (!TryMapOpponent(config.OpponentConfig, out var opponentType, out var botDifficultyId))
-                throw new NotSupportedException($"Unsupported opponent config type: {config.OpponentConfig?.GetType().Name ?? "<null>"}");
-
-            return new MatchKey(config.GameId, opponentType, botDifficultyId);
+            return !TryMapOpponent(config.OpponentConfig, out var opponentType, out var botDifficultyId)
+                ? throw new NotSupportedException($"Unsupported opponent config type: {config.OpponentConfig?.GetType().Name ?? "<null>"}")
+                : new MatchKey(config.GameId, opponentType, botDifficultyId);
         }
 
         private static bool TryMapOpponent(IOpponentConfig opponentConfig, out StatisticsOpponentType opponentType, out string? botDifficultyId)
@@ -59,5 +56,3 @@ namespace Runtime.PlayerStatistics
         }
     }
 }
-
-#nullable restore

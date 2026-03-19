@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 
 namespace Runtime.PlayerStatistics
@@ -34,6 +33,7 @@ namespace Runtime.PlayerStatistics
 
             GameId = gameId.Trim();
             OpponentType = opponentType;
+           
             BotDifficultyId = opponentType == StatisticsOpponentType.Bot
                 ? NormalizeBotDifficultyId(botDifficultyId)
                 : null;
@@ -53,13 +53,12 @@ namespace Runtime.PlayerStatistics
 
         public override int GetHashCode()
         {
-            unchecked
-            {
-                var hash = StringComparer.Ordinal.GetHashCode(GameId);
-                hash = (hash * 397) ^ (int)OpponentType;
-                hash = (hash * 397) ^ (BotDifficultyId == null ? 0 : StringComparer.Ordinal.GetHashCode(BotDifficultyId));
-                return hash;
-            }
+            var gameIdHash = StringComparer.Ordinal.GetHashCode(GameId);
+            var botDifficultyHash = BotDifficultyId == null
+                ? 0
+                : StringComparer.Ordinal.GetHashCode(BotDifficultyId);
+
+            return HashCode.Combine(gameIdHash, (int)OpponentType, botDifficultyHash);
         }
 
         private static string? NormalizeBotDifficultyId(string? botDifficultyId)
@@ -80,6 +79,15 @@ namespace Runtime.PlayerStatistics
 
         public StatisticsRecord(int wins, int losses, int draws)
         {
+            if (wins < 0)
+                throw new ArgumentOutOfRangeException(nameof(wins), wins, "Must be greater than or equal to zero.");
+
+            if (losses < 0)
+                throw new ArgumentOutOfRangeException(nameof(losses), losses, "Must be greater than or equal to zero.");
+
+            if (draws < 0)
+                throw new ArgumentOutOfRangeException(nameof(draws), draws, "Must be greater than or equal to zero.");
+
             Wins = wins;
             Losses = losses;
             Draws = draws;
@@ -114,5 +122,3 @@ namespace Runtime.PlayerStatistics
             out MatchOutcome outcome);
     }
 }
-
-#nullable restore
