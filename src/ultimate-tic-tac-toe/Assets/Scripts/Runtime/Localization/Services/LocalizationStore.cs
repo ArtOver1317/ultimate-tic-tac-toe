@@ -128,13 +128,7 @@ namespace Runtime.Localization
             public bool Equals(CacheKey other) => Locale == other.Locale && Table == other.Table;
             public override bool Equals(object obj) => obj is CacheKey other && Equals(other);
 
-            public override int GetHashCode()
-            {
-                unchecked
-                {
-                    return (Locale.GetHashCode() * 397) ^ Table.GetHashCode();
-                }
-            }
+            public override int GetHashCode() => HashCode.Combine(Locale, Table);
         }
     }
 }

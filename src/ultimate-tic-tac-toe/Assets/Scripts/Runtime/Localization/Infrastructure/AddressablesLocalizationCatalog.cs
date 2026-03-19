@@ -12,21 +12,16 @@ namespace Runtime.Localization
             LocaleId.Japanese,
         };
 
-        private static readonly TextTableId[] _startupTables =
-        {
-            new("Common"),
-            TextTableId.Errors,
-        };
-
-        private static readonly TextTableId[] _requiredTables =
+        // Intentional: in this game all required tables are loaded at startup.
+        private static readonly TextTableId[] _startupAndRequiredTables =
         {
             new("Common"),
             TextTableId.Errors,
         };
 
         public IReadOnlyList<LocaleId> GetSupportedLocales() => _supportedLocales;
-        public IReadOnlyList<TextTableId> GetStartupTables() => _startupTables;
-        public IReadOnlyList<TextTableId> GetRequiredTables() => _requiredTables;
+        public IReadOnlyList<TextTableId> GetStartupTables() => _startupAndRequiredTables;
+        public IReadOnlyList<TextTableId> GetRequiredTables() => _startupAndRequiredTables;
 
         public string GetAssetKey(LocaleId locale, TextTableId table)
         {

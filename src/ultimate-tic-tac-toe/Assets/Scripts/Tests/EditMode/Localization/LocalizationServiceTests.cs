@@ -717,6 +717,40 @@ namespace Tests.EditMode.Localization
         }
 
         [Test]
+        public void WhenObserveWithStaticArgsEmitsSameValueAfterLocaleChange_ThenSkipsDuplicateEmissions()
+        {
+            // Arrange
+            InitializeService();
+
+            _mockStore.TryResolveTemplate(_uiTable, _testKey, out Arg.Any<string>())
+                .Returns(ci =>
+                {
+                    ci[2] = "Template";
+                    return true;
+                });
+
+            _mockStore.GetActiveLocale().Returns(_ => _service.CurrentLocale.CurrentValue);
+            _mockFormatter.Format("Template", _enUs, null).Returns("Same");
+            _mockFormatter.Format("Template", _ruRu, null).Returns("Same");
+
+            const string json = @"{""locale"":""ru-RU"",""table"":""UI"",""entries"":{""Test.Key"":""Test Value""}}";
+            var bytes = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(json));
+            _mockLoader.LoadBytesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(UniTask.FromResult(bytes));
+
+            var results = new List<string>();
+
+            // Act
+            using var subscription = _service.Observe(_uiTable, _testKey, (IReadOnlyDictionary<string, object>)null)
+                .Subscribe(results.Add);
+
+            _service.SetLocaleAsync(_ruRu, CancellationToken.None).GetAwaiter().GetResult();
+
+            // Assert
+            results.Should().Equal("Same");
+        }
+
+        [Test]
         public void WhenObserveAndTableIsLoadedLater_ThenObserveReEmitsResolvedText()
         {
             // Arrange
