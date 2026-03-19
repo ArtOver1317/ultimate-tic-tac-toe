@@ -12,14 +12,10 @@ namespace Runtime.Services.Assets
         public AssetReferenceGameObject SettingsPrefab;
         public AssetReferenceGameObject LanguageSelectionPrefab;
         public AssetReferenceGameObject PlayerNameEditPrefab;
-        public AssetReferenceGameObject GameBoardPrefab;
         
         [Header("Wizard")] public AssetReferenceGameObject ModeSelectionPrefab;
         
         public AssetReferenceGameObject MatchSetupPrefab;
         public AssetReferenceGameObject MatchmakingPrefab;
-
-        [Header("Gameplay")] public AssetReferenceGameObject X_MarkPrefab;
-        public AssetReferenceGameObject O_MarkPrefab;
     }
 }
