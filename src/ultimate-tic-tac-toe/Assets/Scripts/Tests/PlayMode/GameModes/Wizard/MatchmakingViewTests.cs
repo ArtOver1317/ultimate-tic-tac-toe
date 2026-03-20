@@ -45,6 +45,8 @@ namespace Tests.PlayMode.GameModes.Wizard
         private FakeMatchmakingService _service = null!;
         private TestLocalizationService _localization = null!;
         private IGameWizardCoordinator _coordinator = null!;
+        private ReactiveProperty<bool> _isTransitioning = null!;
+        private ReactiveProperty<bool> _isSubmitting = null!;
         private ReactiveProperty<WizardError?> _currentError = null!;
 
         private VisualElement Root => _view.RootForTests;
@@ -70,15 +72,17 @@ namespace Tests.PlayMode.GameModes.Wizard
             _localization.SetText("GameWizard.Matchmaking.Back", "Back");
             _localization.SetText("GameWizard.Matchmaking.Retry", "Retry");
 
+            _isTransitioning = new ReactiveProperty<bool>(false);
+            _isSubmitting = new ReactiveProperty<bool>(false);
             _currentError = new ReactiveProperty<WizardError?>(null);
             _coordinator = Substitute.For<IGameWizardCoordinator>();
             _coordinator.CurrentError.Returns(_currentError);
-            _coordinator.IsTransitioning.Returns(new ReactiveProperty<bool>(false));
-            _coordinator.IsSubmitting.Returns(new ReactiveProperty<bool>(false));
+            _coordinator.IsTransitioning.Returns(_isTransitioning);
+            _coordinator.IsSubmitting.Returns(_isSubmitting);
 
-            _view.Construct(_coordinator, _localization);
+            _view.Construct(_localization);
 
-            _viewModel = new MatchmakingViewModel(_localization, _service);
+            _viewModel = new MatchmakingViewModel(_localization, _service, _coordinator);
 
             yield return null;
 
@@ -94,6 +98,8 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             _viewModel?.Dispose();
             _localization?.Dispose();
+            _isTransitioning?.Dispose();
+            _isSubmitting?.Dispose();
             _currentError?.Dispose();
 
             if (_gameObject != null)
@@ -253,7 +259,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             localization.SetText("GameWizard.Matchmaking.Cancel", "Cancel");
             localization.SetText("GameWizard.Matchmaking.Back", "Back");
             localization.SetText("GameWizard.Matchmaking.Retry", "Retry");
-            var newViewModel = new MatchmakingViewModel(localization, service);
+            var newViewModel = new MatchmakingViewModel(localization, service, _coordinator);
 
             // Act
             _view.SetViewModel(newViewModel);
@@ -291,8 +297,46 @@ namespace Tests.PlayMode.GameModes.Wizard
 
         [UnityTest]
         [Timeout(5000)]
+        public IEnumerator WhenCoordinatorBecomesBusy_ThenViewRootIsDisabledUntilBusyEnds() => UniTask.ToCoroutine(async () =>
+        {
+            // Arrange
+            Root.enabledInHierarchy.Should().BeTrue();
+
+            // Act
+            _isTransitioning.Value = true;
+            await UniTask.Yield();
+
+            // Assert
+            Root.enabledInHierarchy.Should().BeFalse();
+
+            // Act
+            _isTransitioning.Value = false;
+            await UniTask.Yield();
+
+            // Assert
+            Root.enabledInHierarchy.Should().BeTrue();
+        });
+
+        [UnityTest]
+        [Timeout(5000)]
+        public IEnumerator WhenCoordinatorPublishesWizardError_ThenOverlayReflectsItThroughViewModel() => UniTask.ToCoroutine(async () =>
+        {
+            // Act
+            _currentError.Value = new WizardError(
+                "code",
+                "Errors.GameWizard.MatchmakingModal",
+                true,
+                ErrorDisplayType.Modal);
+            await UniTask.Yield();
+
+            // Assert
+            GetErrorOverlay().Q<WizardModal>("WizardModal").IsVisible.Should().BeTrue();
+        });
+
+        [UnityTest]
+        [Timeout(5000)]
         [Category("Integration")]
-        public IEnumerator WhenRetryInvokedViaHandlerAfterFailure_ThenViewModelReceivesRetryRequest() => UniTask.ToCoroutine(async () =>
+        public IEnumerator WhenRetryButtonClickedAfterFailure_ThenViewModelReceivesRetryRequest() => UniTask.ToCoroutine(async () =>
         {
             // Arrange
             _service.EnqueueException(new InvalidOperationException("boom"));
@@ -305,8 +349,8 @@ namespace Tests.PlayMode.GameModes.Wizard
             await UniTask.Yield();
 
             // Act
-            _view.OnRetryButtonClicked();
-            await UniTask.Yield();
+            SimulateClick(GetRetryButton());
+            await WaitUntilAsync(() => retryCount == 1, 2000);
 
             // Assert
             retryCount.Should().Be(1);
@@ -358,6 +402,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         private Button GetCancelButton() => Root.Q<Button>("CancelButton");
         private Button GetRetryButton() => Root.Q<Button>("RetryButton");
         private MatchmakingSpinner GetSpinner() => Root.Q<MatchmakingSpinner>("Spinner");
+        private WizardErrorOverlay GetErrorOverlay() => Root.Q<WizardErrorOverlay>("ErrorOverlay");
 
         private float GetSpinnerAngle()
         {

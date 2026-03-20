@@ -1,10 +1,8 @@
-﻿using System;
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.Localization;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Coordinator;
-using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.GameModes.Wizard.ViewModels.MatchSetup;
@@ -17,14 +15,14 @@ namespace Runtime.UI.GameModes.Wizard
         private readonly IUIService _uiService;
         private readonly ILocalizationService _localization;
 
-        private static readonly TextTableId[] ModeSelectionTables =
+        private static readonly TextTableId[] _modeSelectionTables =
         {
             new("GameWizard"),
             new("Mode"),
             new("Game"),
         };
 
-        private static readonly TextTableId[] WizardTables =
+        private static readonly TextTableId[] _wizardTables =
         {
             new("GameWizard"),
             new("Game"),
@@ -39,9 +37,10 @@ namespace Runtime.UI.GameModes.Wizard
         public async UniTask OpenModeSelectionAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            
             await _uiService.OpenWithLocalizationPreloadAsync<GameSelectionView, GameSelectionViewModel>(
                 _localization,
-                ModeSelectionTables,
+                _modeSelectionTables,
                 ct);
         }
 
@@ -55,9 +54,10 @@ namespace Runtime.UI.GameModes.Wizard
         public async UniTask OpenMatchSetupAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            
             await _uiService.OpenWithLocalizationPreloadAsync<MatchSetupView, MatchSetupViewModel>(
                 _localization,
-                WizardTables,
+                _wizardTables,
                 ct);
         }
 
@@ -71,10 +71,12 @@ namespace Runtime.UI.GameModes.Wizard
         public async UniTask<MatchmakingViewModel> OpenMatchmakingAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            
             var view = await _uiService.OpenWithLocalizationPreloadAsync<MatchmakingView, MatchmakingViewModel>(
                 _localization,
-                WizardTables,
+                _wizardTables,
                 ct);
+           
             return view.GetViewModel();
         }
 
@@ -88,37 +90,42 @@ namespace Runtime.UI.GameModes.Wizard
         public UniTask ReplaceModeSelectionWithMatchSetupAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            
             return _uiService.ReplaceWithLocalizationPreloadAsync<GameSelectionView, MatchSetupView, MatchSetupViewModel>(
                 _localization,
-                WizardTables,
+                _wizardTables,
                 ct);
         }
 
         public UniTask ReplaceMatchSetupWithModeSelectionAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            
             return _uiService.ReplaceWithLocalizationPreloadAsync<MatchSetupView, GameSelectionView, GameSelectionViewModel>(
                 _localization,
-                ModeSelectionTables,
+                _modeSelectionTables,
                 ct);
         }
 
         public async UniTask<MatchmakingViewModel> ReplaceMatchSetupWithMatchmakingAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+           
             var view = await _uiService.ReplaceWithLocalizationPreloadAsync<MatchSetupView, MatchmakingView, MatchmakingViewModel>(
                 _localization,
-                WizardTables,
+                _wizardTables,
                 ct);
+           
             return view.GetViewModel();
         }
 
         public UniTask ReplaceMatchmakingWithMatchSetupAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            
             return _uiService.ReplaceWithLocalizationPreloadAsync<MatchmakingView, MatchSetupView, MatchSetupViewModel>(
                 _localization,
-                WizardTables,
+                _wizardTables,
                 ct);
         }
 

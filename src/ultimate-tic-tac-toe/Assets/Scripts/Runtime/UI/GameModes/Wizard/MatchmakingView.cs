@@ -3,9 +3,6 @@
 using System;
 using R3;
 using Runtime.Extensions;
-using Runtime.GameModes.Wizard;
-using Runtime.GameModes.Wizard.Coordinator;
-using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Localization;
@@ -18,52 +15,51 @@ namespace Runtime.UI.GameModes.Wizard
 {
     public sealed class MatchmakingView : UIView<MatchmakingViewModel>
     {
-        [Runtime.UI.Core.UxmlElementAttribute("TitleLabel")]
+        [Core.UxmlElementAttribute("TitleLabel")]
         private Label? _titleLabel;
 
-        [Runtime.UI.Core.UxmlElementAttribute("SearchingState")]
+        [Core.UxmlElementAttribute("SearchingState")]
         private VisualElement? _searchingState;
 
-        [Runtime.UI.Core.UxmlElementAttribute("Spinner")]
+        [Core.UxmlElementAttribute("Spinner")]
         private MatchmakingSpinner? _spinner;
 
-        [Runtime.UI.Core.UxmlElementAttribute("Timer")]
+        [Core.UxmlElementAttribute("Timer")]
         private MatchmakingTimer? _timer;
 
-        [Runtime.UI.Core.UxmlElementAttribute("HintLabel", isOptional: true)]
+        [Core.UxmlElementAttribute("HintLabel", isOptional: true)]
         private Label? _hintLabel;
 
-        [Runtime.UI.Core.UxmlElementAttribute("FoundState")]
+        [Core.UxmlElementAttribute("FoundState")]
         private VisualElement? _foundState;
 
-        [Runtime.UI.Core.UxmlElementAttribute("FoundLabel")]
+        [Core.UxmlElementAttribute("FoundLabel")]
         private Label? _foundLabel;
 
-        [Runtime.UI.Core.UxmlElementAttribute("FailedState")]
+        [Core.UxmlElementAttribute("FailedState")]
         private VisualElement? _failedState;
 
-        [Runtime.UI.Core.UxmlElementAttribute("FailedLabel")]
+        [Core.UxmlElementAttribute("FailedLabel")]
         private Label? _failedLabel;
 
-        [Runtime.UI.Core.UxmlElementAttribute("ErrorLabel")]
+        [Core.UxmlElementAttribute("ErrorLabel")]
         private Label? _errorLabel;
 
-        [Runtime.UI.Core.UxmlElementAttribute("CancelledState")]
+        [Core.UxmlElementAttribute("CancelledState")]
         private VisualElement? _cancelledState;
 
-        [Runtime.UI.Core.UxmlElementAttribute("CancelledLabel")]
+        [Core.UxmlElementAttribute("CancelledLabel")]
         private Label? _cancelledLabel;
 
-        [Runtime.UI.Core.UxmlElementAttribute("CancelButton")]
+        [Core.UxmlElementAttribute("CancelButton")]
         private Button? _cancelButton;
 
-        [Runtime.UI.Core.UxmlElementAttribute("RetryButton")]
+        [Core.UxmlElementAttribute("RetryButton")]
         private Button? _retryButton;
 
-        [Runtime.UI.Core.UxmlElementAttribute("ErrorOverlay", isOptional: true)]
+        [Core.UxmlElementAttribute("ErrorOverlay", isOptional: true)]
         private WizardErrorOverlay? _errorOverlay;
 
-        private IGameWizardCoordinator? _coordinator;
         private ILocalizationService? _localization;
 
         private string _cancelLabel = string.Empty;
@@ -71,35 +67,59 @@ namespace Runtime.UI.GameModes.Wizard
         private int _hintCount;
 
         [Inject]
-        public void Construct(IGameWizardCoordinator coordinator, ILocalizationService localization)
-        {
-            _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+        public void Construct(ILocalizationService localization) => 
             _localization = localization ?? throw new ArgumentNullException(nameof(localization));
-        }
 
         protected override void BindViewModel()
         {
-            var titleLabel = _titleLabel ?? throw new InvalidOperationException("TitleLabel element is missing in UXML.");
-            var searchingState = _searchingState ?? throw new InvalidOperationException("SearchingState element is missing in UXML.");
-            var spinner = _spinner ?? throw new InvalidOperationException("Spinner element is missing in UXML.");
-            var timer = _timer ?? throw new InvalidOperationException("Timer element is missing in UXML.");
-            var foundState = _foundState ?? throw new InvalidOperationException("FoundState element is missing in UXML.");
-            var foundLabel = _foundLabel ?? throw new InvalidOperationException("FoundLabel element is missing in UXML.");
-            var failedState = _failedState ?? throw new InvalidOperationException("FailedState element is missing in UXML.");
-            var failedLabel = _failedLabel ?? throw new InvalidOperationException("FailedLabel element is missing in UXML.");
-            var errorLabel = _errorLabel ?? throw new InvalidOperationException("ErrorLabel element is missing in UXML.");
-            var cancelledState = _cancelledState ?? throw new InvalidOperationException("CancelledState element is missing in UXML.");
-            var cancelledLabel = _cancelledLabel ?? throw new InvalidOperationException("CancelledLabel element is missing in UXML.");
-            var cancelButton = _cancelButton ?? throw new InvalidOperationException("CancelButton element is missing in UXML.");
-            var retryButton = _retryButton ?? throw new InvalidOperationException("RetryButton element is missing in UXML.");
+            var titleLabel = GetRequired(_titleLabel, "TitleLabel");
+            var searchingState = GetRequired(_searchingState, "SearchingState");
+            var spinner = GetRequired(_spinner, "Spinner");
+            var timer = GetRequired(_timer, "Timer");
+            var foundState = GetRequired(_foundState, "FoundState");
+            var foundLabel = GetRequired(_foundLabel, "FoundLabel");
+            var failedState = GetRequired(_failedState, "FailedState");
+            var failedLabel = GetRequired(_failedLabel, "FailedLabel");
+            var errorLabel = GetRequired(_errorLabel, "ErrorLabel");
+            var cancelledState = GetRequired(_cancelledState, "CancelledState");
+            var cancelledLabel = GetRequired(_cancelledLabel, "CancelledLabel");
+            var cancelButton = GetRequired(_cancelButton, "CancelButton");
+            var retryButton = GetRequired(_retryButton, "RetryButton");
 
+            BindStaticTexts(titleLabel, foundLabel, failedLabel, cancelledLabel, retryButton);
+            BindSearchingSection(timer);
+            BindHintSection();
+            BindStateSection(searchingState, foundState, failedState, cancelledState, cancelButton, retryButton, spinner);
+            BindBusyState();
+            BindErrorMessage(errorLabel);
+            BindErrorOverlay();
+            BindButtons(cancelButton, retryButton);
+        }
+
+        private void BindErrorOverlay()
+        {
+            var overlay = _errorOverlay;
+            
+            if (overlay == null)
+                return;
+
+            var localization = _localization ?? throw new InvalidOperationException("Localization service is not available for error overlay binding.");
+
+            AddDisposable(WizardErrorOverlayBinder.Bind(overlay, localization, ViewModel.Error, ViewModel.AcknowledgeError));
+        }
+
+        private void BindStaticTexts(Label titleLabel, Label foundLabel, Label failedLabel, Label cancelledLabel, Button retryButton)
+        {
             BindText(ViewModel.TitleText, titleLabel);
             BindText(ViewModel.FoundText, foundLabel);
             BindText(ViewModel.FailedText, failedLabel);
             BindText(ViewModel.CancelledText, cancelledLabel);
             BindText(ViewModel.RetryButtonText, retryButton);
+        }
 
-            AddDisposable(ViewModel.SearchingPrefixText.Subscribe(text => timer.SetPrefix(text)));
+        private void BindSearchingSection(MatchmakingTimer timer)
+        {
+            AddDisposable(ViewModel.SearchingPrefixText.Subscribe(timer.SetPrefix));
             AddDisposable(ViewModel.ElapsedTime.Subscribe(timer.SetTime));
 
             AddDisposable(ViewModel.CancelButtonText.Subscribe(text =>
@@ -107,72 +127,62 @@ namespace Runtime.UI.GameModes.Wizard
                 _cancelLabel = text ?? string.Empty;
                 UpdateCancelButtonLabel(ViewModel.State.CurrentValue);
             }));
-
+            
             AddDisposable(ViewModel.BackButtonText.Subscribe(text =>
             {
                 _backLabel = text ?? string.Empty;
                 UpdateCancelButtonLabel(ViewModel.State.CurrentValue);
             }));
+        }
 
-            if (_hintLabel != null)
+        private void BindHintSection()
+        {
+            if (_hintLabel == null)
+                return;
+
+            AddDisposable(ViewModel.HintText.Subscribe(text =>
             {
-                AddDisposable(ViewModel.HintText.Subscribe(text =>
-                {
-                    _hintLabel.text = text ?? string.Empty;
-                    UpdateHintVisibility();
-                }));
-
-                AddDisposable(ViewModel.PlayersWithDifferentParams.Subscribe(count =>
-                {
-                    _hintCount = count;
-                    UpdateHintVisibility();
-                }));
-            }
-
-            AddDisposable(ViewModel.ErrorMessage.Subscribe(text =>
-            {
-                errorLabel.text = text ?? string.Empty;
-                errorLabel.style.display = string.IsNullOrWhiteSpace(text) ? DisplayStyle.None : DisplayStyle.Flex;
+                _hintLabel.text = text ?? string.Empty;
+                UpdateHintVisibility();
             }));
+            
+            AddDisposable(ViewModel.PlayersWithDifferentParams.Subscribe(count =>
+            {
+                _hintCount = count;
+                UpdateHintVisibility();
+            }));
+        }
 
+        private void BindStateSection(
+            VisualElement searchingState,
+            VisualElement foundState,
+            VisualElement failedState,
+            VisualElement cancelledState,
+            Button cancelButton,
+            Button retryButton,
+            MatchmakingSpinner spinner) =>
             AddDisposable(ViewModel.State.Subscribe(state =>
             {
                 UpdateState(searchingState, foundState, failedState, cancelledState, cancelButton, retryButton, spinner, state);
                 UpdateCancelButtonLabel(state);
             }));
 
-            BindErrorOverlay();
+        private void BindBusyState() =>
+            BindEnabled(ViewModel.IsBusy.Select(static isBusy => !isBusy), Root);
 
-            if (_coordinator != null)
-            {
-                var isBusy = Observable.CombineLatest(
-                    _coordinator.IsTransitioning,
-                    _coordinator.IsSubmitting,
-                    static (isTransitioning, isSubmitting) => isTransitioning || isSubmitting);
-                BindEnabled(isBusy.Select(static busy => !busy), Root);
-            }
+        private void BindErrorMessage(Label errorLabel) =>
+            BindTextWithAutoVisibility(ViewModel.ErrorMessage, errorLabel);
 
-            AddDisposable(cancelButton.OnClickAsObservable().Subscribe(_ =>
-                OnCancelButtonClicked()));
-            AddDisposable(retryButton.OnClickAsObservable().Subscribe(_ => OnRetryButtonClicked()));
-        }
-
-        private void BindErrorOverlay()
+        private void BindButtons(Button cancelButton, Button retryButton)
         {
-            var overlay = _errorOverlay;
-            if (overlay == null)
-                return;
-
-            // Wizard-level errors are sourced from coordinator (single source of truth).
-            var coordinator = _coordinator ?? throw new InvalidOperationException("Coordinator is not available for error overlay binding.");
-            var localization = _localization ?? throw new InvalidOperationException("Localization service is not available for error overlay binding.");
-
-            AddDisposable(WizardErrorOverlayBinder.Bind(overlay, localization, coordinator.CurrentError, coordinator.ClearCurrentError));
+            AddDisposable(cancelButton.OnClickAsObservable().Subscribe(_ => HandleCancelButtonClicked()));
+            AddDisposable(retryButton.OnClickAsObservable().Subscribe(_ => ViewModel.RequestRetry()));
         }
 
-        internal void OnCancelButtonClicked()
+        private void HandleCancelButtonClicked()
         {
             var viewModel = ViewModel;
+            
             if (viewModel == null)
                 return;
 
@@ -180,11 +190,6 @@ namespace Runtime.UI.GameModes.Wizard
                 viewModel.RequestCancel();
             else
                 viewModel.RequestBack();
-        }
-
-        internal void OnRetryButtonClicked()
-        {
-            ViewModel?.RequestRetry();
         }
 
         protected override void OnResetForPool()
@@ -230,6 +235,7 @@ namespace Runtime.UI.GameModes.Wizard
         private void UpdateCancelButtonLabel(MatchmakingState state)
         {
             var button = _cancelButton;
+            
             if (button == null)
                 return;
 
@@ -241,6 +247,7 @@ namespace Runtime.UI.GameModes.Wizard
         private void UpdateHintVisibility()
         {
             var hintLabel = _hintLabel;
+            
             if (hintLabel == null)
                 return;
 
@@ -250,7 +257,16 @@ namespace Runtime.UI.GameModes.Wizard
 
         private static void SetVisible(VisualElement element, bool isVisible) =>
             element.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
+
+        private void BindTextWithAutoVisibility(Observable<string?> source, Label label) =>
+            AddDisposable(source.Subscribe(text =>
+            {
+                label.text = text ?? string.Empty;
+                label.style.display = string.IsNullOrWhiteSpace(text) ? DisplayStyle.None : DisplayStyle.Flex;
+            }));
+
+        private static T GetRequired<T>(T? element, string elementName)
+            where T : class =>
+            element ?? throw new InvalidOperationException($"{elementName} element is missing in UXML.");
     }
 }
-
-#nullable restore

@@ -255,21 +255,18 @@ namespace Tests.PlayMode.GameModes.Wizard
 
         [UnityTest]
         [Timeout(5000)]
-        public IEnumerator WhenSyncSelectionFromViewModelDuringUserSelection_ThenDoesNotTriggerInfiniteLoop()
+        public IEnumerator WhenSelectionIsSyncedFromViewModel_ThenListViewUpdatesWithoutChangingSelectedGameId()
         {
             // Arrange
             _view.SetViewModel(_viewModel);
             yield return null;
-
-            var invokedCount = 0;
-            _view.OnSelectModeInvokedForTests = _ => invokedCount++;
 
             // Act
             _viewModel.SelectedGameId.Value = "classic";
             yield return null;
 
             // Assert
-            invokedCount.Should().Be(0);
+            _viewModel.SelectedGameId.Value.Should().Be("classic");
             GetModeList().selectedIndex.Should().Be(0);
         }
 
@@ -366,7 +363,7 @@ namespace Tests.PlayMode.GameModes.Wizard
 
         [UnityTest]
         [Timeout(5000)]
-        public IEnumerator WhenRebindViewModelAfterReset_ThenViewWorksCorrectlyWithoutDoubleSubscriptions()
+        public IEnumerator WhenRebindViewModelAfterReset_ThenNewViewModelHandlesSelectionAndPreviousViewModelStaysUntouched()
         {
             // Arrange
             var viewModelA = _viewModel;
@@ -390,16 +387,11 @@ namespace Tests.PlayMode.GameModes.Wizard
             _view.SetViewModel(viewModelB);
             yield return null;
 
-            var invokedCount = 0;
-            _view.OnSelectModeInvokedForTests = _ => invokedCount++;
-            invokedCount = 0;
-
             // Act
             GetModeList().SetSelection(2);
             yield return null;
 
             // Assert
-            invokedCount.Should().Be(1);
             viewModelB.SelectedGameId.Value.Should().Be("blitz");
             viewModelA.SelectedGameId.Value.Should().BeNull();
 

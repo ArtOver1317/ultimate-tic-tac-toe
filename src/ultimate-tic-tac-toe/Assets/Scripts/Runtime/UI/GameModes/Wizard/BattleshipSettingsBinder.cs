@@ -1,8 +1,6 @@
 #nullable enable
 
 using R3;
-using Runtime.Extensions;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
@@ -22,7 +20,7 @@ namespace Runtime.UI.GameModes.Wizard
 
         public void Bind(VisualElement root, IGameSettingsViewModel viewModel, CompositeDisposable disposables)
         {
-            if (root == null || viewModel is not IBattleshipSettingsViewModel vm)
+            if (viewModel is not IBattleshipSettingsViewModel vm)
                 return;
 
             var title = root.Q<Label>("PlacementTimerTitle");
@@ -51,11 +49,14 @@ namespace Runtime.UI.GameModes.Wizard
                 .Subscribe(id => chips.SetSelectedIdWithoutNotify(id))
                 .AddTo(disposables);
 
-            void OnSelected(string id) => vm.SetSelectedPlacementTimerPresetId(id);
-
             chips.SelectedIdChanged += OnSelected;
+            
             Disposable.Create(() => chips.SelectedIdChanged -= OnSelected)
                 .AddTo(disposables);
+
+            return;
+
+            void OnSelected(string id) => vm.SetSelectedPlacementTimerPresetId(id);
         }
     }
 }

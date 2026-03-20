@@ -5,12 +5,14 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.GameModes.Wizard.Matchmaking.Config;
 using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
 using Runtime.UI.Core;
+using VContainer;
 
 namespace Runtime.GameModes.Wizard.Matchmaking.Runtime
 {
@@ -25,10 +27,13 @@ namespace Runtime.GameModes.Wizard.Matchmaking.Runtime
 
         private readonly ILocalizationService _localization;
         private readonly IMatchmakingService _service;
+        private readonly IGameWizardCoordinator? _coordinator;
         private readonly IMatchmakingConfig _config;
         private readonly MatchmakingElapsedTimer _elapsedTimer = new();
 
         private readonly ReactiveProperty<MatchmakingState> _state = new(MatchmakingState.Idle);
+        private readonly ReactiveProperty<bool> _isBusy = new(false);
+        private readonly ReactiveProperty<WizardError?> _error = new(null);
         private readonly ReactiveProperty<int> _playersWithDifferentParams = new(0);
         private readonly ReactiveProperty<string?> _errorMessage = new(null);
         private readonly ReactiveProperty<string?> _errorMessageKey = new(null);
@@ -44,6 +49,8 @@ namespace Runtime.GameModes.Wizard.Matchmaking.Runtime
         private int _isWired;
 
         public ReadOnlyReactiveProperty<MatchmakingState> State => _state;
+        public ReadOnlyReactiveProperty<bool> IsBusy => _isBusy;
+        public ReadOnlyReactiveProperty<WizardError?> Error => _error;
         public ReadOnlyReactiveProperty<TimeSpan> ElapsedTime => _elapsedTimer.ElapsedTime;
         public ReadOnlyReactiveProperty<int> PlayersWithDifferentParams => _playersWithDifferentParams;
         public ReadOnlyReactiveProperty<string?> ErrorMessage => _errorMessage;
@@ -63,6 +70,17 @@ namespace Runtime.GameModes.Wizard.Matchmaking.Runtime
         public Observable<string> RetryButtonText { get; }
         public Observable<string> BackButtonText { get; }
         public Observable<string> HintText { get; }
+
+        [Inject]
+        public MatchmakingViewModel(
+            ILocalizationService localization,
+            IMatchmakingService service,
+            IGameWizardCoordinator coordinator,
+            IMatchmakingConfig? config = null)
+            : this(localization, service, config)
+        {
+            _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+        }
 
         public MatchmakingViewModel(ILocalizationService localization, IMatchmakingService service, IMatchmakingConfig? config = null)
         {
@@ -133,6 +151,17 @@ namespace Runtime.GameModes.Wizard.Matchmaking.Runtime
 
         public void RequestRetry() => _retryRequested.OnNext(Unit.Default);
 
+        public void AcknowledgeError()
+        {
+            if (_coordinator != null)
+            {
+                _coordinator.ClearCurrentError();
+                return;
+            }
+
+            AcknowledgeTerminalModal();
+        }
+
         public void AcknowledgeTerminalModal() => _fsm?.AcknowledgeTerminalModal();
 
         public void NotifySessionStartFailed() => _fsm?.NotifySessionStartFailed();
@@ -154,6 +183,8 @@ namespace Runtime.GameModes.Wizard.Matchmaking.Runtime
             DisposeFsm();
 
             _state.Dispose();
+            _isBusy.Dispose();
+            _error.Dispose();
             _playersWithDifferentParams.Dispose();
             _errorMessage.Dispose();
             _errorMessageKey.Dispose();
@@ -180,6 +211,7 @@ namespace Runtime.GameModes.Wizard.Matchmaking.Runtime
             _fsm = fsm;
 
             BindFsm(fsm);
+            BindCoordinatorState();
             BindLocalizedErrorMessage();
         }
 
@@ -194,6 +226,18 @@ namespace Runtime.GameModes.Wizard.Matchmaking.Runtime
             AddDisposable(_errorMessageKey.CombineLatest(_localization.CurrentLocale,
                     static (key, _) => key)
                 .Subscribe(key => _errorMessage.Value = ResolveMessageKey(key ?? string.Empty)));
+
+        private void BindCoordinatorState()
+        {
+            if (_coordinator == null)
+                return;
+
+            AddDisposable(_coordinator.IsTransitioning.CombineLatest(_coordinator.IsSubmitting,
+                    static (isTransitioning, isSubmitting) => isTransitioning || isSubmitting)
+                .Subscribe(isBusy => _isBusy.Value = isBusy));
+
+            AddDisposable(_coordinator.CurrentError.Subscribe(error => _error.Value = error));
+        }
 
         private void ApplyFailureState(MatchmakingFailure? failure)
         {
@@ -336,6 +380,8 @@ namespace Runtime.GameModes.Wizard.Matchmaking.Runtime
         private void ResetReactiveState()
         {
             _state.Value = MatchmakingState.Idle;
+            _isBusy.Value = false;
+            _error.Value = null;
             _playersWithDifferentParams.Value = 0;
             _errorMessage.Value = null;
             _errorMessageKey.Value = null;

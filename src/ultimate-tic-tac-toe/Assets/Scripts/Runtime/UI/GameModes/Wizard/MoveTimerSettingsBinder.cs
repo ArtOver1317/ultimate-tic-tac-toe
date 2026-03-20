@@ -1,8 +1,6 @@
 #nullable enable
 
 using R3;
-using Runtime.Extensions;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.Infrastructure.Logging;
 using Runtime.UI.Components;
@@ -14,9 +12,6 @@ namespace Runtime.UI.GameModes.Wizard
     {
         public void Bind(VisualElement root, MoveTimerSettingsViewModel viewModel, CompositeDisposable disposables)
         {
-            if (root == null || viewModel == null)
-                return;
-
             var title = root.Q<Label>("MoveTimerTitle");
             var chips = root.Q<DifficultyChips>("MoveTimerChips");
 
@@ -42,11 +37,14 @@ namespace Runtime.UI.GameModes.Wizard
                 .Subscribe(id => chips.SetSelectedIdWithoutNotify(id))
                 .AddTo(disposables);
 
-            void OnSelected(string id) => viewModel.SetSelectedPresetId(id);
-
             chips.SelectedIdChanged += OnSelected;
+            
             Disposable.Create(() => chips.SelectedIdChanged -= OnSelected)
                 .AddTo(disposables);
+
+            return;
+
+            void OnSelected(string id) => viewModel.SetSelectedPresetId(id);
         }
     }
 }
