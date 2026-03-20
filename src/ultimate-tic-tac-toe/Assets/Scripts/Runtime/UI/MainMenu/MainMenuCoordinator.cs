@@ -2,43 +2,26 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
-using Runtime.GameModes.Wizard;
-using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.GameModes.Wizard.Online;
-using Runtime.Infrastructure.Logging;
 using Runtime.Infrastructure.GameStateMachine;
-using Runtime.Infrastructure.GameStateMachine.States;
-using Runtime.Localization;
+using Runtime.Infrastructure.Logging;
 using Runtime.Localization.Contracts;
-using Runtime.Localization.Types;
 using Runtime.Services.UI;
-using Runtime.UI.Settings;
 using StripLog;
-using UnityEngine;
 
 namespace Runtime.UI.MainMenu
 {
-    public class MainMenuCoordinator : IMainMenuCoordinator
+    public sealed class MainMenuCoordinator : IMainMenuCoordinator
     {
         private MainMenuViewModel _viewModel;
-        private readonly IGameStateMachine _stateMachine;
-        private readonly IUIService _uiService;
-        private readonly ILocalizationService _localization;
         private readonly IGameWizardCoordinator _wizardCoordinator;
-        private readonly IOnlineSessionLauncher _onlineSessionLauncher;
-        private readonly IOnlineSessionFlowService _onlineSessionFlow;
+        private readonly MainMenuOverlayNavigator _overlayNavigator;
+        private readonly MainMenuMatchStartFlow _matchStartFlow;
         private CompositeDisposable _disposables = new();
-        private CompositeDisposable _wizardDisposables = new();
+        
         private CancellationTokenSource _lifecycleCts = new();
-        // Transition token: intentionally not linked to lifecycle.
-        // MainMenuCoordinator.Dispose() is called during normal scene exit, so linking would cancel valid transitions.
-        private CancellationTokenSource _launchCts;
         private bool _isDisposed;
-        private int _startInProgress;
-        private int _wizardStartInProgress;
-        private OnlineFlowState _lastOnlineFlowState = OnlineFlowState.Idle;
-        private bool _hasOnlineFlowState;
 
         public MainMenuCoordinator(
             IGameStateMachine stateMachine,
@@ -48,12 +31,19 @@ namespace Runtime.UI.MainMenu
             IOnlineSessionLauncher onlineSessionLauncher = null,
             IOnlineSessionFlowService onlineSessionFlow = null)
         {
-            _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
-            _uiService = uiService ?? throw new ArgumentNullException(nameof(uiService));
-            _localization = localization ?? throw new ArgumentNullException(nameof(localization));
+            var resolvedStateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
+            var resolvedUiService = uiService ?? throw new ArgumentNullException(nameof(uiService));
+            var resolvedLocalization = localization ?? throw new ArgumentNullException(nameof(localization));
             _wizardCoordinator = wizardCoordinator ?? throw new ArgumentNullException(nameof(wizardCoordinator));
-            _onlineSessionLauncher = onlineSessionLauncher ?? NoOpOnlineSessionLauncher.Instance;
-            _onlineSessionFlow = onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance;
+
+            _overlayNavigator = new MainMenuOverlayNavigator(resolvedUiService, resolvedLocalization);
+            
+            _matchStartFlow = new MainMenuMatchStartFlow(
+                resolvedStateMachine,
+                _wizardCoordinator,
+                onlineSessionLauncher ?? NoOpOnlineSessionLauncher.Instance,
+                onlineSessionFlow ?? NoOpOnlineSessionFlowService.Instance,
+                _overlayNavigator);
         }
 
         public void Initialize(MainMenuViewModel viewModel)
@@ -66,25 +56,14 @@ namespace Runtime.UI.MainMenu
             
             Cleanup();
             _viewModel = viewModel;
+            _matchStartFlow.Initialize(_viewModel, _lifecycleCts.Token);
             
             _viewModel.StartGameRequested
-                .Subscribe(_ => OnStartGameAsync(_lifecycleCts.Token).Forget(ex =>
-                {
-                    if (ex is OperationCanceledException)
-                        return;
-
-                    Log.Exception(ex, LogTags.UI);
-                }))
+                .Subscribe(_ => _matchStartFlow.OnStartGameAsync(_lifecycleCts.Token).Forget(MainMenuAsyncExceptionHandler.HandleFireAndForgetException))
                 .AddTo(_disposables);
 
             _viewModel.StatisticsRequested
-                .Subscribe(_ => OpenStatisticsAsync(_lifecycleCts.Token).Forget(ex =>
-                {
-                    if (ex is OperationCanceledException)
-                        return;
-
-                    Log.Exception(ex, LogTags.UI);
-                }))
+                .Subscribe(_ => _overlayNavigator.OpenStatisticsAsync(_lifecycleCts.Token).Forget(MainMenuAsyncExceptionHandler.HandleFireAndForgetException))
                 .AddTo(_disposables);
 
             _viewModel.ExitRequested
@@ -92,16 +71,8 @@ namespace Runtime.UI.MainMenu
                 .AddTo(_disposables);
 
             _viewModel.SettingsRequested
-                .Subscribe(_ => OpenSettingsAsync(_lifecycleCts.Token).Forget(ex =>
-                {
-                    if (ex is OperationCanceledException)
-                        return;
-
-                    Log.Exception(ex, LogTags.UI);
-                }))
+                .Subscribe(_ => _overlayNavigator.OpenSettingsAsync(_lifecycleCts.Token).Forget(MainMenuAsyncExceptionHandler.HandleFireAndForgetException))
                 .AddTo(_disposables);
-
-            WireWizardEvents();
         }
 
         private void Cleanup()
@@ -111,53 +82,8 @@ namespace Runtime.UI.MainMenu
             _lifecycleCts = new CancellationTokenSource();
             _disposables?.Dispose();
             _disposables = new CompositeDisposable();
-            _wizardDisposables?.Dispose();
-            _wizardDisposables = new CompositeDisposable();
-            _startInProgress = 0;
-            _wizardStartInProgress = 0;
-            _hasOnlineFlowState = false;
-            _launchCts?.Cancel();
-            _launchCts?.Dispose();
-            _launchCts = null;
-        }
-
-        private async UniTask OnStartGameAsync(CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            Log.Debug(LogTags.UI, "[MainMenuCoordinator] Starting game...");
-
-            if (Interlocked.Exchange(ref _wizardStartInProgress, 1) != 0)
-                return;
-            
-            // Close overlays before starting game
-            _uiService.Close<PlayerNameEditView>();
-            _uiService.Close<LanguageSelectionView>();
-            _uiService.Close<SettingsView>();
-            _uiService.Close<PlayerStatisticsView>();
-            
-            _viewModel.SetInteractable(false);
-
-            try
-            {
-                await _wizardCoordinator.StartWizardAsync(cancellationToken);
-                _uiService.Hide<MainMenuView>();
-            }
-            catch (OperationCanceledException)
-            {
-                _uiService.Get<MainMenuView>()?.Show();
-                _viewModel.SetInteractable(true);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _uiService.Get<MainMenuView>()?.Show();
-                _viewModel.SetInteractable(true);
-                Log.Exception(ex, LogTags.UI);
-            }
-            finally
-            {
-                Interlocked.Exchange(ref _wizardStartInProgress, 0);
-            }
+            _overlayNavigator.Reset();
+            _matchStartFlow.Reset();
         }
 
         private void OnExit()
@@ -171,99 +97,6 @@ namespace Runtime.UI.MainMenu
 #endif
         }
 
-        private async UniTask OpenSettingsAsync(CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
-            {
-                // SettingsView and LanguageSelectionView are transient, opened on top of MainMenu
-                var settingsView = await _uiService.OpenWithLocalizationPreloadAsync<SettingsView, SettingsViewModel>(
-                    _localization,
-                    cancellationToken,
-                    TextTableId.Settings);
-
-                var vm = settingsView.GetViewModel();
-
-                // Note: Back navigation is handled by BaseViewModel.RequestClose triggering UIService.Close
-                // We only need to handle forward navigation.
-                // Using TakeUntil(vm.OnCloseRequested) ensures we unsubscribe when the window closes
-                // (even if View is pooled and ViewModel is reset/pooled, OnCloseRequested completes the session)
-
-                vm.LanguageRequest
-                    .TakeUntil(vm.OnCloseRequested)
-                    .Subscribe(_ => OpenLanguageSelection())
-                    .AddTo(_disposables);
-
-                vm.PlayerNameEditRequest
-                    .TakeUntil(vm.OnCloseRequested)
-                    .Subscribe(_ => OpenPlayerNameEditAsync(_lifecycleCts.Token).Forget(ex =>
-                    {
-                        if (ex is OperationCanceledException)
-                            return;
-
-                        Log.Exception(ex, LogTags.UI);
-                    }))
-                    .AddTo(_disposables);
-            }
-            catch (InvalidOperationException ex)
-            {
-                Log.Error(LogTags.UI, $"Failed to open SettingsView. {ex.Message}");
-            }
-        }
-
-        private async UniTask OpenStatisticsAsync(CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
-            {
-                await _uiService.OpenWithLocalizationPreloadAsync<PlayerStatisticsView, PlayerStatisticsViewModel>(
-                    _localization,
-                    cancellationToken,
-                    new TextTableId("PlayerStatistics"),
-                    new TextTableId("Game"),
-                    new TextTableId("GameWizard"));
-            }
-            catch (InvalidOperationException ex)
-            {
-                Log.Error(LogTags.UI, $"Failed to open PlayerStatisticsView. {ex.Message}");
-            }
-        }
-
-        private void OpenLanguageSelection()
-        {
-            try
-            {
-                _uiService.Open<LanguageSelectionView, LanguageSelectionViewModel>();
-            }
-            catch (InvalidOperationException ex)
-            {
-                Log.Error(LogTags.UI, $"Failed to open LanguageSelectionView. {ex.Message}");
-            }
-
-            // Back navigation handled by RequestClose -> UIService auto-close
-        }
-
-        private async UniTask OpenPlayerNameEditAsync(CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
-            {
-                await _uiService.OpenWithLocalizationPreloadAsync<PlayerNameEditView, PlayerNameEditViewModel>(
-                    _localization,
-                    cancellationToken,
-                    new TextTableId("Settings"),
-                    new TextTableId("Common"),
-                    TextTableId.Errors);
-            }
-            catch (InvalidOperationException ex)
-            {
-                Log.Error(LogTags.UI, $"Failed to open PlayerNameEditView. {ex.Message}");
-            }
-        }
-
         public void Dispose()
         {
             if (_isDisposed)
@@ -272,171 +105,31 @@ namespace Runtime.UI.MainMenu
             _isDisposed = true;
             _lifecycleCts.Cancel();
             _lifecycleCts.Dispose();
-            
-            if (_startInProgress == 0)
-            {
-                _launchCts?.Cancel();
-                _launchCts?.Dispose();
-                _launchCts = null;
-            }
-            
+
             _disposables.Dispose();
-            _wizardDisposables.Dispose();
+            _overlayNavigator.Dispose();
+            _matchStartFlow.Dispose();
             
-            _wizardCoordinator.AbortWizardAsync(AbortReason.SceneChange).Forget(ex =>
-            {
-                if (ex is OperationCanceledException || ex is ObjectDisposedException)
-                    return;
-
-                Log.Exception(ex, LogTags.UI);
-            });
+            _wizardCoordinator.AbortWizardAsync(AbortReason.SceneChange).Forget(MainMenuAsyncExceptionHandler.HandleDisposeException);
         }
+    }
 
-        private void WireWizardEvents()
+    internal static class MainMenuAsyncExceptionHandler
+    {
+        public static void HandleFireAndForgetException(Exception exception)
         {
-            _wizardCoordinator.GameLaunchRequested
-                .Subscribe(config => OnLaunchRequestedAsync(config, _lifecycleCts.Token).Forget(ex =>
-                {
-                    if (ex is OperationCanceledException)
-                        return;
-
-                    Log.Exception(ex, LogTags.UI);
-                }))
-                .AddTo(_wizardDisposables);
-
-            _wizardCoordinator.WizardAborted
-                .Subscribe(HandleWizardAborted)
-                .AddTo(_wizardDisposables);
-
-            _onlineSessionFlow.Snapshot
-                .Subscribe(HandleOnlineFlowSnapshot)
-                .AddTo(_wizardDisposables);
-        }
-
-        private async UniTask OnLaunchRequestedAsync(GameLaunchConfig config, CancellationToken cancellationToken)
-        {
-            if (config == null)
-                throw new ArgumentNullException(nameof(config));
-
-            if (Interlocked.Exchange(ref _startInProgress, 1) != 0)
+            if (exception is OperationCanceledException)
                 return;
 
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                _viewModel.SetInteractable(false);
-
-                _launchCts?.Cancel();
-                _launchCts?.Dispose();
-                _launchCts = new CancellationTokenSource();
-                var launchToken = _launchCts.Token;
-
-                var preparation = await _onlineSessionLauncher.PrepareForLaunchAsync(config, launchToken);
-                if (!preparation.IsSuccess)
-                {
-                    _viewModel.SetInteractable(true);
-
-                    if (_wizardCoordinator.IsActive)
-                    {
-                        _wizardCoordinator.CompleteStartAttempt(
-                            succeeded: false,
-                            error: preparation.Error ?? new WizardError(
-                                code: "wizard.online_prepare_failed",
-                                messageKey: "Errors.GameWizard.UnhandledException",
-                                isBlocking: true,
-                                displayType: ErrorDisplayType.Modal));
-                    }
-
-                    return;
-                }
-
-                await _stateMachine.EnterAsync<LoadGameplayState, GameLaunchConfig>(config, launchToken);
-                _wizardCoordinator.CompleteStartAttempt(succeeded: true);
-            }
-            catch (OperationCanceledException)
-            {
-                _viewModel.SetInteractable(true);
-
-                if (_wizardCoordinator.IsActive)
-                    _wizardCoordinator.CancelStartAttempt();
-            }
-            catch (Exception ex)
-            {
-                _viewModel.SetInteractable(true);
-                Log.Exception(ex, LogTags.UI);
-
-                if (_wizardCoordinator.IsActive)
-                {
-                    _wizardCoordinator.CompleteStartAttempt(
-                        succeeded: false,
-                        error: new WizardError(
-                            code: "wizard.start_failed",
-                            messageKey: "Errors.GameWizard.UnhandledException",
-                            isBlocking: true,
-                            displayType: ErrorDisplayType.Modal));
-                }
-            }
-            finally
-            {
-                _launchCts?.Dispose();
-                _launchCts = null;
-                Interlocked.Exchange(ref _startInProgress, 0);
-            }
+            Log.Exception(exception, LogTags.UI);
         }
 
-        private void HandleOnlineFlowSnapshot(OnlineFlowSnapshot snapshot)
+        public static void HandleDisposeException(Exception exception)
         {
-            var previousState = _hasOnlineFlowState ? _lastOnlineFlowState : snapshot.State;
-            _lastOnlineFlowState = snapshot.State;
-            _hasOnlineFlowState = true;
-
-            if (_startInProgress == 0)
+            if (exception is OperationCanceledException or ObjectDisposedException)
                 return;
 
-            if (ShouldCancelLaunchByOnlineTransition(previousState, snapshot.State))
-            {
-                _launchCts?.Cancel();
-            }
-        }
-
-        private static bool ShouldCancelLaunchByOnlineTransition(OnlineFlowState previousState, OnlineFlowState currentState)
-        {
-            if (currentState == OnlineFlowState.Terminated || currentState == OnlineFlowState.Failed)
-                return true;
-
-            return currentState == OnlineFlowState.Idle && IsActiveOnlineState(previousState);
-        }
-
-        private static bool IsActiveOnlineState(OnlineFlowState state) =>
-            state == OnlineFlowState.HostIntentConfirmed ||
-            state == OnlineFlowState.HostStarting ||
-            state == OnlineFlowState.WaitingForPlayer ||
-            state == OnlineFlowState.GuestConnecting ||
-            state == OnlineFlowState.ConnectedCountdown ||
-            state == OnlineFlowState.InGame ||
-            state == OnlineFlowState.Result ||
-            state == OnlineFlowState.Reconnecting;
-
-        private void HandleWizardAborted(AbortReason reason)
-        {
-            if (_viewModel == null)
-                return;
-
-            switch (reason)
-            {
-                case AbortReason.UserCancel:
-                case AbortReason.Error:
-                case AbortReason.StartCancelled:
-                case AbortReason.Disconnect:
-                    if (_startInProgress != 0)
-                        _launchCts?.Cancel();
-
-                    _uiService.Get<MainMenuView>()?.Show();
-                    _viewModel.SetInteractable(true);
-                    break;
-                case AbortReason.GameStarted:
-                    break;
-            }
+            Log.Exception(exception, LogTags.UI);
         }
     }
 }

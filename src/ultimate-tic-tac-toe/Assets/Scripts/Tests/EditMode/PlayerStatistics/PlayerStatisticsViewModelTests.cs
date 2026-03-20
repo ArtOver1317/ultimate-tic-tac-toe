@@ -69,6 +69,24 @@ namespace Tests.EditMode.PlayerStatistics
         }
 
         [Test]
+        public void WhenServiceReturnsNullSnapshot_ThenShowsEmptyState()
+        {
+            var localization = CreateLocalizationStub();
+            var statisticsService = Substitute.For<IPlayerStatisticsService>();
+            statisticsService.GetEntriesSnapshot().Returns((IReadOnlyList<StatisticsEntry>)null);
+
+            var strategy = CreateStrategy("tic-tac-toe", 10, "Game.TicTacToe", Array.Empty<string>());
+            var catalog = CreateCatalog(strategy);
+            var botCatalog = CreateBotCatalog();
+
+            var sut = new PlayerStatisticsViewModel(statisticsService, catalog, botCatalog, localization);
+            sut.Initialize();
+
+            sut.IsEmpty.CurrentValue.Should().BeTrue();
+            sut.Groups.CurrentValue.Should().BeEmpty();
+        }
+
+        [Test]
         public void WhenEntryHasUnknownGameId_ThenFiltersEntryOut()
         {
             var localization = CreateLocalizationStub();

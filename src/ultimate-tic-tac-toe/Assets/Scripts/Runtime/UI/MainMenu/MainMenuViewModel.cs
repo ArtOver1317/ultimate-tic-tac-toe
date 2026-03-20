@@ -1,5 +1,4 @@
 using R3;
-using Runtime.Localization;
 using Runtime.UI.Core;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -10,6 +9,8 @@ namespace Runtime.UI.MainMenu
 {
     public sealed class MainMenuViewModel : BaseViewModel
     {
+        private const string _mainMenuTableName = "MainMenu";
+
         private readonly ILocalizationService _localization;
         private readonly ReactiveProperty<bool> _isInteractable = new(true);
         private readonly Subject<Unit> _startGameRequested = new();
@@ -30,12 +31,9 @@ namespace Runtime.UI.MainMenu
 
         public MainMenuViewModel(ILocalizationService localization)
         {
-            if (localization == null)
-                throw new System.ArgumentNullException(nameof(localization));
+            _localization = localization ?? throw new System.ArgumentNullException(nameof(localization));
 
-            _localization = localization;
-
-            var table = new TextTableId("MainMenu");
+            var table = new TextTableId(_mainMenuTableName);
             Title = localization.Observe(table, new TextKey("MainMenu.Title"));
             StartButtonText = localization.Observe(table, new TextKey("MainMenu.StartButton"));
             StatisticsButtonText = localization.Observe(table, new TextKey("MainMenu.Statistics"));
@@ -44,7 +42,7 @@ namespace Runtime.UI.MainMenu
         }
 
         public UniTask PreloadOnOpenAsync(CancellationToken cancellationToken) =>
-            _localization.PreloadCurrentLocaleAsync(new TextTableId("MainMenu"), cancellationToken);
+            _localization.PreloadCurrentLocaleAsync(new TextTableId(_mainMenuTableName), cancellationToken);
 
         public void SetInteractable(bool isInteractable) => _isInteractable.Value = isInteractable;
 

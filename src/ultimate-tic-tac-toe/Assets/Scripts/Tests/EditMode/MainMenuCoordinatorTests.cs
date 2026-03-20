@@ -287,6 +287,45 @@ namespace Tests.EditMode
             _viewModel.IsInteractable.CurrentValue.Should().BeTrue();
         }
 
+        [TestCase(AbortReason.GameStarted)]
+        [TestCase(AbortReason.SceneChange)]
+        public async Task WhenWizardAbortedWithNonRestoreReason_ThenDoesNotRestoreMainMenu(AbortReason reason)
+        {
+            // Arrange
+            var view = CreateInactiveMainMenuView();
+            _uiServiceMock.Get<MainMenuView>().Returns(view);
+
+            _coordinator.Initialize(_viewModel);
+            _viewModel.RequestStartGame();
+            await UniTask.Yield();
+
+            _viewModel.IsInteractable.CurrentValue.Should().BeFalse();
+
+            // Act
+            _wizardAborted.OnNext(reason);
+            await UniTask.Yield();
+
+            // Assert
+            view.ShowCalls.Should().Be(0);
+            _viewModel.IsInteractable.CurrentValue.Should().BeFalse();
+        }
+
+        [Test]
+        public async Task WhenWizardAbortedAndMainMenuViewMissing_ThenRestoresInteractabilityWithoutThrowing()
+        {
+            // Arrange
+            _coordinator.Initialize(_viewModel);
+            _viewModel.RequestStartGame();
+            await UniTask.Yield();
+
+            // Act
+            Action act = () => _wizardAborted.OnNext(AbortReason.UserCancel);
+
+            // Assert
+            act.Should().NotThrow();
+            _viewModel.IsInteractable.CurrentValue.Should().BeTrue();
+        }
+
         [Test]
         public async Task WhenGameLaunchRequestedRaisedTwice_ThenLoadGameplayEnteredOnlyOnce()
         {
@@ -320,28 +359,6 @@ namespace Tests.EditMode
 
             enterGate.TrySetResult(true);
             await UniTask.Yield();
-        }
-
-        [Test]
-        public async Task WhenWizardAbortedWithGameStarted_ThenDoesNotRestoreMainMenu()
-        {
-            // Arrange
-            var view = CreateInactiveMainMenuView();
-            _uiServiceMock.Get<MainMenuView>().Returns(view);
-
-            _coordinator.Initialize(_viewModel);
-            _viewModel.RequestStartGame();
-            await UniTask.Yield();
-
-            _viewModel.IsInteractable.CurrentValue.Should().BeFalse();
-
-            // Act
-            _wizardAborted.OnNext(AbortReason.GameStarted);
-            await UniTask.Yield();
-
-            // Assert
-            view.ShowCalls.Should().Be(0);
-            _viewModel.IsInteractable.CurrentValue.Should().BeFalse();
         }
 
         [Test]
@@ -757,6 +774,60 @@ namespace Tests.EditMode
             settingsVm.OpenLanguageSelection();
 
             _uiServiceMock.DidNotReceive().Open<LanguageSelectionView, LanguageSelectionViewModel>();
+        }
+
+        [Test]
+        public async Task WhenCoordinatorDisposedAfterSettingsOpened_ThenSettingsActionsDoNotTriggerFurtherNavigation()
+        {
+            var settingsVm = new SettingsViewModel(_localizationMock);
+            var settingsView = CreateInactiveSettingsView(settingsVm);
+            _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns(settingsView);
+
+            _coordinator.Initialize(_viewModel);
+
+            _viewModel.RequestSettings();
+            await UniTask.Yield();
+            _coordinator.Dispose();
+
+            settingsVm.OpenLanguageSelection();
+            settingsVm.OpenPlayerNameEdit();
+            await UniTask.Yield();
+
+            _uiServiceMock.DidNotReceive().Open<LanguageSelectionView, LanguageSelectionViewModel>();
+            _uiServiceMock.DidNotReceive().Open<PlayerNameEditView, PlayerNameEditViewModel>();
+        }
+
+        [Test]
+        public async Task WhenSettingsRequestedTwiceBeforeFirstOpenCompletes_ThenSecondRequestIsIgnored()
+        {
+            var settingsVm = new SettingsViewModel(_localizationMock);
+            var settingsView = CreateInactiveSettingsView(settingsVm);
+            var preloadGate = new UniTaskCompletionSource();
+            var preloadCallCount = 0;
+
+            _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns(settingsView);
+            _localizationMock.PreloadAsync(
+                    Arg.Any<LocaleId>(),
+                    Arg.Any<IReadOnlyList<TextTableId>>(),
+                    Arg.Any<CancellationToken>())
+                .Returns(_ =>
+                {
+                    var currentCall = Interlocked.Increment(ref preloadCallCount);
+                    return currentCall == 1 ? preloadGate.Task : UniTask.CompletedTask;
+                });
+
+            _coordinator.Initialize(_viewModel);
+
+            _viewModel.RequestSettings();
+            _viewModel.RequestSettings();
+            await UniTask.Yield();
+
+            preloadCallCount.Should().Be(1);
+
+            preloadGate.TrySetResult();
+            await UniTask.Yield();
+
+            _uiServiceMock.Received(1).Open<SettingsView, SettingsViewModel>();
         }
 
         [Test]
