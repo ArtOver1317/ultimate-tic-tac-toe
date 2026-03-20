@@ -18,10 +18,18 @@ namespace Runtime.UI.Core
 
         private class FieldBindingInfo
         {
-            public FieldInfo Field;
-            public string ElementName;
-            public bool IsOptional;
-            public MethodInfo GenericQueryMethod;
+            public readonly FieldInfo Field;
+            public readonly string ElementName;
+            public readonly bool IsOptional;
+            public readonly MethodInfo GenericQueryMethod;
+
+            public FieldBindingInfo(FieldInfo field, string elementName, bool isOptional, MethodInfo genericQueryMethod)
+            {
+                Field = field;
+                ElementName = elementName;
+                IsOptional = isOptional;
+                GenericQueryMethod = genericQueryMethod;
+            }
         }
 
         public static void BindElements(object target, VisualElement root)
@@ -73,13 +81,7 @@ namespace Runtime.UI.Core
                 var elementName = attribute.Name ?? GetFieldNameWithoutPrefix(field.Name);
                 var genericMethod = _queryMethod.MakeGenericMethod(field.FieldType);
 
-                bindings.Add(new FieldBindingInfo
-                {
-                    Field = field,
-                    ElementName = elementName,
-                    IsOptional = attribute.IsOptional,
-                    GenericQueryMethod = genericMethod,
-                });
+                bindings.Add(new FieldBindingInfo(field, elementName, attribute.IsOptional, genericMethod));
             }
 
             var result = bindings.ToArray();
@@ -124,5 +126,17 @@ namespace Runtime.UI.Core
         }
 #endif
     }
-}
 
+    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
+    public class UxmlElementAttribute : Attribute
+    {
+        public string Name { get; }
+        public bool IsOptional { get; }
+
+        public UxmlElementAttribute(string name = null, bool isOptional = false)
+        {
+            Name = name;
+            IsOptional = isOptional;
+        }
+    }
+}

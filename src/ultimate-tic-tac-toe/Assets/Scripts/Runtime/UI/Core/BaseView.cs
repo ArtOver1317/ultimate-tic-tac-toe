@@ -24,7 +24,8 @@ namespace Runtime.UI.Core
         public void SetViewModel(TViewModel viewModel)
         {
             ViewModel = viewModel;
-            TryInitializeViewModel();
+            RefreshRootFromDocumentIfNeeded();
+            TryInitializeViewModelIfReady();
         }
 
         public void ClearViewModel()
@@ -37,26 +38,42 @@ namespace Runtime.UI.Core
         protected virtual void Awake()
         {
             _uiDocument = GetComponent<UIDocument>();
-            Root = _uiDocument.rootVisualElement;
-            UxmlBinder.BindElements(this, Root);
-            TryInitializeViewModel();
+            BindRoot(_uiDocument.rootVisualElement);
+            TryInitializeViewModelIfReady();
         }
 
-        private void TryInitializeViewModel()
+        private void RefreshRootFromDocumentIfNeeded()
         {
-            if (_uiDocument != null && _uiDocument.rootVisualElement != null && Root != _uiDocument.rootVisualElement)
-            {
-                // This happens when checking out from pool - UIDocument might have regenerated the tree
-                Root = _uiDocument.rootVisualElement;
-                UxmlBinder.BindElements(this, Root);
-            }
+            if (_uiDocument == null)
+                return;
 
+            var currentRoot = _uiDocument.rootVisualElement;
+
+            if (currentRoot == null || Root == currentRoot)
+                return;
+
+            BindRoot(currentRoot);
+        }
+
+        private void TryInitializeViewModelIfReady()
+        {
             if (_isInitialized || ViewModel == null || Root == null)
                 return;
 
+            InitializeViewModel();
+        }
+
+        private void InitializeViewModel()
+        {
             _isInitialized = true;
             ViewModel.Initialize();
             BindViewModel();
+        }
+
+        private void BindRoot(VisualElement root)
+        {
+            Root = root;
+            UxmlBinder.BindElements(this, Root);
         }
 
         protected abstract void BindViewModel();
@@ -122,37 +139,36 @@ namespace Runtime.UI.Core
 
         internal void RebindUxmlForTests()
         {
-            if (_uiDocument == null)
-                _uiDocument = GetComponent<UIDocument>();
-
-            if (_uiDocument == null)
+            if (!TryEnsureDocument())
                 return;
 
-            Root = _uiDocument.rootVisualElement;
-            if (Root == null)
-            {
-                Root = new VisualElement();
+            var reboundRoot = GetOrCreateReboundRoot();
+            BindRoot(reboundRoot);
+            TryInitializeViewModelIfReady();
+        }
 
-                if (_uiDocument.visualTreeAsset != null)
-                    _uiDocument.visualTreeAsset.CloneTree(Root);
-            }
+        private bool TryEnsureDocument()
+        {
+            if (_uiDocument != null)
+                return true;
+
+            _uiDocument = GetComponent<UIDocument>();
+            return _uiDocument != null;
+        }
+
+        private VisualElement GetOrCreateReboundRoot()
+        {
+            var root = _uiDocument.rootVisualElement;
+
+            if (root == null)
+                root = new VisualElement();
             else if (_uiDocument.visualTreeAsset != null)
-            {
-                Root.Clear();
-                _uiDocument.visualTreeAsset.CloneTree(Root);
-            }
+                root.Clear();
 
-            if (Root == null)
-                return;
+            if (_uiDocument.visualTreeAsset != null)
+                _uiDocument.visualTreeAsset.CloneTree(root);
 
-            UxmlBinder.BindElements(this, Root);
-
-            if (_isInitialized || ViewModel == null)
-                return;
-
-            _isInitialized = true;
-            ViewModel.Initialize();
-            BindViewModel();
+            return root;
         }
     }
 }

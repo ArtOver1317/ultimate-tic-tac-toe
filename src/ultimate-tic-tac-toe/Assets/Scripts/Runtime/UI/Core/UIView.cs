@@ -79,4 +79,3 @@ namespace Runtime.UI.Core
         BaseViewModel IUIView.GetViewModel() => ViewModel;
     }
 }
-

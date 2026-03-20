@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.Localization;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UIElements;
 using VContainer;
 
@@ -15,10 +16,23 @@ namespace Runtime.UI.Debugging
     /// </summary>
     public class LocaleDebugOverlay : MonoBehaviour
     {
+        private const string _containerName = "locale-debug-overlay";
+        private const float _backgroundAlpha = 0.8f;
+        private const int _containerOffset = 10;
+        private const int _containerPadding = 10;
+        private const int _borderRadius = 5;
+        private const int _titleFontSize = 14;
+        private const int _titleMarginBottom = 5;
+        private const int _localeFontSize = 12;
+        private const int _localeMarginBottom = 10;
+        private const int _buttonMarginTop = 2;
+        private const int _buttonVerticalPadding = 5;
+        private const int _buttonHorizontalPadding = 15;
+
         [SerializeField] private UIDocument UIDocument;
-#pragma warning disable 0414
-        [SerializeField] private bool _showInProduction;
-#pragma warning restore 0414
+        
+        [FormerlySerializedAs("_showInProduction")]
+        [SerializeField] private bool ShowInProduction;
 
         private ILocalizationService _localization;
         private CancellationTokenSource _cts;
@@ -29,8 +43,11 @@ namespace Runtime.UI.Debugging
 
         private void OnEnable()
         {
-#if !UNITY_EDITOR
-            if (!_showInProduction)
+#if UNITY_EDITOR
+            // Suppress CS0414 in editor builds: the field is used only in non-editor builds.
+            _ = ShowInProduction;
+#else
+            if (!ShowInProduction)
             {
                 gameObject.SetActive(false);
                 return;
@@ -63,82 +80,92 @@ namespace Runtime.UI.Debugging
         private void CreateDebugUI()
         {
             var root = UIDocument.rootVisualElement;
-            
-            // Find or create our container (don't destroy existing UI!)
-            const string containerName = "locale-debug-overlay";
-            var container = root.Q<VisualElement>(containerName);
-            
+            var container = GetOrCreateContainer(root);
+
+            ApplyContainerStyles(container);
+            container.Add(CreateContent());
+        }
+
+        private VisualElement GetOrCreateContainer(VisualElement root)
+        {
+            var container = root.Q<VisualElement>(_containerName);
+
             if (container != null)
             {
-                // Already exists, just update it
                 container.Clear();
+                return container;
             }
-            else
-            {
-                // Create new container
-                container = new VisualElement
-                {
-                    name = containerName,
-                };
-                
-                root.Add(container);
-            }
-            
-            // Setup container styles
-            container.style.position = Position.Absolute;
-            container.style.top = 10;
-            container.style.right = 10;
-            container.style.backgroundColor = new Color(0, 0, 0, 0.8f);
-            container.style.paddingTop = 10;
-            container.style.paddingBottom = 10;
-            container.style.paddingLeft = 10;
-            container.style.paddingRight = 10;
-            container.style.borderBottomLeftRadius = 5;
-            container.style.borderBottomRightRadius = 5;
-            container.style.borderTopLeftRadius = 5;
-            container.style.borderTopRightRadius = 5;
-            
-            // Inner content
-            var content = new VisualElement();
 
-            // Title
-            var title = new Label("Locale Debug")
+            container = new VisualElement
             {
-                style =
-                {
-                    color = Color.white,
-                    fontSize = 14,
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    marginBottom = 5,
-                },
+                name = _containerName,
             };
-            
-            content.Add(title);
 
-            // Current locale label
-            var currentLocaleLabel = new Label("Current: Loading...")
+            root.Add(container);
+            return container;
+        }
+
+        private void ApplyContainerStyles(VisualElement container)
+        {
+            container.style.position = Position.Absolute;
+            container.style.top = _containerOffset;
+            container.style.right = _containerOffset;
+            container.style.backgroundColor = new Color(0, 0, 0, _backgroundAlpha);
+            container.style.paddingTop = _containerPadding;
+            container.style.paddingBottom = _containerPadding;
+            container.style.paddingLeft = _containerPadding;
+            container.style.paddingRight = _containerPadding;
+            container.style.borderBottomLeftRadius = _borderRadius;
+            container.style.borderBottomRightRadius = _borderRadius;
+            container.style.borderTopLeftRadius = _borderRadius;
+            container.style.borderTopRightRadius = _borderRadius;
+        }
+
+        private VisualElement CreateContent()
+        {
+            var content = new VisualElement();
+            var currentLocaleLabel = CreateCurrentLocaleLabel();
+
+            content.Add(CreateTitleLabel());
+            content.Add(currentLocaleLabel);
+
+            BindCurrentLocaleLabel(currentLocaleLabel);
+            AddLocaleButtons(content);
+            return content;
+        }
+
+        private static Label CreateTitleLabel() => new("Locale Debug")
+        {
+            style =
+            {
+                color = Color.white,
+                fontSize = _titleFontSize,
+                unityFontStyleAndWeight = FontStyle.Bold,
+                marginBottom = _titleMarginBottom,
+            },
+        };
+
+        private Label CreateCurrentLocaleLabel() =>
+            new("Current: Loading...")
             {
                 style =
                 {
                     color = Color.yellow,
-                    fontSize = 12,
-                    marginBottom = 10,
+                    fontSize = _localeFontSize,
+                    marginBottom = _localeMarginBottom,
                 },
             };
-            
-            content.Add(currentLocaleLabel);
 
-            // Subscribe to locale changes
+        private void BindCurrentLocaleLabel(Label currentLocaleLabel) =>
             _localization?.CurrentLocale
                 .Subscribe(locale => currentLocaleLabel.text = $"Current: {locale.Code}")
                 .AddTo(_disposables);
 
-            // Buttons
+        private void AddLocaleButtons(VisualElement content)
+        {
             AddLocaleButton(content, "EN", LocaleId.EnglishUs);
             AddLocaleButton(content, "RU", LocaleId.Russian);
             AddLocaleButton(content, "JA", LocaleId.Japanese);
-
-            container.Add(content);
         }
 
         private void AddLocaleButton(VisualElement parent, string label, LocaleId locale)
@@ -148,11 +175,11 @@ namespace Runtime.UI.Debugging
                 text = label,
                 style =
                 {
-                    marginTop = 2,
-                    paddingTop = 5,
-                    paddingBottom = 5,
-                    paddingLeft = 15,
-                    paddingRight = 15,
+                    marginTop = _buttonMarginTop,
+                    paddingTop = _buttonVerticalPadding,
+                    paddingBottom = _buttonVerticalPadding,
+                    paddingLeft = _buttonHorizontalPadding,
+                    paddingRight = _buttonHorizontalPadding,
                 },
             };
             

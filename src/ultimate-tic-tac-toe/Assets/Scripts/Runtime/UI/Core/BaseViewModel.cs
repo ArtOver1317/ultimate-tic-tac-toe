@@ -8,10 +8,9 @@ namespace Runtime.UI.Core
         private readonly CompositeDisposable _disposables = new();
 
         private readonly Subject<Unit> _closeRequested = new();
-        private bool _isDisposed;
 
         public Observable<Unit> OnCloseRequested => _closeRequested;
-        protected bool IsDisposed => _isDisposed;
+        protected bool IsDisposed { get; private set; }
 
         protected void RequestClose() => _closeRequested.OnNext(Unit.Default);
 
@@ -21,8 +20,8 @@ namespace Runtime.UI.Core
 
         public virtual void Reset()
         {
-                if (_isDisposed)
-                    return;
+            if (IsDisposed)
+                return;
             
             // Signal to subscribers (coordinators) that this VM session is ending
             _closeRequested.OnNext(Unit.Default);
@@ -34,13 +33,15 @@ namespace Runtime.UI.Core
 
         public void Dispose()
         {
-            if (_isDisposed) return;
-            _isDisposed = true;
+            if (IsDisposed)
+                return;
+            
+            IsDisposed = true;
 
             OnDispose();
             // Ensure subscribers know we are closing
             _closeRequested.OnNext(Unit.Default);
-            _closeRequested.OnCompleted(); 
+            _closeRequested.OnCompleted();
             _closeRequested.Dispose();
             _disposables.Dispose();
         }
