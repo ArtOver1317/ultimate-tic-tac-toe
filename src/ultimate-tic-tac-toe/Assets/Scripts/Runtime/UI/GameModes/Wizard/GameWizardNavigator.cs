@@ -6,6 +6,8 @@ using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.GameModes.Wizard.ViewModels.MatchSetup;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using Runtime.Services.UI;
 
 namespace Runtime.UI.GameModes.Wizard

@@ -8,6 +8,8 @@ using NUnit.Framework;
 using R3;
 using Runtime.Infrastructure.Save;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using Runtime.PlayerProfile;
 
 namespace Tests.EditMode.PlayerProfile

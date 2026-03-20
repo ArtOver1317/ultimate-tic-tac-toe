@@ -2,8 +2,9 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.Localization.Contracts;
 
-namespace Runtime.Localization
+namespace Runtime.Localization.Types
 {
     public static class LocalizationExtensions
     {

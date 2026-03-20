@@ -1,6 +1,7 @@
 using R3;
 using Runtime.Extensions;
 using Runtime.Localization;
+using Runtime.Localization.Types;
 using Runtime.UI.Core;
 using UnityEngine.UIElements;
 

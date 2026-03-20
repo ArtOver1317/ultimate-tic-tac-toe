@@ -1,4 +1,6 @@
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using UnityEditor;
 using UnityEngine;
 using VContainer;

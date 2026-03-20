@@ -2,6 +2,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 using StripLog;
 
 namespace Runtime.Infrastructure.GameStateMachine.States

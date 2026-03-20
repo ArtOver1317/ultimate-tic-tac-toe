@@ -4,6 +4,8 @@ using Cysharp.Threading.Tasks;
 using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using Runtime.Services.Assets;
 using Runtime.Services.UI;
 using Runtime.UI.Common;

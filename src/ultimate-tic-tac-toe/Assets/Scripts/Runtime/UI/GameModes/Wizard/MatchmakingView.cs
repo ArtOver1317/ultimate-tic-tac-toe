@@ -6,6 +6,7 @@ using Runtime.Extensions;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 using Runtime.UI.Components;
 using Runtime.UI.Core;
 using UnityEngine.UIElements;

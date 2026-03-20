@@ -16,6 +16,8 @@ using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using Runtime.Services.UI;
 using Runtime.UI.MainMenu;
 using UnityEngine.TestTools;

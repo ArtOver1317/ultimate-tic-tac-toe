@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 
 namespace Runtime.GameModes.Wizard
 {

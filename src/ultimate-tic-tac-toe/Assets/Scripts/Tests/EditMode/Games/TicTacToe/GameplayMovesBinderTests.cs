@@ -19,6 +19,8 @@ using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Gameplay.Shared;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;

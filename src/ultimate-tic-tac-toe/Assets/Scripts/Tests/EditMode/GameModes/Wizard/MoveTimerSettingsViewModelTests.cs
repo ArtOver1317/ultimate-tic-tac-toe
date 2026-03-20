@@ -9,6 +9,8 @@ using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 
 namespace Tests.EditMode.GameModes.Wizard
 {

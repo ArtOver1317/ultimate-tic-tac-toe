@@ -8,6 +8,7 @@ using Runtime.Localization;
 using Runtime.Services.UI;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
+using Runtime.Localization.Contracts;
 using Runtime.UI.MainMenu;
 using UnityEngine;
 using UnityEngine.TestTools;

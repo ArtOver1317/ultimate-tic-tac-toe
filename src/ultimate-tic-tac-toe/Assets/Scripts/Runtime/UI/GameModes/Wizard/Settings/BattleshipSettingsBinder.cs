@@ -4,8 +4,11 @@ using R3;
 using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 using Runtime.UI.Components;
 using UnityEngine.UIElements;
+using TextKey = Runtime.Localization.Types.TextKey;
+using TextTableId = Runtime.Localization.Types.TextTableId;
 
 namespace Runtime.UI.GameModes.Wizard
 {

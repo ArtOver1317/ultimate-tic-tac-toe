@@ -8,7 +8,10 @@ using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 using Runtime.UI.Core;
+using TextKey = Runtime.Localization.Types.TextKey;
+using TextTableId = Runtime.Localization.Types.TextTableId;
 
 namespace Runtime.GameModes.Wizard.ViewModels
 {

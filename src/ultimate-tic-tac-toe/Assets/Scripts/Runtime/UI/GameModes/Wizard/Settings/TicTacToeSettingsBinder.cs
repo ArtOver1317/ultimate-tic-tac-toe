@@ -3,6 +3,8 @@ using Runtime.Extensions;
 using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using UnityEngine.UIElements;
 
 namespace Runtime.UI.GameModes.Wizard

@@ -8,6 +8,10 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Infrastructure;
+using Runtime.Localization.Services;
+using Runtime.Localization.Types;
 using UnityEngine.TestTools;
 
 namespace Tests.PlayMode.Localization

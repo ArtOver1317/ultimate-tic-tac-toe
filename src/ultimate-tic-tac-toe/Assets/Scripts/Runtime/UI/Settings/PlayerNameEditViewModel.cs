@@ -4,6 +4,8 @@ using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using Runtime.PlayerProfile;
 using Runtime.UI.Core;
 

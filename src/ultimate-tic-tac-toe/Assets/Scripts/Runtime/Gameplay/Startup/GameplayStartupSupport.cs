@@ -19,6 +19,7 @@ using Runtime.Games.TicTacToe.Ultimate.Rules;
 using Runtime.Games.TicTacToe.Ultimate.UI;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 using Runtime.PlayerProfile;
 using Runtime.PlayerStatistics;
 

@@ -4,6 +4,8 @@ using NSubstitute;
 using NUnit.Framework;
 using Runtime.GameModes.Wizard;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 
 namespace Tests.EditMode.GameModes.Wizard
 {

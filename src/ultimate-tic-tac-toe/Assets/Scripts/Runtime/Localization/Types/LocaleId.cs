@@ -1,6 +1,6 @@
 using System;
 
-namespace Runtime.Localization
+namespace Runtime.Localization.Types
 {
     /// <summary>
     /// Immutable locale identifier (language + optional region).

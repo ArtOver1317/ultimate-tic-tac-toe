@@ -6,6 +6,8 @@ using Runtime.Games.Battleship.Startup;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Series;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using UnityEngine.UIElements;
 
 namespace Runtime.Gameplay.Startup

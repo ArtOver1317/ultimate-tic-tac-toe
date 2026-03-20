@@ -6,6 +6,7 @@ using Runtime.Games.Battleship.Core;
 using Runtime.Localization;
 using Runtime.PlayerProfile;
 using Runtime.Games.TicTacToe.Ultimate.UI;
+using Runtime.Localization.Types;
 
 namespace Runtime.Gameplay.Startup
 {

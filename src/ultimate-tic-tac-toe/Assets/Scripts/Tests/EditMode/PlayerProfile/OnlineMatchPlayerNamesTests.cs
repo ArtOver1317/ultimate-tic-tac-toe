@@ -7,6 +7,8 @@ using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using Runtime.PlayerProfile;
 
 namespace Tests.EditMode.PlayerProfile

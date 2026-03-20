@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
+using LocaleId = Runtime.Localization.Types.LocaleId;
 
-namespace Runtime.Localization
+namespace Runtime.Localization.Services
 {
     public sealed class LocalizationService : ILocalizationService, IDisposable
     {

@@ -3,6 +3,8 @@ using Runtime.Localization;
 using Runtime.UI.Core;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 
 namespace Runtime.UI.MainMenu
 {

@@ -8,6 +8,8 @@ using Runtime.Games.Battleship.UI;
 using Runtime.Games.TicTacToe.Ultimate.UI;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using StripLog;
 using UnityEngine;
 using UnityEngine.UIElements;

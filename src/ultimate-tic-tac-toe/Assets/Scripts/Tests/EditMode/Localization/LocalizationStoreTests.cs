@@ -4,6 +4,9 @@ using NSubstitute;
 using NUnit.Framework;
 using R3;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Services;
+using Runtime.Localization.Types;
 
 namespace Tests.EditMode.Localization
 {

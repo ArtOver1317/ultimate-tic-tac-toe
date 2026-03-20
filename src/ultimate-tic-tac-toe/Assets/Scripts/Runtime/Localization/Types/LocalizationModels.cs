@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Runtime.Localization
+namespace Runtime.Localization.Types
 {
     public enum LocalizationStoreEventType
     {

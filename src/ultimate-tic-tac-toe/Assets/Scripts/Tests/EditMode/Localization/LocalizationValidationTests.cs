@@ -2,6 +2,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Localization;
 using System;
+using Runtime.Localization.Types;
 
 namespace Tests.EditMode.Localization
 {

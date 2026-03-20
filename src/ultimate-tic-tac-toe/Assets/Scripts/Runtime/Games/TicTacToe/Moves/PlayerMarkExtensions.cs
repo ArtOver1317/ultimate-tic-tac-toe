@@ -1,5 +1,7 @@
 using Runtime.Gameplay;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 
 namespace Runtime.Games.TicTacToe.Moves
 {

@@ -8,6 +8,7 @@ using Runtime.Extensions;
 using Runtime.GameModes.Wizard.ViewModels.MatchSetup;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 using Runtime.Services.UI.Assets;
 using Runtime.UI.Components;
 using Runtime.UI.Core;

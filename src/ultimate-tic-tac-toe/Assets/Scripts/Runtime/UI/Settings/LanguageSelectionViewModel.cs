@@ -6,6 +6,8 @@ using Runtime.Localization;
 using Runtime.UI.Core;
 using StripLog;
 using Runtime.Infrastructure.Logging;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 
 namespace Runtime.UI.Settings
 {

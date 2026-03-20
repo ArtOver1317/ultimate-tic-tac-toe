@@ -1,6 +1,6 @@
 using System;
 
-namespace Runtime.Localization
+namespace Runtime.Localization.Types
 {
     /// <summary>
     /// Logical table identifier (group of localized strings).

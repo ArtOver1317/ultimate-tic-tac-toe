@@ -8,6 +8,8 @@ using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using Runtime.UI.Components;
 
 namespace Runtime.GameModes.Wizard.ViewModels.MatchSetup

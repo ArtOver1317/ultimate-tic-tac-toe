@@ -17,6 +17,8 @@ using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
 using Runtime.Games.Battleship.UI.Placement;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using UnityEngine.UIElements;
 using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 

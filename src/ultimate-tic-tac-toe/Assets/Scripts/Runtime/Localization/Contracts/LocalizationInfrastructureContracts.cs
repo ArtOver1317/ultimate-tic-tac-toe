@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using Runtime.Localization.Types;
 
-namespace Runtime.Localization
+namespace Runtime.Localization.Contracts
 {
     public interface ILocalizationCatalog
     {

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using R3;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 
-namespace Runtime.Localization
+namespace Runtime.Localization.Services
 {
     public sealed class LocalizationStore : ILocalizationStore, IDisposable
     {

@@ -4,6 +4,7 @@ using System;
 using R3;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 
 namespace Runtime.PlayerProfile
 {

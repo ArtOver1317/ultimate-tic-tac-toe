@@ -7,6 +7,8 @@ using Runtime.Extensions;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using Runtime.UI.Components;
 using Runtime.UI.Core;
 using UnityEngine.UIElements;

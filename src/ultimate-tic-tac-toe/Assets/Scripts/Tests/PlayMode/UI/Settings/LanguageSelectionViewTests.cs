@@ -9,6 +9,8 @@ using NSubstitute;
 using NUnit.Framework;
 using R3;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using Runtime.UI.Settings;
 using UnityEngine;
 using UnityEngine.TestTools;

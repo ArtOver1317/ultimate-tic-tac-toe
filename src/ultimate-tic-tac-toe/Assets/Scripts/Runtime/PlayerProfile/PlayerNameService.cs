@@ -7,6 +7,7 @@ using R3;
 using Runtime.Infrastructure.Logging;
 using Runtime.Infrastructure.Save;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 using VContainer.Unity;
 
 namespace Runtime.PlayerProfile

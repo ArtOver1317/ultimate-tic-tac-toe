@@ -10,6 +10,8 @@ using Runtime.Infrastructure.Logging;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using Runtime.Services.UI;
 using Runtime.UI.Settings;
 using StripLog;

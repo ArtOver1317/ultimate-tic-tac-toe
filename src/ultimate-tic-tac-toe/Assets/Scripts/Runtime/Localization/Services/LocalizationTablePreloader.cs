@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 
-namespace Runtime.Localization
+namespace Runtime.Localization.Services
 {
     internal sealed class LocalizationTablePreloader
     {

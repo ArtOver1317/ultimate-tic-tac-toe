@@ -7,6 +7,7 @@ using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
 using Runtime.Gameplay;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 using UnityEngine.UIElements;
 
 namespace Runtime.Games.Battleship.UI.Placement

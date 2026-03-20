@@ -6,8 +6,11 @@ using R3;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 using Runtime.UI.Components;
 using Runtime.UI.Core;
+using TextKey = Runtime.Localization.Types.TextKey;
+using TextTableId = Runtime.Localization.Types.TextTableId;
 
 namespace Runtime.GameModes.Wizard.ViewModels
 {

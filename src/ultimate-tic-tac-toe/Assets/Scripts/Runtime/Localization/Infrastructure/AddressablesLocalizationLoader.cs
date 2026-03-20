@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Runtime.Localization.Contracts;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
-namespace Runtime.Localization
+namespace Runtime.Localization.Infrastructure
 {
     public sealed class AddressablesLocalizationLoader : ILocalizationLoader
     {

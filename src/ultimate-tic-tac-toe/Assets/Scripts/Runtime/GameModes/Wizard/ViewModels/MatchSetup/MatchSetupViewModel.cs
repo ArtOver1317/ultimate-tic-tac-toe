@@ -11,6 +11,7 @@ using Runtime.GameModes.Wizard.Online;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 using Runtime.UI.Components;
 using Runtime.UI.Core;
 using WizardHumanOpponentKind = Runtime.GameModes.Wizard.Session.HumanOpponentKind;

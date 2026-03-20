@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using SimpleJSON;
 
-namespace Runtime.Localization
+namespace Runtime.Localization.Infrastructure
 {
     public sealed class JsonLocalizationParser : ILocalizationParser
     {

@@ -11,6 +11,8 @@ using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.GameModes.Wizard.Matchmaking.Contracts;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
+using Runtime.Localization.Types;
 using Runtime.Services.UI;
 using Runtime.UI.GameModes.Wizard;
 using UnityEngine;

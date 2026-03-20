@@ -4,6 +4,7 @@ using R3;
 using Runtime.Gameplay.Shared;
 using Runtime.Infrastructure.Logging;
 using Runtime.Localization;
+using Runtime.Localization.Contracts;
 using UnityEngine.UIElements;
 
 namespace Runtime.Gameplay
