@@ -6,11 +6,9 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Lifecycle;
 using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.ECS.Publishing;
@@ -21,7 +19,7 @@ using CellId = Runtime.Gameplay.CellId;
 
 // ReSharper disable AccessToDisposedClosure
 
-namespace Tests.EditMode.Gameplay.ECS
+namespace Tests.EditMode.Gameplay.ECS.Lifecycle
 {
     /// <summary>
     /// Dispose semantics and snapshot behavior for <see cref="MatchStateProvider"/> (ADR-4).
@@ -44,8 +42,10 @@ namespace Tests.EditMode.Gameplay.ECS
             _eventSystem = new EventPublishSystem(scheduler);
             var rulesEngine = new ClassicRulesEngine();
             var registrar = new TicTacToeEcsRegistrar(rulesEngine);
+            
             _lifecycle = new MatchEcsLifecycleService(
                 new[] { registrar }, _commandQueue, _eventSystem);
+            
             _stateProvider = new MatchStateProvider(
                 _commandQueue, _lifecycle, _eventSystem);
         }
@@ -53,8 +53,8 @@ namespace Tests.EditMode.Gameplay.ECS
         [TearDown]
         public void TearDown()
         {
-            _stateProvider?.Dispose();
-            _lifecycle?.Dispose();
+            _stateProvider.Dispose();
+            _lifecycle.Dispose();
         }
 
         // ── Helpers ──────────────────────────────────────────────
@@ -62,10 +62,12 @@ namespace Tests.EditMode.Gameplay.ECS
         private void StartMatch()
         {
             var opponent = Substitute.For<IOpponentConfig>();
+           
             var config = new GameLaunchConfig(
                 TicTacToeEcsRegistrar.TicTacToeGameId,
                 new TicTacToeConfig(boardSize: 3),
                 opponent);
+           
             _lifecycle.StartMatch(config);
         }
 
@@ -93,6 +95,7 @@ namespace Tests.EditMode.Gameplay.ECS
             // Arrange — make a move so board is non-empty
             StartMatch();
             _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 0)));
+            
             _stateProvider.GetCellSlot(new CellId(0, 0)).Should().Be(TicTacToeEcsRegistrar.SlotX,
                 "precondition: cell should be occupied");
 
@@ -124,18 +127,23 @@ namespace Tests.EditMode.Gameplay.ECS
             };
 
             using var subs = new CompositeDisposable();
+            
             _stateProvider.CellChanged
                 .Subscribe(new CompletionObserver<CellChangedEvent>(() => completedFlags["CellChanged"] = true))
                 .AddTo(subs);
+            
             _stateProvider.LastMoveChanged
                 .Subscribe(new CompletionObserver<LastMoveChangedEvent>(() => completedFlags["LastMoveChanged"] = true))
                 .AddTo(subs);
+            
             _stateProvider.CurrentPlayerChanged
                 .Subscribe(new CompletionObserver<CurrentPlayerChangedEvent>(() => completedFlags["CurrentPlayerChanged"] = true))
                 .AddTo(subs);
+           
             _stateProvider.CommandRejected
                 .Subscribe(new CompletionObserver<CommandRejectedEvent>(() => completedFlags["CommandRejected"] = true))
                 .AddTo(subs);
+           
             _stateProvider.RoundFinished
                 .Subscribe(new CompletionObserver<RoundFinishedEvent>(() => completedFlags["RoundFinished"] = true))
                 .AddTo(subs);
@@ -155,6 +163,7 @@ namespace Tests.EditMode.Gameplay.ECS
         {
             // Arrange
             StartMatch();
+          
             _eventSystem.HasCallbacks.Should().BeTrue(
                 "MatchStateProvider wires callbacks in ctor");
 
@@ -179,7 +188,7 @@ namespace Tests.EditMode.Gameplay.ECS
             public CompletionObserver(Action onCompleted) => _onCompleted = onCompleted;
             protected override void OnNextCore(T value) { }
             protected override void OnErrorResumeCore(Exception error) { }
-            protected override void OnCompletedCore(Result result) => _onCompleted?.Invoke();
+            protected override void OnCompletedCore(Result result) => _onCompleted.Invoke();
         }
     }
 }

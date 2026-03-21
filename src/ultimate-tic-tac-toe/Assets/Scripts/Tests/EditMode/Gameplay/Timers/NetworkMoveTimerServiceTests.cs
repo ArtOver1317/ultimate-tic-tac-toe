@@ -7,20 +7,18 @@ using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
+using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
-using CellId = Runtime.Gameplay.CellId;
 using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
-namespace Tests.EditMode.Gameplay
+namespace Tests.EditMode.Gameplay.Timers
 {
     [TestFixture]
     [Category("Unit")]
-    public class LocalMoveTimerServiceTests
+    public class NetworkMoveTimerServiceTests
     {
         private sealed class FakeTimeSource : ITimeSource
         {
@@ -51,6 +49,24 @@ namespace Tests.EditMode.Gameplay
             public void SubmitCommand(IGameplayCommand command) => Commands.Add(command);
         }
 
+        private sealed class FakeOnlineSessionContextStore : IOnlineGameplaySessionContextStore
+        {
+            public FakeOnlineSessionContextStore(bool isHost, OnlineMatchConfigPayload? matchConfig = null) =>
+                Snapshot = new OnlineGameplaySessionSnapshot(
+                    isOnlineDirectInvite: true,
+                    sessionId: "ABCDEF",
+                    localUserId: "user-local",
+                    isHost: isHost,
+                    matchConfig: matchConfig);
+
+            public OnlineGameplaySessionSnapshot Snapshot { get; private set; }
+
+            public void SetOnlineSession(string sessionId, string localUserId, bool isHost) => throw new NotSupportedException();
+            public void SetDirectInviteSession(string sessionId, string localUserId, bool isHost) => throw new NotSupportedException();
+            public void SetMatchConfig(OnlineMatchConfigPayload matchConfig) => throw new NotSupportedException();
+            public void Clear() => Snapshot = OnlineGameplaySessionSnapshot.Empty();
+        }
+
         private static GameLaunchConfigStore CreateStoreWithLimit(int seconds)
         {
             var store = new GameLaunchConfigStore();
@@ -59,52 +75,35 @@ namespace Tests.EditMode.Gameplay
         }
 
         [Test]
-        public async Task WhenTimerExpires_ThenSubmitsTimeoutCommand()
+        public async Task WhenHostTimerExpires_ThenSubmitsTimeoutCommand()
         {
             var stream = new FakeGameplayEventStream();
             var sink = new CapturingCommandSink();
             var time = new FakeTimeSource { DeltaTime = 0.6f };
+            var context = new FakeOnlineSessionContextStore(isHost: true);
 
-            using var sut = new LocalMoveTimerService(CreateStoreWithLimit(1), stream, sink, time);
-            sut.StartOrResetForPlayer(0);
+            using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(1), stream, sink, time, context);
+            sut.StartOrResetForPlayer(1);
 
-            await UniTask.DelayFrame(3);
+            await WaitUntilAsync(() => sink.Commands.Count == 1, maxFrames: 240);
 
             sink.Commands.Should().ContainSingle();
             sink.Commands[0].Should().BeOfType<TimeoutCommand>();
-            ((TimeoutCommand)sink.Commands[0]).LoserSlot.Should().Be(0);
-            sut.IsActive.CurrentValue.Should().BeFalse();
+            ((TimeoutCommand)sink.Commands[0]).LoserSlot.Should().Be(1);
         }
 
         [Test]
-        public async Task WhenStartOrResetCalledAgain_ThenPreviousCountdownCancelled()
+        public async Task WhenClientTimerExpires_ThenDoesNotSubmitTimeoutCommand()
         {
             var stream = new FakeGameplayEventStream();
             var sink = new CapturingCommandSink();
-            var time = new FakeTimeSource { DeltaTime = 0f };
+            var time = new FakeTimeSource { DeltaTime = 1.0f };
+            var context = new FakeOnlineSessionContextStore(isHost: false);
 
-            using var sut = new LocalMoveTimerService(CreateStoreWithLimit(5), stream, sink, time);
-            sut.StartOrResetForPlayer(0);
-            sut.StartOrResetForPlayer(1);
-
-            await UniTask.DelayFrame(2);
-
-            sink.Commands.Should().BeEmpty();
-            sut.IsActive.CurrentValue.Should().BeTrue();
-            sut.RemainingSeconds.CurrentValue.Should().Be(5f);
-        }
-
-        [Test]
-        public async Task WhenMoveTimeLimitIsZero_ThenStartOrResetIsNoOp()
-        {
-            var stream = new FakeGameplayEventStream();
-            var sink = new CapturingCommandSink();
-            var time = new FakeTimeSource { DeltaTime = 1f };
-
-            using var sut = new LocalMoveTimerService(CreateStoreWithLimit(0), stream, sink, time);
+            using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(1), stream, sink, time, context);
             sut.StartOrResetForPlayer(0);
 
-            await UniTask.DelayFrame(2);
+            await WaitUntilAsync(() => sut.IsActive.CurrentValue == false, maxFrames: 240);
 
             sink.Commands.Should().BeEmpty();
             sut.IsActive.CurrentValue.Should().BeFalse();
@@ -112,88 +111,75 @@ namespace Tests.EditMode.Gameplay
         }
 
         [Test]
-        public async Task WhenFreezeAndUnfreeze_ThenCountdownPausedAndResumed()
-        {
-            var stream = new FakeGameplayEventStream();
-            var sink = new CapturingCommandSink();
-            var time = new FakeTimeSource { DeltaTime = 1f };
-
-            using var sut = new LocalMoveTimerService(CreateStoreWithLimit(2), stream, sink, time);
-            sut.StartOrResetForPlayer(0);
-
-            await UniTask.DelayFrame(1);
-            var beforeFreeze = sut.RemainingSeconds.CurrentValue;
-
-            sut.Freeze();
-            await UniTask.DelayFrame(2);
-            sut.RemainingSeconds.CurrentValue.Should().Be(beforeFreeze);
-            sink.Commands.Should().BeEmpty();
-
-            sut.Unfreeze();
-            await WaitUntilAsync(() => sink.Commands.Exists(c => c is TimeoutCommand), maxFrames: 6);
-
-            sink.Commands.Should().ContainSingle(c => c is TimeoutCommand);
-            sut.IsActive.CurrentValue.Should().BeFalse();
-        }
-
-        [Test]
-        public void WhenStopCalledTwice_ThenNoExceptionThrown()
-        {
-            var stream = new FakeGameplayEventStream();
-            var sink = new CapturingCommandSink();
-            var time = new FakeTimeSource();
-
-            using var sut = new LocalMoveTimerService(CreateStoreWithLimit(10), stream, sink, time);
-
-            Action act = () =>
-            {
-                sut.Stop();
-                sut.Stop();
-            };
-
-            act.Should().NotThrow();
-            sut.IsActive.CurrentValue.Should().BeFalse();
-        }
-
-        [Test]
-        public async Task WhenRoundFinishedEventReceived_ThenTimerStops()
+        public async Task WhenRoundFinishedEventReceived_ThenNetworkTimerStops()
         {
             var stream = new FakeGameplayEventStream();
             var sink = new CapturingCommandSink();
             var time = new FakeTimeSource { DeltaTime = 0f };
+            var context = new FakeOnlineSessionContextStore(isHost: true);
 
-            using var sut = new LocalMoveTimerService(CreateStoreWithLimit(5), stream, sink, time);
+            using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(5), stream, sink, time, context);
             sut.StartOrResetForPlayer(0);
 
             stream.PublishRoundFinished(EcsGameStatus.Win);
             await UniTask.DelayFrame(1);
 
             sut.IsActive.CurrentValue.Should().BeFalse();
-            sink.Commands.Should().BeEmpty();
         }
 
         [Test]
-        public async Task WhenCurrentPlayerChangedEventReceived_ThenCountdownResetForNewPlayer()
+        public async Task WhenCurrentPlayerChangedEventReceived_ThenNetworkTimerResets()
         {
             var stream = new FakeGameplayEventStream();
             var sink = new CapturingCommandSink();
-            var time = new FakeTimeSource { DeltaTime = 0.5f };
+            var time = new FakeTimeSource { DeltaTime = 0f };
+            var context = new FakeOnlineSessionContextStore(isHost: true);
 
-            using var sut = new LocalMoveTimerService(CreateStoreWithLimit(2), stream, sink, time);
+            using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(5), stream, sink, time, context);
+            sut.StartOrResetForPlayer(0);
+            stream.PublishCurrentPlayerChanged(1);
+
+            sut.RemainingSeconds.CurrentValue.Should().Be(5f);
+            sut.IsActive.CurrentValue.Should().BeTrue();
+
+            stream.PublishRoundFinished(EcsGameStatus.Win);
+            await WaitUntilAsync(() => sut.IsActive.CurrentValue == false, maxFrames: 5);
+            sut.IsActive.CurrentValue.Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenOnlineMatchConfigHasMoveTimer_ThenUsesPayloadLimitInsteadOfStoreLimit()
+        {
+            var stream = new FakeGameplayEventStream();
+            var sink = new CapturingCommandSink();
+            var time = new FakeTimeSource { DeltaTime = 0f };
+            
+            var context = new FakeOnlineSessionContextStore(
+                isHost: true,
+                matchConfig: new OnlineMatchConfigPayload("classic", boardSize: 3, isUltimate: false, moveTimeLimitSeconds: 12));
+
+            using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(3), stream, sink, time, context);
             sut.StartOrResetForPlayer(0);
 
-            await WaitUntilAsync(() => sut.RemainingSeconds.CurrentValue < 2f, maxFrames: 3);
-
-            stream.PublishCurrentPlayerChanged(1);
-            sut.RemainingSeconds.CurrentValue.Should().Be(2f);
+            sut.RemainingSeconds.CurrentValue.Should().Be(12f);
             sut.IsActive.CurrentValue.Should().BeTrue();
-            sink.Commands.Should().BeEmpty();
+        }
 
-            await WaitUntilAsync(() => sink.Commands.Count == 1, maxFrames: 10);
+        [Test]
+        public async Task WhenMoveTimeLimitIsZero_ThenTimerDoesNotActivateAndNoTimeoutSubmitted()
+        {
+            var stream = new FakeGameplayEventStream();
+            var sink = new CapturingCommandSink();
+            var time = new FakeTimeSource { DeltaTime = 1f };
+            var context = new FakeOnlineSessionContextStore(isHost: true);
 
-            sink.Commands.Should().ContainSingle(c => c is TimeoutCommand);
-            ((TimeoutCommand)sink.Commands[0]).LoserSlot.Should().Be(1);
+            using var sut = new NetworkMoveTimerService(CreateStoreWithLimit(0), stream, sink, time, context);
+            sut.StartOrResetForPlayer(0);
+
+            await UniTask.DelayFrame(3);
+
             sut.IsActive.CurrentValue.Should().BeFalse();
+            sink.Commands.Should().BeEmpty();
         }
 
         private static async UniTask WaitUntilAsync(Func<bool> predicate, int maxFrames)

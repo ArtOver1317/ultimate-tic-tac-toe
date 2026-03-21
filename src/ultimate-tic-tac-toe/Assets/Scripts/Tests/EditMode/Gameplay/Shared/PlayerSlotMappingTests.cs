@@ -1,12 +1,11 @@
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Tests.EditMode.Gameplay.ECS
+namespace Tests.EditMode.Gameplay.Shared
 {
     [TestFixture]
     [Category("Unit")]
@@ -34,6 +33,7 @@ namespace Tests.EditMode.Gameplay.ECS
         {
             LogAssert.Expect(LogType.Error,
                 "[Infrastructure] [PlayerSlotMapping] Invalid player slot: 42.");
+            
             LogAssert.Expect(LogType.Error,
                 "[Infrastructure] [PlayerSlotMapping] Invalid player mark: 99.");
 

@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
-using Runtime.GameModes.Wizard;
 using Runtime.Gameplay;
 using Runtime.Infrastructure;
 using Runtime.Infrastructure.GameStateMachine;
@@ -11,7 +10,7 @@ using Runtime.Infrastructure.GameStateMachine.States;
 using R3;
 using Runtime.GameModes.Wizard.Online;
 
-namespace Tests.EditMode.Gameplay
+namespace Tests.EditMode.Gameplay.Navigation
 {
     [TestFixture]
     [Category("Unit")]

@@ -2,14 +2,13 @@
 
 using FluentAssertions;
 using NUnit.Framework;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.ECS.Publishing;
 using Runtime.Gameplay.Shared;
 using Scellecs.Morpeh;
 
-namespace Tests.EditMode.Gameplay.ECS
+namespace Tests.EditMode.Gameplay.ECS.Pipeline
 {
     [TestFixture]
     [Category("Integration")]
@@ -51,26 +50,29 @@ namespace Tests.EditMode.Gameplay.ECS
 
             _matchEntity = _world.CreateEntity();
             _world.GetStash<MatchTag>().Set(_matchEntity);
+           
             _world.GetStash<MatchStatusComponent>().Set(_matchEntity, new MatchStatusComponent
             {
                 Status = EcsGameStatus.InProgress,
                 WinnerSlot = null,
                 WinLine = null,
             });
+            
             _world.GetStash<PlayersComponent>().Set(_matchEntity, new PlayersComponent
             {
                 PlayerCount = 2,
                 PlayerSlots = new[] { 0, 1 },
                 ActivePlayerSlot = 0,
             });
+            
             _world.Commit();
         }
 
         [TearDown]
         public void TearDown()
         {
-            _eventPublishSystem?.ClearCallbacks();
-            _world?.Dispose();
+            _eventPublishSystem.ClearCallbacks();
+            _world.Dispose();
         }
 
         [Test]

@@ -4,7 +4,6 @@ using System;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using NUnit.Framework;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.Shared;
@@ -12,7 +11,7 @@ using Scellecs.Morpeh;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Tests.EditMode.Gameplay.ECS
+namespace Tests.EditMode.Gameplay.ECS.Pipeline
 {
     [TestFixture]
     [Category("Unit")]
@@ -50,10 +49,7 @@ namespace Tests.EditMode.Gameplay.ECS
         }
 
         [TearDown]
-        public void TearDown()
-        {
-            _world?.Dispose();
-        }
+        public void TearDown() => _world.Dispose();
 
         [TestCase(0, 1)]
         [TestCase(1, 0)]
@@ -65,6 +61,7 @@ namespace Tests.EditMode.Gameplay.ECS
                 playerSlots: new[] { 0, 1 },
                 playerCount: 2,
                 loserSlot: loserSlot);
+            
             _world.Commit();
 
             // Act
@@ -94,6 +91,7 @@ namespace Tests.EditMode.Gameplay.ECS
                 playerSlots: new[] { 0, 1 },
                 playerCount: 2,
                 loserSlot: 0);
+           
             _world.Commit();
 
             // Act
@@ -114,6 +112,7 @@ namespace Tests.EditMode.Gameplay.ECS
             // Arrange
             var matchEntity = _world.CreateEntity();
             _matchTagStash.Set(matchEntity);
+           
             if (withStatus)
             {
                 _statusStash.Set(matchEntity, new MatchStatusComponent
@@ -157,6 +156,7 @@ namespace Tests.EditMode.Gameplay.ECS
                 playerSlots: new[] { 0, 1, 2 },
                 playerCount: 3,
                 loserSlot: 0);
+            
             _world.Commit();
 
             // Act
@@ -180,6 +180,7 @@ namespace Tests.EditMode.Gameplay.ECS
                 playerSlots: new[] { 0, 0 },
                 playerCount: 2,
                 loserSlot: 0);
+            
             _world.Commit();
 
             // Act
@@ -203,6 +204,7 @@ namespace Tests.EditMode.Gameplay.ECS
                 playerSlots: new[] { 0, 1 },
                 playerCount: 2,
                 loserSlot: 99);
+            
             _world.Commit();
 
             // Act
@@ -218,18 +220,21 @@ namespace Tests.EditMode.Gameplay.ECS
         {
             var entity = _world.CreateEntity();
             _matchTagStash.Set(entity);
+           
             _statusStash.Set(entity, new MatchStatusComponent
             {
                 Status = status,
                 WinnerSlot = null,
                 WinLine = null,
             });
+           
             _playersStash.Set(entity, new PlayersComponent
             {
                 PlayerCount = playerCount,
                 PlayerSlots = playerSlots,
                 ActivePlayerSlot = 0,
             });
+          
             _timeoutRequestStash.Set(entity, new TimeoutRequest
             {
                 LoserSlot = loserSlot,

@@ -6,11 +6,9 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Lifecycle;
 using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.ECS.Publishing;
@@ -20,7 +18,7 @@ using Runtime.Games.TicTacToe.Rules;
 using Scellecs.Morpeh;
 using CellId = Runtime.Gameplay.CellId;
 
-namespace Tests.EditMode.Gameplay.ECS
+namespace Tests.EditMode.Gameplay.ECS.Lifecycle
 {
     /// <summary>
     /// Lifecycle guards and edge cases for <see cref="MatchEcsLifecycleService"/> (ADR-1).
@@ -43,8 +41,10 @@ namespace Tests.EditMode.Gameplay.ECS
             _eventSystem = new EventPublishSystem(scheduler);
             var rulesEngine = new ClassicRulesEngine();
             var registrar = new TicTacToeEcsRegistrar(rulesEngine);
+           
             _lifecycle = new MatchEcsLifecycleService(
                 new[] { registrar }, _commandQueue, _eventSystem);
+           
             _stateProvider = new MatchStateProvider(
                 _commandQueue, _lifecycle, _eventSystem);
         }
@@ -52,8 +52,8 @@ namespace Tests.EditMode.Gameplay.ECS
         [TearDown]
         public void TearDown()
         {
-            _stateProvider?.Dispose();
-            _lifecycle?.Dispose();
+            _stateProvider.Dispose();
+            _lifecycle.Dispose();
         }
 
         // ── Helpers ──────────────────────────────────────────────
@@ -61,6 +61,7 @@ namespace Tests.EditMode.Gameplay.ECS
         private GameLaunchConfig CreateConfig(string? gameId = null)
         {
             var opponent = Substitute.For<IOpponentConfig>();
+           
             return new GameLaunchConfig(
                 gameId ?? TicTacToeEcsRegistrar.TicTacToeGameId,
                 new TicTacToeConfig(boardSize: 3),
@@ -155,8 +156,10 @@ namespace Tests.EditMode.Gameplay.ECS
             _eventSystem.HasCallbacks.Should().BeTrue("MatchStateProvider keeps shared callbacks wired for the active lifecycle");
             _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 0)));
             _stateProvider.CommandSequence.Should().Be(1, "sequence should be 1 after a move");
+            
             _stateProvider.LastMove.Should().Be(new CellId(0, 0),
                 "last move must match the submitted command");
+            
             _lifecycle.StopMatch();
             _eventSystem.HasCallbacks.Should().BeTrue("stopping the world must not clear callbacks because the same EventPublishSystem instance is reused");
 
@@ -167,6 +170,7 @@ namespace Tests.EditMode.Gameplay.ECS
             _eventSystem.HasCallbacks.Should().BeTrue("callbacks must still be present after starting the next match");
             _stateProvider.CommandSequence.Should().Be(0, "sequence resets on new match");
             _commandQueue.Count.Should().Be(0, "queue should be empty at start");
+           
             _stateProvider.LastMove.Should().BeNull(
                 "last move should be null at fresh start (ADR-1 acceptance criteria)");
 
@@ -176,6 +180,7 @@ namespace Tests.EditMode.Gameplay.ECS
             _stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(1, 1)));
 
             _stateProvider.LastMove.Should().Be(new CellId(1, 1));
+            
             lastMoveEvents.Should().ContainSingle()
                 .Which.CellId.Should().Be(new CellId(1, 1));
         }
@@ -214,6 +219,7 @@ namespace Tests.EditMode.Gameplay.ECS
             // Assert
             act.Should().Throw<InvalidOperationException>()
                 .WithMessage("*No IEcsGameplayRegistrar found for GameId 'UnknownGame'*");
+            
             _lifecycle.IsActive.Should().BeFalse();
             _commandQueue.Count.Should().Be(0, "queue should be cleared after failed start");
         }
@@ -230,14 +236,17 @@ namespace Tests.EditMode.Gameplay.ECS
             var lifecycle = new MatchEcsLifecycleService(
                 new IEcsGameplayRegistrar[] { throwOnceRegistrar },
                 _commandQueue, _eventSystem);
+            
             var stateProvider = new MatchStateProvider(_commandQueue, lifecycle, _eventSystem);
 
             try
             {
                 // First attempt — fails
                 Action firstAttempt = () => lifecycle.StartMatch(CreateConfig());
+                
                 firstAttempt.Should().Throw<InvalidOperationException>()
                     .WithMessage("*Simulated registrar failure*");
+                
                 lifecycle.IsActive.Should().BeFalse("failed start should not leave active state");
 
                 // Act — second attempt should succeed
@@ -249,6 +258,7 @@ namespace Tests.EditMode.Gameplay.ECS
 
                 // Verify fresh state: command works and sequence starts from 0
                 stateProvider.SubmitCommand(new MakeMoveCommand(new CellId(0, 0)));
+               
                 stateProvider.CommandSequence.Should().Be(1,
                     "command should be processed successfully after recovery");
             }

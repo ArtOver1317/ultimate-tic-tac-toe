@@ -2,16 +2,14 @@
 
 using FluentAssertions;
 using NUnit.Framework;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.ECS.Components;
 using Runtime.Gameplay.ECS.Pipeline;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
 using Scellecs.Morpeh;
 
-namespace Tests.EditMode.Gameplay.ECS
+namespace Tests.EditMode.Gameplay.ECS.Pipeline
 {
     [TestFixture]
     [Category("Unit")]
@@ -29,6 +27,7 @@ namespace Tests.EditMode.Gameplay.ECS
             _world.UpdateByUnity = false;
 
             _commandQueue = new CommandQueue();
+           
             _sut = new ProcessCommandsSystem(_commandQueue)
             {
                 World = _world,
@@ -40,10 +39,7 @@ namespace Tests.EditMode.Gameplay.ECS
         }
 
         [TearDown]
-        public void TearDown()
-        {
-            _world?.Dispose();
-        }
+        public void TearDown() => _world.Dispose();
 
         [Test]
         public void WhenTimeoutCommandEnqueued_ThenTimeoutRequestAddedToMatchEntity()

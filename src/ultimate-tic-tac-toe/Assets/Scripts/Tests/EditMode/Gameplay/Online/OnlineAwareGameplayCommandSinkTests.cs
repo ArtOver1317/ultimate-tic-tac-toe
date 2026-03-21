@@ -1,20 +1,16 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.TicTacToe.Moves;
 
-namespace Tests.EditMode.Gameplay
+namespace Tests.EditMode.Gameplay.Online
 {
     [TestFixture]
     [Category("Unit")]
@@ -187,5 +183,3 @@ namespace Tests.EditMode.Gameplay
         }
     }
 }
-
-#nullable restore
