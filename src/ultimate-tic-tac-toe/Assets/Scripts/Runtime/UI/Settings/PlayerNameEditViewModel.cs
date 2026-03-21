@@ -3,7 +3,6 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
 using Runtime.GameModes.Wizard;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.PlayerProfile;
@@ -13,8 +12,10 @@ namespace Runtime.UI.Settings
 {
     public sealed class PlayerNameEditViewModel : BaseViewModel
     {
+        private const string _nameEditFailedErrorCode = "player_profile.name_edit_failed";
+        private const string _nameInvalidCharsKey = "Errors.PlayerProfile.NameInvalidChars";
+
         private readonly IPlayerNameService _playerNameService;
-        private readonly ILocalizationService _localization;
         private readonly ReactiveProperty<string> _inputText = new(string.Empty);
         private readonly ReactiveProperty<bool> _isBusy = new(false);
         private readonly ReactiveProperty<WizardError> _error = new(null);
@@ -33,11 +34,11 @@ namespace Runtime.UI.Settings
         public PlayerNameEditViewModel(IPlayerNameService playerNameService, ILocalizationService localization)
         {
             _playerNameService = playerNameService ?? throw new ArgumentNullException(nameof(playerNameService));
-            _localization = localization ?? throw new ArgumentNullException(nameof(localization));
+            var localizationService = localization ?? throw new ArgumentNullException(nameof(localization));
 
-            TitleText = _localization.Observe(new TextTableId("Settings"), new TextKey("Settings.EditPlayerName"));
-            ConfirmButtonText = _localization.Observe(new TextTableId("Common"), new TextKey("Common.Ok"));
-            CancelButtonText = _localization.Observe(new TextTableId("Settings"), new TextKey("Settings.Back"));
+            TitleText = localizationService.Observe(TextTableId.Settings, new TextKey("Settings.EditPlayerName"));
+            ConfirmButtonText = localizationService.Observe(TextTableId.Common, new TextKey("Common.Ok"));
+            CancelButtonText = localizationService.Observe(TextTableId.Settings, new TextKey("Settings.Back"));
         }
 
         public void OnOpen()
@@ -53,10 +54,7 @@ namespace Runtime.UI.Settings
             _inputText.Value = _initialShownValue;
         }
 
-        public void SetInput(string value)
-        {
-            _inputText.Value = value ?? string.Empty;
-        }
+        public void SetInput(string value) => _inputText.Value = value ?? string.Empty;
 
         public void CloseWithoutConfirm() => RequestClose();
 
@@ -89,11 +87,11 @@ namespace Runtime.UI.Settings
                 }
 
                 var messageKey = string.IsNullOrWhiteSpace(result.ErrorMessageKey)
-                    ? "Errors.PlayerProfile.NameInvalidChars"
+                    ? _nameInvalidCharsKey
                     : result.ErrorMessageKey;
 
                 _error.Value = new WizardError(
-                    code: "player_profile.name_edit_failed",
+                    code: _nameEditFailedErrorCode,
                     messageKey: messageKey,
                     isBlocking: false,
                     displayType: ErrorDisplayType.Toast);

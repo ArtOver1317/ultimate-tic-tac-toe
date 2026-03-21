@@ -19,6 +19,7 @@ namespace Runtime.Localization.Types
         }
 
         public static TextTableId MainMenu => new("MainMenu");
+        public static TextTableId Common => new("Common");
         public static TextTableId Settings => new("Settings");
         public static TextTableId Gameplay => new("Gameplay");
         public static TextTableId Errors => new("Errors");

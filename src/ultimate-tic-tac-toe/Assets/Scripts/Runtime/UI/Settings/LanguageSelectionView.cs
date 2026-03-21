@@ -1,6 +1,5 @@
 using R3;
 using Runtime.Extensions;
-using Runtime.Localization;
 using Runtime.Localization.Types;
 using Runtime.UI.Core;
 using UnityEngine.UIElements;
@@ -17,6 +16,8 @@ namespace Runtime.UI.Settings
         
         [Core.UxmlElementAttribute("Container")] 
         private ScrollView _container;
+
+        private readonly CompositeDisposable _languageButtonDisposables = new();
 
         private const string _languageButtonClass = "language-button";
 
@@ -39,6 +40,7 @@ namespace Runtime.UI.Settings
 
         private void RenderLanguageList()
         {
+            _languageButtonDisposables.Clear();
             _container.Clear();
 
             foreach (var locale in ViewModel.AvailableLocales)
@@ -49,9 +51,25 @@ namespace Runtime.UI.Settings
                 };
 
                 button.AddToClassList(_languageButtonClass);
-                button.clicked += () => OnLocaleButtonClicked(locale);
+               
+                button.OnClickAsObservable()
+                    .Subscribe(_ => OnLocaleButtonClicked(locale))
+                    .AddTo(_languageButtonDisposables);
+                
                 _container.Add(button);
             }
+        }
+
+        protected override void OnResetForPool()
+        {
+            _languageButtonDisposables.Clear();
+            _container?.Clear();
+        }
+
+        protected override void OnDestroy()
+        {
+            _languageButtonDisposables.Dispose();
+            base.OnDestroy();
         }
     }
 }

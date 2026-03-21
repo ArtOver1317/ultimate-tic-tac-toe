@@ -1,5 +1,4 @@
 using R3;
-using Runtime.Localization;
 using Runtime.UI.Core;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -27,26 +26,14 @@ namespace Runtime.UI.Settings
         {
             _localizationService = localizationService;
             
-            LanguageButtonText = _localizationService.Observe("Settings", "Settings.Language");
-            EditPlayerNameButtonText = _localizationService.Observe("Settings", "Settings.EditPlayerName");
-            BackButtonText = _localizationService.Observe("Settings", "Settings.Back");
-            TitleText = _localizationService.Observe("Settings", "Settings.Title");
+            LanguageButtonText = _localizationService.Observe(TextTableId.Settings, new TextKey("Settings.Language"));
+            EditPlayerNameButtonText = _localizationService.Observe(TextTableId.Settings, new TextKey("Settings.EditPlayerName"));
+            BackButtonText = _localizationService.Observe(TextTableId.Settings, new TextKey("Settings.Back"));
+            TitleText = _localizationService.Observe(TextTableId.Settings, new TextKey("Settings.Title"));
         }
 
         public UniTask PreloadOnOpenAsync(CancellationToken cancellationToken) =>
-            _localizationService.PreloadCurrentLocaleAsync(new TextTableId("Settings"), cancellationToken);
-
-        public override void Initialize()
-        {
-            base.Initialize();
-            // _languageRequest is now readonly and persistent
-        }
-
-        public override void Reset()
-        {
-            // Do NOT dispose _languageRequest here as it's readonly
-            base.Reset();
-        }
+            _localizationService.PreloadCurrentLocaleAsync(TextTableId.Settings, cancellationToken);
 
         public void OpenLanguageSelection() => _languageRequest.OnNext(Unit.Default);
 

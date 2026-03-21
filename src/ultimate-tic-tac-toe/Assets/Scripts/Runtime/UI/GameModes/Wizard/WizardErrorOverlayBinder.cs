@@ -37,7 +37,7 @@ namespace Runtime.UI.GameModes.Wizard
 
             disposeHandle.Add(Disposable.Create(() => DisposeBinding(overlay, binderCts, subscriptions)));
 
-            var okTextStream = localization.Observe(new TextTableId("Common"), new TextKey("Common.Ok"));
+            var okTextStream = localization.Observe(TextTableId.Common, new TextKey("Common.Ok"));
             okTextStream.Subscribe(overlay.SetModalButtonText).AddTo(subscriptions);
 
             errorSource.Subscribe(error =>

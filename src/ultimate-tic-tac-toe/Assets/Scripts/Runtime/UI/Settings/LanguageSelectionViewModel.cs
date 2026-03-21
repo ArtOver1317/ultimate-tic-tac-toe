@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
-using Runtime.Localization;
 using Runtime.UI.Core;
 using StripLog;
 using Runtime.Infrastructure.Logging;
@@ -15,8 +14,6 @@ namespace Runtime.UI.Settings
     {
         private readonly ILocalizationService _localization;
         private CancellationTokenSource _localeChangeCts;
-        
-        public ReadOnlyReactiveProperty<LocaleId> CurrentLocale => _localization.CurrentLocale;
         public IReadOnlyList<LocaleId> AvailableLocales { get; private set; }
         
         // Localized strings
@@ -27,8 +24,8 @@ namespace Runtime.UI.Settings
         {
             _localization = localization ?? throw new System.ArgumentNullException(nameof(localization));
             
-            TitleText = _localization.Observe("Settings", "Settings.SelectLanguage");
-            BackButtonText = _localization.Observe("Settings", "Settings.Back");
+            TitleText = _localization.Observe(TextTableId.Settings, new TextKey("Settings.SelectLanguage"));
+            BackButtonText = _localization.Observe(TextTableId.Settings, new TextKey("Settings.Back"));
         }
 
         public override void Initialize()
@@ -52,15 +49,14 @@ namespace Runtime.UI.Settings
 
         public void SelectLocale(LocaleId locale)
         {
-             CancelLocaleChange();
-             _localeChangeCts = new CancellationTokenSource();
-             
-             SetLocaleAsync(locale, _localeChangeCts.Token).Forget();
+            CancelLocaleChange();
+            _localeChangeCts = new CancellationTokenSource();
+            SetLocaleAsync(locale, _localeChangeCts.Token).Forget();
         }
 
         private void CancelLocaleChange()
         {
-            if (_localeChangeCts != null && !_localeChangeCts.IsCancellationRequested)
+            if (_localeChangeCts is { IsCancellationRequested: false })
             {
                 _localeChangeCts.Cancel();
                 _localeChangeCts.Dispose();
