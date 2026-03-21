@@ -5,19 +5,16 @@ using System.Collections.Generic;
 using FluentAssertions;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.UI;
 using Runtime.Games.Battleship.UI.Board;
 using UnityEngine.UIElements;
 using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
-namespace Tests.EditMode.Games.Battleship
+namespace Tests.EditMode.Games.Battleship.UI.Board
 {
     [TestFixture]
     [Category("Unit")]
@@ -93,12 +90,16 @@ namespace Tests.EditMode.Games.Battleship
         private static IReadOnlyList<BattleshipCellMark> BuildMarks(params (int index, BattleshipCellMark mark)[] entries)
         {
             var marks = new BattleshipCellMark[100];
+      
             for (var i = 0; i < marks.Length; i++)
+            {
                 marks[i] = BattleshipCellMark.Unknown;
+            }
 
             for (var i = 0; i < entries.Length; i++)
             {
                 var (index, mark) = entries[i];
+           
                 if (index >= 0 && index < marks.Length)
                     marks[index] = mark;
             }
@@ -189,8 +190,8 @@ namespace Tests.EditMode.Games.Battleship
                     return true;
                 }
 
-                cellRoot = default!;
-                markLabel = default!;
+                cellRoot = null!;
+                markLabel = null!;
                 return false;
             }
 
@@ -202,7 +203,7 @@ namespace Tests.EditMode.Games.Battleship
                     return true;
                 }
 
-                cellRoot = default!;
+                cellRoot = null!;
                 return false;
             }
 
@@ -214,7 +215,7 @@ namespace Tests.EditMode.Games.Battleship
                     return true;
                 }
 
-                mark = default!;
+                mark = null!;
                 return false;
             }
 
@@ -226,7 +227,7 @@ namespace Tests.EditMode.Games.Battleship
                     return true;
                 }
 
-                cellRoot = default!;
+                cellRoot = null!;
                 return false;
             }
 
@@ -239,8 +240,8 @@ namespace Tests.EditMode.Games.Battleship
                     return true;
                 }
 
-                cellRoot = default!;
-                markLabel = default!;
+                cellRoot = null!;
+                markLabel = null!;
                 return false;
             }
 

@@ -4,17 +4,14 @@ using System;
 using System.Collections.Generic;
 using FluentAssertions;
 using NUnit.Framework;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
-using Runtime.Gameplay.ECS;
+using Runtime.Gameplay;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
-using Runtime.Gameplay;
 using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
-namespace Tests.EditMode.Games.Battleship
+namespace Tests.EditMode.Games.Battleship.Placement
 {
     [TestFixture]
     [Category("Unit")]
@@ -53,7 +50,7 @@ namespace Tests.EditMode.Games.Battleship
             public void SetLayout(int slot, FleetLayout layout) => _layouts[slot] = layout;
         }
 
-        private sealed class CapturingCommandSink : Runtime.Gameplay.IGameplayCommandSink
+        private sealed class CapturingCommandSink : IGameplayCommandSink
         {
             public readonly List<IGameplayCommand> Commands = new();
 
@@ -135,6 +132,7 @@ namespace Tests.EditMode.Games.Battleship
             {
                 SlotXConfirmed = true,
             };
+            
             var sink = new CapturingCommandSink();
             var sessionStore = new OnlineGameplaySessionContextStore();
             var validator = new BattleshipPlacementValidator();

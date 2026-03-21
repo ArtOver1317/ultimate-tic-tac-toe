@@ -7,15 +7,13 @@ using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.UI.Board;
 using UnityEngine.UIElements;
 using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
-namespace Tests.EditMode.Games.Battleship
+namespace Tests.EditMode.Games.Battleship.UI.Board
 {
     [TestFixture]
     [Category("Unit")]
@@ -128,16 +126,18 @@ namespace Tests.EditMode.Games.Battleship
             public FakeBattleshipSnapshotProvider()
             {
                 for (var i = 0; i < _opponentMarks.Length; i++)
+                {
                     _opponentMarks[i] = BattleshipCellMark.Unknown;
+                }
 
                 _opponentMarksView = Array.AsReadOnly(_opponentMarks);
             }
 
-            private static readonly IReadOnlyList<CellSnapshot> EmptyCells =
+            private static readonly IReadOnlyList<CellSnapshot> _emptyCells =
                 Array.AsReadOnly(new[] { new CellSnapshot(new CellId(0, 0), -1) });
 
             public int GetCellSlot(CellId cellId) => -1;
-            public IReadOnlyList<CellSnapshot> GetAllCells() => EmptyCells;
+            public IReadOnlyList<CellSnapshot> GetAllCells() => _emptyCells;
             public long CommandSequence => 0;
             public int ActivePlayerSlot => PlayerSlotMapping.SlotX;
             public CellId? LastMove => null;
@@ -146,6 +146,7 @@ namespace Tests.EditMode.Games.Battleship
             public EcsGameStatus CurrentStatus => EcsGameStatus.InProgress;
             public int? WinnerSlot => null;
             public bool IsPlacementConfirmed(int playerSlot) => true;
+           
             public bool TryGetFleetLayout(int playerSlot, out FleetLayout layout)
             {
                 layout = default;
@@ -164,7 +165,8 @@ namespace Tests.EditMode.Games.Battleship
 
             public void SetOpponentMark(CellId id, BattleshipCellMark mark)
             {
-                var index = (id.Major * 10) + id.Minor;
+                var index = id.Major * 10 + id.Minor;
+             
                 if (index < 0 || index >= _opponentMarks.Length)
                     return;
 

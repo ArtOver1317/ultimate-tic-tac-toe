@@ -1,11 +1,10 @@
 using FluentAssertions;
 using NUnit.Framework;
-using Runtime.Games.Battleship;
+using Runtime.Gameplay;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
-using Runtime.Gameplay;
 
-namespace Tests.EditMode.Games.Battleship
+namespace Tests.EditMode.Games.Battleship.Placement
 {
     [TestFixture]
     [Category("Unit")]
@@ -31,8 +30,11 @@ namespace Tests.EditMode.Games.Battleship
             var autoPlacer = new BattleshipAutoPlacer(validator);
             var baseLayout = autoPlacer.Generate(777);
             var ships = new ShipPlacement[FleetLayout.ExpectedShipCount];
+            
             for (var i = 0; i < ships.Length; i++)
+            {
                 ships[i] = baseLayout.Ships![i];
+            }
 
             var anchor = ships[0];
             var targetMajor = anchor.StartCell.Major <= 8 ? anchor.StartCell.Major + 1 : anchor.StartCell.Major - 1;
@@ -115,6 +117,7 @@ namespace Tests.EditMode.Games.Battleship
 
             var firstSingleIndex = -1;
             var secondSingleIndex = -1;
+     
             for (var i = 0; i < ships.Length; i++)
             {
                 if (ships[i].Size != ShipSize.One)
@@ -170,11 +173,13 @@ namespace Tests.EditMode.Games.Battleship
         {
             var source = layout.Ships!;
             var copy = new ShipPlacement[source.Count];
+          
             for (var i = 0; i < source.Count; i++)
+            {
                 copy[i] = source[i];
+            }
 
             return copy;
         }
-
     }
 }

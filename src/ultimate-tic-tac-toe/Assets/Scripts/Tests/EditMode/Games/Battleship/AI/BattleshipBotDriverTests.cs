@@ -8,22 +8,17 @@ using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.AI;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
-using Runtime.Games.TicTacToe.AI;
-using Runtime.Games.TicTacToe.AI.Core;
 using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
-namespace Tests.EditMode.Games.Battleship
+namespace Tests.EditMode.Games.Battleship.AI
 {
     [TestFixture]
     [Category("Unit")]
@@ -67,8 +62,12 @@ namespace Tests.EditMode.Games.Battleship
             private static BattleshipCellMark[] CreateUnknownMarks()
             {
                 var marks = new BattleshipCellMark[100];
+                
                 for (var i = 0; i < marks.Length; i++)
+                {
                     marks[i] = BattleshipCellMark.Unknown;
+                }
+
                 return marks;
             }
         }
@@ -111,16 +110,11 @@ namespace Tests.EditMode.Games.Battleship
             {
                 Commands.Add(command);
 
-                if (command is SubmitPlacementCommand submitPlacement
-                    && submitPlacement.PlayerSlot == PlayerSlotMapping.SlotO)
-                {
+                if (command is SubmitPlacementCommand { PlayerSlot: PlayerSlotMapping.SlotO }) 
                     _snapshot.SlotOConfirmed = true;
-                }
 
-                if (command is MakeMoveCommand)
-                {
+                if (command is MakeMoveCommand) 
                     _snapshot.ActivePlayerSlot = PlayerSlotMapping.SlotX;
-                }
             }
         }
 
@@ -128,10 +122,7 @@ namespace Tests.EditMode.Games.Battleship
         {
             public List<IGameplayCommand> Commands { get; } = new();
 
-            public void SubmitCommand(IGameplayCommand command)
-            {
-                Commands.Add(command);
-            }
+            public void SubmitCommand(IGameplayCommand command) => Commands.Add(command);
         }
 
         private sealed class CyclingCommandSink : IGameplayCommandSink
@@ -149,7 +140,7 @@ namespace Tests.EditMode.Games.Battleship
                 if (command is not MakeMoveCommand move)
                     return;
 
-                var index = (move.CellId.Major * 10) + move.CellId.Minor;
+                var index = move.CellId.Major * 10 + move.CellId.Minor;
                 _snapshot.OpponentMarksForO[index] = BattleshipCellMark.Miss;
                 _snapshot.ActivePlayerSlot = PlayerSlotMapping.SlotO;
             }
@@ -163,6 +154,7 @@ namespace Tests.EditMode.Games.Battleship
                 Phase = BattleshipPhase.Placement,
                 ActivePlayerSlot = PlayerSlotMapping.SlotX,
             };
+            
             var battleshipEvents = new FakeBattleshipEventStream();
             var gameplayEvents = new FakeGameplayEventStream();
             var sink = new CapturingCommandSink(snapshot);
@@ -200,6 +192,7 @@ namespace Tests.EditMode.Games.Battleship
                 SlotXConfirmed = true,
                 SlotOConfirmed = true,
             };
+         
             var battleshipEvents = new FakeBattleshipEventStream();
             var gameplayEvents = new FakeGameplayEventStream();
             var sink = new CapturingCommandSink(snapshot);
@@ -409,8 +402,11 @@ namespace Tests.EditMode.Games.Battleship
         private static BattleshipCellMark[] CreateMarksWithSingleFinishCandidate()
         {
             var marks = new BattleshipCellMark[100];
+            
             for (var i = 0; i < marks.Length; i++)
+            {
                 marks[i] = BattleshipCellMark.Unknown;
+            }
 
             // Damaged ship at (0,0): only (0,1) remains a valid adjacent unknown target.
             marks[0] = BattleshipCellMark.Hit;
@@ -422,23 +418,27 @@ namespace Tests.EditMode.Games.Battleship
         private static BattleshipCellMark[] CreateMarksWithFiveUnknownCells()
         {
             var marks = new BattleshipCellMark[100];
+            
             for (var i = 0; i < marks.Length; i++)
+            {
                 marks[i] = BattleshipCellMark.Miss;
+            }
 
             for (var i = 0; i < 5; i++)
+            {
                 marks[i] = BattleshipCellMark.Unknown;
+            }
 
             return marks;
         }
 
-        private static BattleshipGameplaySettings CreateSettings(float botShotDelaySeconds)
-        {
-            return BattleshipGameplaySettings.CreateRuntimeDefault(botShotDelaySeconds);
-        }
+        private static BattleshipGameplaySettings CreateSettings(float botShotDelaySeconds) => 
+            BattleshipGameplaySettings.CreateRuntimeDefault(botShotDelaySeconds);
 
         private static int CountMoves(IReadOnlyList<IGameplayCommand> commands)
         {
             var count = 0;
+            
             for (var i = 0; i < commands.Count; i++)
             {
                 if (commands[i] is MakeMoveCommand)

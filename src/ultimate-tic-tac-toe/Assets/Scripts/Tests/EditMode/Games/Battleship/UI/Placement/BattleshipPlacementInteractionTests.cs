@@ -2,33 +2,28 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
 using Runtime.Games.Battleship.UI.Placement;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using UnityEngine.UIElements;
 using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
-namespace Tests.EditMode.Games.Battleship
+namespace Tests.EditMode.Games.Battleship.UI.Placement
 {
     [TestFixture]
     [Category("Unit")]
     public sealed class BattleshipPlacementInteractionTests
     {
-        private const string StatusLabelName = "BattleshipPlacementStatusLabel";
+        private const string _statusLabelName = "BattleshipPlacementStatusLabel";
 
         private sealed class FakeSnapshotProvider : IBattleshipGameplaySnapshotProvider
         {
@@ -117,9 +112,7 @@ namespace Tests.EditMode.Games.Battleship
 
         private sealed class CapturingCommandSink : IGameplayCommandSink
         {
-            public void SubmitCommand(IGameplayCommand command)
-            {
-            }
+            public void SubmitCommand(IGameplayCommand command) { }
         }
 
         [Test]
@@ -135,20 +128,23 @@ namespace Tests.EditMode.Games.Battleship
                 Phase = BattleshipPhase.Placement,
                 SlotXConfirmed = false,
             };
+           
             var eventStream = new FakeEventStream();
             var fieldUiAdapter = new StubFieldUiAdapter();
             var validator = new BattleshipPlacementValidator();
             var sessionStore = new OnlineGameplaySessionContextStore();
             var localization = Substitute.For<ILocalizationService>();
+           
             localization.Resolve(
-                Arg.Is<TextTableId>(table => table.Name == "Game"),
-                Arg.Is<TextKey>(key => key.Value == placeAllShipsKey),
-                Arg.Any<IReadOnlyDictionary<string, object>>())
+                    Arg.Is<TextTableId>(table => table.Name == "Game"),
+                    Arg.Is<TextKey>(key => key.Value == placeAllShipsKey),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(placeAllShipsText);
+           
             localization.Resolve(
-                Arg.Is<TextTableId>(table => table.Name == "Game"),
-                Arg.Is<TextKey>(key => key.Value == waitingStatusKey),
-                Arg.Any<IReadOnlyDictionary<string, object>>())
+                    Arg.Is<TextTableId>(table => table.Name == "Game"),
+                    Arg.Is<TextKey>(key => key.Value == waitingStatusKey),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(waitingStatusText);
 
             using var placementService = new BattleshipPlacementService(
@@ -157,6 +153,7 @@ namespace Tests.EditMode.Games.Battleship
                 validator,
                 new BattleshipAutoPlacer(validator),
                 sessionStore);
+           
             using var sut = new BattleshipPlacementUiController(
                 fieldUiAdapter,
                 placementService,
@@ -168,7 +165,7 @@ namespace Tests.EditMode.Games.Battleship
 
             var panel = fieldUiAdapter.Root.Q<VisualElement>("BattleshipPlacementPanel");
             panel.Should().NotBeNull();
-            var statusLabel = panel!.Q<Label>(StatusLabelName);
+            var statusLabel = panel!.Q<Label>(_statusLabelName);
             statusLabel.Should().NotBeNull();
             statusLabel.text.Should().Be(placeAllShipsText);
 

@@ -7,7 +7,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Tests.EditMode.Games.Battleship
+namespace Tests.EditMode.Games.Battleship.UI.Placement
 {
     [TestFixture]
     [Category("Unit")]

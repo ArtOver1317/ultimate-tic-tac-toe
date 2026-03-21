@@ -8,22 +8,19 @@ using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.Battleship;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
-using CellId = Runtime.Gameplay.CellId;
 using UnityEngine;
 using UnityEngine.TestTools;
+using CellId = Runtime.Gameplay.CellId;
 using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
 
-namespace Tests.EditMode.Games.Battleship
+namespace Tests.EditMode.Games.Battleship.Placement
 {
     [TestFixture]
     [Category("Unit")]
@@ -37,6 +34,7 @@ namespace Tests.EditMode.Games.Battleship
         private sealed class ThrowingTimeSource : ITimeSource
         {
             public bool ShouldThrow { get; set; } = true;
+          
             public float DeltaTime => ShouldThrow
                 ? throw new InvalidOperationException("Simulated timer failure.")
                 : 0.1f;
@@ -114,11 +112,13 @@ namespace Tests.EditMode.Games.Battleship
         private static GameLaunchConfigStore CreateStoreWithPlacementLimit(int placementSeconds)
         {
             var store = new GameLaunchConfigStore();
+        
             store.Set(new GameLaunchConfig(
                 BattleshipStrategy.DefaultGameId,
                 new BattleshipConfig(placementSeconds),
                 new BotOpponentConfig(BattleshipStrategy.DefaultBotDifficultyId),
                 moveTimeLimitSeconds: 60));
+          
             return store;
         }
 
@@ -126,12 +126,14 @@ namespace Tests.EditMode.Games.Battleship
         public async Task WhenTimerExpiresAndBothPlayersNotConfirmed_ThenSubmitsPlacementTimeoutForBothSlots()
         {
             var stream = new FakeBattleshipEventStream();
+            
             var snapshot = new FakeBattleshipSnapshotProvider
             {
                 Phase = BattleshipPhase.Placement,
                 Slot0Confirmed = false,
                 Slot1Confirmed = false,
             };
+           
             var matchState = new FakeMatchStateProvider { IsMatchActive = true };
             var sink = new CapturingCommandSink();
             var time = new FakeTimeSource { DeltaTime = 0.55f };
@@ -159,12 +161,14 @@ namespace Tests.EditMode.Games.Battleship
         public async Task WhenGuestOnlineAndTimerExpires_ThenDoesNotSubmitPlacementTimeoutCommands()
         {
             var stream = new FakeBattleshipEventStream();
+            
             var snapshot = new FakeBattleshipSnapshotProvider
             {
                 Phase = BattleshipPhase.Waiting,
                 Slot0Confirmed = true,
                 Slot1Confirmed = false,
             };
+           
             var matchState = new FakeMatchStateProvider { IsMatchActive = true };
             var sink = new CapturingCommandSink();
             var time = new FakeTimeSource { DeltaTime = 0.6f };
@@ -191,12 +195,14 @@ namespace Tests.EditMode.Games.Battleship
         public async Task WhenOnePlayerAlreadyConfirmed_ThenOnlyNonConfirmedPlayerGetTimeout()
         {
             var stream = new FakeBattleshipEventStream();
+         
             var snapshot = new FakeBattleshipSnapshotProvider
             {
                 Phase = BattleshipPhase.Waiting,
                 Slot0Confirmed = true,
                 Slot1Confirmed = false,
             };
+           
             var matchState = new FakeMatchStateProvider { IsMatchActive = true };
             var sink = new CapturingCommandSink();
             var time = new FakeTimeSource { DeltaTime = 0.55f };
@@ -223,12 +229,14 @@ namespace Tests.EditMode.Games.Battleship
         public async Task WhenPhaseChangesToBattle_ThenTimerStopsAndNoMoreTimeoutsSubmitted()
         {
             var stream = new FakeBattleshipEventStream();
+           
             var snapshot = new FakeBattleshipSnapshotProvider
             {
                 Phase = BattleshipPhase.Placement,
                 Slot0Confirmed = false,
                 Slot1Confirmed = false,
             };
+          
             var matchState = new FakeMatchStateProvider { IsMatchActive = true };
             var sink = new CapturingCommandSink();
             var time = new FakeTimeSource { DeltaTime = 0.6f };
@@ -257,12 +265,14 @@ namespace Tests.EditMode.Games.Battleship
         public async Task WhenCountdownLoopThrows_ThenTimerResetsAndCanStartAgain()
         {
             var stream = new FakeBattleshipEventStream();
+          
             var snapshot = new FakeBattleshipSnapshotProvider
             {
                 Phase = BattleshipPhase.Placement,
                 Slot0Confirmed = false,
                 Slot1Confirmed = false,
             };
+          
             var matchState = new FakeMatchStateProvider { IsMatchActive = true };
             var sink = new CapturingCommandSink();
             var time = new ThrowingTimeSource();

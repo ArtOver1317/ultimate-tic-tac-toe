@@ -4,14 +4,14 @@ using System.Collections.Generic;
 using FluentAssertions;
 using NUnit.Framework;
 using R3;
+using Runtime.Gameplay;
 using Runtime.Games.Battleship.Core;
 using Runtime.Games.Battleship.Placement;
 using Runtime.Games.Battleship.UI;
 using Runtime.Games.Battleship.UI.Placement;
-using Runtime.Gameplay;
 using UnityEngine.UIElements;
 
-namespace Tests.EditMode.Games.Battleship
+namespace Tests.EditMode.Games.Battleship.UI.Placement
 {
     [TestFixture]
     [Category("Unit")]
@@ -23,6 +23,7 @@ namespace Tests.EditMode.Games.Battleship
             var gameplayAdapter = new StubGameplayFieldUiAdapter();
             var ownBoardAdapter = new StubBattleshipFieldUiAdapter();
             var sut = new BattleshipPlacementPreviewRenderer(gameplayAdapter, ownBoardAdapter);
+           
             var ships = new[]
             {
                 new BattleshipPlacementShipState(0, ShipSize.Three, ShipOrientation.Horizontal, new CellId(2, 3)),
@@ -41,6 +42,7 @@ namespace Tests.EditMode.Games.Battleship
         {
             var gameplayAdapter = new StubGameplayFieldUiAdapter();
             var sut = new BattleshipPlacementPreviewRenderer(gameplayAdapter, battleshipFieldUiAdapter: null);
+            
             var ships = new[]
             {
                 new BattleshipPlacementShipState(0, ShipSize.Two, ShipOrientation.Vertical, new CellId(1, 1)),
@@ -130,7 +132,9 @@ namespace Tests.EditMode.Games.Battleship
             for (var row = 0; row < 10; row++)
             {
                 for (var col = 0; col < 10; col++)
+                {
                     marks[new CellId(row, col)] = new Label();
+                }
             }
 
             return marks;
