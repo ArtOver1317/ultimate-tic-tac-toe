@@ -88,7 +88,7 @@ namespace Runtime.Games.Battleship.UI.Placement
 
     public sealed class BattleshipPlacementTimerHudBinder : IDisposable
     {
-        private const string WarningClass = "move-timer-label--warning";
+        private const string _warningClass = "move-timer-label--warning";
 
         private readonly IGameplayFieldUiAdapter _ui;
         private readonly IBattleshipPlacementTimerHudViewModel _viewModel;
@@ -124,6 +124,7 @@ namespace Runtime.Games.Battleship.UI.Placement
         private bool TryResolveTimerLabel()
         {
             _timerLabel = _ui.MoveTimerLabel;
+           
             if (_timerLabel != null)
                 return true;
 
@@ -163,7 +164,7 @@ namespace Runtime.Games.Battleship.UI.Placement
 
             if (_timerLabel != null)
             {
-                _timerLabel.RemoveFromClassList(WarningClass);
+                _timerLabel.RemoveFromClassList(_warningClass);
                 _timerLabel.style.display = DisplayStyle.None;
                 _timerLabel.text = "00";
             }
@@ -203,9 +204,9 @@ namespace Runtime.Games.Battleship.UI.Placement
                 return;
 
             if (isWarning)
-                _timerLabel.AddToClassList(WarningClass);
+                _timerLabel.AddToClassList(_warningClass);
             else
-                _timerLabel.RemoveFromClassList(WarningClass);
+                _timerLabel.RemoveFromClassList(_warningClass);
         }
 
         private void ThrowIfDisposed()

@@ -1,5 +1,5 @@
 Key,en-US,ru-RU,ja-JP,Context
-MainMenu.Title,Ultimate Tic-Tac-Toe,Ультимативные крестики-нолики,究極の○×ゲーム,Main menu header
+MainMenu.Title,Game Room,Игротека,ゲームルーム,Main menu header
 MainMenu.Play,Play,Играть,プレイ,Start game button (legacy)
 MainMenu.StartButton,Play,Играть,プレイ,Start game button (current)
 MainMenu.Settings,Settings,Настройки,設定,Settings button
@@ -60,7 +60,7 @@ Board.AnyBoardAvailable,Play in any available board,Играйте на любо
 Turn.Timeout,Turn timeout!,Время хода истекло!,ターンタイムアウト！,Turn timeout message
 Turn.TimeRemaining,{seconds}s remaining,Осталось {seconds}с,残り{seconds}秒,Time remaining display
 Game.TicTacToe,Tic-Tac-Toe,Крестики-нолики,○×ゲーム,Game catalog: TicTacToe display name
-Game.Description.TicTacToe,Classic and Ultimate Tic-Tac-Toe,Крестики-нолики — классика и ультимейт,○×ゲーム — クラシックとアルティメット,Game catalog: TicTacToe description
+Game.Description.TicTacToe,Classic Tic-Tac-Toe,Классические крестики-нолики,クラシック○×ゲーム,Game catalog: TicTacToe description
 Game.UltimateTicTacToe.Name,Ultimate Tic-Tac-Toe,Ультимативные крестики-нолики,究極の○×ゲーム,Game catalog: Ultimate Tic-Tac-Toe display name
 Game.UltimateTicTacToe.Description,Ultimate board mode,Режим на ультимативном поле,アルティメット盤面モード,Game catalog: Ultimate Tic-Tac-Toe description
 Mode.Classic,Classic Mode,Классический режим,クラシックモード,Classic game mode (legacy)

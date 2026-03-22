@@ -1,6 +1,6 @@
 .root {
     flex-grow: 1;
-    background-color: rgba(0, 0, 0, 0.9);
+    background-color: rgb(50, 54, 132);
     justify-content: center;
     align-items: center;
     padding-left: 24px;
@@ -8,8 +8,10 @@
 }
 
 .panel {
-    background-color: rgb(50, 54, 132);
-    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.12);
     padding: 28px;
     width: 720px;
     max-width: 95%;
@@ -43,11 +45,19 @@
     height: 64px;
     font-size: 28px;
     margin-bottom: 8px;
-    background-color: rgb(255, 255, 255);
-    border-radius: 5px;
-    color: rgb(50, 54, 132);
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    color: rgba(255, 255, 255, 0.9);
     -unity-font-style: bold;
     -unity-text-align: middle-center;
+}
+
+.language-button:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+.language-button:active {
+    background-color: rgba(255, 255, 255, 0.22);
 }
 
 .name-input {
@@ -62,19 +72,19 @@
 .menu-button {
     width: 420px;
     max-width: 95%;
-    height: 80px;
-    font-size: 32px;
+    height: 64px;
+    font-size: 28px;
     margin-bottom: 10px;
-    background-color: rgb(255, 255, 255);
-    border-radius: 5px;
-    color: rgb(50, 54, 132);
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    color: rgba(255, 255, 255, 0.9);
     -unity-font-style: bold;
 }
 
 .menu-button:hover {
-    background-color: rgb(200, 200, 200);
+    background-color: rgba(255, 255, 255, 0.14);
 }
 
 .menu-button:active {
-    background-color: rgb(150, 150, 150);
+    background-color: rgba(255, 255, 255, 0.22);
 }

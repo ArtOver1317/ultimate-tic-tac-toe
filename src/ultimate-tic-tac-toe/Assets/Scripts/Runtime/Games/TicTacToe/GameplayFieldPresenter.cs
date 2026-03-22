@@ -144,6 +144,18 @@ namespace Runtime.Games.TicTacToe
                 return false;
             }
 
+            // Always prefer live worldBound to avoid stale cache when called at game-end
+            // (GeometryChangedEvent order is not guaranteed relative to win detection).
+            if (_state.MiniBoardByMajor.TryGetValue(major, out var mini) && mini != null)
+            {
+                var rect = mini.worldBound;
+                if (rect.width > 0f && rect.height > 0f)
+                {
+                    panelSpaceCenter = rect.center;
+                    return true;
+                }
+            }
+
             return _state.MiniBoardCenterByMajor.TryGetValue(major, out panelSpaceCenter);
         }
 

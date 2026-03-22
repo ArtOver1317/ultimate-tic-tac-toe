@@ -18,7 +18,7 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
     public sealed class BattleshipPlacementPreviewRendererTests
     {
         [Test]
-        public void WhenPlacedHorizontalShipRendered_ThenMarksOwnBoardShipSegments()
+        public void WhenPlacedHorizontalShipRendered_ThenAppliesPlacedCssClassToOwnBoardSegments()
         {
             var gameplayAdapter = new StubGameplayFieldUiAdapter();
             var ownBoardAdapter = new StubBattleshipFieldUiAdapter();
@@ -31,14 +31,54 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
 
             sut.Render(ships);
 
-            ownBoardAdapter.GetMarkText(new CellId(2, 3)).Should().Be("■");
-            ownBoardAdapter.GetMarkText(new CellId(2, 4)).Should().Be("■");
-            ownBoardAdapter.GetMarkText(new CellId(2, 5)).Should().Be("■");
-            ownBoardAdapter.GetMarkText(new CellId(2, 2)).Should().BeEmpty();
+            ownBoardAdapter.HasCssClass(new CellId(2, 3), "placement-ship--placed").Should().BeTrue();
+            ownBoardAdapter.HasCssClass(new CellId(2, 4), "placement-ship--placed").Should().BeTrue();
+            ownBoardAdapter.HasCssClass(new CellId(2, 5), "placement-ship--placed").Should().BeTrue();
+            ownBoardAdapter.HasCssClass(new CellId(2, 2), "placement-ship--placed").Should().BeFalse();
         }
 
         [Test]
-        public void WhenOwnBoardUnavailableAndClearCalled_ThenUsesGameplayBoardAndRemovesPreviewMarks()
+        public void WhenSelectedShipRendered_ThenAppliesSelectedCssClass()
+        {
+            var gameplayAdapter = new StubGameplayFieldUiAdapter();
+            var ownBoardAdapter = new StubBattleshipFieldUiAdapter();
+            var sut = new BattleshipPlacementPreviewRenderer(gameplayAdapter, ownBoardAdapter);
+
+            var ships = new[]
+            {
+                new BattleshipPlacementShipState(0, ShipSize.Two, ShipOrientation.Horizontal, new CellId(0, 0)),
+            };
+
+            sut.Render(ships, selectedShipId: 0);
+
+            ownBoardAdapter.HasCssClass(new CellId(0, 0), "placement-ship--selected").Should().BeTrue();
+            ownBoardAdapter.HasCssClass(new CellId(0, 1), "placement-ship--selected").Should().BeTrue();
+            ownBoardAdapter.HasCssClass(new CellId(0, 0), "placement-ship--placed").Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenClearCalledAfterRender_ThenRemovesCssClasses()
+        {
+            var gameplayAdapter = new StubGameplayFieldUiAdapter();
+            var ownBoardAdapter = new StubBattleshipFieldUiAdapter();
+            var sut = new BattleshipPlacementPreviewRenderer(gameplayAdapter, ownBoardAdapter);
+
+            var ships = new[]
+            {
+                new BattleshipPlacementShipState(0, ShipSize.Two, ShipOrientation.Vertical, new CellId(1, 1)),
+            };
+
+            sut.Render(ships);
+            ownBoardAdapter.HasCssClass(new CellId(1, 1), "placement-ship--placed").Should().BeTrue();
+
+            sut.Clear();
+
+            ownBoardAdapter.HasCssClass(new CellId(1, 1), "placement-ship--placed").Should().BeFalse();
+            ownBoardAdapter.HasCssClass(new CellId(2, 1), "placement-ship--placed").Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenOwnBoardUnavailableAndClearCalled_ThenUsesGameplayBoardAndRemovesCssClasses()
         {
             var gameplayAdapter = new StubGameplayFieldUiAdapter();
             var sut = new BattleshipPlacementPreviewRenderer(gameplayAdapter, battleshipFieldUiAdapter: null);
@@ -49,18 +89,19 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
             };
 
             sut.Render(ships);
-            gameplayAdapter.GetMarkText(new CellId(1, 1)).Should().Be("■");
-            gameplayAdapter.GetMarkText(new CellId(2, 1)).Should().Be("■");
+            gameplayAdapter.HasCssClass(new CellId(1, 1), "placement-ship--placed").Should().BeTrue();
+            gameplayAdapter.HasCssClass(new CellId(2, 1), "placement-ship--placed").Should().BeTrue();
 
             sut.Clear();
 
-            gameplayAdapter.GetMarkText(new CellId(1, 1)).Should().BeEmpty();
-            gameplayAdapter.GetMarkText(new CellId(2, 1)).Should().BeEmpty();
+            gameplayAdapter.HasCssClass(new CellId(1, 1), "placement-ship--placed").Should().BeFalse();
+            gameplayAdapter.HasCssClass(new CellId(2, 1), "placement-ship--placed").Should().BeFalse();
         }
 
         private sealed class StubGameplayFieldUiAdapter : IGameplayFieldUiAdapter
         {
             private readonly Dictionary<CellId, Label> _marks = CreateMarks();
+            private readonly Dictionary<CellId, VisualElement> _cellRoots = CreateCellRoots();
             private readonly Subject<CellId> _cellClicks = new();
 
             public Observable<CellId> CellClicks => _cellClicks;
@@ -77,14 +118,18 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
 
             public bool TryGetCellView(CellId id, out VisualElement cellRoot, out Label markLabel)
             {
-                cellRoot = new VisualElement();
+                _cellRoots.TryGetValue(id, out cellRoot!);
+                cellRoot ??= new VisualElement();
                 return _marks.TryGetValue(id, out markLabel!);
             }
 
             public bool TryGetCell(CellId id, out VisualElement cellRoot)
             {
+                if (_cellRoots.TryGetValue(id, out cellRoot!))
+                    return true;
+
                 cellRoot = new VisualElement();
-                return _marks.ContainsKey(id);
+                return false;
             }
 
             public bool TryGetMark(CellId id, out VisualElement mark)
@@ -100,11 +145,15 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
             }
 
             public string GetMarkText(CellId cellId) => _marks[cellId].text;
+
+            public bool HasCssClass(CellId cellId, string cssClass) =>
+                _cellRoots.TryGetValue(cellId, out var root) && root.ClassListContains(cssClass);
         }
 
         private sealed class StubBattleshipFieldUiAdapter : IBattleshipFieldUiAdapter
         {
             private readonly Dictionary<CellId, Label> _marks = CreateMarks();
+            private readonly Dictionary<CellId, VisualElement> _cellRoots = CreateCellRoots();
             private readonly Subject<CellId> _cellClicks = new();
 
             public Observable<CellId> OwnBoardCellClicks => _cellClicks;
@@ -112,17 +161,24 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
 
             public bool TryGetOwnCell(CellId id, out VisualElement cellRoot)
             {
+                if (_cellRoots.TryGetValue(id, out cellRoot!))
+                    return true;
+
                 cellRoot = new VisualElement();
-                return _marks.ContainsKey(id);
+                return false;
             }
 
             public bool TryGetOwnCellView(CellId id, out VisualElement cellRoot, out Label markLabel)
             {
-                cellRoot = new VisualElement();
+                _cellRoots.TryGetValue(id, out cellRoot!);
+                cellRoot ??= new VisualElement();
                 return _marks.TryGetValue(id, out markLabel!);
             }
 
             public string GetMarkText(CellId cellId) => _marks[cellId].text;
+
+            public bool HasCssClass(CellId cellId, string cssClass) =>
+                _cellRoots.TryGetValue(cellId, out var root) && root.ClassListContains(cssClass);
         }
 
         private static Dictionary<CellId, Label> CreateMarks()
@@ -130,14 +186,21 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
             var marks = new Dictionary<CellId, Label>();
 
             for (var row = 0; row < 10; row++)
-            {
                 for (var col = 0; col < 10; col++)
-                {
                     marks[new CellId(row, col)] = new Label();
-                }
-            }
 
             return marks;
+        }
+
+        private static Dictionary<CellId, VisualElement> CreateCellRoots()
+        {
+            var roots = new Dictionary<CellId, VisualElement>();
+
+            for (var row = 0; row < 10; row++)
+                for (var col = 0; col < 10; col++)
+                    roots[new CellId(row, col)] = new VisualElement();
+
+            return roots;
         }
     }
 }

@@ -11,10 +11,15 @@ namespace Runtime.Games.Battleship.UI.Placement
 {
     internal sealed class BattleshipPlacementPreviewRenderer
     {
-        private const string _previewMarkGlyph = "■";
+        private const string _placedClass = "placement-ship--placed";
+        private const string _selectedClass = "placement-ship--selected";
+        private const string _hoverClass = "placement-ship--hover";
 
         private readonly IGameplayFieldUiAdapter _fieldUiAdapter;
         private readonly IBattleshipFieldUiAdapter? _battleshipFieldUiAdapter;
+
+        private readonly HashSet<CellId> _markedCells = new();
+        private readonly HashSet<CellId> _hoverCells = new();
 
         public BattleshipPlacementPreviewRenderer(
             IGameplayFieldUiAdapter fieldUiAdapter,
@@ -24,62 +29,99 @@ namespace Runtime.Games.Battleship.UI.Placement
             _battleshipFieldUiAdapter = battleshipFieldUiAdapter;
         }
 
-        public void Render(IReadOnlyList<BattleshipPlacementShipState> ships)
+        public void Render(IReadOnlyList<BattleshipPlacementShipState> ships, int? selectedShipId = null)
         {
-            Clear();
+            ClearShipMarks();
 
             foreach (var ship in ships)
             {
-                RenderShipPreview(ship);
+                RenderShipPreview(ship, selectedShipId);
             }
         }
 
-        public void Clear()
+        public void RenderHoverPreview(CellId anchorCell, in BattleshipPlacementShipState ship)
         {
-            for (var row = 0; row < BattleshipEcsBoard.DefaultBoardSize; row++)
+            ClearHoverPreview();
+
+            var length = (int)ship.Size;
+            
+            for (var segment = 0; segment < length; segment++)
             {
-                for (var col = 0; col < BattleshipEcsBoard.DefaultBoardSize; col++)
+                var row = anchorCell.Major + (ship.Orientation == ShipOrientation.Vertical ? segment : 0);
+                var col = anchorCell.Minor + (ship.Orientation == ShipOrientation.Horizontal ? segment : 0);
+
+                if (row < 0 || row >= BattleshipEcsBoard.DefaultBoardSize
+                            || col < 0 || col >= BattleshipEcsBoard.DefaultBoardSize)
+                    continue;
+
+                var cellId = new CellId(row, col);
+              
+                if (TryGetPlacementCellRoot(cellId, out var cellRoot))
                 {
-                    if (TryGetPlacementCellView(new CellId(row, col), out var markLabel) && markLabel != null)
-                        markLabel.text = string.Empty;
+                    cellRoot.AddToClassList(_hoverClass);
+                    _hoverCells.Add(cellId);
                 }
             }
         }
 
-        private bool TryGetPlacementCellView(CellId cellId, out Label? markLabel)
+        public void ClearHoverPreview()
         {
-            markLabel = null;
-
-            if (_battleshipFieldUiAdapter is { HasOwnBoard: true }
-                && _battleshipFieldUiAdapter.TryGetOwnCellView(cellId, out _, out var ownMarkLabel))
+            foreach (var cellId in _hoverCells)
             {
-                markLabel = ownMarkLabel;
-                return true;
+                if (TryGetPlacementCellRoot(cellId, out var cellRoot))
+                    cellRoot.RemoveFromClassList(_hoverClass);
             }
 
-            if (_fieldUiAdapter.TryGetCellView(cellId, out _, out var gameplayMarkLabel) && gameplayMarkLabel != null)
-            {
-                markLabel = gameplayMarkLabel;
-                return true;
-            }
-
-            return false;
+            _hoverCells.Clear();
         }
 
-        private void RenderShipPreview(in BattleshipPlacementShipState ship)
+        public void Clear()
+        {
+            ClearHoverPreview();
+            ClearShipMarks();
+        }
+
+        private void ClearShipMarks()
+        {
+            foreach (var cellId in _markedCells)
+            {
+                if (TryGetPlacementCellRoot(cellId, out var cellRoot))
+                {
+                    cellRoot.RemoveFromClassList(_placedClass);
+                    cellRoot.RemoveFromClassList(_selectedClass);
+                }
+            }
+
+            _markedCells.Clear();
+        }
+
+        private bool TryGetPlacementCellRoot(CellId cellId, out VisualElement cellRoot)
+        {
+            if (_battleshipFieldUiAdapter is { HasOwnBoard: true }
+                && _battleshipFieldUiAdapter.TryGetOwnCell(cellId, out cellRoot))
+                return true;
+
+            return _fieldUiAdapter.TryGetCell(cellId, out cellRoot);
+        }
+
+        private void RenderShipPreview(in BattleshipPlacementShipState ship, int? selectedShipId)
         {
             if (!ship.IsPlaced || !ship.StartCell.HasValue)
                 return;
 
             var startCell = ship.StartCell.Value;
             var length = (int)ship.Size;
+            var cssClass = ship.ShipId == selectedShipId ? _selectedClass : _placedClass;
 
             for (var segment = 0; segment < length; segment++)
             {
                 if (!TryResolveShipSegmentCell(ship, startCell, segment, out var cellId))
                     continue;
 
-                SetMarkText(cellId, _previewMarkGlyph);
+                if (TryGetPlacementCellRoot(cellId, out var cellRoot))
+                    cellRoot.AddToClassList(cssClass);
+
+                _markedCells.Add(cellId);
             }
         }
 
@@ -96,12 +138,6 @@ namespace Runtime.Games.Battleship.UI.Placement
 
             return row is >= 0 and < BattleshipEcsBoard.DefaultBoardSize
                    && col is >= 0 and < BattleshipEcsBoard.DefaultBoardSize;
-        }
-
-        private void SetMarkText(CellId cellId, string text)
-        {
-            if (TryGetPlacementCellView(cellId, out var markLabel) && markLabel != null)
-                markLabel.text = text;
         }
     }
 }

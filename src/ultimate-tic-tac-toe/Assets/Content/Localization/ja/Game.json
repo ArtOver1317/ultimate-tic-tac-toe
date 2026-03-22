@@ -15,7 +15,7 @@
     "Game.Battleship.Placement.Status.PlaceAllShips": "すべての艦を配置してください。",
     "Game.Battleship.Placement.Status.Unavailable": "配置は利用できません。",
     "Game.Battleship.Placement.Status.WaitingOpponent": "配置を送信しました。対戦相手を待っています。",
-    "Game.Description.TicTacToe": "○×ゲーム — クラシックとアルティメット",
+    "Game.Description.TicTacToe": "クラシック○×ゲーム",
     "Game.OpponentTurn": "{playerName}のターン",
     "Game.Pause": "一時停止",
     "Game.PlayerTurn.Player1": "プレイヤー1 (X)",

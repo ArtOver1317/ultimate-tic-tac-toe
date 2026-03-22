@@ -31,12 +31,23 @@ VisualElement {
 }
 
 .stats-back-button {
-    height: 80px;
-    font-size: 32px;
+    height: 64px;
+    font-size: 28px;
+    border-radius: 14px;
+    background-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.stats-back-button:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+.stats-back-button:active {
+    background-color: rgba(255, 255, 255, 0.22);
 }
 
 .statistics-group-header {
-    color: rgb(255, 255, 255);
+    color: rgba(100, 200, 120, 0.92);
     font-size: 30px;
     -unity-font-style: bold;
     margin-top: 8px;
@@ -44,7 +55,7 @@ VisualElement {
 }
 
 .statistics-row {
-    color: rgb(255, 255, 255);
+    color: rgba(255, 255, 255, 0.82);
     font-size: 24px;
     white-space: normal;
     margin-bottom: 4px;

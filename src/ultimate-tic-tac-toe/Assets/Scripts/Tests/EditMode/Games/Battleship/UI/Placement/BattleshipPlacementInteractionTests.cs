@@ -119,8 +119,10 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
         public void WhenPhaseIsWaitingAndLocalPlayerAlreadyConfirmed_ThenStatusTextUsesWaitingStatusLocalization()
         {
             const string placeAllShipsKey = "Game.Battleship.Placement.Status.PlaceAllShips";
+            const string selectShipKey = "Game.Battleship.Placement.Status.SelectShip";
             const string waitingStatusKey = "Game.Battleship.Placement.Status.WaitingOpponent";
             const string placeAllShipsText = "__place_all_ships__";
+            const string selectShipText = "__select_ship__";
             const string waitingStatusText = "__waiting_for_opponent__";
 
             var snapshot = new FakeSnapshotProvider
@@ -140,7 +142,13 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
                     Arg.Is<TextKey>(key => key.Value == placeAllShipsKey),
                     Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(placeAllShipsText);
-           
+
+            localization.Resolve(
+                    Arg.Is<TextTableId>(table => table.Name == "Game"),
+                    Arg.Is<TextKey>(key => key.Value == selectShipKey),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
+                .Returns(selectShipText);
+
             localization.Resolve(
                     Arg.Is<TextTableId>(table => table.Name == "Game"),
                     Arg.Is<TextKey>(key => key.Value == waitingStatusKey),
@@ -167,7 +175,7 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
             panel.Should().NotBeNull();
             var statusLabel = panel!.Q<Label>(_statusLabelName);
             statusLabel.Should().NotBeNull();
-            statusLabel.text.Should().Be(placeAllShipsText);
+            statusLabel.text.Should().Be(placeAllShipsText + " " + selectShipText);
 
             snapshot.SlotXConfirmed = true;
             snapshot.Phase = BattleshipPhase.Waiting;

@@ -23,9 +23,8 @@
          Scale is a design token read by presenter: fontSizePx = cellSizePx * --mark-font-scale */
      --mark-font-scale: 0.62;
 
-     /* Monochrome differentiation: same hue, different alpha. */
-     --mark-color-x: rgba(20, 20, 20, 0.78);
-     --mark-color-o: rgba(20, 20, 20, 0.58);
+     --mark-color-x: rgba(210, 80, 80, 0.82);
+     --mark-color-o: rgba(70, 190, 175, 0.85);
 
     flex-grow: 1;
     width: 100%;
@@ -155,6 +154,31 @@
     color: rgba(255, 255, 255, 0.86);
     -unity-font-style: bold;
     margin-bottom: 4px;
+    transition-property: color;
+    transition-duration: 200ms;
+    transition-timing-function: ease;
+}
+
+/* === Battleship turn indicators === */
+
+.battleship-board--active-attack .battleship-board-grid {
+    border-color: rgba(255, 220, 55, 0.90);
+    border-width: 2px;
+    border-radius: 2px;
+}
+
+.battleship-board--active-attack .battleship-board-title {
+    color: rgba(255, 230, 65, 1);
+}
+
+.battleship-board--under-attack .battleship-board-grid {
+    border-color: rgba(255, 80, 80, 0.60);
+    border-width: 2px;
+    border-radius: 2px;
+}
+
+.battleship-board--under-attack .battleship-board-title {
+    color: rgba(255, 140, 140, 0.90);
 }
 
 .battleship-board-grid {
@@ -163,8 +187,102 @@
     align-items: center;
 }
 
+.battleship-board .cell {
+    background-color: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
 .battleship-board--own .cell {
-    background-color: rgba(255, 255, 255, 0.14);
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+/* === Battleship opponent board hit/sunk cell states === */
+
+.battleship-board--opponent .cell.battleship-opponent--hit {
+    background-color: rgba(200, 50, 50, 0.85);
+    border-color: rgba(240, 100, 100, 0.80);
+}
+
+.battleship-board--opponent .cell.battleship-opponent--sunk {
+    background-color: rgba(120, 15, 15, 0.95);
+    border-color: rgba(200, 60, 60, 0.85);
+}
+
+/* === Battleship own board battle states (specificity 0,3,0 beats base 0,2,0) === */
+
+.battleship-board--own .cell.battleship-own--ship {
+    background-color: rgba(55, 95, 170, 0.65);
+    border-color: rgba(100, 140, 220, 0.55);
+}
+
+.battleship-board--own .cell.battleship-own--ship:hover {
+    background-color: rgba(65, 110, 190, 0.72);
+}
+
+.battleship-board--own .cell.battleship-own--hit {
+    background-color: rgba(200, 50, 50, 0.85);
+    border-color: rgba(240, 100, 100, 0.80);
+}
+
+.battleship-board--own .cell.battleship-own--sunk {
+    background-color: rgba(120, 15, 15, 0.95);
+    border-color: rgba(200, 60, 60, 0.85);
+}
+
+.cell-mark #OwnMarkLabel.battleship-own--hit {
+    color: rgba(255, 230, 230, 1);
+    -unity-font-style: bold;
+    font-size: 20px;
+}
+
+.cell-mark #OwnMarkLabel.battleship-own--sunk {
+    color: rgba(255, 200, 200, 1);
+    -unity-font-style: bold;
+    font-size: 20px;
+}
+
+/* === Battleship placement ship state === */
+
+.cell.placement-ship--placed {
+    background-color: rgba(70, 120, 200, 0.75);
+    border-color: rgba(120, 170, 255, 0.9);
+    border-width: 1px;
+}
+
+.cell.placement-ship--selected {
+    background-color: rgba(50, 180, 110, 0.80);
+    border-color: rgba(100, 220, 150, 0.95);
+    border-width: 1px;
+}
+
+.cell.placement-ship--hover {
+    background-color: rgba(240, 210, 40, 0.82);
+    border-color: rgba(255, 235, 80, 1);
+    border-width: 2px;
+}
+
+/* Overrides native :hover when mouse is directly on the anchor cell */
+.cell:hover.placement-ship--hover {
+    background-color: rgba(240, 210, 40, 0.82);
+    border-color: rgba(255, 235, 80, 1);
+    border-width: 2px;
+}
+
+.placement-ready-button {
+    background-color: rgba(45, 150, 65, 0.88);
+    border-color: rgba(80, 200, 105, 0.9);
+    border-width: 2px;
+    color: rgba(255, 255, 255, 1);
+    padding-left: 14px;
+    padding-right: 14px;
+    -unity-font-style: bold;
+}
+
+.placement-status-label {
+    font-size: 13px;
+    color: rgba(255, 245, 195, 0.92);
+    margin-top: 4px;
+    -unity-text-align: middle-center;
 }
 
 .field-row,
@@ -256,19 +374,22 @@
 
 .cell-mark #MarkLabel.battleship-mark--miss,
 .cell-mark #OwnMarkLabel.battleship-mark--miss {
-    color: rgba(190, 220, 255, 0.82);
+    color: rgba(230, 248, 255, 1);
+    font-size: 36px;
 }
 
 .cell-mark #MarkLabel.battleship-mark--hit,
 .cell-mark #OwnMarkLabel.battleship-mark--hit {
-    color: rgba(255, 130, 130, 0.92);
+    color: rgba(255, 230, 230, 1);
     -unity-font-style: bold;
+    font-size: 20px;
 }
 
 .cell-mark #MarkLabel.battleship-mark--sunk,
 .cell-mark #OwnMarkLabel.battleship-mark--sunk {
-    color: rgba(255, 95, 95, 1);
+    color: rgba(255, 210, 210, 1);
     -unity-font-style: bold;
+    font-size: 20px;
 }
 
 .cell-mark.cell-mark--appearFrom {
@@ -315,11 +436,20 @@
 }
 
 .mini-board.mini-board--won-x {
-    border-color: rgba(255, 255, 255, 0.82);
+    border-color: var(--mark-color-x);
 }
 
 .mini-board.mini-board--won-o {
-    border-color: rgba(255, 255, 255, 0.65);
+    border-color: var(--mark-color-o);
+}
+
+/* Won overlays: tinted dark background hides underlying marks; text stays white for contrast. */
+.mini-board.mini-board--won-x .mini-board-status-overlay {
+    background-color: rgba(50, 12, 12, 0.80);
+}
+
+.mini-board.mini-board--won-o .mini-board-status-overlay {
+    background-color: rgba(8, 45, 45, 0.80);
 }
 
 .mini-board-status-overlay {
@@ -340,8 +470,6 @@
 }
 
 .mini-board.mini-board--closed .mini-board-status-overlay,
-.mini-board.mini-board--won-x .mini-board-status-overlay,
-.mini-board.mini-board--won-o .mini-board-status-overlay,
 .mini-board.mini-board--draw .mini-board-status-overlay {
     background-color: rgba(0, 0, 0, 0.42);
 }

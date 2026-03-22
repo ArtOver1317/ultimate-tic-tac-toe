@@ -15,10 +15,8 @@ namespace Runtime.Games.Battleship.UI.Board
 {
     public sealed class BattleshipBoardsBinder : IDisposable
     {
-        private const string _shipClass = "battleship-mark--ship";
-        private const string _missClass = "battleship-mark--miss";
-        private const string _hitClass = "battleship-mark--hit";
-        private const string _sunkClass = "battleship-mark--sunk";
+        private const string _placedClass = "placement-ship--placed";
+        private const string _selectedClass = "placement-ship--selected";
 
         private readonly IGameplayFieldUiAdapter _fieldUiAdapter;
         private readonly IBattleshipFieldUiAdapter _battleshipFieldUiAdapter;
@@ -68,6 +66,7 @@ namespace Runtime.Games.Battleship.UI.Board
                 .AddTo(_subscriptions);
 
             _isBound = true;
+            ClearPlacementClasses();
             RefreshBoards();
         }
 
@@ -95,11 +94,38 @@ namespace Runtime.Games.Battleship.UI.Board
             if (!_isBound)
                 return;
 
+            UpdateOpponentBoardVisibility();
+            UpdateTurnIndicator();
+
             if (!TryBuildRenderState(out var state))
                 return;
 
             RenderOpponentBoard(state.OpponentMarks, state.CellCount, state.BoardSize);
             RenderOwnBoard(state.OwnMarks, state.ShipOccupancy, state.CellCount, state.BoardSize);
+        }
+
+        private void UpdateOpponentBoardVisibility()
+        {
+            var phase = _snapshotProvider.Phase;
+            var isPlacing = phase == BattleshipPhase.Placement || phase == BattleshipPhase.Waiting;
+            var opponentBoard = _fieldUiAdapter.FieldContainer?.Q<VisualElement>(className: "battleship-board--opponent");
+            
+            if (opponentBoard != null)
+                opponentBoard.style.display = isPlacing ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        private void UpdateTurnIndicator()
+        {
+            var phase = _snapshotProvider.Phase;
+            var isBattle = phase == BattleshipPhase.Battle;
+            var localSlot = ResolveLocalSlot();
+            var isMyTurn = isBattle && _snapshotProvider.ActivePlayerSlot == localSlot;
+
+            var opponentBoard = _fieldUiAdapter.FieldContainer?.Q<VisualElement>(className: "battleship-board--opponent");
+            var ownBoard = _fieldUiAdapter.FieldContainer?.Q<VisualElement>(className: "battleship-board--own");
+
+            opponentBoard?.EnableInClassList("battleship-board--active-attack", isMyTurn);
+            ownBoard?.EnableInClassList("battleship-board--under-attack", isBattle && !isMyTurn);
         }
 
         private bool TryBuildRenderState(out BoardRenderState state)
@@ -129,11 +155,12 @@ namespace Runtime.Games.Battleship.UI.Board
                 var mark = GetMarkOrUnknown(marks, index);
                 var cellId = ToCellId(index, boardSize);
 
-                if (!_fieldUiAdapter.TryGetCellView(cellId, out _, out var markLabel) || markLabel == null)
+                if (!_fieldUiAdapter.TryGetCellView(cellId, out var cellRoot, out var markLabel) || markLabel == null)
                     continue;
 
-                var (text, cssClass) = ResolveOpponentMark(mark);
-                ApplyMark(markLabel, text, cssClass);
+                var (text, cssClass) = BattleshipBoardCellRenderer.ResolveOpponentMark(mark);
+                BattleshipBoardCellRenderer.ApplyMark(markLabel, text, cssClass);
+                BattleshipBoardCellRenderer.ApplyOpponentCellClass(cellRoot, mark);
             }
         }
 
@@ -149,11 +176,12 @@ namespace Runtime.Games.Battleship.UI.Board
                 var hasShip = index < shipOccupancy.Length && shipOccupancy[index];
                 var cellId = ToCellId(index, boardSize);
 
-                if (!_battleshipFieldUiAdapter.TryGetOwnCellView(cellId, out _, out var markLabel))
+                if (!_battleshipFieldUiAdapter.TryGetOwnCellView(cellId, out var cellRoot, out var markLabel))
                     continue;
 
-                var (text, cssClass) = ResolveOwnMark(mark, hasShip);
-                ApplyMark(markLabel, text, cssClass);
+                var (text, markCssClass) = BattleshipBoardCellRenderer.ResolveOwnMark(mark, hasShip);
+                BattleshipBoardCellRenderer.ApplyMark(markLabel, text, markCssClass);
+                BattleshipBoardCellRenderer.ApplyOwnCellClass(cellRoot, mark, hasShip);
             }
         }
 
@@ -232,37 +260,29 @@ namespace Runtime.Games.Battleship.UI.Board
             return marks[index];
         }
 
-        private static (string text, string? cssClass) ResolveOpponentMark(BattleshipCellMark mark) =>
-            mark switch
-            {
-                BattleshipCellMark.Miss => ("o", _missClass),
-                BattleshipCellMark.Hit => ("X", _hitClass),
-                BattleshipCellMark.Sunk => ("X", _sunkClass),
-                _ => (string.Empty, null),
-            };
-
-        private static (string text, string? cssClass) ResolveOwnMark(BattleshipCellMark mark, bool hasShip) =>
-            mark switch
-            {
-                BattleshipCellMark.Miss => ("o", _missClass),
-                BattleshipCellMark.Hit => ("X", _hitClass),
-                BattleshipCellMark.Sunk => ("X", _sunkClass),
-                _ when hasShip => ("S", _shipClass),
-                _ => (string.Empty, null),
-            };
-
-        private static void ApplyMark(Label markLabel, string text, string? cssClass)
+        private void ClearPlacementClasses()
         {
-            markLabel.text = text;
-            markLabel.RemoveFromClassList("mark-label--x");
-            markLabel.RemoveFromClassList("mark-label--o");
-            markLabel.RemoveFromClassList(_shipClass);
-            markLabel.RemoveFromClassList(_missClass);
-            markLabel.RemoveFromClassList(_hitClass);
-            markLabel.RemoveFromClassList(_sunkClass);
+            const int boardSize = BattleshipEcsBoard.DefaultBoardSize;
 
-            if (!string.IsNullOrEmpty(cssClass))
-                markLabel.AddToClassList(cssClass);
+            for (var row = 0; row < boardSize; row++)
+            {
+                for (var col = 0; col < boardSize; col++)
+                {
+                    var cellId = new CellId(row, col);
+
+                    if (_battleshipFieldUiAdapter.TryGetOwnCell(cellId, out var ownCell))
+                    {
+                        ownCell.RemoveFromClassList(_placedClass);
+                        ownCell.RemoveFromClassList(_selectedClass);
+                    }
+
+                    if (_fieldUiAdapter.TryGetCell(cellId, out var cell))
+                    {
+                        cell.RemoveFromClassList(_placedClass);
+                        cell.RemoveFromClassList(_selectedClass);
+                    }
+                }
+            }
         }
 
         private void ThrowIfDisposed()

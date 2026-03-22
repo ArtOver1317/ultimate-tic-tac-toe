@@ -15,7 +15,7 @@
     "Game.Battleship.Placement.Status.PlaceAllShips": "Разместите все корабли.",
     "Game.Battleship.Placement.Status.Unavailable": "Расстановка недоступна.",
     "Game.Battleship.Placement.Status.WaitingOpponent": "Расстановка отправлена. Ожидаем соперника.",
-    "Game.Description.TicTacToe": "Крестики-нолики — классика и ультимейт",
+    "Game.Description.TicTacToe": "Классические крестики-нолики",
     "Game.OpponentTurn": "Ход игрока {playerName}",
     "Game.Pause": "Пауза",
     "Game.PlayerTurn.Player1": "Игрок 1 (X)",

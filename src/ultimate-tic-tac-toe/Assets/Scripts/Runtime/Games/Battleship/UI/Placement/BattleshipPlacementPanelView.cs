@@ -94,6 +94,7 @@ namespace Runtime.Games.Battleship.UI.Placement
             root.Add(CreateControlsRow());
             root.Add(CreateShipsRow(ships));
             StatusLabel = new Label { name = _statusLabelName };
+            StatusLabel.AddToClassList("placement-status-label");
             root.Add(StatusLabel);
             return root;
         }
@@ -136,6 +137,7 @@ namespace Runtime.Games.Battleship.UI.Placement
             RotateButton = CreateActionButton(_onRotate);
             RemoveButton = CreateActionButton(_onRemove);
             ReadyButton = CreateActionButton(_onReady);
+            ReadyButton.AddToClassList("placement-ready-button");
 
             controlsRow.Add(AutoButton);
             controlsRow.Add(RotateButton);

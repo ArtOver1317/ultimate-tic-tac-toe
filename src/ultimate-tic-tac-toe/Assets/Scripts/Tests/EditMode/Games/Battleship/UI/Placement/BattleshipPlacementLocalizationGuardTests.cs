@@ -31,21 +31,24 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
         }
 
         [Test]
-        public void WhenCheckingPlacementUiControllerSource_ThenUsesPlacementLocalizationKeys()
+        public void WhenCheckingPlacementTextBinderSource_ThenUsesPlacementLocalizationKeys()
         {
-            var uiControllerSource = ReadPlacementUiControllerSource();
+            var textBinderSource = ReadSourceFile("BattleshipPlacementPanelTextBinder.cs");
 
-            uiControllerSource.Should().Contain("Game.Battleship.Placement.AutoButton");
-            uiControllerSource.Should().Contain("Game.Battleship.Placement.RotateButton");
-            uiControllerSource.Should().Contain("Game.Battleship.Placement.RemoveButton");
-            uiControllerSource.Should().Contain("Game.Battleship.Placement.ReadyButton");
-            uiControllerSource.Should().Contain("Game.Battleship.Placement.Status.WaitingOpponent");
-            uiControllerSource.Should().Contain("Game.Battleship.Placement.Status.Unavailable");
-            uiControllerSource.Should().Contain("Game.Battleship.Placement.Status.PlaceAllShips");
-            uiControllerSource.Should().Contain("Game.Battleship.Placement.Status.ConfirmReady");
+            textBinderSource.Should().Contain("Game.Battleship.Placement.AutoButton");
+            textBinderSource.Should().Contain("Game.Battleship.Placement.RotateButton");
+            textBinderSource.Should().Contain("Game.Battleship.Placement.RemoveButton");
+            textBinderSource.Should().Contain("Game.Battleship.Placement.ReadyButton");
+            textBinderSource.Should().Contain("Game.Battleship.Placement.Status.WaitingOpponent");
+            textBinderSource.Should().Contain("Game.Battleship.Placement.Status.Unavailable");
+            textBinderSource.Should().Contain("Game.Battleship.Placement.Status.PlaceAllShips");
+            textBinderSource.Should().Contain("Game.Battleship.Placement.Status.ConfirmReady");
         }
 
-        private static string ReadPlacementUiControllerSource()
+        private static string ReadPlacementUiControllerSource() =>
+            ReadSourceFile("BattleshipPlacementUiController.cs");
+
+        private static string ReadSourceFile(string fileName)
         {
             var sourcePath = Path.Combine(
                 Application.dataPath,
@@ -55,9 +58,9 @@ namespace Tests.EditMode.Games.Battleship.UI.Placement
                 "Battleship",
                 "UI",
                 "Placement",
-                "BattleshipPlacementUiController.cs");
+                fileName);
 
-            File.Exists(sourcePath).Should().BeTrue("placement UI controller source file must exist");
+            File.Exists(sourcePath).Should().BeTrue($"{fileName} source file must exist");
             return File.ReadAllText(sourcePath);
         }
     }

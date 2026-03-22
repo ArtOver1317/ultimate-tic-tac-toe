@@ -8,6 +8,7 @@ using NSubstitute;
 using NUnit.Framework;
 using Runtime.Gameplay;
 using Runtime.Games.TicTacToe;
+using Runtime.Games.TicTacToe.Ultimate.UI;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
@@ -199,6 +200,49 @@ namespace Tests.EditMode.Games.TicTacToe.UI.Board
 
             // Assert
             act.Should().Throw<ObjectDisposedException>();
+        }
+
+        // ── TryGetMiniBoardCenter ──
+
+        [Test]
+        public void WhenTryGetMiniBoardCenterBeforeBind_ThenReturnsFalse()
+        {
+            var adapter = (IUltimateGameplayFieldUiAdapter)_presenter;
+
+            var result = adapter.TryGetMiniBoardCenter(0, out var center);
+
+            result.Should().BeFalse();
+            center.Should().Be(default(Vector2));
+        }
+
+        [Test]
+        public void WhenTryGetMiniBoardCenterAfterUltimateBind_AndNoLayoutPass_ThenReturnsFalse()
+        {
+            // In EditMode with no real panel, worldBound.width == 0 and cache is never populated.
+            _presenter.BindAsync(FieldRenderSpec.Ultimate(), CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+
+            var adapter = (IUltimateGameplayFieldUiAdapter)_presenter;
+
+            var result = adapter.TryGetMiniBoardCenter(0, out _);
+
+            result.Should().BeFalse();
+        }
+
+        [Test]
+        public void WhenTryGetMiniBoardCenterAfterClassicBind_ThenReturnsFalse()
+        {
+            // Classic mode has no mini-boards, so the adapter should always return false.
+            _presenter.BindAsync(FieldRenderSpec.Classic(3), CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+
+            var adapter = (IUltimateGameplayFieldUiAdapter)_presenter;
+
+            var result = adapter.TryGetMiniBoardCenter(0, out _);
+
+            result.Should().BeFalse();
         }
 
         private static (GameplayFieldPresenter presenter, UIDocument document, GameObject gameObject) CreatePresenter(
