@@ -3,26 +3,25 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using FluentAssertions;
-using NUnit.Framework;
 using NSubstitute;
+using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Coordinator;
-using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.Services.UI;
 using Runtime.UI.MainMenu;
+using Tests.PlayMode.GameModes.Wizard.Fixtures;
 using UnityEngine.TestTools;
 
-namespace Tests.PlayMode.GameModes.Wizard
+namespace Tests.PlayMode.GameModes.Wizard.Views
 {
     [TestFixture]
     public sealed class GameModeSelectionE2ESmokeTests
@@ -69,7 +68,9 @@ namespace Tests.PlayMode.GameModes.Wizard
             public void Dispose()
             {
                 foreach (var entry in _texts.Values)
+                {
                     entry.Dispose();
+                }
 
                 _errors.Dispose();
                 _isBusy.Dispose();
@@ -80,6 +81,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             private ReactiveProperty<string> GetOrCreate(LocaleId locale, string key)
             {
                 var id = (locale, key ?? string.Empty);
+                
                 if (!_texts.TryGetValue(id, out var value))
                 {
                     value = new ReactiveProperty<string>(key ?? string.Empty);

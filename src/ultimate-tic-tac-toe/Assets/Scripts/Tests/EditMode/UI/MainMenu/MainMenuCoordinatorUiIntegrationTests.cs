@@ -16,7 +16,7 @@ using Runtime.UI.Settings;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.UI.MainMenu
 {
     public partial class MainMenuCoordinatorTests
     {

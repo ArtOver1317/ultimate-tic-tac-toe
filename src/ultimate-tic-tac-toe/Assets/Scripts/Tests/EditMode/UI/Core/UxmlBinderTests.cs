@@ -7,7 +7,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.UI.Core
 {
     [TestFixture]
     public class UxmlBinderTests

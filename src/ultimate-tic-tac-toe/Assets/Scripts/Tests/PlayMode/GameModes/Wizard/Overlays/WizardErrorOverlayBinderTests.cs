@@ -11,7 +11,6 @@ using NSubstitute;
 using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.UI.Components;
@@ -21,7 +20,7 @@ using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
 
-namespace Tests.PlayMode.GameModes.Wizard
+namespace Tests.PlayMode.GameModes.Wizard.Overlays
 {
     [TestFixture]
     [Category("Integration")]
@@ -79,6 +78,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         private static IEnumerator WaitUntilRootReady(UIDocument uiDocument, float timeoutSeconds)
         {
             var start = Time.realtimeSinceStartup;
+           
             while (uiDocument.rootVisualElement == null)
             {
                 if (Time.realtimeSinceStartup - start >= timeoutSeconds)
@@ -91,9 +91,9 @@ namespace Tests.PlayMode.GameModes.Wizard
         [UnityTearDown]
         public IEnumerator TearDown()
         {
-            _binding?.Dispose();
-            _errorSource?.Dispose();
-            _okTextStream?.Dispose();
+            _binding.Dispose();
+            _errorSource.Dispose();
+            _okTextStream.Dispose();
 
             if (_gameObject != null)
                 Object.Destroy(_gameObject);
@@ -259,10 +259,8 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             // Arrange
             _binding.Dispose();
-            _binding = WizardErrorOverlayBinder.Bind(_overlay, _localization, _errorSource, () =>
-            {
-                throw new InvalidOperationException("ack failed");
-            });
+           
+            _binding = WizardErrorOverlayBinder.Bind(_overlay, _localization, _errorSource, () => throw new InvalidOperationException("ack failed"));
 
             var error = new WizardError("code", "Errors.GameWizard.Modal", true, ErrorDisplayType.Modal);
             _errorSource.Value = error;
@@ -364,6 +362,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             yield return WaitUntilTime(
                 timeSetA + durationSeconds - 0.02f,
                 context: "no ack before A expiry");
+            
             ackCount.Should().Be(0);
             var toast = _overlay.Q<WizardToast>("WizardToast");
             toast.IsVisible.Should().BeTrue();
@@ -379,6 +378,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             yield return WaitUntilTime(
                 timeSetB + durationSeconds + 0.2f,
                 context: "no second ack after B window");
+            
             ackCount.Should().Be(1);
         }
 
@@ -396,6 +396,7 @@ namespace Tests.PlayMode.GameModes.Wizard
                 _errorSource.Value = error;
                 yield return null;
                 yield return WaitForSecondsPolling(0.05f);
+                
                 _binding.Dispose();
 
                 yield return WaitForSecondsPolling(0.3f);
@@ -430,20 +431,20 @@ namespace Tests.PlayMode.GameModes.Wizard
             yield return null;
         }
 
-        private void Acknowledge()
-        {
-            _ackCount++;
-        }
+        private void Acknowledge() => _ackCount++;
 
         private static IEnumerator WaitUntilAsync(Func<bool> condition, float timeoutSeconds, string? context = null)
         {
             var start = Time.realtimeSinceStartup;
+           
             while (!condition())
             {
                 if (Time.realtimeSinceStartup - start >= timeoutSeconds)
+                {
                     Assert.Fail(string.IsNullOrWhiteSpace(context)
                         ? "Condition not met within timeout."
                         : $"Condition not met within timeout: {context}");
+                }
 
                 yield return null;
             }
@@ -452,20 +453,26 @@ namespace Tests.PlayMode.GameModes.Wizard
         private static IEnumerator WaitForSecondsPolling(float seconds)
         {
             var start = Time.realtimeSinceStartup;
+            
             while (Time.realtimeSinceStartup - start < seconds)
+            {
                 yield return null;
+            }
         }
 
         private static IEnumerator WaitUntilTime(float targetTime, string? context = null)
         {
             while (Time.realtimeSinceStartup < targetTime)
+            {
                 yield return null;
+            }
         }
 
         private static TimeSpan SetToastDuration(TimeSpan duration)
         {
             var field = typeof(WizardErrorOverlayDefaults)
                 .GetField("ToastDuration", BindingFlags.Public | BindingFlags.Static);
+            
             field.Should().NotBeNull();
 
             var previous = (TimeSpan)field.GetValue(null);
@@ -484,5 +491,3 @@ namespace Tests.PlayMode.GameModes.Wizard
         }
     }
 }
-
-#nullable restore

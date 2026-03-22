@@ -4,14 +4,14 @@ using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
-using Runtime.Infrastructure.GameStateMachine;
-using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
+using Runtime.Infrastructure.GameStateMachine;
+using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Services.Scenes;
 using Runtime.Services.UI;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.Infrastructure.GameStateMachine.States
 {
     [TestFixture]
     public class LoadGameplayStateTests

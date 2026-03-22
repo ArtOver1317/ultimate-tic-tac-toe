@@ -8,7 +8,7 @@ using NUnit.Framework;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.Infrastructure.GameStateMachine
 {
     [TestFixture]
     public class GameStateMachineTests
@@ -28,7 +28,7 @@ namespace Tests.EditMode
         [Test]
         public void WhenConstructor_ThenSetsCurrentStateToNull()
         {
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
 
             stateMachine.CurrentState.Should().BeNull();
         }
@@ -43,7 +43,7 @@ namespace Tests.EditMode
             var mockState = Substitute.For<IState>();
             mockState.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(mockState);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
 
             await stateMachine.EnterAsync<IState>(_cancellationToken);
 
@@ -58,7 +58,7 @@ namespace Tests.EditMode
             var mockState = Substitute.For<IState>();
             mockState.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(mockState);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
 
             await stateMachine.EnterAsync<IState>(_cancellationToken);
 
@@ -74,7 +74,7 @@ namespace Tests.EditMode
             state1.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             state2.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(state1, state2);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
             await stateMachine.EnterAsync<IState>(_cancellationToken);
 
             await stateMachine.EnterAsync<IState>(_cancellationToken);
@@ -94,7 +94,7 @@ namespace Tests.EditMode
             state1.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             state2.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(state1, state2);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
             await stateMachine.EnterAsync<IState>(_cancellationToken);
             
             state1.ClearReceivedCalls();
@@ -119,7 +119,7 @@ namespace Tests.EditMode
             firstStateInstance.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             secondStateInstance.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(firstStateInstance, secondStateInstance);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
             await stateMachine.EnterAsync<IState>(_cancellationToken);
 
             await stateMachine.EnterAsync<IState>(_cancellationToken);
@@ -140,7 +140,7 @@ namespace Tests.EditMode
             state2.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             state3.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(state1, state2, state3);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
 
             await stateMachine.EnterAsync<IState>(_cancellationToken);
             await stateMachine.EnterAsync<IState>(_cancellationToken); 
@@ -166,7 +166,7 @@ namespace Tests.EditMode
             state2.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             state3.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(state1, state2, state3);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
 
             await stateMachine.EnterAsync<IState>(_cancellationToken);
             stateMachine.CurrentState.Should().Be(state1);
@@ -189,7 +189,7 @@ namespace Tests.EditMode
             var payloadState = Substitute.For<IPayloadedState<string>>();
             payloadState.EnterAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IPayloadedState<string>>().Returns(payloadState);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
 
             await stateMachine.EnterAsync<IPayloadedState<string>, string>(testPayload, _cancellationToken);
 
@@ -205,7 +205,7 @@ namespace Tests.EditMode
             payloadState.EnterAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IState>().Returns(state1);
             _stateFactory.CreateState<IPayloadedState<int>>().Returns(payloadState);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
             await stateMachine.EnterAsync<IState>(_cancellationToken);
 
             state1.ClearReceivedCalls();
@@ -228,7 +228,7 @@ namespace Tests.EditMode
             var payloadState = Substitute.For<IPayloadedState<string>>();
             payloadState.EnterAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IPayloadedState<string>>().Returns(payloadState);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
 
             Func<Task> act = () => stateMachine.EnterAsync<IPayloadedState<string>, string>(null, _cancellationToken).AsTask();
 
@@ -250,7 +250,7 @@ namespace Tests.EditMode
             state3.EnterAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             _stateFactory.CreateState<IPayloadedState<string>>().Returns(state1, state3);
             _stateFactory.CreateState<IPayloadedState<int>>().Returns(state2);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
 
             await stateMachine.EnterAsync<IPayloadedState<string>, string>(payload1, _cancellationToken);
             await stateMachine.EnterAsync<IPayloadedState<int>, int>(payload2, _cancellationToken);
@@ -276,7 +276,7 @@ namespace Tests.EditMode
         public async Task WhenFactoryReturnsNull_ThenThrowsInvalidOperationException()
         {
             _stateFactory.CreateState<IState>().Returns((IState)null);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
 
             Func<Task> act = () => stateMachine.EnterAsync<IState>(_cancellationToken).AsTask();
 
@@ -288,7 +288,7 @@ namespace Tests.EditMode
         public async Task WhenFactoryReturnsNullForPayloadState_ThenThrowsInvalidOperationException()
         {
             _stateFactory.CreateState<IPayloadedState<int>>().Returns((IPayloadedState<int>)null);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
 
             Func<Task> act = () => stateMachine.EnterAsync<IPayloadedState<int>, int>(42, _cancellationToken).AsTask();
 
@@ -309,7 +309,7 @@ namespace Tests.EditMode
             state1.When(x => x.Exit()).Do(_ => throw expectedException);
             
             _stateFactory.CreateState<IState>().Returns(state1, state2);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
             
             await stateMachine.EnterAsync<IState>(_cancellationToken);
             var previousState = stateMachine.CurrentState;
@@ -335,7 +335,7 @@ namespace Tests.EditMode
             state2.EnterAsync(Arg.Any<CancellationToken>()).Returns(UniTask.FromException(expectedException));
             
             _stateFactory.CreateState<IState>().Returns(state1, state2);
-            var stateMachine = new GameStateMachine(_stateFactory);
+            var stateMachine = new Runtime.Infrastructure.GameStateMachine.GameStateMachine(_stateFactory);
             
             await stateMachine.EnterAsync<IState>(_cancellationToken);
             

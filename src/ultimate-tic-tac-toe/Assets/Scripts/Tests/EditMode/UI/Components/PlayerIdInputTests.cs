@@ -1,6 +1,5 @@
 #nullable enable
 
-using System;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.UI.Components;
@@ -106,5 +105,3 @@ namespace Tests.EditMode.UI.Components
         }
     }
 }
-
-#nullable restore

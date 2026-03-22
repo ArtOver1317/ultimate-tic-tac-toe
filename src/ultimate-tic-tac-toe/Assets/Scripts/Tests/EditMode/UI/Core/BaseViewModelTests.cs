@@ -4,7 +4,7 @@ using NUnit.Framework;
 using R3;
 using Runtime.UI.Core;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.UI.Core
 {
     [TestFixture]
     public class BaseViewModelTests

@@ -3,7 +3,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using Runtime.UI.MainMenu;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.UI.MainMenu
 {
     public partial class MainMenuCoordinatorTests
     {

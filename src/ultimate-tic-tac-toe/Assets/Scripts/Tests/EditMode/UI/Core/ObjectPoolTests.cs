@@ -3,7 +3,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Services.UI;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.UI.Core
 {
     [TestFixture]
     public class ObjectPoolTests

@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 
-namespace Tests.PlayMode.GameModes.Wizard
+namespace Tests.PlayMode.GameModes.Wizard.Fixtures
 {
     /// <summary>
     /// Stub <see cref="ILocalizationService"/> that returns key values as-is.

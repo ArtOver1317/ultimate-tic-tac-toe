@@ -9,7 +9,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using VContainer;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.UI.Core
 {
     [TestFixture]
     public class ViewModelFactoryTests

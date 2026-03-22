@@ -8,7 +8,7 @@ using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
 
-namespace Tests.PlayMode.GameModes.Wizard
+namespace Tests.PlayMode.GameModes.Wizard.Overlays
 {
     [TestFixture]
     [Category("Integration")]

@@ -6,7 +6,7 @@ using Runtime.Services.UI;
 using Runtime.UI.Core;
 using VContainer;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.UI.Core
 {
     [TestFixture]
     public class UIPoolManagerTests

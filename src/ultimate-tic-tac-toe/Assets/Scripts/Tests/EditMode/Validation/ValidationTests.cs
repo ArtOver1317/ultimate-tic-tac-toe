@@ -1,13 +1,13 @@
 using System.Collections.Generic;
 using System.Linq;
+using FluentAssertions;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using FluentAssertions;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.Validation
 {
     [TestFixture]
     [Category("Integration")]

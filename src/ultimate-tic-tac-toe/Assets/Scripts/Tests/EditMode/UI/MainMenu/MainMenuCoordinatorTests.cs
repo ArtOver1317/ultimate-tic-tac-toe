@@ -1,18 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
-using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Coordinator;
-using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
@@ -22,10 +16,9 @@ using Runtime.Services.UI;
 using Runtime.UI.MainMenu;
 using Runtime.UI.Settings;
 using UnityEngine;
-using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.UI.MainMenu
 {
     [TestFixture]
     public partial class MainMenuCoordinatorTests

@@ -1,14 +1,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.Gameplay;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Coordinator;
@@ -16,7 +14,6 @@ using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
 using Runtime.GameModes.Wizard.ViewModels;
 using Runtime.GameModes.Wizard.ViewModels.MatchSetup;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.Services.UI.Assets;
@@ -31,15 +28,15 @@ using Object = UnityEngine.Object;
 
 #pragma warning disable CS8632
 
-namespace Tests.PlayMode.GameModes.Wizard
+namespace Tests.PlayMode.GameModes.Wizard.Views
 {
     [TestFixture]
     [Category("Integration")]
-    public class MatchSetupViewTests
+    public partial class MatchSetupViewTests
     {
-        private const string MatchSetupUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/MatchSetup.uxml";
-        private const string ClassicSettingsUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/ModeSettings/ClassicModeSettings.uxml";
-        private const string UltimateSettingsUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/ModeSettings/UltimateModeSettings.uxml";
+        private const string _matchSetupUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/MatchSetup.uxml";
+        private const string _classicSettingsUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/ModeSettings/ClassicModeSettings.uxml";
+        private const string _ultimateSettingsUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/ModeSettings/UltimateModeSettings.uxml";
 
         private GameObject _gameObject;
         private UIDocument _uiDocument;
@@ -61,9 +58,9 @@ namespace Tests.PlayMode.GameModes.Wizard
         [UnitySetUp]
         public IEnumerator SetUp()
         {
-            _matchSetupUxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(MatchSetupUxmlPath);
-            _classicSettingsUxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(ClassicSettingsUxmlPath);
-            _ultimateSettingsUxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UltimateSettingsUxmlPath);
+            _matchSetupUxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(_matchSetupUxmlPath);
+            _classicSettingsUxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(_classicSettingsUxmlPath);
+            _ultimateSettingsUxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(_ultimateSettingsUxmlPath);
 
             _matchSetupUxml.Should().NotBeNull();
             _classicSettingsUxml.Should().NotBeNull();
@@ -75,6 +72,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             _view = _gameObject.AddComponent<MatchSetupView>();
 
             _localization = Substitute.For<ILocalizationService>();
+           
             _localization
                 .Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(callInfo => Observable.Return(callInfo.Arg<TextKey>().Value));
@@ -93,6 +91,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             _coordinator.IsTransitioning.Returns(_isTransitioning);
             _coordinator.IsSubmitting.Returns(_isSubmitting);
             _coordinator.CurrentError.Returns(_currentError);
+          
             _coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(callInfo =>
             {
                 callInfo[0] = _session;
@@ -100,11 +99,13 @@ namespace Tests.PlayMode.GameModes.Wizard
             });
 
             var catalog = Substitute.For<IGameCatalog>();
+          
             catalog.TryGetStrategy("classic", out Arg.Any<IGameStrategy>()).Returns(callInfo =>
             {
                 callInfo[1] = new TestStrategy("classic", new TestSettingsViewModel(new TestGameModeConfig("classic")));
                 return true;
             });
+           
             catalog.TryGetStrategy("ultimate", out Arg.Any<IGameStrategy>()).Returns(callInfo =>
             {
                 callInfo[1] = new TestStrategy("ultimate", new TestSettingsViewModel(new TestGameModeConfig("ultimate")));
@@ -112,12 +113,14 @@ namespace Tests.PlayMode.GameModes.Wizard
             });
 
             var difficultyCatalog = Substitute.For<IBotDifficultyCatalog>();
+           
             difficultyCatalog.Difficulties.Returns(new[]
             {
                 new BotDifficulty("Easy", "GameWizard.MatchSetup.BotDifficulty.Easy", 0),
                 new BotDifficulty("Normal", "GameWizard.MatchSetup.BotDifficulty.Normal", 1),
                 new BotDifficulty("Hard", "GameWizard.MatchSetup.BotDifficulty.Hard", 2),
             });
+           
             _viewModel = new MatchSetupViewModel(catalog, _coordinator, _localization, difficultyCatalog);
 
             _assetProvider = new FakeViewAssetProvider();
@@ -152,158 +155,6 @@ namespace Tests.PlayMode.GameModes.Wizard
             yield return null;
         }
 
-        [UnityTest]
-        [Timeout(5000)]
-        public IEnumerator WhenActiveSettingsBecomesNull_ThenClearsModeOptionsAndDisposesLease() => UniTask.ToCoroutine(async () =>
-        {
-            // Arrange
-            // Act
-            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
-            await _assetProvider.WaitForLastLoadAsync();
-
-            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId(null).WithVersion(2));
-            await UniTask.Yield();
-
-            // Assert
-            _assetProvider.LastLeaseDisposed.Should().BeTrue();
-            GetModeOptionsHost().childCount.Should().Be(0);
-            _binder.DisposedCount.Should().Be(1);
-        });
-
-        [UnityTest]
-        [Timeout(5000)]
-        public IEnumerator WhenActiveSettingsChangesTwiceQuickly_ThenOnlyLatestSettingsAreApplied() => UniTask.ToCoroutine(async () =>
-        {
-            // Arrange
-            _assetProvider.SetDelay("ui/mode-settings/classic", TimeSpan.FromMilliseconds(200));
-            _assetProvider.SetDelay("ui/mode-settings/ultimate", TimeSpan.Zero);
-            _assetProvider.SetIgnoreCancellation("ui/mode-settings/classic", true);
-
-            // Act
-            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
-            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("ultimate").WithVersion(2));
-
-            await _assetProvider.WaitForLastLoadAsync();
-            await WaitUntilAsync(
-                () => _assetProvider.DisposedLeases.ContainsKey("ui/mode-settings/classic"),
-                timeoutMs: 1000);
-
-            // Assert
-            GetModeOptionsHost().Q<Label>("InfoLabel").Should().NotBeNull();
-            _assetProvider.DisposedLeases.Should().ContainKey("ui/mode-settings/classic");
-        });
-
-        [UnityTest]
-        [Timeout(5000)]
-        public IEnumerator WhenResetForPoolCalled_ThenCancelsPendingLoadAndCleansUp() => UniTask.ToCoroutine(async () =>
-        {
-            // Arrange
-            _assetProvider.SetDelay("ui/mode-settings/classic", TimeSpan.FromMilliseconds(500));
-
-            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
-            await WaitUntilAsync(() => _assetProvider.IsLoadInFlight, timeoutMs: 1000);
-
-            // Act
-            _view.ResetForPool();
-            await WaitUntilAsync(() => _assetProvider.WasLastLoadCancelled, timeoutMs: 1000);
-
-            // Assert
-            GetModeOptionsHost().childCount.Should().Be(0);
-            _assetProvider.WasLastLoadCancelled.Should().BeTrue();
-        });
-
-        [UnityTest]
-        [Timeout(5000)]
-        public IEnumerator WhenActiveSettingsIsNotNullAndNoBinderCanBind_ThenDoesNotThrowAndStillShowsLoadedUxml() => UniTask.ToCoroutine(async () =>
-        {
-            // Arrange
-            var noBinderView = CreateViewWithBinders(Array.Empty<IGameSettingsBinder>());
-            var localSession = new FakeGameSession(GameSessionSnapshot.Default);
-            var localCoordinator = CreateCoordinator(localSession);
-            var viewModel = CreateViewModelWithCatalog(localCoordinator);
-
-            noBinderView.SetViewModel(viewModel);
-            noBinderView.RebindUxmlForTests();
-            noBinderView.Show();
-
-            // Act
-            localSession.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
-            await _assetProvider.WaitForLastLoadAsync();
-
-            // Assert
-            var host = noBinderView.RootForTests.Q<ModeOptionsHost>("ModeOptionsHost");
-            host.childCount.Should().BeGreaterThan(0);
-
-            Object.Destroy(noBinderView.gameObject);
-            viewModel.Dispose();
-            localSession.Dispose();
-        });
-
-        [UnityTest]
-        [Timeout(5000)]
-        public IEnumerator WhenAssetProviderThrows_ThenDoesNotLeakPreviousLeaseAndHostIsEmpty() => UniTask.ToCoroutine(async () =>
-        {
-            // Arrange
-            _assetProvider.SetThrow("ui/mode-settings/ultimate", new InvalidOperationException("boom"));
-
-            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("classic").WithVersion(1));
-            await _assetProvider.WaitForLastLoadAsync();
-
-            await WaitUntilAsync(() => GetModeOptionsHost().Q<Label>("BoardSizeValue") != null, timeoutMs: 1000);
-
-            LogAssert.Expect(LogType.Error, new Regex("InvalidOperationException: boom"));
-
-            // Act
-            _session.EmitSnapshot(GameSessionSnapshot.Default.WithSelectedGameId("ultimate").WithVersion(2));
-            await _assetProvider.WaitForLastLoadAsync();
-
-            // Assert
-            _assetProvider.DisposedLeases.Should().ContainKey("ui/mode-settings/classic");
-            GetModeOptionsHost().childCount.Should().Be(0);
-        });
-
-        [UnityTest]
-        [Timeout(5000)]
-        public IEnumerator WhenBlockingErrorIsPresentInMatchSetupView_ThenStartIsDisabled()
-        {
-            // Arrange
-            _session.SetCanStart(true);
-            _view.SetViewModel(_viewModel);
-            yield return null;
-
-            // Act
-            _currentError.Value = new WizardError(
-                "code",
-                "Errors.GameWizard.Blocking",
-                true,
-                ErrorDisplayType.Modal);
-            yield return null;
-
-            // Assert
-            GetStartButton().enabledInHierarchy.Should().BeFalse();
-        }
-
-        [UnityTest]
-        [Timeout(5000)]
-        public IEnumerator WhenNonBlockingModalErrorIsPresentInMatchSetupView_ThenStartRemainsEnabledIfCanStart()
-        {
-            // Arrange
-            _session.SetCanStart(true);
-            _view.SetViewModel(_viewModel);
-            yield return null;
-
-            // Act
-            _currentError.Value = new WizardError(
-                "code",
-                "Errors.GameWizard.NonBlocking",
-                false,
-                ErrorDisplayType.Modal);
-            yield return null;
-
-            // Assert
-            GetStartButton().enabledInHierarchy.Should().BeTrue();
-        }
-
         private ModeOptionsHost GetModeOptionsHost() => _view.RootForTests.Q<ModeOptionsHost>("ModeOptionsHost");
 
         private Button GetStartButton() => _uiDocument.rootVisualElement.Q<Button>("StartButton");
@@ -321,6 +172,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         private MatchSetupViewModel CreateViewModelWithCatalog(IGameWizardCoordinator coordinator)
         {
             var catalog = Substitute.For<IGameCatalog>();
+            
             catalog.TryGetStrategy("classic", out Arg.Any<IGameStrategy>()).Returns(callInfo =>
             {
                 callInfo[1] = new TestStrategy("classic", new TestSettingsViewModel(new TestGameModeConfig("classic")));
@@ -328,12 +180,14 @@ namespace Tests.PlayMode.GameModes.Wizard
             });
 
             var difficultyCatalog = Substitute.For<IBotDifficultyCatalog>();
+            
             difficultyCatalog.Difficulties.Returns(new[]
             {
                 new BotDifficulty("Easy", "GameWizard.MatchSetup.BotDifficulty.Easy", 0),
                 new BotDifficulty("Normal", "GameWizard.MatchSetup.BotDifficulty.Normal", 1),
                 new BotDifficulty("Hard", "GameWizard.MatchSetup.BotDifficulty.Hard", 2),
             });
+            
             return new MatchSetupViewModel(catalog, coordinator, _localization, difficultyCatalog);
         }
 
@@ -343,11 +197,13 @@ namespace Tests.PlayMode.GameModes.Wizard
             coordinator.IsTransitioning.Returns(_isTransitioning);
             coordinator.IsSubmitting.Returns(_isSubmitting);
             coordinator.CurrentError.Returns(_currentError);
+            
             coordinator.TryGetSession(out Arg.Any<IGameSession>()).Returns(callInfo =>
             {
                 callInfo[0] = session;
                 return true;
             });
+            
             return coordinator;
         }
 
@@ -377,8 +233,10 @@ namespace Tests.PlayMode.GameModes.Wizard
                 var current = _snapshot.Value ?? GameSessionSnapshot.Default;
                 var updated = reducer(current) ?? GameSessionSnapshot.Default;
                 var nextVersion = current.Version + 1;
+               
                 if (updated.Version < nextVersion)
                     updated = updated.WithVersion(nextVersion);
+                
                 _snapshot.Value = updated;
             }
 
@@ -404,6 +262,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             {
                 GameId = gameId;
                 _viewModel = viewModel;
+              
                 Metadata = new GameMetadata(
                     id: gameId,
                     displayNameKey: "Mode.Test",
@@ -418,8 +277,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             public string GameId { get; }
             public GameMetadata Metadata { get; }
 
-            public GameSettingsPresentation CreatePresentation() =>
-                new GameSettingsPresentation($"ui/mode-settings/{GameId}", _viewModel);
+            public GameSettingsPresentation CreatePresentation() => new($"ui/mode-settings/{GameId}", _viewModel);
 
             public IReadOnlyList<ValidationError> ValidateConfig(IGameConfig? config) => Array.Empty<ValidationError>();
 
@@ -459,8 +317,8 @@ namespace Tests.PlayMode.GameModes.Wizard
             public TestGameModeConfig(string value) => Value = value;
             public string Value { get; }
 
-            public System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string, string>> GetMatchmakingParams() =>
-                System.Array.Empty<System.Collections.Generic.KeyValuePair<string, string>>();
+            public IReadOnlyList<KeyValuePair<string, string>> GetMatchmakingParams() =>
+                Array.Empty<KeyValuePair<string, string>>();
         }
 
         private sealed class TestBinder : IGameSettingsBinder
@@ -489,7 +347,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             public readonly Dictionary<string, bool> DisposedLeases = new();
             public bool LastLeaseDisposed { get; private set; }
             public bool WasLastLoadCancelled { get; private set; }
-            public bool IsLoadInFlight => System.Threading.Volatile.Read(ref _inFlight) != 0;
+            public bool IsLoadInFlight => Volatile.Read(ref _inFlight) != 0;
 
             public void Register(string key, VisualTreeAsset asset) => _assets[key] = asset;
 
@@ -503,7 +361,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             {
                 _lastLoad = new UniTaskCompletionSource<bool>();
                 WasLastLoadCancelled = false;
-                System.Threading.Interlocked.Exchange(ref _inFlight, 1);
+                Interlocked.Exchange(ref _inFlight, 1);
 
                 try
                 {
@@ -531,7 +389,7 @@ namespace Tests.PlayMode.GameModes.Wizard
                 }
                 finally
                 {
-                    System.Threading.Interlocked.Exchange(ref _inFlight, 0);
+                    Interlocked.Exchange(ref _inFlight, 0);
                     _lastLoad.TrySetResult(true);
                 }
             }
@@ -562,6 +420,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         private static async UniTask WaitUntilAsync(Func<bool> condition, int timeoutMs)
         {
             var start = Time.realtimeSinceStartup;
+           
             while (!condition())
             {
                 if ((Time.realtimeSinceStartup - start) * 1000f >= timeoutMs)

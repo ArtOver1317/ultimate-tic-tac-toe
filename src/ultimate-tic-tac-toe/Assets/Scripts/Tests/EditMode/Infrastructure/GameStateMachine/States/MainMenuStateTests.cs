@@ -20,7 +20,7 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.Infrastructure.GameStateMachine.States
 {
     [TestFixture]
     public class MainMenuStateTests

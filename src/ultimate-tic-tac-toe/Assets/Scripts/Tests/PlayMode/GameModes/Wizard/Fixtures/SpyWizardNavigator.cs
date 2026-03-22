@@ -2,12 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Coordinator;
-using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Runtime;
 
-namespace Tests.PlayMode.GameModes.Wizard
+namespace Tests.PlayMode.GameModes.Wizard.Fixtures
 {
     internal sealed class SpyWizardNavigator : IGameWizardNavigator
     {
@@ -17,15 +15,19 @@ namespace Tests.PlayMode.GameModes.Wizard
         public Func<CancellationToken, UniTask> CloseModeSelectionImpl { get; set; } = _ => UniTask.CompletedTask;
         public Func<CancellationToken, UniTask> OpenMatchSetupImpl { get; set; } = _ => UniTask.CompletedTask;
         public Func<CancellationToken, UniTask> CloseMatchSetupImpl { get; set; } = _ => UniTask.CompletedTask;
+        
         public Func<CancellationToken, UniTask<MatchmakingViewModel>> OpenMatchmakingImpl { get; set; } = _ =>
             UniTask.FromException<MatchmakingViewModel>(new InvalidOperationException(
                 "SpyWizardNavigator.OpenMatchmakingAsync is not configured."));
+        
         public Func<CancellationToken, UniTask> CloseMatchmakingImpl { get; set; } = _ => UniTask.CompletedTask;
         public Func<CancellationToken, UniTask> ReplaceModeSelectionWithMatchSetupImpl { get; set; } = _ => UniTask.CompletedTask;
         public Func<CancellationToken, UniTask> ReplaceMatchSetupWithModeSelectionImpl { get; set; } = _ => UniTask.CompletedTask;
+        
         public Func<CancellationToken, UniTask<MatchmakingViewModel>> ReplaceMatchSetupWithMatchmakingImpl { get; set; } = _ =>
             UniTask.FromException<MatchmakingViewModel>(new InvalidOperationException(
                 "SpyWizardNavigator.ReplaceMatchSetupWithMatchmakingAsync is not configured."));
+       
         public Func<CancellationToken, UniTask> ReplaceMatchmakingWithMatchSetupImpl { get; set; } = _ => UniTask.CompletedTask;
         public Func<CancellationToken, UniTask> CloseAllImpl { get; set; } = _ => UniTask.CompletedTask;
 

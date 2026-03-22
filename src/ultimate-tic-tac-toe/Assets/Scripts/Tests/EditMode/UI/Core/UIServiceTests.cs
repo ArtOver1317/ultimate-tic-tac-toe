@@ -9,7 +9,7 @@ using Tests.EditMode.Fakes;
 using UnityEngine;
 using VContainer;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.UI.Core
 {
     [TestFixture]
     public class UIServiceTests

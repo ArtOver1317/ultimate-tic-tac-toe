@@ -8,7 +8,7 @@ using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
 
-namespace Tests.PlayMode.GameModes.Wizard
+namespace Tests.PlayMode.GameModes.Wizard.Overlays
 {
     [TestFixture]
     [Category("Integration")]
@@ -78,6 +78,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Act
             _toast.Show("First", TimeSpan.FromMilliseconds(300));
             yield return WaitForSecondsPolling(0.1f);
+            
             _toast.Show("Second", TimeSpan.FromMilliseconds(500));
 
             yield return WaitForSecondsPolling(0.35f);
@@ -99,6 +100,7 @@ namespace Tests.PlayMode.GameModes.Wizard
             // Act
             _toast.Show("Message", TimeSpan.FromMilliseconds(500));
             yield return WaitForSecondsPolling(0.1f);
+            
             _toast.Hide();
 
             yield return WaitUntilAsync(() => !_toast.IsVisible, timeoutSeconds: 2f);
@@ -110,6 +112,7 @@ namespace Tests.PlayMode.GameModes.Wizard
         private static IEnumerator WaitUntilAsync(Func<bool> condition, float timeoutSeconds)
         {
             var start = Time.realtimeSinceStartup;
+            
             while (!condition())
             {
                 if (Time.realtimeSinceStartup - start >= timeoutSeconds)
@@ -122,13 +125,17 @@ namespace Tests.PlayMode.GameModes.Wizard
         private static IEnumerator WaitForSecondsPolling(float seconds)
         {
             var start = Time.realtimeSinceStartup;
+            
             while (Time.realtimeSinceStartup - start < seconds)
+            {
                 yield return null;
+            }
         }
 
         private static IEnumerator WaitUntilRootReady(UIDocument uiDocument, float timeoutSeconds)
         {
             var start = Time.realtimeSinceStartup;
+            
             while (uiDocument.rootVisualElement == null)
             {
                 if (Time.realtimeSinceStartup - start >= timeoutSeconds)

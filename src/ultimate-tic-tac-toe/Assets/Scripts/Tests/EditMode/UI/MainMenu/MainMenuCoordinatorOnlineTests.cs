@@ -6,7 +6,6 @@ using Cysharp.Threading.Tasks;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.GameModes.Wizard.Modes;
@@ -14,7 +13,7 @@ using Runtime.GameModes.Wizard.Online;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.UI.MainMenu;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.UI.MainMenu
 {
     public partial class MainMenuCoordinatorTests
     {

@@ -14,7 +14,7 @@ using Runtime.Localization.Types;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.Infrastructure.GameStateMachine.States
 {
     [TestFixture]
     public class BootstrapStateTests

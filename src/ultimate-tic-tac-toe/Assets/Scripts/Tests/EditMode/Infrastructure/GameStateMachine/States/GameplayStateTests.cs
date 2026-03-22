@@ -10,11 +10,11 @@ using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Services.Assets;
 using Runtime.Services.UI;
-using VContainer;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
+using VContainer;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.Infrastructure.GameStateMachine.States
 {
     [TestFixture]
     public class GameplayStateTests

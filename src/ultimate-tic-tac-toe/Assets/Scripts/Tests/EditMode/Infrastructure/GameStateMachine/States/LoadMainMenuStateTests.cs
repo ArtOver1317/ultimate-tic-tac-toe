@@ -8,7 +8,7 @@ using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Services.Scenes;
 using Runtime.Services.UI;
 
-namespace Tests.EditMode
+namespace Tests.EditMode.Infrastructure.GameStateMachine.States
 {
     [TestFixture]
     public class LoadMainMenuStateTests

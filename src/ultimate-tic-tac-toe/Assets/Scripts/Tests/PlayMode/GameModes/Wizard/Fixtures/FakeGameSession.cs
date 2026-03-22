@@ -5,12 +5,11 @@ using R3;
 using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Coordinator;
-using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Config;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Session;
 
-namespace Tests.PlayMode.GameModes.Wizard
+namespace Tests.PlayMode.GameModes.Wizard.Fixtures
 {
     /// <summary>
     /// Fake implementation of <see cref="IGameSession"/> for coordinator tests.
@@ -53,40 +52,18 @@ namespace Tests.PlayMode.GameModes.Wizard
 
             var gameConfig = snapshot.GameConfig ?? new TicTacToeConfig(3);
 
-            IOpponentConfig opponentConfig;
-
-            switch (snapshot.OpponentType)
+            IOpponentConfig opponentConfig = snapshot.OpponentType switch
             {
-                case OpponentType.Bot:
-                    opponentConfig = new BotOpponentConfig(snapshot.BotDifficultyId ?? "Easy");
-                    break;
-
-                case OpponentType.Human:
-                    switch (snapshot.HumanOpponentKind)
-                    {
-                        case HumanOpponentKind.Local:
-                            opponentConfig = new LocalHumanConfig();
-                            break;
-
-                        case HumanOpponentKind.DirectInvite:
-                            opponentConfig = new DirectInviteConfig(snapshot.TargetPlayerId ?? "AB2CD7");
-                            break;
-
-                        case HumanOpponentKind.Matchmaking:
-                            opponentConfig = new MatchmakingConfig("Match", "Opponent");
-                            break;
-
-                        default:
-                            opponentConfig = new LocalHumanConfig();
-                            break;
-                    }
-
-                    break;
-
-                default:
-                    opponentConfig = new LocalHumanConfig();
-                    break;
-            }
+                OpponentType.Bot => new BotOpponentConfig(snapshot.BotDifficultyId ?? "Easy"),
+                OpponentType.Human => snapshot.HumanOpponentKind switch
+                {
+                    HumanOpponentKind.Local => new LocalHumanConfig(),
+                    HumanOpponentKind.DirectInvite => new DirectInviteConfig(snapshot.TargetPlayerId ?? "AB2CD7"),
+                    HumanOpponentKind.Matchmaking => new MatchmakingConfig("Match", "Opponent"),
+                    _ => new LocalHumanConfig()
+                },
+                _ => new LocalHumanConfig()
+            };
 
             return Result<GameLaunchConfig>.Success(new GameLaunchConfig(gameId, gameConfig, opponentConfig));
         }
@@ -97,7 +74,9 @@ namespace Tests.PlayMode.GameModes.Wizard
         {
             DisposeCallCount++;
 
-            if (_disposed) return;
+            if (_disposed) 
+                return;
+            
             _disposed = true;
 
             _snapshot.Dispose();
