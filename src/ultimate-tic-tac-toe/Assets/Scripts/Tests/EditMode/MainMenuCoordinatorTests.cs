@@ -16,7 +16,6 @@ using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.Services.UI;
@@ -52,9 +51,12 @@ namespace Tests.EditMode
             _wizardCoordinatorMock = Substitute.For<IGameWizardCoordinator>();
             _gameLaunchRequested = new Subject<GameLaunchConfig>();
             _wizardAborted = new Subject<AbortReason>();
+            
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Test"));
+            
             _localizationMock.CurrentLocale.Returns(new ReactiveProperty<LocaleId>(LocaleId.EnglishUs));
+           
             _localizationMock.PreloadAsync(
                     Arg.Any<LocaleId>(),
                     Arg.Any<IReadOnlyList<TextTableId>>(),
@@ -63,6 +65,7 @@ namespace Tests.EditMode
             
             _wizardCoordinatorMock.GameLaunchRequested.Returns(_gameLaunchRequested);
             _wizardCoordinatorMock.WizardAborted.Returns(_wizardAborted);
+            
             _wizardCoordinatorMock.StartWizardAsync(Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
 
@@ -86,6 +89,7 @@ namespace Tests.EditMode
             for (var i = 0; i < _createdGameObjects.Count; i++)
             {
                 var go = _createdGameObjects[i];
+               
                 if (go != null)
                     Object.DestroyImmediate(go);
             }
@@ -197,6 +201,7 @@ namespace Tests.EditMode
             // Act
             _viewModel.RequestStartGame();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            
             await UniTask.WaitUntil(
                 () => view.ShowCalls == 1 && _viewModel.IsInteractable.CurrentValue,
                 cancellationToken: cts.Token);
@@ -223,6 +228,7 @@ namespace Tests.EditMode
             // Act
             _viewModel.RequestStartGame();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+           
             await UniTask.WaitUntil(
                 () => view.ShowCalls == 1 && _viewModel.IsInteractable.CurrentValue,
                 cancellationToken: cts.Token);
@@ -238,6 +244,7 @@ namespace Tests.EditMode
             // Arrange
             var started = new UniTaskCompletionSource<bool>();
             var gate = new UniTaskCompletionSource<bool>();
+           
             _wizardCoordinatorMock.StartWizardAsync(Arg.Any<CancellationToken>())
                 .Returns(_ =>
                 {
@@ -335,6 +342,7 @@ namespace Tests.EditMode
 
             var enterStarted = new UniTaskCompletionSource<bool>();
             var enterGate = new UniTaskCompletionSource<bool>();
+           
             _stateMachineMock
                 .EnterAsync<LoadGameplayState, GameLaunchConfig>(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
                 .Returns(_ =>
@@ -378,8 +386,10 @@ namespace Tests.EditMode
 
             // Assert
             await _wizardCoordinatorMock.Received(1).StartWizardAsync(Arg.Any<CancellationToken>());
+           
             await _stateMachineMock.Received(1)
                 .EnterAsync<LoadGameplayState, GameLaunchConfig>(config, Arg.Any<CancellationToken>());
+           
             _wizardCoordinatorMock.Received(1).CompleteStartAttempt(true, null);
             
             interactableValue.Should().BeFalse("UI должен быть заблокирован во время перехода в игру");
@@ -394,8 +404,6 @@ namespace Tests.EditMode
             Exception unobservedException = null;
             _wizardCoordinatorMock.IsActive.Returns(true);
 
-            void OnUnobservedException(Exception ex) => unobservedException = ex;
-
             UniTaskScheduler.UnobservedTaskException += OnUnobservedException;
 
             LogAssert.Expect(LogType.Error, new Regex("InvalidOperationException: boom"));
@@ -403,6 +411,7 @@ namespace Tests.EditMode
             try
             {
                 var enterStarted = new UniTaskCompletionSource<bool>();
+                
                 _stateMachineMock
                     .EnterAsync<LoadGameplayState, GameLaunchConfig>(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
                     .Returns(_ =>
@@ -421,6 +430,7 @@ namespace Tests.EditMode
                 _gameLaunchRequested.OnNext(config);
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                 await enterStarted.Task.AttachExternalCancellation(cts.Token);
+               
                 await UniTask.WaitUntil(
                     () => _wizardCoordinatorMock.ReceivedCalls()
                         .Any(call => call.GetMethodInfo().Name == nameof(IGameWizardCoordinator.CompleteStartAttempt)),
@@ -428,6 +438,7 @@ namespace Tests.EditMode
 
                 // Assert
                 unobservedException.Should().BeNull("MainMenuCoordinator should handle exceptions from fire-and-forget async handlers");
+               
                 _wizardCoordinatorMock.Received(1).CompleteStartAttempt(
                     false,
                     Arg.Is<WizardError>(err => err.Code == "wizard.start_failed"));
@@ -436,6 +447,10 @@ namespace Tests.EditMode
             {
                 UniTaskScheduler.UnobservedTaskException -= OnUnobservedException;
             }
+
+            return;
+
+            void OnUnobservedException(Exception ex) => unobservedException = ex;
         }
 
         [TestCase(OnlineFlowState.Terminated)]
@@ -451,10 +466,12 @@ namespace Tests.EditMode
             onlineFlow.Snapshot.Returns(flowSnapshot);
 
             var launcher = Substitute.For<IOnlineSessionLauncher>();
+           
             launcher.PrepareForLaunchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
                 .Returns(callInfo => MainMenuCoordinatorTestsHelpers.WaitLaunchCancellationAsync(callInfo.Arg<CancellationToken>()));
 
             _wizardCoordinatorMock.IsActive.Returns(true);
+          
             _coordinator = new MainMenuCoordinator(
                 _stateMachineMock,
                 _uiServiceMock,
@@ -462,6 +479,7 @@ namespace Tests.EditMode
                 _wizardCoordinatorMock,
                 launcher,
                 onlineFlow);
+            
             _coordinator.Initialize(_viewModel);
 
             _viewModel.RequestStartGame();
@@ -476,11 +494,13 @@ namespace Tests.EditMode
 
             // Assert
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            
             await UniTask.WaitUntil(
                 () => _wizardCoordinatorMock.ReceivedCalls().Any(call => call.GetMethodInfo().Name == nameof(IGameWizardCoordinator.CancelStartAttempt)),
                 cancellationToken: cts.Token);
 
             _wizardCoordinatorMock.Received(1).CancelStartAttempt();
+           
             await _stateMachineMock.DidNotReceiveWithAnyArgs()
                 .EnterAsync<LoadGameplayState, GameLaunchConfig>(default!, default);
         }
@@ -496,10 +516,12 @@ namespace Tests.EditMode
             onlineFlow.Snapshot.Returns(flowSnapshot);
 
             var launcher = Substitute.For<IOnlineSessionLauncher>();
+           
             launcher.PrepareForLaunchAsync(Arg.Any<GameLaunchConfig>(), Arg.Any<CancellationToken>())
                 .Returns(_ => UniTask.FromResult(OnlineLaunchPreparationResult.Success()));
 
             _wizardCoordinatorMock.IsActive.Returns(true);
+          
             _coordinator = new MainMenuCoordinator(
                 _stateMachineMock,
                 _uiServiceMock,
@@ -507,6 +529,7 @@ namespace Tests.EditMode
                 _wizardCoordinatorMock,
                 launcher,
                 onlineFlow);
+            
             _coordinator.Initialize(_viewModel);
 
             _viewModel.RequestStartGame();
@@ -664,6 +687,7 @@ namespace Tests.EditMode
 
             var strategy = Substitute.For<IGameStrategy>();
             strategy.GameId.Returns("tic-tac-toe");
+           
             strategy.Metadata.Returns(new GameMetadata(
                 id: "tic-tac-toe",
                 displayNameKey: "Game.TicTacToe",
@@ -673,12 +697,14 @@ namespace Tests.EditMode
                 supportsBot: true,
                 supportsOnline: true,
                 supportsLocal: true));
+            
             strategy.GetSupportedBotDifficultyIds().Returns(new[] { "Easy", "Normal", "Hard" });
 
             var gameCatalog = Substitute.For<IGameCatalog>();
             gameCatalog.Strategies.Returns(new[] { strategy });
 
             var botCatalog = Substitute.For<IBotDifficultyCatalog>();
+            
             botCatalog.Difficulties.Returns(new[]
             {
                 new BotDifficulty("Easy", "GameWizard.MatchSetup.BotDifficulty.Easy", 0),
@@ -806,6 +832,7 @@ namespace Tests.EditMode
             var preloadCallCount = 0;
 
             _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns(settingsView);
+            
             _localizationMock.PreloadAsync(
                     Arg.Any<LocaleId>(),
                     Arg.Any<IReadOnlyList<TextTableId>>(),
@@ -833,47 +860,35 @@ namespace Tests.EditMode
         [Test]
         public async Task WhenSettingsOpenThrows_ThenLogsErrorAndDoesNotThrow()
         {
-            try
-            {
-                LogAssert.Expect(LogType.Error, new Regex(@"Failed to open SettingsView"));
-                _uiServiceMock.Open<SettingsView, SettingsViewModel>()
-                    .Returns(_ => throw new InvalidOperationException("SettingsView open failed"));
-                _coordinator.Initialize(_viewModel);
+            LogAssert.Expect(LogType.Error, new Regex(@"Failed to open SettingsView"));
+               
+            _uiServiceMock.Open<SettingsView, SettingsViewModel>()
+                .Returns(_ => throw new InvalidOperationException("SettingsView open failed"));
+               
+            _coordinator.Initialize(_viewModel);
 
-                _viewModel.Invoking(vm => vm.RequestSettings())
-                    .Should().NotThrow();
+            _viewModel.Invoking(vm => vm.RequestSettings())
+                .Should().NotThrow();
 
-                await UniTask.Yield();
-            }
-            finally
-            {
-                // LogAssert.Expect validates the log; nothing else to cleanup.
-            }
+            await UniTask.Yield();
         }
 
         [Test]
         public async Task WhenLanguageSelectionOpenThrows_ThenLogsErrorAndDoesNotThrow()
         {
-            try
-            {
-                LogAssert.Expect(LogType.Error, new Regex(@"Failed to open LanguageSelectionView"));
-                var settingsVm = new SettingsViewModel(_localizationMock);
-                var settingsView = CreateInactiveSettingsView(settingsVm);
-                _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns(settingsView);
+            LogAssert.Expect(LogType.Error, new Regex(@"Failed to open LanguageSelectionView"));
+            var settingsVm = new SettingsViewModel(_localizationMock);
+            var settingsView = CreateInactiveSettingsView(settingsVm);
+            _uiServiceMock.Open<SettingsView, SettingsViewModel>().Returns(settingsView);
 
-                _uiServiceMock.Open<LanguageSelectionView, LanguageSelectionViewModel>()
-                    .Returns(_ => throw new InvalidOperationException("LanguageSelectionView open failed"));
+            _uiServiceMock.Open<LanguageSelectionView, LanguageSelectionViewModel>()
+                .Returns(_ => throw new InvalidOperationException("LanguageSelectionView open failed"));
 
-                _coordinator.Initialize(_viewModel);
+            _coordinator.Initialize(_viewModel);
 
-                _viewModel.RequestSettings();
-                await UniTask.Yield();
-                _viewModel.Invoking(_ => settingsVm.OpenLanguageSelection()).Should().NotThrow();
-            }
-            finally
-            {
-                // LogAssert.Expect validates the log; nothing else to cleanup.
-            }
+            _viewModel.RequestSettings();
+            await UniTask.Yield();
+            _viewModel.Invoking(_ => settingsVm.OpenLanguageSelection()).Should().NotThrow();
         }
 
         #endregion
@@ -893,7 +908,7 @@ namespace Tests.EditMode
         public override void Hide() => HideCalls++;
     }
 
-    internal static partial class MainMenuCoordinatorTestsHelpers
+    internal static class MainMenuCoordinatorTestsHelpers
     {
         public static OnlineFlowSnapshot CreateFlowSnapshot(OnlineFlowState state) => new(
             state,

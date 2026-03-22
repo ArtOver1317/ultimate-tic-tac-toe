@@ -4,7 +4,6 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.UI.MainMenu;
@@ -122,13 +121,12 @@ namespace Tests.EditMode.UI.MainMenu
             sut.Initialize();
 
             var triggered = false;
-            using var _ = sut.StatisticsRequested.Subscribe(__ => triggered = true);
+            using var _ = sut.StatisticsRequested.Subscribe(_ => triggered = true);
 
             sut.RequestStatistics();
 
             triggered.Should().BeTrue();
             sut.Dispose();
         }
-
     }
 }

@@ -17,7 +17,7 @@ namespace Tests.EditMode.Infrastructure.Save
     [Category("Unit")]
     public class SaveServiceTests
     {
-        private static readonly string[] InvalidVersionPayloads =
+        private static readonly string[] _invalidVersionPayloads =
         {
             "{\"sections\":{\"locale\":\"en-US\"}}",
             "{\"version\":0,\"sections\":{\"locale\":\"en-US\"}}",
@@ -60,7 +60,7 @@ namespace Tests.EditMode.Infrastructure.Save
             var backend = new TestSaveBackend();
             var service = CreateService(backend);
 
-            Action act = () => service.Save<string>(null, "value");
+            Action act = () => service.Save(null, "value");
 
             act.Should().Throw<ArgumentException>();
             backend.WriteCount.Should().Be(0);
@@ -86,7 +86,7 @@ namespace Tests.EditMode.Infrastructure.Save
             var backend = new TestSaveBackend();
             var service = CreateService(backend);
 
-            Action act = () => service.Load<string>(null, "default");
+            Action act = () => service.Load(null, "default");
 
             act.Should().Throw<ArgumentException>();
         }
@@ -138,6 +138,7 @@ namespace Tests.EditMode.Infrastructure.Save
             {
                 RawData = "not-a-valid-save-payload",
             };
+            
             var service = CreateService(backend);
 
             LogAssert.Expect(LogType.Error, new Regex("parse|valid version"));
@@ -155,6 +156,7 @@ namespace Tests.EditMode.Infrastructure.Save
             {
                 RawData = "not-a-valid-save-payload",
             };
+            
             var service = CreateService(backend);
 
             LogAssert.Expect(LogType.Error, new Regex("parse|valid version"));
@@ -164,13 +166,14 @@ namespace Tests.EditMode.Infrastructure.Save
             backend.WriteCount.Should().Be(0);
         }
 
-        [TestCaseSource(nameof(InvalidVersionPayloads))]
+        [TestCaseSource(nameof(_invalidVersionPayloads))]
         public void WhenInitializeWithValidJsonButMissingOrInvalidVersion_ThenLoadReturnsDefaultAndBackendNotOverwritten(string payload)
         {
             var backend = new TestSaveBackend
             {
                 RawData = EncryptJson(payload),
             };
+
             var service = CreateService(backend);
 
             LogAssert.Expect(LogType.Error, new Regex("valid version"));
@@ -307,6 +310,7 @@ namespace Tests.EditMode.Infrastructure.Save
             {
                 RawData = EncryptJson("{\"version\":1,\"sections\":{\"locale\":\"ru-RU\"}}"),
             };
+         
             var service = CreateService(backend);
 
             LogAssert.Expect(LogType.Error, new Regex("Save called before Initialize"));
@@ -433,9 +437,7 @@ namespace Tests.EditMode.Infrastructure.Save
         {
             public string Read() => throw new IOException("Read failed");
 
-            public void Write(string data)
-            {
-            }
+            public void Write(string data) { }
 
             public string GetDisplayPath() => "ThrowingOnReadBackend";
         }

@@ -109,9 +109,7 @@ namespace Tests.EditMode.Infrastructure.Save
         {
             public string Read() => string.Empty;
 
-            public void Write(string data)
-            {
-            }
+            public void Write(string data) { }
 
             public string GetDisplayPath() => "TestBackend";
         }

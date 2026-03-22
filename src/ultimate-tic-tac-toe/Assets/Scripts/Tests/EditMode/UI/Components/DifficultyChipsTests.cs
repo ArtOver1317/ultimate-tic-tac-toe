@@ -88,7 +88,7 @@ namespace Tests.EditMode.UI.Components
             var items = new[]
             {
                 new DifficultyChipItem("A", "A"),
-                new DifficultyChipItem("A", "A2")
+                new DifficultyChipItem("A", "A2"),
             };
 
             // Act
@@ -106,7 +106,7 @@ namespace Tests.EditMode.UI.Components
             var items = new DifficultyChipItem[]
             {
                 new("A", "A"),
-                null
+                null,
             };
 #pragma warning restore CS8625
 
@@ -212,8 +212,11 @@ namespace Tests.EditMode.UI.Components
         private static IReadOnlyList<DifficultyChipItem> CreateItems(params (string id, string label)[] items)
         {
             var result = new DifficultyChipItem[items.Length];
+            
             for (var i = 0; i < items.Length; i++)
+            {
                 result[i] = new DifficultyChipItem(items[i].id, items[i].label);
+            }
 
             return Array.AsReadOnly(result);
         }

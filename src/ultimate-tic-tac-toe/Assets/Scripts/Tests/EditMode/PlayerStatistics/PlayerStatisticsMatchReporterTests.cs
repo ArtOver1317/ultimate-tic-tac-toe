@@ -3,14 +3,11 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
-using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Config;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.PlayerStatistics;
 using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
@@ -49,6 +46,7 @@ namespace Tests.EditMode.PlayerStatistics
             var eventStream = CreateEventStream(out var roundFinished);
             var resolver = new CountingResolver(returnValue: true, outcome: MatchOutcome.Win);
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+            
             var contextStore = CreateContextStore(new OnlineGameplaySessionSnapshot(
                 isOnlineDirectInvite: false,
                 sessionId: null,
@@ -75,11 +73,13 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var configStore = CreateConfigStore(new LocalHumanConfig());
             var eventStream = CreateEventStream(out var roundFinished);
+           
             var resolver = new StubOutcomeResolver((RoundFinishedEvent evt, StatisticsOpponentType opponentType, bool isLocalPlayerHost, out MatchOutcome outcome) =>
             {
                 outcome = MatchOutcome.Win;
                 return true;
             });
+          
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
             var contextStore = CreateContextStore(OnlineGameplaySessionSnapshot.Empty());
 
@@ -103,11 +103,13 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var configStore = CreateConfigStore(new LocalHumanConfig());
             var eventStream = CreateEventStream(out var roundFinished);
+           
             var resolver = new StubOutcomeResolver((RoundFinishedEvent evt, StatisticsOpponentType opponentType, bool isLocalPlayerHost, out MatchOutcome outcome) =>
             {
                 outcome = MatchOutcome.Win;
                 return true;
             });
+           
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
             var contextStore = CreateContextStore(OnlineGameplaySessionSnapshot.Empty());
 
@@ -158,6 +160,7 @@ namespace Tests.EditMode.PlayerStatistics
             var eventStream = CreateEventStream(out var roundFinished);
             var resolver = new RecordingResolver();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+           
             var contextStore = CreateContextStore(new OnlineGameplaySessionSnapshot(
                 isOnlineDirectInvite: true,
                 sessionId: "AB2CD7",
@@ -176,6 +179,7 @@ namespace Tests.EditMode.PlayerStatistics
             roundFinished.OnNext(new RoundFinishedEvent(EcsGameStatus.Win, winnerSlot: 1, winLine: null));
 
             resolver.LastIsLocalPlayerHost.Should().BeFalse();
+            
             statisticsService.Received(1).RecordMatch(
                 Arg.Is<MatchKey>(x => x.OpponentType == StatisticsOpponentType.Online),
                 MatchOutcome.Win);
@@ -211,6 +215,7 @@ namespace Tests.EditMode.PlayerStatistics
             var eventStream = CreateEventStream(out var roundFinished);
             var resolver = new CountingResolver(returnValue: true, outcome: MatchOutcome.Win);
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+            
             var contextStore = CreateContextStore(new OnlineGameplaySessionSnapshot(
                 isOnlineDirectInvite: false,
                 sessionId: "AB2CD7",
@@ -254,9 +259,7 @@ namespace Tests.EditMode.PlayerStatistics
             return store;
         }
 
-        private sealed class UnknownOpponentConfig : IOpponentConfig
-        {
-        }
+        private sealed class UnknownOpponentConfig : IOpponentConfig { }
 
         private sealed class StubOutcomeResolver : IMatchOutcomeResolver
         {

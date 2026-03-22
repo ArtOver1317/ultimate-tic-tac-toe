@@ -3,7 +3,6 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using Runtime.Infrastructure.Save;
-using Runtime.Localization;
 using Runtime.Localization.Types;
 
 namespace Tests.EditMode.Infrastructure.Save

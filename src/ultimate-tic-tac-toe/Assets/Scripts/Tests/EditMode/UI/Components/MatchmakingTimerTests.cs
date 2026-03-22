@@ -13,16 +13,10 @@ namespace Tests.EditMode.UI.Components
         private MatchmakingTimer _timer;
 
         [SetUp]
-        public void SetUp()
-        {
-            _timer = new MatchmakingTimer();
-        }
+        public void SetUp() => _timer = new MatchmakingTimer();
 
         [TearDown]
-        public void TearDown()
-        {
-            _timer = null;
-        }
+        public void TearDown() => _timer = null;
 
         [Test]
         public void WhenSetTimeCalled_ThenFormatsTimeAsMMSS()

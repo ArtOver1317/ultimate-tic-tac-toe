@@ -55,7 +55,7 @@ namespace Tests.EditMode.Localization.Parsing
         public void WhenNewlineAndTab_ThenEscapesWithBackslashN()
         {
             // Arrange
-            var value = "Line1\nLine2\tTabbed\rReturn";
+            const string value = "Line1\nLine2\tTabbed\rReturn";
 
             // Act
             var result = _escaper.Escape(value);

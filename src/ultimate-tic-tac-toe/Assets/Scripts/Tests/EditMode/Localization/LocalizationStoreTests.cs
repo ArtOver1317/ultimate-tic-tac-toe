@@ -3,7 +3,6 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Services;
 using Runtime.Localization.Types;
@@ -41,10 +40,7 @@ namespace Tests.EditMode.Localization
                 if (locale == _ruRu)
                     return new[] { _ruRu, _ru, _enUs };
                 
-                if (locale == _ru)
-                    return new[] { _ru, _enUs };
-                
-                return new[] { locale };
+                return locale == _ru ? new[] { _ru, _enUs } : new[] { locale };
             });
 
             _store = new LocalizationStore(_mockPolicy);

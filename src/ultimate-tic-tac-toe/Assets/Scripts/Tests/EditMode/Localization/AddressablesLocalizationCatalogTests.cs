@@ -1,7 +1,6 @@
 using System;
 using FluentAssertions;
 using NUnit.Framework;
-using Runtime.Localization;
 using Runtime.Localization.Infrastructure;
 using Runtime.Localization.Types;
 
@@ -13,10 +12,7 @@ namespace Tests.EditMode.Localization
         private AddressablesLocalizationCatalog _catalog;
 
         [SetUp]
-        public void SetUp()
-        {
-            _catalog = new AddressablesLocalizationCatalog();
-        }
+        public void SetUp() => _catalog = new AddressablesLocalizationCatalog();
 
         [Test]
         public void WhenGetAssetKeyWithValidLocaleAndTable_ThenReturnsCorrectFormat()

@@ -8,7 +8,6 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.UI.Settings;
@@ -96,6 +95,7 @@ namespace Tests.EditMode.UI.Settings
                 .Returns(callInfo =>
                 {
                     callIndex++;
+                   
                     if (callIndex == 1)
                         firstToken = callInfo.ArgAt<CancellationToken>(1);
 

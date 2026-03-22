@@ -4,7 +4,6 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.UI.Settings;
@@ -22,6 +21,7 @@ namespace Tests.EditMode.UI.Settings
         public void SetUp()
         {
             _localization = Substitute.For<ILocalizationService>();
+            
             _localization.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Test"));
 

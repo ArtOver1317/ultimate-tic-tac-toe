@@ -7,7 +7,6 @@ using NSubstitute;
 using NUnit.Framework;
 using R3;
 using Runtime.Infrastructure.Save;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.PlayerProfile;
@@ -33,6 +32,7 @@ namespace Tests.EditMode.PlayerProfile
             _currentLocale = new ReactiveProperty<LocaleId>(LocaleId.EnglishUs);
 
             _localizationService.CurrentLocale.Returns(_currentLocale);
+          
             _localizationService.Resolve(
                     Arg.Any<TextTableId>(),
                     Arg.Any<TextKey>(),
@@ -104,8 +104,10 @@ namespace Tests.EditMode.PlayerProfile
         public void WhenTryChangeNameAndSaveFails_ThenSnapshotIsNotUpdated()
         {
             _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns((string)null);
+            
             _saveServiceWithResult.TrySave(PlayerNameService.SaveSection, "Alex")
                 .Returns(SaveWriteResult.Failed(SaveWriteError.BackendWriteFailed));
+            
             _sut.Initialize();
 
             var result = _sut.TryChangeNameAsync("Alex", CancellationToken.None).GetAwaiter().GetResult();
@@ -119,8 +121,10 @@ namespace Tests.EditMode.PlayerProfile
         public void WhenTryChangeNameAndTrySaveThrows_ThenReturnsFailedSaveAndKeepsPreviousName()
         {
             _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns("Old");
+          
             _saveServiceWithResult.TrySave(PlayerNameService.SaveSection, "New")
                 .Returns(_ => throw new IOException("I/O failed"));
+         
             _sut.Initialize();
 
             var result = _sut.TryChangeNameAsync("New", CancellationToken.None).GetAwaiter().GetResult();
@@ -228,13 +232,14 @@ namespace Tests.EditMode.PlayerProfile
         public void WhenLocalizationIsNotInitialized_ThenInitializeFallsBackToPlayerWithoutThrowing()
         {
             _saveService.Load<string>(PlayerNameService.SaveSection, null).Returns((string)null);
+           
             _localizationService.Resolve(
                     Arg.Any<TextTableId>(),
                     Arg.Any<TextKey>(),
                     Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(_ => throw new InvalidOperationException("LocalizationService is not initialized. Call InitializeAsync first."));
 
-            System.Action action = () => _sut.Initialize();
+            Action action = () => _sut.Initialize();
 
             action.Should().NotThrow();
             _sut.Snapshot.CurrentValue.CustomName.Should().BeNull();

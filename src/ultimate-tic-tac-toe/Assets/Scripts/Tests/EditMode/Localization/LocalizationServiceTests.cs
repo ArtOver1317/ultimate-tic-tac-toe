@@ -8,7 +8,6 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Infrastructure;
 using Runtime.Localization.Services;
@@ -59,11 +58,13 @@ namespace Tests.EditMode.Localization
 
             _mockPolicy.DefaultLocale.Returns(_enUs);
             _mockPolicy.UseMissingKeyPlaceholders.Returns(true);
+           
             _mockPolicy.GetFallbackChain(Arg.Any<LocaleId>()).Returns(ci =>
             {
                 var requested = (LocaleId)ci[0];
                 return new[] { requested };
             });
+            
             _mockCatalog.GetSupportedLocales().Returns(new[] { _enUs, _ruRu });
             _mockCatalog.GetStartupTables().Returns(new[] { _uiTable });
             _mockCatalog.GetRequiredTables().Returns(Array.Empty<TextTableId>());
@@ -404,6 +405,7 @@ namespace Tests.EditMode.Localization
             // Init path: return minimal valid JSON for the startup table.
             _mockCatalog.GetAssetKey(_enUs, startupTable).Returns($"{_enUs.Code}_{startupTable.Name}");
             var initJson = $"{{\"locale\":\"{_enUs.Code}\",\"table\":\"{startupTable.Name}\",\"entries\":{{}}}}";
+           
             _mockLoader.LoadBytesAsync($"{_enUs.Code}_{startupTable.Name}", Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(initJson))));
 
@@ -418,6 +420,7 @@ namespace Tests.EditMode.Localization
 
             // Switch path: delay the first preload (startup table) to simulate async loading.
             var keyMap = new Dictionary<string, (LocaleId Locale, TextTableId Table)>(StringComparer.Ordinal);
+          
             _mockCatalog
                 .GetAssetKey(Arg.Any<LocaleId>(), Arg.Any<TextTableId>())
                 .Returns(ci =>
@@ -555,7 +558,7 @@ namespace Tests.EditMode.Localization
             InitializeService();
 
             _mockLoader.LoadBytesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-                .Returns<UniTask<ReadOnlyMemory<byte>>>(_ => throw new Exception("Load failed"));
+                .Returns(_ => throw new Exception("Load failed"));
 
             const string assetKey = "ru-RU_Gameplay";
             _mockCatalog.GetAssetKey(_ruRu, _gameplayTable).Returns(assetKey);
@@ -589,7 +592,7 @@ namespace Tests.EditMode.Localization
             _mockCatalog.GetAssetKey(fallbackLocale, _gameplayTable).Returns(fallbackKey);
 
             _mockLoader.LoadBytesAsync(requestedKey, Arg.Any<CancellationToken>())
-                .Returns<UniTask<ReadOnlyMemory<byte>>>(_ => throw new KeyNotFoundException("Missing"));
+                .Returns(_ => throw new KeyNotFoundException("Missing"));
 
             const string json = @"{""locale"":""en-US"",""table"":""Gameplay"",""entries"":{}}";
             var bytes = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(json));
@@ -625,7 +628,7 @@ namespace Tests.EditMode.Localization
             _mockCatalog.GetAssetKey(_enUs, _gameplayTable).Returns(fallbackKey);
 
             _mockLoader.LoadBytesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-                .Returns<UniTask<ReadOnlyMemory<byte>>>(_ => throw new KeyNotFoundException("Missing"));
+                .Returns(_ => throw new KeyNotFoundException("Missing"));
 
             // Act
             Action act = () => _service.PreloadAsync(_ruRu, new[] { _gameplayTable }, CancellationToken.None)
@@ -739,6 +742,7 @@ namespace Tests.EditMode.Localization
 
             const string json = @"{""locale"":""ru-RU"",""table"":""UI"",""entries"":{""Test.Key"":""Test Value""}}";
             var bytes = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(json));
+           
             _mockLoader.LoadBytesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(bytes));
 
@@ -764,6 +768,7 @@ namespace Tests.EditMode.Localization
 
             // First resolve: missing. After table load event: resolved.
             var call = 0;
+           
             _mockStore.TryResolveTemplate(_uiTable, _testKey, out Arg.Any<string>())
                 .Returns(ci =>
                 {

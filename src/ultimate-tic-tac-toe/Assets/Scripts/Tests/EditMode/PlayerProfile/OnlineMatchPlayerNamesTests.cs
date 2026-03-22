@@ -4,9 +4,7 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Online;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.PlayerProfile;
@@ -37,6 +35,7 @@ namespace Tests.EditMode.PlayerProfile
 
             _playerNameService.Snapshot.Returns(_playerNameSnapshot);
             _onlinePlayerNamesStore.Snapshot.Returns(_onlineNamesSnapshot);
+           
             _localizationService.Resolve(
                     Arg.Any<TextTableId>(),
                     Arg.Any<TextKey>(),

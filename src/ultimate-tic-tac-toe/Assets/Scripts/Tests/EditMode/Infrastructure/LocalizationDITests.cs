@@ -1,7 +1,6 @@
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Services;
 using Runtime.Localization.Types;

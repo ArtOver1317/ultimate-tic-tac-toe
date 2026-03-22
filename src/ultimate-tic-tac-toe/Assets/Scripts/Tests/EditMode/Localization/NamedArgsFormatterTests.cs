@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using FluentAssertions;
 using NUnit.Framework;
-using Runtime.Localization;
 using Runtime.Localization.Infrastructure;
 using Runtime.Localization.Types;
 

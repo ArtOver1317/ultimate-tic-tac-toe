@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
@@ -8,7 +7,6 @@ using Runtime.Services.UI;
 using Runtime.UI.Core;
 using Tests.EditMode.Fakes;
 using UnityEngine;
-using UnityEngine.TestTools;
 using VContainer;
 
 namespace Tests.EditMode
@@ -220,6 +218,7 @@ namespace Tests.EditMode
             // Assert
             act.Should().Throw<InvalidOperationException>()
                 .WithMessage("*[UIService] Window TestWindow prefab not registered.*");
+           
             configWasCalled.Should().BeFalse();
         }
 

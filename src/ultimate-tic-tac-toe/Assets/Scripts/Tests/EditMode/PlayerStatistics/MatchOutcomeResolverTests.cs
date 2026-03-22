@@ -1,6 +1,5 @@
 using FluentAssertions;
 using NUnit.Framework;
-using Runtime.Gameplay.ECS;
 using Runtime.Gameplay.Shared;
 using Runtime.PlayerStatistics;
 

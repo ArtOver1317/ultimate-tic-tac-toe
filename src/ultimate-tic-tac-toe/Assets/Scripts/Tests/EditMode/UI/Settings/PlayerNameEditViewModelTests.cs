@@ -7,7 +7,6 @@ using NSubstitute;
 using NUnit.Framework;
 using R3;
 using Runtime.GameModes.Wizard;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.PlayerProfile;
@@ -153,6 +152,7 @@ namespace Tests.EditMode.UI.Settings
         public void WhenConfirmCalledWhileBusy_ThenSecondCallIsNoOp()
         {
             var pending = new UniTaskCompletionSource<PlayerNameChangeResult>();
+            
             _playerNameService.TryChangeNameAsync("Alex", Arg.Any<CancellationToken>())
                 .Returns(pending.Task);
 

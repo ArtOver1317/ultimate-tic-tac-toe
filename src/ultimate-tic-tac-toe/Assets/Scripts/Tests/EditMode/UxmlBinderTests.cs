@@ -244,8 +244,7 @@ namespace Tests.EditMode
 
         private class TestViewAutoName
         {
-            [Runtime.UI.Core.UxmlElement]
-            private Button _myButton;
+            [Runtime.UI.Core.UxmlElement] private Button _myButton;
 
             public Button MyButton => _myButton;
         }
@@ -260,8 +259,7 @@ namespace Tests.EditMode
 
         private class TestViewNoUnderscore
         {
-            [Runtime.UI.Core.UxmlElement]
-            private Button myButton;
+            [Runtime.UI.Core.UxmlElement] private Button myButton;
 
             public Button MyButton => myButton;
         }

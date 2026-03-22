@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Editor.Localization.Parsing;
 using FluentAssertions;
 using NUnit.Framework;
@@ -20,12 +19,13 @@ namespace Tests.EditMode.Localization.Parsing
             // Arrange
             var allTables = new Dictionary<string, Dictionary<string, HashSet<string>>>
             {
-                ["table"] = new Dictionary<string, HashSet<string>>
+                ["table"] = new()
                 {
                     ["en"] = new HashSet<string> { "key1", "key2" },
-                    ["ru"] = new HashSet<string> { "key1", "key2" }
-                }
+                    ["ru"] = new HashSet<string> { "key1", "key2" },
+                },
             };
+            
             var foundLocales = new List<string> { "en", "ru" };
 
             // Act
@@ -43,12 +43,13 @@ namespace Tests.EditMode.Localization.Parsing
             // Arrange
             var allTables = new Dictionary<string, Dictionary<string, HashSet<string>>>
             {
-                ["table"] = new Dictionary<string, HashSet<string>>
+                ["table"] = new()
                 {
                     ["en"] = new HashSet<string> { "key1", "key2" },
-                    ["ru"] = new HashSet<string> { "key1" }
-                }
+                    ["ru"] = new HashSet<string> { "key1" },
+                },
             };
+            
             var foundLocales = new List<string> { "en", "ru" };
 
             // Act
@@ -67,12 +68,13 @@ namespace Tests.EditMode.Localization.Parsing
             // Arrange
             var allTables = new Dictionary<string, Dictionary<string, HashSet<string>>>
             {
-                ["table"] = new Dictionary<string, HashSet<string>>
+                ["table"] = new()
                 {
                     ["en"] = new HashSet<string> { "key1" },
-                    ["ru"] = new HashSet<string> { "key1", "key2" }
-                }
+                    ["ru"] = new HashSet<string> { "key1", "key2" },
+                },
             };
+           
             var foundLocales = new List<string> { "en", "ru" };
 
             // Act
@@ -88,11 +90,12 @@ namespace Tests.EditMode.Localization.Parsing
             // Arrange
             var allTables = new Dictionary<string, Dictionary<string, HashSet<string>>>
             {
-                ["table"] = new Dictionary<string, HashSet<string>>
+                ["table"] = new()
                 {
-                    ["en"] = new HashSet<string> { "key1" }
-                }
+                    ["en"] = new HashSet<string> { "key1" },
+                },
             };
+           
             var foundLocales = new List<string> { "en", "ru" };
 
             // Act
@@ -108,13 +111,14 @@ namespace Tests.EditMode.Localization.Parsing
             // Arrange
             var allTables = new Dictionary<string, Dictionary<string, HashSet<string>>>
             {
-                ["table"] = new Dictionary<string, HashSet<string>>
+                ["table"] = new()
                 {
                     ["ru"] = new HashSet<string> { "key1" },
                     ["en"] = new HashSet<string> { "key1", "key2" },
-                    ["ja"] = new HashSet<string> { "key1" }
-                }
+                    ["ja"] = new HashSet<string> { "key1" },
+                },
             };
+           
             var foundLocales = new List<string> { "en", "ru", "ja" };
 
             // Act

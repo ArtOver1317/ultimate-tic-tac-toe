@@ -13,16 +13,10 @@ namespace Tests.EditMode.UI.Components
         private SegmentedToggle _toggle;
 
         [SetUp]
-        public void SetUp()
-        {
-            _toggle = new SegmentedToggle();
-        }
+        public void SetUp() => _toggle = new SegmentedToggle();
 
         [TearDown]
-        public void TearDown()
-        {
-            _toggle = null;
-        }
+        public void TearDown() => _toggle = null;
 
         [Test]
         public void WhenSetSelectedIndexCalledWithInvalidIndex_ThenThrowsArgumentOutOfRangeException()

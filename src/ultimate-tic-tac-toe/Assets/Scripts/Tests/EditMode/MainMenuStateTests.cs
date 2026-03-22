@@ -7,11 +7,9 @@ using Cysharp.Threading.Tasks;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.Infrastructure;
 using Runtime.Infrastructure.GameStateMachine.States;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.Services.Assets;
@@ -55,13 +53,16 @@ namespace Tests.EditMode
             _entryModeStore = new MainMenuEntryModeStore();
             _assets = Substitute.For<IAssetProvider>();
             _localizationMock = Substitute.For<ILocalizationService>();
+            
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Test"));
+            
             _localizationMock.CurrentLocale.Returns(new ReactiveProperty<LocaleId>(LocaleId.EnglishUs));
+            
             _localizationMock.PreloadAsync(
                     Arg.Any<LocaleId>(),
                     Arg.Any<IReadOnlyList<TextTableId>>(),
-                    Arg.Any<System.Threading.CancellationToken>())
+                    Arg.Any<CancellationToken>())
                 .Returns(UniTask.CompletedTask);
             
             _viewModel = new MainMenuViewModel(_localizationMock);
@@ -89,39 +90,39 @@ namespace Tests.EditMode
             _matchmakingPrefab = new GameObject("MatchmakingPrefab");
             
             _assets
-                .LoadAsync<GameObject>(_assetLibrary.BackgroundPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .LoadAsync<GameObject>(_assetLibrary.BackgroundPrefab, Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(_backgroundPrefab));
 
             _assets
-                .LoadAsync<GameObject>(_assetLibrary.MainMenuPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .LoadAsync<GameObject>(_assetLibrary.MainMenuPrefab, Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(_mainMenuPrefab));
 
             _assets
-                .LoadAsync<GameObject>(_assetLibrary.SettingsPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .LoadAsync<GameObject>(_assetLibrary.SettingsPrefab, Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(settingsPrefab));
 
             _assets
-                .LoadAsync<GameObject>(_assetLibrary.PlayerStatisticsPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .LoadAsync<GameObject>(_assetLibrary.PlayerStatisticsPrefab, Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(_playerStatisticsPrefab));
 
             _assets
-                .LoadAsync<GameObject>(_assetLibrary.LanguageSelectionPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .LoadAsync<GameObject>(_assetLibrary.LanguageSelectionPrefab, Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(languagePrefab));
 
             _assets
-                .LoadAsync<GameObject>(_assetLibrary.PlayerNameEditPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .LoadAsync<GameObject>(_assetLibrary.PlayerNameEditPrefab, Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(_playerNameEditPrefab));
 
             _assets
-                .LoadAsync<GameObject>(_assetLibrary.ModeSelectionPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .LoadAsync<GameObject>(_assetLibrary.ModeSelectionPrefab, Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(_modeSelectionPrefab));
 
             _assets
-                .LoadAsync<GameObject>(_assetLibrary.MatchSetupPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .LoadAsync<GameObject>(_assetLibrary.MatchSetupPrefab, Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(_matchSetupPrefab));
 
             _assets
-                .LoadAsync<GameObject>(_assetLibrary.MatchmakingPrefab, Arg.Any<System.Threading.CancellationToken>())
+                .LoadAsync<GameObject>(_assetLibrary.MatchmakingPrefab, Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromResult(_matchmakingPrefab));
 
             _viewGameObject = new GameObject("TestMainMenuView");
@@ -183,7 +184,7 @@ namespace Tests.EditMode
 
             // Assert
             await _assets.Received(1)
-                .LoadAsync<GameObject>(_assetLibrary.MainMenuPrefab, Arg.Any<System.Threading.CancellationToken>());
+                .LoadAsync<GameObject>(_assetLibrary.MainMenuPrefab, Arg.Any<CancellationToken>());
             
             _uiService.Received(1).RegisterWindowPrefab<MainMenuView>(_mainMenuPrefab);
         }
@@ -212,10 +213,10 @@ namespace Tests.EditMode
             // Assert
             Received.InOrder(() =>
             {
-                _assets.LoadAsync<GameObject>(_assetLibrary.BackgroundPrefab, Arg.Any<System.Threading.CancellationToken>());
+                _assets.LoadAsync<GameObject>(_assetLibrary.BackgroundPrefab, Arg.Any<CancellationToken>());
                 _uiService.RegisterWindowPrefab<Runtime.UI.Common.UIBackgroundView>(_backgroundPrefab);
                 _uiService.Open<Runtime.UI.Common.UIBackgroundView, Runtime.UI.Common.UIBackgroundViewModel>();
-                _assets.LoadAsync<GameObject>(_assetLibrary.MainMenuPrefab, Arg.Any<System.Threading.CancellationToken>());
+                _assets.LoadAsync<GameObject>(_assetLibrary.MainMenuPrefab, Arg.Any<CancellationToken>());
                 _uiService.RegisterWindowPrefab<MainMenuView>(_mainMenuPrefab);
                 _uiService.Open<MainMenuView, MainMenuViewModel>();
                 _coordinator.Initialize(_viewModel);
@@ -242,21 +243,22 @@ namespace Tests.EditMode
             });
         }
 
-            [Test]
-            public async Task WhenExit_ThenClosesSettingsAndLanguageSelectionWindows()
-            {
-                // Arrange
-                await _state.EnterAsync();
+        [Test]
+        public async Task WhenExit_ThenClosesSettingsAndLanguageSelectionWindows()
+        {
+            // Arrange
+            await _state.EnterAsync();
 
-                // Act
-                _state.Exit();
+            // Act
+            _state.Exit();
 
-                // Assert
-                _uiService.Received(1).Close<Runtime.UI.Settings.SettingsView>();
-                _uiService.Received(1).Close<Runtime.UI.Settings.LanguageSelectionView>();
-                _uiService.Received(1).Close<Runtime.UI.Settings.PlayerNameEditView>();
-                _uiService.Received(1).Close<PlayerStatisticsView>();
-            }
+            // Assert
+            _uiService.Received(1).Close<Runtime.UI.Settings.SettingsView>();
+            _uiService.Received(1).Close<Runtime.UI.Settings.LanguageSelectionView>();
+            _uiService.Received(1).Close<Runtime.UI.Settings.PlayerNameEditView>();
+            _uiService.Received(1).Close<PlayerStatisticsView>();
+        }
+        
         [Test]
         public async Task WhenExit_ThenDisposesCoordinator()
         {
@@ -276,6 +278,7 @@ namespace Tests.EditMode
             // Arrange
             _uiService.Open<MainMenuView, MainMenuViewModel>()
                 .Returns(_ => throw new InvalidOperationException("MainMenuView open failed"));
+           
             LogAssert.Expect(LogType.Error, new Regex(@"Failed to open MainMenuView"));
             
             // Act
@@ -306,6 +309,7 @@ namespace Tests.EditMode
             _entryModeStore.Set(MainMenuEntryMode.OpenWizard);
 
             using var cts = new CancellationTokenSource();
+           
             _wizardCoordinator
                 .StartWizardAsync(Arg.Any<CancellationToken>())
                 .Returns(_ =>
@@ -315,9 +319,10 @@ namespace Tests.EditMode
                 });
 
             // Act
-                Assert.That(
-                    async () => await _state.EnterAsync(cts.Token),
-                    Throws.InstanceOf<OperationCanceledException>());
+               
+            Assert.That(
+                async () => await _state.EnterAsync(cts.Token),
+                Throws.InstanceOf<OperationCanceledException>());
 
             // Assert
             _uiService.DidNotReceive().Get<MainMenuView>();

@@ -57,6 +57,7 @@ namespace Tests.EditMode
                 _uiServiceMock,
                 _assetsMock,
                 _assetLibrary);
+           
             _cancellationToken = CancellationToken.None;
         }
 

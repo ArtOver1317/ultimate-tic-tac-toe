@@ -1,9 +1,7 @@
 using System;
 using FluentAssertions;
 using NUnit.Framework;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
-using Runtime.GameModes.Wizard.Matchmaking;
 using Runtime.GameModes.Wizard.Matchmaking.Config;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.PlayerStatistics;
@@ -98,8 +96,6 @@ namespace Tests.EditMode.PlayerStatistics
         private static GameLaunchConfig CreateConfig(IOpponentConfig opponentConfig) =>
             new("ttt", new TicTacToeConfig(3), opponentConfig);
 
-        private sealed class UnknownOpponentConfig : IOpponentConfig
-        {
-        }
+        private sealed class UnknownOpponentConfig : IOpponentConfig { }
     }
 }

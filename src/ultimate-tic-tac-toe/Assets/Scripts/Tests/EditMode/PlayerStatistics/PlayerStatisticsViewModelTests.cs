@@ -5,10 +5,8 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.PlayerStatistics;
@@ -25,6 +23,7 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = CreateLocalizationStub();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
                 new StatisticsEntry(
@@ -91,6 +90,7 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = CreateLocalizationStub();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
                 new StatisticsEntry(
@@ -114,6 +114,7 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = CreateLocalizationStub();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
                 new StatisticsEntry(
@@ -146,6 +147,7 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = CreateLocalizationStub();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
                 new StatisticsEntry(
@@ -169,6 +171,7 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = CreateLocalizationStub();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
                 new StatisticsEntry(
@@ -193,6 +196,7 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = CreateLocalizationStub();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
                 new StatisticsEntry(
@@ -216,6 +220,7 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = CreateLocalizationStub();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
                 new StatisticsEntry(
@@ -239,6 +244,7 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = CreateLocalizationStub();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
                 new StatisticsEntry(
@@ -262,6 +268,7 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = CreateLocalizationStub();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
                 new StatisticsEntry(
@@ -285,6 +292,7 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = CreateLocalizationStub();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
                 new StatisticsEntry(
@@ -308,10 +316,13 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = CreateLocalizationStub();
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
-                new StatisticsEntry(new MatchKey("ttt", StatisticsOpponentType.HotSeat, null), new StatisticsRecord(1, 0, 0)),
-                new StatisticsEntry(new MatchKey("chess", StatisticsOpponentType.HotSeat, null), new StatisticsRecord(1, 0, 0)),
+                new StatisticsEntry(new MatchKey("ttt", StatisticsOpponentType.HotSeat, null),
+                    new StatisticsRecord(1, 0, 0)),
+                new StatisticsEntry(new MatchKey("chess", StatisticsOpponentType.HotSeat, null),
+                    new StatisticsRecord(1, 0, 0)),
             });
 
             var chess = CreateStrategy("chess", 1, "Game.Chess", Array.Empty<string>());
@@ -351,10 +362,13 @@ namespace Tests.EditMode.PlayerStatistics
         {
             var localization = Substitute.For<ILocalizationService>();
             localization.CurrentLocale.Returns(new ReactiveProperty<LocaleId>(LocaleId.EnglishUs));
-            localization.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+
+            localization.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(call => Observable.Return(call.Arg<TextKey>().Value));
 
-            localization.Resolve(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+            localization.Resolve(Arg.Any<TextTableId>(), Arg.Any<TextKey>(),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(call => call.Arg<TextKey>().Value switch
                 {
                     "Game.GameA" => string.Empty,
@@ -365,11 +379,15 @@ namespace Tests.EditMode.PlayerStatistics
                 });
 
             var statisticsService = Substitute.For<IPlayerStatisticsService>();
+
             statisticsService.GetEntriesSnapshot().Returns(new[]
             {
-                new StatisticsEntry(new MatchKey("game-a", StatisticsOpponentType.HotSeat, null), new StatisticsRecord(1, 0, 0)),
-                new StatisticsEntry(new MatchKey("game-b", StatisticsOpponentType.HotSeat, null), new StatisticsRecord(1, 0, 0)),
-                new StatisticsEntry(new MatchKey("game-c", StatisticsOpponentType.HotSeat, null), new StatisticsRecord(1, 0, 0)),
+                new StatisticsEntry(new MatchKey("game-a", StatisticsOpponentType.HotSeat, null),
+                    new StatisticsRecord(1, 0, 0)),
+                new StatisticsEntry(new MatchKey("game-b", StatisticsOpponentType.HotSeat, null),
+                    new StatisticsRecord(1, 0, 0)),
+                new StatisticsEntry(new MatchKey("game-c", StatisticsOpponentType.HotSeat, null),
+                    new StatisticsRecord(1, 0, 0)),
             });
 
             var catalog = CreateCatalog(
@@ -392,10 +410,12 @@ namespace Tests.EditMode.PlayerStatistics
             var localization = Substitute.For<ILocalizationService>();
             localization.CurrentLocale.Returns(new ReactiveProperty<LocaleId>(LocaleId.EnglishUs));
 
-            localization.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+            localization.Observe(Arg.Any<TextTableId>(), Arg.Any<TextKey>(),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(call => Observable.Return(call.Arg<TextKey>().Value));
 
-            localization.Resolve(Arg.Any<TextTableId>(), Arg.Any<TextKey>(), Arg.Any<IReadOnlyDictionary<string, object>>())
+            localization.Resolve(Arg.Any<TextTableId>(), Arg.Any<TextKey>(),
+                    Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(call => call.Arg<TextKey>().Value switch
                 {
                     "Game.TicTacToe" => "Tic-Tac-Toe",
@@ -421,19 +441,23 @@ namespace Tests.EditMode.PlayerStatistics
         private static IBotDifficultyCatalog CreateBotCatalog()
         {
             var catalog = Substitute.For<IBotDifficultyCatalog>();
+
             catalog.Difficulties.Returns(new[]
             {
                 new BotDifficulty("Easy", "GameWizard.MatchSetup.BotDifficulty.Easy", 0),
                 new BotDifficulty("Normal", "GameWizard.MatchSetup.BotDifficulty.Normal", 1),
                 new BotDifficulty("Hard", "GameWizard.MatchSetup.BotDifficulty.Hard", 2),
             });
+
             return catalog;
         }
 
-        private static IGameStrategy CreateStrategy(string gameId, int order, string displayNameKey, IEnumerable<string> supportedDifficulties)
+        private static IGameStrategy CreateStrategy(string gameId, int order, string displayNameKey,
+            IEnumerable<string> supportedDifficulties)
         {
             var strategy = Substitute.For<IGameStrategy>();
             strategy.GameId.Returns(gameId);
+
             strategy.Metadata.Returns(new GameMetadata(
                 id: gameId,
                 displayNameKey: displayNameKey,
@@ -443,6 +467,7 @@ namespace Tests.EditMode.PlayerStatistics
                 supportsBot: true,
                 supportsOnline: true,
                 supportsLocal: true));
+
             strategy.GetSupportedBotDifficultyIds().Returns(supportedDifficulties);
             return strategy;
         }

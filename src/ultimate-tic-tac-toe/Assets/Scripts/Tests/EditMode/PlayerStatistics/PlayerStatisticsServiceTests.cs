@@ -64,6 +64,7 @@ namespace Tests.EditMode.PlayerStatistics
         public void WhenLoadContainsInvalidEntries_ThenSkipsInvalidAndNegativeCounters()
         {
             var storage = new InMemorySaveStorage();
+            
             storage.Seed(
                 "player_statistics",
                 new[]
@@ -129,6 +130,7 @@ namespace Tests.EditMode.PlayerStatistics
         public void WhenLoadContainsUnknownIds_ThenUnknownEntriesSurviveRoundTrip()
         {
             var storage = new InMemorySaveStorage();
+            
             storage.Seed(
                 "player_statistics",
                 new[]
@@ -174,6 +176,7 @@ namespace Tests.EditMode.PlayerStatistics
         public void WhenLoadContainsDuplicateKeys_ThenFirstWinsAndLogsWarning()
         {
             var storage = new InMemorySaveStorage();
+            
             storage.Seed(
                 "player_statistics",
                 new[]
@@ -255,9 +258,10 @@ namespace Tests.EditMode.PlayerStatistics
         public void WhenLoadedArrayContainsNullDto_ThenSkipsAndLogsWarning()
         {
             var storage = new InMemorySaveStorage();
+           
             storage.Seed(
                 "player_statistics",
-                new StatisticsEntryDto[]
+                new[]
                 {
                     null,
                     new StatisticsEntryDto
@@ -285,6 +289,7 @@ namespace Tests.EditMode.PlayerStatistics
         public void WhenOpponentTypeHasWrongCase_ThenEntryIsIgnored()
         {
             var storage = new InMemorySaveStorage();
+            
             storage.Seed(
                 "player_statistics",
                 new[]
@@ -358,9 +363,7 @@ namespace Tests.EditMode.PlayerStatistics
 
             public SaveWriteResult TrySave<T>(string section, T data) => SaveWriteResult.Success();
 
-            public void Save<T>(string section, T data)
-            {
-            }
+            public void Save<T>(string section, T data) { }
         }
 
         private sealed class ThrowingTrySaveStorage : ISaveService, ISaveServiceWithResult
@@ -369,9 +372,7 @@ namespace Tests.EditMode.PlayerStatistics
 
             public SaveWriteResult TrySave<T>(string section, T data) => throw new IOException("save failed");
 
-            public void Save<T>(string section, T data)
-            {
-            }
+            public void Save<T>(string section, T data) { }
         }
     }
 }

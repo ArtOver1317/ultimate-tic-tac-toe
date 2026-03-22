@@ -9,7 +9,6 @@ using NUnit.Framework;
 using R3;
 using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using UnityEngine;
@@ -64,6 +63,7 @@ namespace Tests.EditMode
             for (var i = mark; i < _logs.Count; i++)
             {
                 var (type, message) = _logs[i];
+                
                 if (type is LogType.Error or LogType.Exception && message != null && message.Contains("[BootstrapState]"))
                     bootstrapErrors.Add(message);
             }
@@ -129,15 +129,15 @@ namespace Tests.EditMode
 
             var errors = new System.Collections.Generic.List<string>();
             
-            void OnLog(string condition, string stackTrace, UnityEngine.LogType type)
+            void OnLog(string condition, string stackTrace, LogType type)
             {
                 // Filter: only track Error logs from BootstrapState/Infrastructure to avoid false positives
-                if (type is UnityEngine.LogType.Error or UnityEngine.LogType.Exception &&
+                if (type is LogType.Error or LogType.Exception &&
                     (condition.Contains("[BootstrapState]") || condition.Contains("[Infrastructure]")))
                     errors.Add(condition);
             }
 
-            UnityEngine.Application.logMessageReceived += OnLog;
+            Application.logMessageReceived += OnLog;
             
             try
             {
@@ -169,7 +169,7 @@ namespace Tests.EditMode
             }
             finally
             {
-                UnityEngine.Application.logMessageReceived -= OnLog;
+                Application.logMessageReceived -= OnLog;
                 cts.Dispose();
             }
         }
@@ -183,10 +183,10 @@ namespace Tests.EditMode
             _localizationMock.InitializeAsync(Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromException(expectedException));
             
-            LogAssert.Expect(UnityEngine.LogType.Log, 
+            LogAssert.Expect(LogType.Log, 
                 new Regex(@"\[Infrastructure\] \[BootstrapState\] Initializing game systems\.\.\."));
             
-            LogAssert.Expect(UnityEngine.LogType.Error, 
+            LogAssert.Expect(LogType.Error, 
                 new Regex(@"\[BootstrapState\] Failed to initialize localization: System\.InvalidOperationException: Test exception"));
 
             // Act
@@ -195,6 +195,7 @@ namespace Tests.EditMode
 
             // Assert
             await act.Should().ThrowAsync<InvalidOperationException>();
+          
             AssertOnlyBootstrapStateErrorSince(mark,
                 new Regex(@"\[BootstrapState\] Failed to initialize localization: System\.InvalidOperationException: Test exception"));
         }
@@ -208,10 +209,10 @@ namespace Tests.EditMode
             _localizationMock.InitializeAsync(Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromException(expectedException));
             
-            LogAssert.Expect(UnityEngine.LogType.Log, 
+            LogAssert.Expect(LogType.Log, 
                 new Regex(@"\[Infrastructure\] \[BootstrapState\] Initializing game systems\.\.\."));
             
-            LogAssert.Expect(UnityEngine.LogType.Error, 
+            LogAssert.Expect(LogType.Error, 
                 new Regex(@"\[BootstrapState\] Failed to initialize localization"));
 
             // Act
@@ -221,6 +222,7 @@ namespace Tests.EditMode
             // Assert
             await act.Should().ThrowAsync<InvalidOperationException>();
             await _stateMachineMock.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
+           
             AssertOnlyBootstrapStateErrorSince(mark,
                 new Regex(@"\[BootstrapState\] Failed to initialize localization"));
         }
@@ -248,10 +250,10 @@ namespace Tests.EditMode
             _localizationMock.InitializeAsync(Arg.Any<CancellationToken>())
                 .Returns(UniTask.FromException(expectedException));
             
-            LogAssert.Expect(UnityEngine.LogType.Log, 
+            LogAssert.Expect(LogType.Log, 
                 new Regex(@"\[Infrastructure\] \[BootstrapState\] Initializing game systems\.\.\."));
             
-            LogAssert.Expect(UnityEngine.LogType.Error, 
+            LogAssert.Expect(LogType.Error, 
                 new Regex(@"\[BootstrapState\] Failed to initialize localization"));
 
             // Act
@@ -261,6 +263,7 @@ namespace Tests.EditMode
             // Assert: exception thrown, no transition to next state
             await act.Should().ThrowAsync<InvalidOperationException>();
             await _stateMachineMock.DidNotReceive().EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>());
+            
             AssertOnlyBootstrapStateErrorSince(mark,
                 new Regex(@"\[BootstrapState\] Failed to initialize localization"));
             
@@ -273,7 +276,7 @@ namespace Tests.EditMode
             _stateMachineMock.EnterAsync<LoadMainMenuState>(Arg.Any<CancellationToken>()).Returns(UniTask.CompletedTask);
             
             // This should log again since first attempt failed
-            LogAssert.Expect(UnityEngine.LogType.Log, 
+            LogAssert.Expect(LogType.Log, 
                 new Regex(@"\[Infrastructure\] \[BootstrapState\] Initializing game systems\.\.\."));
             
             await _sut.EnterAsync(_cancellationToken);
@@ -303,10 +306,10 @@ namespace Tests.EditMode
             var expectedException = new InvalidOperationException("Localization failed");
             _localizationMock.InitializeAsync(Arg.Any<CancellationToken>()).Returns(UniTask.FromException(expectedException));
             
-            LogAssert.Expect(UnityEngine.LogType.Log, 
+            LogAssert.Expect(LogType.Log, 
                 new Regex(@"\[Infrastructure\] \[BootstrapState\] Initializing game systems\.\.\."));
             
-            LogAssert.Expect(UnityEngine.LogType.Error, new Regex(@"\[BootstrapState\] Failed to initialize localization: System\.InvalidOperationException: Localization failed"));
+            LogAssert.Expect(LogType.Error, new Regex(@"\[BootstrapState\] Failed to initialize localization: System\.InvalidOperationException: Localization failed"));
 
             // Act
             var mark = MarkLogs();
@@ -314,6 +317,7 @@ namespace Tests.EditMode
 
             // Assert
             await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("Localization failed");
+            
             AssertOnlyBootstrapStateErrorSince(mark,
                 new Regex(@"\[BootstrapState\] Failed to initialize localization: System\.InvalidOperationException: Localization failed"));
         }

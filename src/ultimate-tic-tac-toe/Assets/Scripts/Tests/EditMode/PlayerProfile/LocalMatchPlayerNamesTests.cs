@@ -4,7 +4,6 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.PlayerProfile;
@@ -27,6 +26,7 @@ namespace Tests.EditMode.PlayerProfile
 
             _snapshot = new ReactiveProperty<PlayerNameSnapshot>(new PlayerNameSnapshot(null, "Player"));
             _playerNameService.Snapshot.Returns(_snapshot);
+           
             _localizationService.Resolve(
                     Arg.Any<TextTableId>(),
                     Arg.Any<TextKey>(),
