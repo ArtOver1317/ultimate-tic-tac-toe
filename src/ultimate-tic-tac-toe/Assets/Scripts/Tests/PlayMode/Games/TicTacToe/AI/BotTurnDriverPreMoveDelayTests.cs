@@ -10,16 +10,12 @@ using NSubstitute;
 using NUnit.Framework;
 using R3;
 using Runtime.Gameplay;
-using Runtime.Gameplay.ECS;
-using Runtime.GameModes.Wizard;
 using Runtime.GameModes.Wizard.Configs;
 using Runtime.GameModes.Wizard.Modes;
 using Runtime.Gameplay.Shared;
-using Runtime.Games.TicTacToe.AI;
 using Runtime.Games.TicTacToe.AI.Core;
 using Runtime.Games.TicTacToe.AI.Profiles;
 using Runtime.Games.TicTacToe.AI.Turns;
-using Runtime.Games.TicTacToe.Moves;
 using UnityEditor;
 using UnityEngine.TestTools;
 using EcsGameStatus = Runtime.Gameplay.Shared.EcsGameStatus;
@@ -67,17 +63,20 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
             public void SetCells(int boardSize, PlayerMark[] marks)
             {
                 _cells.Clear();
+                
                 for (var r = 0; r < boardSize; r++)
                 {
                     for (var c = 0; c < boardSize; c++)
                     {
                         var mark = marks[r * boardSize + c];
+                       
                         var slot = mark switch
                         {
                             PlayerMark.X => 0,
                             PlayerMark.O => 1,
                             _ => -1,
                         };
+                       
                         _cells.Add(new CellSnapshot(new CellId(r, c), slot));
                     }
                 }
@@ -89,6 +88,7 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
             public void SubmitCommand(IGameplayCommand command)
             {
                 SubmittedCommands.Add(command);
+              
                 if (AcceptCommands)
                     CommandSequenceValue++;
             }
@@ -141,11 +141,12 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
         private BotTurnDriver CreateDriver() =>
             new(_matchState, _engine, _catalog, _winLengthProvider);
 
-        private static readonly TimeSpan SubmitTimeout = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan _submitTimeout = TimeSpan.FromSeconds(5);
 
         private async UniTask WaitForSubmitAsync(int minCount = 1)
         {
-            var deadline = DateTime.UtcNow + SubmitTimeout;
+            var deadline = DateTime.UtcNow + _submitTimeout;
+           
             while (DateTime.UtcNow < deadline)
             {
                 if (_matchState.SubmittedCommands.Count >= minCount)
@@ -154,7 +155,7 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
                 await UniTask.Delay(50, DelayType.UnscaledDeltaTime);
             }
 
-            Assert.Fail($"Submit command was not received within {SubmitTimeout.TotalSeconds:0.#}s.");
+            Assert.Fail($"Submit command was not received within {_submitTimeout.TotalSeconds:0.#}s.");
         }
 
         private (UniTaskCompletionSource entered, UniTaskCompletionSource release) ConfigureBarrierEngine()
@@ -167,6 +168,7 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
                 .Returns(info =>
                 {
                     var ct = info.ArgAt<CancellationToken>(2);
+                    
                     return UniTask.Create(async () =>
                     {
                         entered.TrySetResult();
@@ -186,7 +188,7 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
 
         private static GameLaunchConfig MakeConfig()
         {
-            var gameConfig = new TicTacToeConfig(3, false);
+            var gameConfig = new TicTacToeConfig(3);
             var opponentConfig = new BotOpponentConfig("easy");
             return new GameLaunchConfig("tic-tac-toe", gameConfig, opponentConfig);
         }
@@ -225,8 +227,10 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
 
             // Check that nothing submitted immediately (~100ms window)
             await UniTask.Delay(100);
+            
             _matchState.SubmittedCommands.Should().BeEmpty(
                 "bot should not submit immediately when PreMoveDelay is set");
+           
             driver.IsBusy.CurrentValue.Should().BeTrue("bot should be busy during delay");
 
             // Wait for the submit to happen
@@ -235,8 +239,10 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
 
             // Assert: submit happened with noticeable delay
             _matchState.SubmittedCommands.Should().ContainSingle();
+            
             sw.ElapsedMilliseconds.Should().BeGreaterThan(150,
                 "submit should be delayed substantially (PreMoveDelay=300ms)");
+            
             driver.IsBusy.CurrentValue.Should().BeFalse();
 
             driver.Dispose();
@@ -258,6 +264,7 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
             _matchState.ActivePlayerSlotValue = 1;
             _matchState.CommandSequenceValue = 1;
             _matchState.CurrentPlayerChangedSubject.OnNext(new CurrentPlayerChangedEvent(1));
+            
             _matchState.RoundFinishedSubject.OnNext(
                 new RoundFinishedEvent(EcsGameStatus.Win, 0, null));
 
@@ -266,8 +273,10 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
             // Assert: engine should not even start; submit must stay empty
             entered.Task.Status.Should().NotBe(UniTaskStatus.Succeeded,
                 "turn must be cancelled during PreMoveDelay before engine starts");
+            
             _matchState.SubmittedCommands.Should().BeEmpty(
                 "cancel during PreMoveDelay must prevent submission");
+            
             driver.IsBusy.CurrentValue.Should().BeFalse();
 
             release.TrySetResult();
@@ -300,10 +309,13 @@ namespace Tests.PlayMode.Games.TicTacToe.AI
             // Assert: deactivation during PreMoveDelay prevents engine start and submit
             entered.Task.Status.Should().NotBe(UniTaskStatus.Succeeded,
                 "inactive match during PreMoveDelay should stop turn before engine call");
+           
             _ = _engine.DidNotReceive().ChooseMoveAsync(Arg.Any<BotDecisionRequest>(),
                 Arg.Any<BotProfileData>(), Arg.Any<CancellationToken>());
+           
             _matchState.SubmittedCommands.Should().BeEmpty(
                 "inactive match during PreMoveDelay must prevent submission");
+           
             driver.IsBusy.CurrentValue.Should().BeFalse();
 
             release.TrySetResult();

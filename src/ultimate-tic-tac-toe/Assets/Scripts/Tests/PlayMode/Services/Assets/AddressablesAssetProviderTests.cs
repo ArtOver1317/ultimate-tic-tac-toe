@@ -1,23 +1,18 @@
 using System;
 using System.Collections;
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Services.Assets;
+using UnityEditor;
+using UnityEditor.AddressableAssets;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.TestTools;
 
-#if UNITY_EDITOR
-using UnityEditor;
-using UnityEditor.AddressableAssets;
-using UnityEditor.AddressableAssets.Settings;
-#endif
-
-namespace Tests.PlayMode
+namespace Tests.PlayMode.Services.Assets
 {
     [TestFixture]
     public class AddressablesAssetProviderTests
@@ -74,6 +69,7 @@ namespace Tests.PlayMode
 #endif
 
             yield return Addressables.InitializeAsync();
+            
             _provider = new AddressablesAssetProvider();
 
             if (_prefabReference == null)

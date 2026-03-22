@@ -8,7 +8,6 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.UI.Settings;
@@ -37,6 +36,7 @@ namespace Tests.PlayMode.UI.Settings
         public void OneTimeSetUp()
         {
             _uxml = Resources.Load<VisualTreeAsset>("LanguageSelectionTest");
+            
             if (_uxml == null)
                 throw new InvalidOperationException("LanguageSelectionTest.uxml not found under Assets/Scripts/Tests/Resources");
         }

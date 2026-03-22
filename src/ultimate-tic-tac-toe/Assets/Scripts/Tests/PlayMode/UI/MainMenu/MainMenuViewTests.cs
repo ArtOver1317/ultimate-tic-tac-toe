@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using Cysharp.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.UI.MainMenu;
@@ -15,7 +13,7 @@ using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
 
-namespace Tests.PlayMode
+namespace Tests.PlayMode.UI.MainMenu
 {
     [TestFixture]
     public class MainMenuViewTests
@@ -44,12 +42,16 @@ namespace Tests.PlayMode
             // Setup mock to return correct values based on key
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.Title"), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Ultimate Tic-Tac-Toe"));
+            
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.StartButton"), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Start Game"));
+            
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.Statistics"), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Statistics"));
+            
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.Settings"), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Settings"));
+           
             _localizationMock.Observe(Arg.Any<TextTableId>(), Arg.Is<TextKey>(k => k.Value == "MainMenu.ExitButton"), Arg.Any<IReadOnlyDictionary<string, object>>())
                 .Returns(Observable.Return("Exit"));
             

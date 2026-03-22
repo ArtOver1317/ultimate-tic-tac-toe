@@ -6,7 +6,6 @@ using FluentAssertions;
 using NSubstitute;
 using NUnit.Framework;
 using R3;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using Runtime.UI.Debugging;
@@ -85,6 +84,7 @@ namespace Tests.PlayMode.UI.Components
             for (var i = mark; i < _logs.Count; i++)
             {
                 var (type, message) = _logs[i];
+               
                 if (type is LogType.Error or LogType.Exception && message != null && message.StartsWith("[LocaleDebugOverlay]"))
                     Assert.Fail($"Unexpected LocaleDebugOverlay log: {type} '{message}'");
             }
@@ -95,9 +95,10 @@ namespace Tests.PlayMode.UI.Components
             for (var i = mark; i < _logs.Count; i++)
             {
                 var (type, message) = _logs[i];
+                
                 var isOverlayError = type is LogType.Error or LogType.Exception
-                    && message != null
-                    && message.StartsWith("[LocaleDebugOverlay]");
+                                     && message != null
+                                     && message.StartsWith("[LocaleDebugOverlay]");
 
                 if (!isOverlayError)
                     continue;
@@ -140,6 +141,7 @@ namespace Tests.PlayMode.UI.Components
 
             // Search for label within container scope (not entire root)
             Label localeLabel = null;
+            
             container.Query<Label>().ForEach(label =>
             {
                 if (label.text != null && label.text.Contains("Current:"))
@@ -153,6 +155,7 @@ namespace Tests.PlayMode.UI.Components
 
             // Assert - ждём реактивного обновления с таймаутом по кадрам (без магических задержек)
             const int maxFrames = 60;
+           
             for (var i = 0; i < maxFrames; i++)
             {
                 if (localeLabel.text == "Current: ru-RU")
@@ -315,6 +318,7 @@ namespace Tests.PlayMode.UI.Components
 
                 // Arrange - mock возвращает long-running task
                 var tcs = new UniTaskCompletionSource();
+               
                 _mockService.SetLocaleAsync(Arg.Any<LocaleId>(), Arg.Any<CancellationToken>())
                     .Returns(call =>
                     {

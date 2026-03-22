@@ -8,6 +8,7 @@ using NSubstitute;
 using NUnit.Framework;
 using Runtime.Services.UI;
 using Runtime.UI.Core;
+using Tests.PlayMode.Services.UI.Fakes;
 using UnityEngine;
 using UnityEngine.TestTools;
 using VContainer;
@@ -43,7 +44,9 @@ namespace Tests.PlayMode.Services.UI
             _sut?.Dispose();
 
             foreach (var prefab in _prefabs)
+            {
                 UnityEngine.Object.DestroyImmediate(prefab);
+            }
 
             _prefabs.Clear();
         }
@@ -112,13 +115,9 @@ namespace Tests.PlayMode.Services.UI
                 for (var i = 0; i < 100; i++)
                 {
                     if (i % 2 == 0)
-                    {
                         await _sut.ReplaceAsync<TransitionTestWindowA, TransitionTestWindowB, TransitionTestViewModelB>(CancellationToken.None);
-                    }
                     else
-                    {
                         await _sut.ReplaceAsync<TransitionTestWindowB, TransitionTestWindowA, TransitionTestViewModelA>(CancellationToken.None);
-                    }
                 }
 
                 // Assert
@@ -142,6 +141,7 @@ namespace Tests.PlayMode.Services.UI
                     await _sut.ReplaceAsync<TransitionTestWindowA, TransitionTestWindowB, TransitionTestViewModelB>(
                         CancellationToken.None,
                         _ => throw new InvalidOperationException("configure failed"));
+
                     Assert.Fail("Expected InvalidOperationException was not thrown.");
                 }
                 catch (InvalidOperationException ex)
@@ -169,11 +169,10 @@ namespace Tests.PlayMode.Services.UI
                     await _sut.ReplaceAsync<TransitionTestWindowA, TransitionTestWindowB, TransitionTestViewModelB>(
                         CancellationToken.None,
                         _ => throw new OperationCanceledException());
+
                     Assert.Fail("Expected OperationCanceledException was not thrown.");
                 }
-                catch (OperationCanceledException)
-                {
-                }
+                catch (OperationCanceledException) { }
 
                 from.InputEnabled.Should().BeFalse();
                 from.SetInputEnabledCallCount.Should().Be(1);
@@ -209,8 +208,10 @@ namespace Tests.PlayMode.Services.UI
             public bool Return(Type type, T item, Action<T> onReturn = null)
             {
                 ReturnCount++;
+                
                 if (item != null && !_items.Contains(item))
                     _items.Add(item);
+                
                 onReturn?.Invoke(item);
                 return true;
             }
@@ -218,7 +219,9 @@ namespace Tests.PlayMode.Services.UI
             public void Clear(Type type, Action<T> onClear = null)
             {
                 for (var i = _items.Count - 1; i >= 0; i--)
+                {
                     onClear?.Invoke(_items[i]);
+                }
 
                 _items.Clear();
             }
@@ -226,7 +229,9 @@ namespace Tests.PlayMode.Services.UI
             public void ClearAll(Action<T> onClear = null)
             {
                 for (var i = _items.Count - 1; i >= 0; i--)
+                {
                     onClear?.Invoke(_items[i]);
+                }
 
                 _items.Clear();
             }
@@ -235,6 +240,5 @@ namespace Tests.PlayMode.Services.UI
 
             public Dictionary<Type, int> GetStats() => new();
         }
-
     }
 }

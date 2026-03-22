@@ -7,7 +7,7 @@ using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
 
-namespace Tests.PlayMode
+namespace Tests.PlayMode.UI.Core
 {
     [TestFixture]
     public class UIViewTests
@@ -365,4 +365,3 @@ namespace Tests.PlayMode
         #endregion
     }
 }
-

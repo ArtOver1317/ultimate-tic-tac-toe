@@ -18,8 +18,8 @@ namespace Tests.PlayMode.UI.Components
     [UnityPlatform(RuntimePlatform.WindowsEditor, RuntimePlatform.OSXEditor, RuntimePlatform.LinuxEditor)]
     public class MatchmakingSpinnerPlayModeTests
     {
-        private const string MatchmakingUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/Matchmaking.uxml";
-        private const string PanelSettingsPath = "Assets/Content/UI Toolkit/Panel Settings.asset";
+        private const string _matchmakingUxmlPath = "Assets/Content/UI/GameModes/Wizard/UIToolkit/Matchmaking.uxml";
+        private const string _panelSettingsPath = "Assets/Content/UI Toolkit/Panel Settings.asset";
 
         private GameObject _gameObject;
         private UIDocument _uiDocument;
@@ -30,10 +30,11 @@ namespace Tests.PlayMode.UI.Components
         [UnitySetUp]
         public IEnumerator SetUp()
         {
-            _uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(MatchmakingUxmlPath);
-            Assert.NotNull(_uxml, $"UXML not found at path '{MatchmakingUxmlPath}'.");
+            _uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(_matchmakingUxmlPath);
+            Assert.NotNull(_uxml, $"UXML not found at path '{_matchmakingUxmlPath}'.");
 
-            var sharedPanelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(PanelSettingsPath);
+            var sharedPanelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(_panelSettingsPath);
+            
             _panelSettings = sharedPanelSettings != null
                 ? Object.Instantiate(sharedPanelSettings)
                 : ScriptableObject.CreateInstance<PanelSettings>();
@@ -105,7 +106,7 @@ namespace Tests.PlayMode.UI.Components
 
             // Act
             _spinner.Start();
-            await WaitUntilAsync(() => GetAngle() != angleBeforeSecondStart, 2000);
+            await WaitUntilAsync(() => !Mathf.Approximately(GetAngle(), angleBeforeSecondStart), 2000);
 
             // Assert
             GetAngle().Should().NotBe(angleBeforeSecondStart);
@@ -132,10 +133,7 @@ namespace Tests.PlayMode.UI.Components
         private float GetAngle()
         {
             var rotate = _spinner.style.rotate;
-            if (rotate.keyword == StyleKeyword.Null || rotate.keyword == StyleKeyword.Undefined)
-                return rotate.value.angle.value;
-
-            return 0f;
+            return rotate.keyword is StyleKeyword.Null or StyleKeyword.Undefined ? rotate.value.angle.value : 0f;
         }
 
         private static async UniTask WaitUntilAsync(Func<bool> predicate, int timeoutMs)
@@ -147,6 +145,7 @@ namespace Tests.PlayMode.UI.Components
         private static IEnumerator WaitUntilRootReady(UIDocument uiDocument, float timeoutSeconds)
         {
             var start = Time.realtimeSinceStartup;
+            
             while (uiDocument.rootVisualElement == null)
             {
                 if (Time.realtimeSinceStartup - start >= timeoutSeconds)

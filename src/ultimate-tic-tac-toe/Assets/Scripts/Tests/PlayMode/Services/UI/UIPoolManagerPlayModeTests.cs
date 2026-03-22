@@ -10,7 +10,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using VContainer;
 
-namespace Tests.PlayMode
+namespace Tests.PlayMode.Services.UI
 {
     [TestFixture]
     public class UIPoolManagerPlayModeTests
