@@ -3,7 +3,7 @@ using NUnit.Framework;
 using Runtime.Localization.Services;
 using Runtime.Localization.Types;
 
-namespace Tests.EditMode.Localization
+namespace Tests.EditMode.Localization.Policies
 {
     [Category("Unit")]
     public class GameLocalizationPolicyTests

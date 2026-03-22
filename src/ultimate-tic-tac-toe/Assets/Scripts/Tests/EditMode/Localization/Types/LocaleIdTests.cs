@@ -4,7 +4,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using Runtime.Localization.Types;
 
-namespace Tests.EditMode.Localization
+namespace Tests.EditMode.Localization.Types
 {
     [Category("Unit")]
     public class LocaleIdTests

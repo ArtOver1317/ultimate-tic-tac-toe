@@ -1,9 +1,9 @@
+using System;
 using FluentAssertions;
 using NUnit.Framework;
-using System;
 using Runtime.Localization.Types;
 
-namespace Tests.EditMode.Localization
+namespace Tests.EditMode.Localization.Validation
 {
     /// <summary>
     /// Unit tests for localization validation logic.

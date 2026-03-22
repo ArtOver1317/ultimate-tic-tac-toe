@@ -7,7 +7,7 @@ using NUnit.Framework;
 using Runtime.Localization.Types;
 using SimpleJSON;
 
-namespace Tests.EditMode.Localization
+namespace Tests.EditMode.Localization.Validation
 {
     [Category("Content")]
     [Category("Localization")]

@@ -7,7 +7,7 @@ using Runtime.Localization.Contracts;
 using Runtime.Localization.Services;
 using Runtime.Localization.Types;
 
-namespace Tests.EditMode.Localization
+namespace Tests.EditMode.Localization.Services
 {
     [Category("Unit")]
     public class LocalizationStoreTests

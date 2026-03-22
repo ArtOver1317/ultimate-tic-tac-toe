@@ -5,7 +5,7 @@ using NUnit.Framework;
 using Runtime.Localization.Infrastructure;
 using Runtime.Localization.Types;
 
-namespace Tests.EditMode.Localization
+namespace Tests.EditMode.Localization.Parsing
 {
     [Category("Unit")]
     public class JsonLocalizationParserTests

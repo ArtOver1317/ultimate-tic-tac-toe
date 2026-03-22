@@ -7,7 +7,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Tests.EditMode.Localization
+namespace Tests.EditMode.Localization.Parsing
 {
     [TestFixture]
     public sealed class CsvToJsonConverterTests

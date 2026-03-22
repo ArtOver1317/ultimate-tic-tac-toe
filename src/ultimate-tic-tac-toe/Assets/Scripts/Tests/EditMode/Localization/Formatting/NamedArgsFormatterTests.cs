@@ -4,7 +4,7 @@ using NUnit.Framework;
 using Runtime.Localization.Infrastructure;
 using Runtime.Localization.Types;
 
-namespace Tests.EditMode.Localization
+namespace Tests.EditMode.Localization.Formatting
 {
     [Category("Unit")]
     public class NamedArgsFormatterTests
