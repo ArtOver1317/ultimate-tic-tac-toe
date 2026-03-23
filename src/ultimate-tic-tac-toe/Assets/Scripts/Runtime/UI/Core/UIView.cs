@@ -1,13 +1,19 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Runtime.UI.Core
 {
     public abstract class UIView<TViewModel> : BaseView<TViewModel>, IUIView<TViewModel> 
         where TViewModel : BaseViewModel
     {
+        private const int _fadeInDurationMs = 150;
+        private const long _fadeInCleanupDelayMs = 200;
+
         [Header("View Settings")]
-        [SerializeField] private bool ShowOnAwake;
+        [SerializeField] 
+        private bool ShowOnAwake;
 
         public bool IsVisible { get; private set; }
 
@@ -19,12 +25,12 @@ namespace Runtime.UI.Core
             
             if (ShowOnAwake)
             {
-                Root.style.display = UnityEngine.UIElements.DisplayStyle.Flex;
+                Root.style.display = DisplayStyle.Flex;
                 IsVisible = true;
             }
             else
             {
-                Root.style.display = UnityEngine.UIElements.DisplayStyle.None;
+                Root.style.display = DisplayStyle.None;
                 IsVisible = false;
             }
         }
@@ -34,7 +40,31 @@ namespace Runtime.UI.Core
             if (IsVisible) 
                 return;
 
-            Root.style.display = UnityEngine.UIElements.DisplayStyle.Flex;
+            Root.style.transitionProperty = new StyleList<StylePropertyName>(
+                new List<StylePropertyName> { new("opacity") });
+            
+            Root.style.transitionDuration = new StyleList<TimeValue>(
+                new List<TimeValue> { new(_fadeInDurationMs, TimeUnit.Millisecond) });
+            
+            Root.style.transitionTimingFunction = new StyleList<EasingFunction>(
+                new List<EasingFunction> { new(EasingMode.EaseOut) });
+            
+            Root.style.opacity = 0f;
+            Root.style.display = DisplayStyle.Flex;
+            
+            Root.schedule.Execute(() =>
+            {
+                Root.style.opacity = 1f;
+                
+                Root.schedule.Execute(() =>
+                {
+                    Root.style.transitionProperty = StyleKeyword.Null;
+                    Root.style.transitionDuration = StyleKeyword.Null;
+                    Root.style.transitionTimingFunction = StyleKeyword.Null;
+                    Root.style.opacity = StyleKeyword.Null;
+                }).ExecuteLater(_fadeInCleanupDelayMs);
+            });
+           
             IsVisible = true;
             OnShow();
         }
@@ -44,7 +74,7 @@ namespace Runtime.UI.Core
             if (!IsVisible) 
                 return;
 
-            Root.style.display = UnityEngine.UIElements.DisplayStyle.None;
+            Root.style.display = DisplayStyle.None;
             IsVisible = false;
             OnHide();
         }

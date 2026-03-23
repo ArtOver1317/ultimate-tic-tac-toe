@@ -35,11 +35,11 @@ namespace Runtime.Gameplay
 
     public sealed class GameplayMovesFieldRenderer
     {
-        private const string LastMoveClass = "cell--lastMove";
-        private const string DisabledClass = "cell--disabled";
-        private const string MarkAppearFromClass = "cell-mark--appearFrom";
-        private const string MarkLabelXClass = "mark-label--x";
-        private const string MarkLabelOClass = "mark-label--o";
+        private const string _lastMoveClass = "cell--lastMove";
+        private const string _disabledClass = "cell--disabled";
+        private const string _markAppearFromClass = "cell-mark--appearFrom";
+        private const string _markLabelXClass = "mark-label--x";
+        private const string _markLabelOClass = "mark-label--o";
 
         private readonly IGameplayFieldUiAdapter _ui;
         private readonly MovesVfxSettings _vfxSettings;
@@ -105,9 +105,7 @@ namespace Runtime.Gameplay
                 return;
 
             var wasEmpty = string.IsNullOrEmpty(markLabel.text);
-
             ApplyCellInteractivity(cellRoot, value != PlayerMark.None);
-
             markLabel.text = value.ToUiText();
             ApplyMarkLabelClass(markLabel, value);
 
@@ -116,7 +114,7 @@ namespace Runtime.Gameplay
 
             if (value == PlayerMark.None)
             {
-                markRoot.RemoveFromClassList(MarkAppearFromClass);
+                markRoot.RemoveFromClassList(_markAppearFromClass);
 
                 if (_markAppearVfxByCellId.TryGetValue(cellId, out var state))
                     state.CancelPending();
@@ -124,11 +122,23 @@ namespace Runtime.Gameplay
                 return;
             }
 
+            if (animate && wasEmpty)
+                TriggerCellClickFeedback(cellRoot);
+
             if (!animate || !_vfxSettings.EnableMarkAppearAnimation || !wasEmpty)
                 return;
 
             if (_markAppearVfxByCellId.TryGetValue(cellId, out var vfxState))
                 vfxState.Trigger();
+        }
+
+        private const string _cellClickFeedbackClass = "cell--click-feedback";
+        private const long _cellClickFeedbackDurationMs = 140;
+
+        private static void TriggerCellClickFeedback(VisualElement cellRoot)
+        {
+            cellRoot.AddToClassList(_cellClickFeedbackClass);
+            cellRoot.schedule.Execute(() => cellRoot.RemoveFromClassList(_cellClickFeedbackClass)).ExecuteLater(_cellClickFeedbackDurationMs);
         }
 
         public void UpdateLastMove(CellId? cellId)
@@ -165,20 +175,20 @@ namespace Runtime.Gameplay
                 return;
 
             if (enabled)
-                cellRoot.AddToClassList(LastMoveClass);
+                cellRoot.AddToClassList(_lastMoveClass);
             else
-                cellRoot.RemoveFromClassList(LastMoveClass);
+                cellRoot.RemoveFromClassList(_lastMoveClass);
         }
 
         private static void ApplyMarkLabelClass(Label markLabel, PlayerMark value)
         {
-            markLabel.RemoveFromClassList(MarkLabelXClass);
-            markLabel.RemoveFromClassList(MarkLabelOClass);
+            markLabel.RemoveFromClassList(_markLabelXClass);
+            markLabel.RemoveFromClassList(_markLabelOClass);
 
             if (value == PlayerMark.X)
-                markLabel.AddToClassList(MarkLabelXClass);
+                markLabel.AddToClassList(_markLabelXClass);
             else if (value == PlayerMark.O)
-                markLabel.AddToClassList(MarkLabelOClass);
+                markLabel.AddToClassList(_markLabelOClass);
         }
 
         private static void ApplyCellInteractivity(VisualElement cellRoot, bool occupied)
@@ -190,9 +200,9 @@ namespace Runtime.Gameplay
             cellRoot.pickingMode = occupied ? PickingMode.Ignore : PickingMode.Position;
 
             if (occupied)
-                cellRoot.AddToClassList(DisabledClass);
+                cellRoot.AddToClassList(_disabledClass);
             else
-                cellRoot.RemoveFromClassList(DisabledClass);
+                cellRoot.RemoveFromClassList(_disabledClass);
         }
 
         private sealed class MarkAppearVfxState
@@ -209,8 +219,8 @@ namespace Runtime.Gameplay
 
             public void Trigger()
             {
-                _markRoot.RemoveFromClassList(MarkAppearFromClass);
-                _markRoot.AddToClassList(MarkAppearFromClass);
+                _markRoot.RemoveFromClassList(_markAppearFromClass);
+                _markRoot.AddToClassList(_markAppearFromClass);
 
                 _removeAppearFromItem.Pause();
                 _removeAppearFromItem.StartingIn(1);
@@ -220,10 +230,10 @@ namespace Runtime.Gameplay
             public void CancelPending()
             {
                 _removeAppearFromItem.Pause();
-                _markRoot.RemoveFromClassList(MarkAppearFromClass);
+                _markRoot.RemoveFromClassList(_markAppearFromClass);
             }
 
-            private void RemoveAppearFromClass() => _markRoot.RemoveFromClassList(MarkAppearFromClass);
+            private void RemoveAppearFromClass() => _markRoot.RemoveFromClassList(_markAppearFromClass);
         }
     }
 }

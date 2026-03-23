@@ -5,7 +5,6 @@ using R3;
 using Runtime.Games.Battleship.Startup;
 using Runtime.Games.TicTacToe;
 using Runtime.Games.TicTacToe.Series;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using Runtime.Localization.Types;
 using UnityEngine.UIElements;
@@ -24,9 +23,12 @@ namespace Runtime.Gameplay.Startup
     /// </summary>
     public sealed class GameResultViewModel : IDisposable
     {
+        private const string _popupVisibleClass = "result-popup--visible";
+
         private readonly Subject<ResultAction> _actions = new();
 
         private readonly VisualElement _overlay;
+        private readonly VisualElement _popup;
         private readonly Label _resultLabel;
         private readonly Label _scoreLabel;
         private readonly Label _leadLabel;
@@ -89,6 +91,7 @@ namespace Runtime.Gameplay.Startup
 
             popup.Add(buttons);
             _overlay.Add(popup);
+            _popup = popup;
             parent.Add(_overlay);
         }
 
@@ -104,12 +107,18 @@ namespace Runtime.Gameplay.Startup
             _scoreLabel.text = FormatScore(score);
             _leadLabel.text = FormatLead(score);
             _overlay.style.display = DisplayStyle.Flex;
+            _popup.RemoveFromClassList(_popupVisibleClass);
+            _popup.schedule.Execute(() => _popup.AddToClassList(_popupVisibleClass));
         }
 
         /// <summary>
         /// Hides the result popup.
         /// </summary>
-        public void Hide() => _overlay.style.display = DisplayStyle.None;
+        public void Hide()
+        {
+            _popup.RemoveFromClassList(_popupVisibleClass);
+            _overlay.style.display = DisplayStyle.None;
+        }
 
         public void Dispose()
         {

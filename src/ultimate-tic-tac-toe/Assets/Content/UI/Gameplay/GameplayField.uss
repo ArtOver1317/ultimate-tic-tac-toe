@@ -69,7 +69,7 @@
     border-width: 2px;
     border-color: rgba(255, 255, 255, 0.12);
     background-color: rgba(255, 255, 255, 0.05);
-    transition-property: background-color, border-color;
+    transition-property: background-color, border-color, scale;
     transition-duration: 200ms;
     transition-timing-function: ease-out;
 }
@@ -77,6 +77,10 @@
 .player-panel--active {
     background-color: rgba(255, 255, 255, 0.15);
     border-color: rgba(100, 200, 120, 0.75);
+}
+
+.player-panel--bounce {
+    scale: 1.06;
 }
 
 .player-name {
@@ -101,6 +105,12 @@
     -unity-text-align: middle-center;
 }
 
+@keyframes timer-warning-pulse {
+    0%   { scale: 1.0; }
+    50%  { scale: 1.12; }
+    100% { scale: 1.0; }
+}
+
 .move-timer-label {
     min-width: 54px;
     margin-right: 12px;
@@ -109,6 +119,10 @@
 
 .move-timer-label.move-timer-label--warning {
     color: rgba(255, 255, 255, 0.85);
+    animation-name: timer-warning-pulse;
+    animation-duration: 600ms;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
 }
 
 .field-container {
@@ -159,22 +173,33 @@
     transition-timing-function: ease;
 }
 
+@keyframes battleship-active-board-pulse {
+    0%   { border-color: rgba(255, 220, 55, 0.55); }
+    50%  { border-color: rgba(255, 242, 130, 1.0); }
+    100% { border-color: rgba(255, 220, 55, 0.55); }
+}
+
 /* === Battleship turn indicators === */
 
 .battleship-board--active-attack .battleship-board-grid {
     border-color: rgba(255, 220, 55, 0.90);
-    border-width: 2px;
-    border-radius: 2px;
+    border-width: 3px;
+    border-radius: 3px;
+    animation-name: battleship-active-board-pulse;
+    animation-duration: 1100ms;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
 }
 
 .battleship-board--active-attack .battleship-board-title {
-    color: rgba(255, 230, 65, 1);
+    color: rgba(255, 235, 80, 1);
+    font-size: 17px;
 }
 
 .battleship-board--under-attack .battleship-board-grid {
-    border-color: rgba(255, 80, 80, 0.60);
-    border-width: 2px;
-    border-radius: 2px;
+    border-color: rgba(255, 80, 80, 0.85);
+    border-width: 3px;
+    border-radius: 3px;
 }
 
 .battleship-board--under-attack .battleship-board-title {
@@ -306,9 +331,13 @@
     border-radius: var(--mini-board-radius);
     background-color: var(--mini-board-bg);
     margin: var(--mini-board-gap-half);
-    transition-property: background-color, border-color;
+    transition-property: background-color, border-color, scale;
     transition-duration: var(--anim-fast-ms);
     transition-timing-function: var(--anim-ease);
+}
+
+.mini-board--win-bounce {
+    scale: 1.06;
 }
 
 .cell {
@@ -319,7 +348,7 @@
     border-width: var(--border-width);
     border-radius: var(--cell-radius);
     margin: var(--grid-gap-half);
-    transition-property: background-color, border-color;
+    transition-property: background-color, border-color, scale;
     transition-duration: var(--anim-fast-ms);
     transition-timing-function: var(--anim-ease);
 }
@@ -327,6 +356,10 @@
 .cell.cell--disabled {
     /* Visual hint only; interactivity is enforced from C# (SetEnabled + pickingMode). */
     opacity: 0.92;
+}
+
+.cell--click-feedback {
+    scale: 0.9;
 }
 
 .cell:hover {
@@ -481,13 +514,29 @@
     border-radius: 3px;
     transform-origin: center;
     opacity: 0;
-    transition-property: opacity;
-    transition-duration: 300ms;
+    scale: 0.96;
+    transition-property: opacity, scale;
+    transition-duration: 320ms;
     transition-timing-function: ease-out;
 }
 
 .win-line--visible {
     opacity: 1;
+    scale: 1;
+}
+
+/* === Battleship shot animation === */
+
+@keyframes battleship-shot-appear {
+    0%   { scale: 0.3; opacity: 0; }
+    55%  { scale: 1.45; opacity: 1; }
+    100% { scale: 1.0; opacity: 1; }
+}
+
+.battleship-mark--shot-appear {
+    animation-name: battleship-shot-appear;
+    animation-duration: 420ms;
+    animation-timing-function: ease-out;
 }
 
 /* === Result Popup Overlay === */
@@ -510,6 +559,16 @@
     border-color: rgba(255, 255, 255, 0.18);
     border-width: 1px;
     align-items: center;
+    opacity: 0;
+    scale: 0.88;
+    transition-property: opacity, scale;
+    transition-duration: 220ms;
+    transition-timing-function: ease-out;
+}
+
+.result-popup--visible {
+    opacity: 1;
+    scale: 1;
 }
 
 .result-label {

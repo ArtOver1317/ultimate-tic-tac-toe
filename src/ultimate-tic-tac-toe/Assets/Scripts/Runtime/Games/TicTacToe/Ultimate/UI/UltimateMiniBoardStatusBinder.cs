@@ -15,6 +15,8 @@ namespace Runtime.Games.TicTacToe.Ultimate.UI
         private const string _overlayX = "X";
         private const string _overlayO = "O";
         private const string _overlayDraw = "=";
+        private const string _winBounceClass = "mini-board--win-bounce";
+        private const long _winBounceDurationMs = 280;
 
         private readonly IUltimateGameplayFieldUiAdapter _ui;
         private readonly IUltimateGameplayEventStream _events;
@@ -90,8 +92,21 @@ namespace Runtime.Games.TicTacToe.Ultimate.UI
             if (evt.Major is < 0 or >= UltimateBoardConstants.MajorCount)
                 return;
 
+            var oldStatus = _statuses[evt.Major];
             _statuses[evt.Major] = evt.NewStatus;
             ApplyMiniBoardVisual(evt.Major, evt.NewStatus);
+
+            if (oldStatus == MiniBoardStatus.InProgress && evt.NewStatus != MiniBoardStatus.InProgress)
+                TriggerWinBounce(evt.Major);
+        }
+
+        private void TriggerWinBounce(int major)
+        {
+            if (!_ui.TryGetMiniBoard(major, out var mini) || mini == null)
+                return;
+
+            mini.AddToClassList(_winBounceClass);
+            mini.schedule.Execute(() => mini.RemoveFromClassList(_winBounceClass)).ExecuteLater(_winBounceDurationMs);
         }
 
         private void ApplyMiniBoardVisual(int major, MiniBoardStatus status)

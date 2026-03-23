@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using R3;
 using Runtime.Gameplay.Shared;
 using Runtime.Infrastructure.Logging;
-using Runtime.Localization;
 using Runtime.Localization.Contracts;
 using UnityEngine.UIElements;
 
@@ -11,7 +10,9 @@ namespace Runtime.Gameplay
 {
     public sealed class GameplayMovesBinder : IDisposable
     {
-        private const string ActivePanelClass = "player-panel--active";
+        private const string _activePanelClass = "player-panel--active";
+        private const string _panelBounceClass = "player-panel--bounce";
+        private const long _panelBounceDurationMs = 200;
 
         private readonly IGameplayFieldUiAdapter _ui;
         private readonly IGameplayCommandSink _commandSink;
@@ -158,9 +159,7 @@ namespace Runtime.Gameplay
             {
                 _commandSink.SubmitCommand(new MakeMoveCommand(cellId));
             }
-            catch (ObjectDisposedException)
-            {
-            }
+            catch (ObjectDisposedException) { }
         }
 
         private void OnCommandRejected(CommandRejectedEvent evt)
@@ -226,19 +225,27 @@ namespace Runtime.Gameplay
 
             if (mark == PlayerMark.X)
             {
-                p1.AddToClassList(ActivePanelClass);
-                p2.RemoveFromClassList(ActivePanelClass);
+                p1.AddToClassList(_activePanelClass);
+                TriggerPanelBounce(p1);
+                p2.RemoveFromClassList(_activePanelClass);
             }
             else if (mark == PlayerMark.O)
             {
-                p1.RemoveFromClassList(ActivePanelClass);
-                p2.AddToClassList(ActivePanelClass);
+                p1.RemoveFromClassList(_activePanelClass);
+                p2.AddToClassList(_activePanelClass);
+                TriggerPanelBounce(p2);
             }
             else
             {
-                p1.RemoveFromClassList(ActivePanelClass);
-                p2.RemoveFromClassList(ActivePanelClass);
+                p1.RemoveFromClassList(_activePanelClass);
+                p2.RemoveFromClassList(_activePanelClass);
             }
+        }
+
+        private static void TriggerPanelBounce(VisualElement panel)
+        {
+            panel.AddToClassList(_panelBounceClass);
+            panel.schedule.Execute(() => panel.RemoveFromClassList(_panelBounceClass)).ExecuteLater(_panelBounceDurationMs);
         }
 
         private void ThrowIfDisposed()

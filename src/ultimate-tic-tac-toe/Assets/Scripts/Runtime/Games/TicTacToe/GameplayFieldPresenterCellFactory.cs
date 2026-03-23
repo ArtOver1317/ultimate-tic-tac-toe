@@ -28,7 +28,11 @@ namespace Runtime.Games.TicTacToe
             cell.AddToClassList("cell");
 
             cell.userData = new CellUserData(cellId);
-            cell.AddManipulator(new Clickable(() => _publishCellClick(cellId)));
+            
+            cell.AddManipulator(new Clickable(() =>
+            {
+                _publishCellClick(cellId);
+            }));
 
             RegisterOpponentCell(cellId, cell);
             return cell;
