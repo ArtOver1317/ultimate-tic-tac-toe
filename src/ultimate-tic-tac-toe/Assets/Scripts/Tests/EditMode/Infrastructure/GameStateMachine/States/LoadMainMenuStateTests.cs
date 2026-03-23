@@ -13,60 +13,58 @@ namespace Tests.EditMode.Infrastructure.GameStateMachine.States
     [TestFixture]
     public class LoadMainMenuStateTests
     {
+        private IGameStateMachine _stateMachine;
+        private ISceneLoaderService _sceneLoader;
+        private IUIService _uiService;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _stateMachine = Substitute.For<IGameStateMachine>();
+            _sceneLoader = Substitute.For<ISceneLoaderService>();
+            _uiService = Substitute.For<IUIService>();
+
+            _sceneLoader.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+            _stateMachine.EnterAsync<MainMenuState>(Arg.Any<CancellationToken>())
+                .Returns(UniTask.CompletedTask);
+        }
+
+        private LoadMainMenuState CreateSut() =>
+            new LoadMainMenuState(_stateMachine, _sceneLoader, _uiService);
+
         [Test]
         public async Task WhenEnter_ThenClearsViewModelPoolsAndLoadsMainMenuScene()
         {
             // Arrange
-            var stateMachineMock = Substitute.For<IGameStateMachine>();
-            var sceneLoaderMock = Substitute.For<ISceneLoaderService>();
-            var uiService = Substitute.For<IUIService>();
-            var cancellationToken = CancellationToken.None;
-
-            sceneLoaderMock.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>())
-                .Returns(UniTask.CompletedTask);
-            
-            stateMachineMock.EnterAsync<MainMenuState>(Arg.Any<CancellationToken>())
-                .Returns(UniTask.CompletedTask);
-
-            var sut = new LoadMainMenuState(stateMachineMock, sceneLoaderMock, uiService);
+            var sut = CreateSut();
 
             // Act
-            await sut.EnterAsync(cancellationToken);
+            await sut.EnterAsync(CancellationToken.None);
 
             // Assert
             Received.InOrder(() =>
             {
-                uiService.ClearViewModelPools();
-                sceneLoaderMock.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>());
-                stateMachineMock.EnterAsync<MainMenuState>(Arg.Any<CancellationToken>());
+                _uiService.ClearViewModelPools();
+                _sceneLoader.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>());
+                _stateMachine.EnterAsync<MainMenuState>(Arg.Any<CancellationToken>());
             });
 
-            uiService.DidNotReceive().CloseAll();
+            _uiService.DidNotReceive().CloseAll();
         }
 
         [Test]
         public async Task WhenSceneLoaded_ThenTransitionsToMainMenuState()
         {
             // Arrange
-            var stateMachineMock = Substitute.For<IGameStateMachine>();
-            var sceneLoaderMock = Substitute.For<ISceneLoaderService>();
-            var uiService = Substitute.For<IUIService>();
-            var cancellationToken = CancellationToken.None;
-
-            sceneLoaderMock.LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>())
-                .Returns(UniTask.CompletedTask);
-            
-            stateMachineMock.EnterAsync<MainMenuState>(Arg.Any<CancellationToken>())
-                .Returns(UniTask.CompletedTask);
-
-            var sut = new LoadMainMenuState(stateMachineMock, sceneLoaderMock, uiService);
+            var sut = CreateSut();
 
             // Act
-            await sut.EnterAsync(cancellationToken);
+            await sut.EnterAsync(CancellationToken.None);
 
             // Assert
-            await sceneLoaderMock.Received(1).LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>());
-            await stateMachineMock.Received(1).EnterAsync<MainMenuState>(Arg.Any<CancellationToken>());
+            await _sceneLoader.Received(1).LoadSceneAsync(SceneNames.MainMenu, Arg.Any<CancellationToken>());
+            await _stateMachine.Received(1).EnterAsync<MainMenuState>(Arg.Any<CancellationToken>());
         }
     }
 }

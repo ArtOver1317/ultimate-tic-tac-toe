@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e4b6e9bdc5a8dde4eb01ff110aa74e63, type: 3}
   m_Name: BattleshipGameplaySettings
   m_EditorClassIdentifier: 
-  BotShotDelaySeconds: 0.35
+  BotShotDelaySeconds: 0.8

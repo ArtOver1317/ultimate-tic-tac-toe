@@ -50,6 +50,9 @@ namespace Runtime.Infrastructure.GameStateMachine.States
 
         private async UniTask TryOpenBackgroundAsync(CancellationToken cancellationToken)
         {
+            if (_uiService.IsOpen<UIBackgroundView>())
+                return;
+
             if (_assetLibrary.BackgroundPrefab == null || !_assetLibrary.BackgroundPrefab.RuntimeKeyIsValid())
             {
                 Log.Error(LogTags.Scenes, "[GameplayState] BackgroundPrefab is missing or invalid. UI background will be disabled.");

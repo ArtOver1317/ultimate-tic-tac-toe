@@ -15,6 +15,7 @@ namespace Runtime.Infrastructure.Scopes
         [SerializeField] private AssetLibrary AssetLibrary;
         [SerializeField] private MoveTimerPresetsConfig MoveTimerPresets;
         [SerializeField] private MatchmakingConfigAsset MatchmakingConfig;
+        [SerializeField] private UIWindowBootstrapper UIBootstrapper;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -27,6 +28,9 @@ namespace Runtime.Infrastructure.Scopes
             GameScopeLocalizationRegistration.Register(builder);
             GameScopePlayerStateRegistration.Register(builder);
             GameScopeUiRegistration.Register(builder);
+
+            if (UIBootstrapper != null)
+                builder.RegisterComponent(UIBootstrapper);
         }
 
         private void EnsureSerializedFieldsAssigned()

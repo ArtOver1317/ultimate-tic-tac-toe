@@ -161,6 +161,24 @@ namespace Runtime.Services.UI
 
         public void ClearPools() => _poolManager.ClearAllPools();
 
+        public void AdoptSceneWindow<TWindow, TViewModel>(TWindow window)
+            where TWindow : class, IUIView<TViewModel>
+            where TViewModel : BaseViewModel
+        {
+            var windowType = typeof(TWindow);
+
+            if (TryGetActiveEntry(windowType, out _))
+            {
+                Log.Debug(LogTags.Services, $"[UIService] Window {windowType.Name} already adopted, skipping.");
+                return;
+            }
+
+            var viewModel = CreateViewModel<TViewModel>();
+            window.SetViewModel(viewModel);
+            _activeWindowEntries[windowType] = CreateActiveWindowEntry(windowType, window, viewModel, isSceneOwned: true);
+            Log.Debug(LogTags.Services, $"[UIService] Adopted scene window: {windowType.Name}");
+        }
+
         public void Dispose()
         {
             CloseAll();
@@ -197,22 +215,32 @@ namespace Runtime.Services.UI
 
         private bool TryCloseWindow(Type windowType)
         {
-            if (!_activeWindowEntries.Remove(windowType, out var entry))
+            if (!TryGetActiveEntry(windowType, out var entry))
                 return false;
 
+            if (entry.IsSceneOwned)
+            {
+                // Scene-owned windows persist via DontDestroyOnLoad.
+                // Close = Hide: retain the entry so Open<T> can show it again without re-loading a prefab.
+                // ViewModel stays attached; close subscription stays active.
+                entry.Window.Hide();
+                return true;
+            }
+
+            _activeWindowEntries.Remove(windowType);
             entry.DisposeCloseSubscription();
             _poolManager.ReturnWindowToPool(entry.Window);
 
             if (entry.ViewModel != null)
                 _poolManager.ReturnViewModelToPool(entry.ViewModel);
-            
+
             return true;
         }
 
         private bool TryGetActiveEntry(Type windowType, out ActiveWindowEntry entry) =>
             _activeWindowEntries.TryGetValue(windowType, out entry);
 
-        private ActiveWindowEntry CreateActiveWindowEntry(Type windowType, IUIView window, BaseViewModel viewModel)
+        private ActiveWindowEntry CreateActiveWindowEntry(Type windowType, IUIView window, BaseViewModel viewModel, bool isSceneOwned = false)
         {
             var closeSubscription = viewModel.OnCloseRequested
                 .Subscribe(_ =>
@@ -221,21 +249,24 @@ namespace Runtime.Services.UI
                     CloseWindowByType(windowType);
                 });
 
-            return new ActiveWindowEntry(window, viewModel, closeSubscription);
+            return new ActiveWindowEntry(window, viewModel, closeSubscription, isSceneOwned);
         }
 
         private sealed class ActiveWindowEntry
         {
-            public ActiveWindowEntry(IUIView window, BaseViewModel viewModel, IDisposable closeSubscription)
+            public ActiveWindowEntry(IUIView window, BaseViewModel viewModel, IDisposable closeSubscription, bool isSceneOwned = false)
             {
                 Window = window;
                 ViewModel = viewModel;
                 CloseSubscription = closeSubscription;
+                IsSceneOwned = isSceneOwned;
             }
 
             public IUIView Window { get; }
 
             public BaseViewModel ViewModel { get; }
+
+            public bool IsSceneOwned { get; }
 
             private IDisposable CloseSubscription { get; }
 

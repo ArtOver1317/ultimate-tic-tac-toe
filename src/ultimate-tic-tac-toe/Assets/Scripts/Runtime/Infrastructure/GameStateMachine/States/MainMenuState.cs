@@ -142,6 +142,9 @@ namespace Runtime.Infrastructure.GameStateMachine.States
 
         private async UniTask TryRegisterAndOpenBackgroundAsync(CancellationToken cancellationToken)
         {
+            if (_uiService.IsOpen<UIBackgroundView>())
+                return;
+
             if (!await TryRegisterWindowPrefabAsync<UIBackgroundView>(
                     _assetLibrary.BackgroundPrefab,
                     "[MainMenuState] BackgroundPrefab is missing or invalid. UI background will be disabled.",

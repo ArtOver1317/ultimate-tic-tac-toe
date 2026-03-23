@@ -327,6 +327,21 @@ namespace Tests.EditMode.Infrastructure.GameStateMachine.States
             // Assert
             _uiService.DidNotReceive().Get<MainMenuView>();
         }
+
+        [Test]
+        public async Task WhenEnterAndBackgroundAlreadyOpen_ThenSkipsBackgroundLoading()
+        {
+            // Arrange: simulate UIWindowBootstrapper having already adopted the scene window
+            _uiService.IsOpen<Runtime.UI.Common.UIBackgroundView>().Returns(true);
+
+            // Act
+            await _state.EnterAsync();
+
+            // Assert
+            await _assets.DidNotReceive()
+                .LoadAsync<GameObject>(_assetLibrary.BackgroundPrefab, Arg.Any<CancellationToken>());
+            _uiService.DidNotReceive().RegisterWindowPrefab<Runtime.UI.Common.UIBackgroundView>(Arg.Any<GameObject>());
+        }
     }
 
     public class TestMainMenuView : MainMenuView

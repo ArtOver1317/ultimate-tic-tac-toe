@@ -52,6 +52,15 @@ namespace Runtime.Services.UI
         void ClearViewModelPools();
         
         void ClearPools();
+
+        /// <summary>
+        /// Registers an already-visible scene window with UIService so it is tracked as an active
+        /// window. Use this for windows placed directly in the scene that must be visible from the
+        /// first frame. The window is NOT shown again (avoids re-triggering fade-in).
+        /// </summary>
+        void AdoptSceneWindow<TWindow, TViewModel>(TWindow window)
+            where TWindow : class, IUIView<TViewModel>
+            where TViewModel : BaseViewModel;
     }
 }
 

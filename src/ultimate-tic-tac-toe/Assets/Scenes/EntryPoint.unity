@@ -256,6 +256,78 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1151991636
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1897568045966901234, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1897568045966901234, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1897568045966901234, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1897568045966901234, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1897568045966901234, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1897568045966901234, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1897568045966901234, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1897568045966901234, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1897568045966901234, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1897568045966901234, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3917924807312921200, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: m_Name
+      value: UIBackground
+      objectReference: {fileID: 0}
+    - target: {fileID: 3945512226176899211, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+      propertyPath: ShowOnAwake
+      value: 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+--- !u!114 &1151991637 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3945512226176899211, guid: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8, type: 3}
+  m_PrefabInstance: {fileID: 1151991636}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7718a41f76de18f4bbd1e3061e2a7b9e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Runtime::Runtime.UI.Common.UIBackgroundView
 --- !u!1 &2010739095
 GameObject:
   m_ObjectHideFlags: 0
@@ -266,6 +338,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2010739097}
   - component: {fileID: 2010739096}
+  - component: {fileID: 2010739098}
   m_Layer: 0
   m_Name: EntryPoint
   m_TagString: Untagged
@@ -292,6 +365,7 @@ MonoBehaviour:
   AssetLibrary: {fileID: 11400000, guid: 2aa4fbeaf29886f43b1376b04fbdb2f8, type: 2}
   MoveTimerPresets: {fileID: 11400000, guid: ff266d0bfbe03ec44a98f7db9ebed386, type: 2}
   MatchmakingConfig: {fileID: 11400000, guid: 48f9f7b377b81324e9f12bc009994cb5, type: 2}
+  UIBootstrapper: {fileID: 2010739098}
 --- !u!4 &2010739097
 Transform:
   m_ObjectHideFlags: 0
@@ -307,9 +381,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2010739098
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2010739095}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23a1b25e73fe55d46bc4e78fbec13c69, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Runtime::Runtime.Infrastructure.EntryPoint.UIWindowBootstrapper
+  Background: {fileID: 1151991637}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 519420032}
   - {fileID: 2010739097}
+  - {fileID: 1151991636}

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using Runtime.Gameplay;
+using Runtime.Infrastructure.Logging;
+using StripLog;
 using UnityEngine.UIElements;
 
 namespace Runtime.Games.TicTacToe

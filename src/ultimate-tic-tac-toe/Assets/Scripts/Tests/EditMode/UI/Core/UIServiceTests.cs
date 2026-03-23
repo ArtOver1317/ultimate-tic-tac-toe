@@ -502,5 +502,120 @@ namespace Tests.EditMode.UI.Core
         }
 
         #endregion
+
+        #region AdoptSceneWindow Tests
+
+        [Test]
+        public void WhenAdoptSceneWindowWithVisibleWindow_ThenWindowIsTracked()
+        {
+            // Arrange
+            var window = new TestWindow();
+            window.Show();
+
+            // Act
+            _uiService.AdoptSceneWindow<TestWindow, TestViewModel>(window);
+
+            // Assert
+            _uiService.IsOpen<TestWindow>().Should().BeTrue();
+        }
+
+        [Test]
+        public void WhenAdoptSceneWindow_ThenViewModelIsSetOnWindow()
+        {
+            // Arrange
+            var window = new TestWindow();
+
+            // Act
+            _uiService.AdoptSceneWindow<TestWindow, TestViewModel>(window);
+
+            // Assert
+            window.GetViewModel().Should().NotBeNull();
+        }
+
+        [Test]
+        public void WhenAdoptSceneWindow_ThenShowIsNotCalledOnWindow()
+        {
+            // Arrange
+            var window = new TestWindow();
+
+            // Act
+            _uiService.AdoptSceneWindow<TestWindow, TestViewModel>(window);
+
+            // Assert
+            window.ShowCallCount.Should().Be(0, "AdoptSceneWindow must not call Show — window is already visible");
+        }
+
+        [Test]
+        public void WhenAdoptSceneWindowCalledTwice_ThenOnlyFirstIsAdopted()
+        {
+            // Arrange
+            var window1 = new TestWindow();
+            window1.Show();
+            var window2 = new TestWindow();
+            window2.Show();
+
+            // Act
+            _uiService.AdoptSceneWindow<TestWindow, TestViewModel>(window1);
+            _uiService.AdoptSceneWindow<TestWindow, TestViewModel>(window2);
+
+            // Assert
+            _uiService.Get<TestWindow>().Should().BeSameAs(window1);
+        }
+
+        [Test]
+        public void WhenAdoptSceneWindowThenOpen_ThenReturnsAdoptedWindowAndCallsShow()
+        {
+            // Arrange
+            var window = new TestWindow();
+            _uiService.AdoptSceneWindow<TestWindow, TestViewModel>(window);
+
+            // Act
+            var result = _uiService.Open<TestWindow, TestViewModel>();
+
+            // Assert
+            result.Should().BeSameAs(window);
+            window.ShowCallCount.Should().Be(1, "Open on an adopted (hidden) window must call Show");
+        }
+
+        [Test]
+        public void WhenAdoptSceneWindowAndViewModelRequestsClose_ThenWindowIsHiddenAndNotPooled()
+        {
+            // Arrange
+            var window = new TestWindow();
+            window.Show();
+            _uiService.AdoptSceneWindow<TestWindow, TestViewModel>(window);
+
+            // Act
+            window.GetViewModel().RequestClose();
+
+            // Assert
+            _uiService.IsOpen<TestWindow>().Should().BeFalse();
+            window.HideCallCount.Should().Be(1, "scene-owned window must be hidden, not returned to pool");
+            _mockWindowPool.DidNotReceive().Return(
+                Arg.Any<Type>(),
+                Arg.Any<IUIView>(),
+                Arg.Any<Action<IUIView>>());
+        }
+
+        [Test]
+        public void WhenAdoptSceneWindowThenClose_ThenOpenShowsSameWindowInstance()
+        {
+            // Arrange: adopt, then close (hides but keeps entry)
+            var window = new TestWindow();
+            window.Show();
+            _uiService.AdoptSceneWindow<TestWindow, TestViewModel>(window);
+            _uiService.Close<TestWindow>();
+            window.ShowCallCount = 0;
+
+            // Act: Open must find the existing adopted entry and show it, not load from prefab
+            var reopened = _uiService.Open<TestWindow, TestViewModel>();
+
+            // Assert
+            reopened.Should().BeSameAs(window, "Open must reuse the adopted scene window, not create a new one");
+            window.ShowCallCount.Should().Be(1, "Open must call Show on the retained scene window");
+            _mockWindowPool.DidNotReceive().Get<TestWindow>(typeof(TestWindow));
+        }
+
+        #endregion
     }
 }

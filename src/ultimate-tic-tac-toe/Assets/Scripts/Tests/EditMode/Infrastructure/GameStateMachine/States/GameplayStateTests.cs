@@ -10,6 +10,7 @@ using Runtime.Infrastructure.GameStateMachine;
 using Runtime.Infrastructure.GameStateMachine.States;
 using Runtime.Services.Assets;
 using Runtime.Services.UI;
+using Runtime.UI.Common;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using VContainer;
@@ -103,6 +104,21 @@ namespace Tests.EditMode.Infrastructure.GameStateMachine.States
 
             // Assert
             act.Should().NotThrow();
+        }
+
+        [Test]
+        public async Task WhenEnterAndBackgroundAlreadyOpen_ThenSkipsBackgroundLoading()
+        {
+            // Arrange: UIWindowBootstrapper already adopted the scene window before state enters
+            _uiServiceMock.IsOpen<UIBackgroundView>().Returns(true);
+
+            // Act
+            await _sut.EnterAsync(_cancellationToken);
+
+            // Assert
+            await _assetsMock.DidNotReceive()
+                .LoadAsync<GameObject>(_assetLibrary.BackgroundPrefab, Arg.Any<CancellationToken>());
+            _uiServiceMock.DidNotReceive().RegisterWindowPrefab<UIBackgroundView>(Arg.Any<GameObject>());
         }
     }
 }
