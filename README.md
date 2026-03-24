@@ -109,8 +109,8 @@ The project has ~290 test files split across two modes:
 
 | Mode | Files | Scope |
 |---|---|---|
-| **EditMode** | ~230 | Unit and integration tests — game rules, AI, FSM, services, ViewModels, localization, DI |
-| **PlayMode** | ~60 | Runtime tests — UI Toolkit views, Addressables loading, async flows, coordinator integration |
+| **EditMode** | ~230 files · **1587 tests** | Unit and integration tests — game rules, AI, FSM, services, ViewModels, localization, DI |
+| **PlayMode** | ~60 files · **268 tests** | Runtime tests — UI Toolkit views, Addressables loading, async flows, coordinator integration |
 
 **What is covered:**
 - Game rules and win conditions for all games (`ClassicRulesEngine`, `UltimateRulesEngine`, Battleship pipelines)
@@ -254,8 +254,8 @@ Assets/Scripts/Runtime/
 
 | Режим | Файлов | Область |
 |---|---|---|
-| **EditMode** | ~230 | Unit и интеграционные — правила игр, ИИ, FSM, сервисы, ViewModel, локализация, DI |
-| **PlayMode** | ~60 | Runtime — UI Toolkit, Addressables, async, интеграция координатора |
+| **EditMode** | ~230 файлов · **1587 тестов** | Unit и интеграционные — правила игр, ИИ, FSM, сервисы, ViewModel, локализация, DI |
+| **PlayMode** | ~60 файлов · **268 тестов** | Runtime — UI Toolkit, Addressables, async, интеграция координатора |
 
 **Что покрыто:**
 - Правила игр и условия победы (`ClassicRulesEngine`, `UltimateRulesEngine`, Battleship пайплайны)
