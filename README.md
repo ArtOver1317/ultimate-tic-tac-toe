@@ -15,7 +15,7 @@ Includes online multiplayer, AI opponents, and a scalable architecture designed 
 |---|---|---|
 | **Classic Tic-Tac-Toe** | ✅ Done | Configurable NxN board, local & online, AI bot, move timer |
 | **Ultimate Tic-Tac-Toe** | ✅ Done | 9 mini-boards (81 cells), strategic placement constraint, series scoring |
-| **Battleship** | 🚧 In Development | Placement phase + combat, turn timers, bot, online |
+| **Battleship** | ✅ Done | Placement phase + combat, turn timers, AI bot, online |
 
 More games (checkers, etc.) are planned — the architecture is built to support them.
 
@@ -72,6 +72,19 @@ Current MVP uses Client-Host; switching to a Dedicated Server requires no change
 `LocalGameService` and `NetworkGameService` share one interface.
 The UI and ViewModels don't know which one is active.
 
+**Command pattern + serialization.**
+Every player action is an `IGameCommand` object — a discrete, serializable unit of intent.
+Locally it is applied directly; over the network it is sent to the authority, validated, and then applied.
+This makes the networking layer a transport concern, completely separate from game rules.
+
+**FSM for match flow.**
+The lifecycle of each match (waiting → setup → active → finished) is managed by an explicit state machine.
+Transitions are triggered by ECS events, keeping state management predictable and testable.
+
+**Intent Queue.**
+Player input is buffered through an intent queue before commands are dispatched.
+This prevents race conditions when a player clicks faster than a network round-trip completes.
+
 ### Project Structure
 
 ```
@@ -122,7 +135,7 @@ To build WebGL: use `build.ps1` (Windows) or `build.sh` (Linux/macOS).
 |---|---|---|
 | **Classic Tic-Tac-Toe** | ✅ Готово | Настраиваемое NxN поле, локально и онлайн, бот, таймер хода |
 | **Ultimate Tic-Tac-Toe** | ✅ Готово | 9 мини-досок (81 клетка), ограничение на куда ходить, счёт серии |
-| **Морской бой** | 🚧 В разработке | Расстановка кораблей + бой, таймеры, бот, онлайн |
+| **Морской бой** | ✅ Готово | Расстановка кораблей + бой, таймеры, бот ИИ, онлайн |
 
 Планируются шашки и другие классические настолки — архитектура это поддерживает.
 
@@ -178,6 +191,19 @@ MVP: Client-Host; переход на Dedicated Server не требует пр�
 **`IGameService` с двумя реализациями.**
 `LocalGameService` и `NetworkGameService` — за одним интерфейсом.
 UI и ViewModel не знают, какая из них активна.
+
+**Command pattern + сериализация.**
+Каждое действие игрока — это объект `IGameCommand`: дискретная сериализуемая единица намерения.
+Локально применяется напрямую; по сети — отправляется authority, там валидируется и применяется.
+Сетевой слой становится транспортной деталью, полностью отделённой от правил игры.
+
+**FSM для хода матча.**
+Жизненный цикл матча (ожидание → настройка → игра → финал) управляется явной машиной состояний.
+Переходы инициируются ECS-событиями, что делает управление состоянием предсказуемым и тестируемым.
+
+**Intent Queue.**
+Ввод игрока буферизуется через очередь намерений до отправки команды.
+Это защищает от race condition, когда игрок кликает быстрее, чем приходит ответ по сети.
 
 ### Структура проекта
 
