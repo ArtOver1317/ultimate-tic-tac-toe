@@ -103,6 +103,31 @@ Assets/Scripts/Runtime/
 
 ---
 
+## Testing
+
+The project has ~290 test files split across two modes:
+
+| Mode | Files | Scope |
+|---|---|---|
+| **EditMode** | ~230 | Unit and integration tests — game rules, AI, FSM, services, ViewModels, localization, DI |
+| **PlayMode** | ~60 | Runtime tests — UI Toolkit views, Addressables loading, async flows, coordinator integration |
+
+**What is covered:**
+- Game rules and win conditions for all games (`ClassicRulesEngine`, `UltimateRulesEngine`, Battleship pipelines)
+- AI engines: Minimax, bot profiles, self-play calibration, difficulty metrics
+- Online flows: matchmaking FSM, session lifecycle, host-authoritative move processor, reconnect
+- Game Mode Wizard: coordinator, navigation, validation, all settings ViewModels
+- ECS gameplay pipeline: move flow, rejection, determinism, restart, round results
+- UI Service: pool manager, Addressables asset loading, lease management, concurrency
+- Localization service: resolve, observe, concurrency, preload, locale switching
+- Infrastructure: game state machine, save/migration/encryption, DI scope smoke test
+
+**Infrastructure:** Unity Test Framework + NSubstitute (mocks) + FluentAssertions.  
+**Naming convention:** `When{Condition}[And{Condition}]_Then{Result}` — consistent across all 290 files.  
+**Large test classes** are split into partial files by scenario (`GameplayStartupTests.cs` / `.Bot.cs` / `.Online.cs`).
+
+---
+
 ## Running Locally
 
 1. Install **Unity 6** (6000.3.x)
@@ -220,6 +245,31 @@ Assets/Scripts/Runtime/
 ├── Localization/       # CSV → JSON пайплайн, переключение языка
 └── Services/           # Профиль игрока, статистика, сессия
 ```
+
+---
+
+## Тесты
+
+~290 тестовых файлов в двух режимах:
+
+| Режим | Файлов | Область |
+|---|---|---|
+| **EditMode** | ~230 | Unit и интеграционные — правила игр, ИИ, FSM, сервисы, ViewModel, локализация, DI |
+| **PlayMode** | ~60 | Runtime — UI Toolkit, Addressables, async, интеграция координатора |
+
+**Что покрыто:**
+- Правила игр и условия победы (`ClassicRulesEngine`, `UltimateRulesEngine`, Battleship пайплайны)
+- ИИ: Minimax, профили ботов, self-play калибровка, метрики сложности
+- Онлайн: матчмейкинг FSM, жизненный цикл сессии, host-authoritative обработка ходов, реконнект
+- Визард создания матча: координатор, навигация, валидация, все ViewModel настроек
+- ECS gameplay пайплайн: ходы, отклонения, детерминизм, рестарт, результаты раундов
+- UI Service: пул, Addressables, lease-менеджмент, конкурентность
+- Локализация: resolve, observe, concurrency, preload, смена локали
+- Инфраструктура: машина состояний игры, сохранения/миграции/шифрование, DI smoke-тест
+
+**Инструменты:** Unity Test Framework + NSubstitute + FluentAssertions.  
+**Именование:** `When{Condition}[And{Condition}]_Then{Result}` — единый стиль во всех 290 файлах.  
+**Крупные тест-классы** разбиты на partial-файлы по сценариям (`GameplayStartupTests.cs` / `.Bot.cs` / `.Online.cs`).
 
 ---
 
