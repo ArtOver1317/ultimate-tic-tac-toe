@@ -21,7 +21,7 @@ namespace Runtime.Games.Battleship.UI.Board
         internal const string OpponentSunkClass = "battleship-opponent--sunk";
 
         private const string _missChar = "\u2022";
-        private const string _hitChar = "\u2715";
+        private const string _hitChar = "X";
 
         internal static (string text, string? cssClass) ResolveOpponentMark(BattleshipCellMark mark) =>
             mark switch

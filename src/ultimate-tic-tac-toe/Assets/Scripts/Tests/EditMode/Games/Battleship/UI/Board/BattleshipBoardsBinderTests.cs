@@ -65,9 +65,9 @@ namespace Tests.EditMode.Games.Battleship.UI.Board
 
             // Assert: opponent board
             ui.GetOpponentLabel(new CellId(0, 0)).text.Should().Be("•");
-            ui.GetOpponentLabel(new CellId(0, 1)).text.Should().Be("✕");
+            ui.GetOpponentLabel(new CellId(0, 1)).text.Should().Be("X");
             ui.GetOpponentCell(new CellId(0, 1)).ClassListContains("battleship-opponent--hit").Should().BeTrue();
-            ui.GetOpponentLabel(new CellId(0, 2)).text.Should().Be("✕");
+            ui.GetOpponentLabel(new CellId(0, 2)).text.Should().Be("X");
             ui.GetOpponentCell(new CellId(0, 2)).ClassListContains("battleship-opponent--sunk").Should().BeTrue();
             ui.GetOpponentLabel(new CellId(2, 2)).text.Should().BeEmpty();
 
@@ -77,9 +77,9 @@ namespace Tests.EditMode.Games.Battleship.UI.Board
             ui.GetOwnLabel(new CellId(0, 1)).text.Should().BeEmpty();
             ui.GetOwnCell(new CellId(0, 1)).ClassListContains("battleship-own--ship").Should().BeTrue();
             ui.GetOwnLabel(new CellId(1, 0)).text.Should().Be("•");
-            ui.GetOwnLabel(new CellId(1, 1)).text.Should().Be("✕");
+            ui.GetOwnLabel(new CellId(1, 1)).text.Should().Be("X");
             ui.GetOwnCell(new CellId(1, 1)).ClassListContains("battleship-own--hit").Should().BeTrue();
-            ui.GetOwnLabel(new CellId(1, 2)).text.Should().Be("✕");
+            ui.GetOwnLabel(new CellId(1, 2)).text.Should().Be("X");
             ui.GetOwnCell(new CellId(1, 2)).ClassListContains("battleship-own--sunk").Should().BeTrue();
 
             // Update snapshot and ensure event-driven refresh.
@@ -90,7 +90,7 @@ namespace Tests.EditMode.Games.Battleship.UI.Board
 
             ui.GetOpponentLabel(new CellId(0, 0)).text.Should().BeEmpty();
             ui.GetOpponentCell(new CellId(0, 0)).ClassListContains("battleship-opponent--hit").Should().BeFalse();
-            ui.GetOpponentLabel(new CellId(1, 5)).text.Should().Be("✕");
+            ui.GetOpponentLabel(new CellId(1, 5)).text.Should().Be("X");
             ui.GetOpponentCell(new CellId(1, 5)).ClassListContains("battleship-opponent--hit").Should().BeTrue();
             ui.GetOwnLabel(new CellId(9, 9)).text.Should().Be("•");
         }

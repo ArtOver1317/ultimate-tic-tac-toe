@@ -2,6 +2,7 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using R3;
+using UnityEngine;
 using Runtime.GameModes.Wizard.Coordinator;
 using Runtime.GameModes.Wizard.Online;
 using Runtime.Infrastructure.GameStateMachine;
