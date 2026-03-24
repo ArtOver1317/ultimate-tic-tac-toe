@@ -35,7 +35,7 @@ More games (checkers, etc.) are planned — the architecture is built to support
 | Async | [UniTask](https://github.com/Cysharp/UniTask) |
 | Tweening | [LitMotion](https://github.com/AnnulusGames/LitMotion) |
 | Assets | Unity Addressables |
-| Localization | Unity Localization (EN / RU / JA) |
+| Localization | Custom CSV → JSON pipeline (EN / RU / JA) |
 
 ---
 
@@ -180,7 +180,7 @@ To build WebGL: use `build.ps1` (Windows) or `build.sh` (Linux/macOS).
 | Async | [UniTask](https://github.com/Cysharp/UniTask) |
 | Анимации/тwyn | [LitMotion](https://github.com/AnnulusGames/LitMotion) |
 | Ассеты | Unity Addressables |
-| Локализация | Unity Localization (EN / RU / JA) |
+| Локализация | Кастомный CSV → JSON пайплайн (EN / RU / JA) |
 
 ---
 
